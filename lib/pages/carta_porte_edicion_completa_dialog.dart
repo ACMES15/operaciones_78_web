@@ -1,0 +1,263 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+
+class CartaPorteHistorialManager {
+  // Lista estática en memoria
+  static List<Map<String, dynamic>> historial = [];
+
+  // Cargar historial desde SharedPreferences
+  static Future<void> loadHistorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('historial_carta_porte');
+    if (raw != null) {
+      final List<dynamic> decoded = json.decode(raw);
+      historial = decoded
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+  }
+
+  // Guardar historial en SharedPreferences
+  static Future<void> saveHistorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('historial_carta_porte', json.encode(historial));
+  }
+
+  // Actualizar una carta en el historial (por índice)
+  static Future<void> updateCarta(
+      int idx, Map<String, dynamic> nuevaCarta) async {
+    if (idx >= 0 && idx < historial.length) {
+      historial[idx] = nuevaCarta;
+      await saveHistorial();
+    }
+  }
+
+  // Agregar una nueva carta
+  static Future<void> addCarta(Map<String, dynamic> carta) async {
+    historial.add(carta);
+    await saveHistorial();
+  }
+
+  // Eliminar una carta
+  static Future<void> removeCarta(int idx) async {
+    if (idx >= 0 && idx < historial.length) {
+      historial.removeAt(idx);
+      await saveHistorial();
+    }
+  }
+}
+
+class CartaPorteEdicionCompletaDialog extends StatelessWidget {
+  final Map<String, dynamic> carta;
+  final bool editable;
+  final void Function(Map<String, dynamic>)? onGuardar;
+  final VoidCallback? onImprimir;
+
+  const CartaPorteEdicionCompletaDialog({
+    super.key,
+    required this.carta,
+    required this.editable,
+    this.onGuardar,
+    this.onImprimir,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final destinoCtrl = TextEditingController(text: carta['DESTINO'] ?? '');
+    final choferCtrl = TextEditingController(text: carta['CHOFER'] ?? '');
+    final unidadCtrl = TextEditingController(text: carta['UNIDAD'] ?? '');
+    final rfcCtrl = TextEditingController(text: carta['RFC'] ?? '');
+    final concentradoCtrl =
+        TextEditingController(text: carta['CONCENTRADO'] ?? '');
+    final numeroControl = carta['NUMERO_CONTROL'] ?? '';
+
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('Editar Carta Porte',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                const Spacer(),
+                if (numeroControl != null &&
+                    numeroControl.toString().isNotEmpty)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB7E4C7),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Color(0xFF2D6A4F)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.confirmation_number,
+                            size: 18, color: Color(0xFF2D6A4F)),
+                        const SizedBox(width: 6),
+                        Text(
+                          numeroControl,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D6A4F),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Text('DESTINO:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 160,
+                  child: TextField(
+                    controller: destinoCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'Destino',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Text('CHOFER:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 140,
+                  child: TextField(
+                    controller: choferCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'Chofer',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text('UNIDAD:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 100,
+                  child: TextField(
+                    controller: unidadCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'Unidad',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text('RFC:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 130,
+                  child: TextField(
+                    controller: rfcCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'RFC',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Text('CONCENTRADO:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 160,
+                  child: TextField(
+                    controller: concentradoCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'Concentrado',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                if (editable)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: () {
+                      final nuevaCarta = {
+                        ...carta,
+                        'DESTINO': destinoCtrl.text.trim(),
+                        'CHOFER': choferCtrl.text.trim(),
+                        'UNIDAD': unidadCtrl.text.trim(),
+                        'RFC': rfcCtrl.text.trim(),
+                        'CONCENTRADO': concentradoCtrl.text.trim(),
+                      };
+                      if (onGuardar != null) onGuardar!(nuevaCarta);
+                    },
+                  ),
+                if (!editable)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.print),
+                    label: const Text('Imprimir'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: onImprimir,
+                  ),
+                const SizedBox(width: 16),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

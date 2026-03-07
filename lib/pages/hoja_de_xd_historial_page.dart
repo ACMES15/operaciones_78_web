@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../models/hoja_de_xd_historial.dart';
+import 'package:excel/excel.dart';
+import 'package:universal_html/html.dart' as html;
+
+class HojaDeXDHistorialPage extends StatefulWidget {
+  const HojaDeXDHistorialPage({super.key});
+
+  @override
+  State<HojaDeXDHistorialPage> createState() => _HojaDeXDHistorialPageState();
+}
+
+class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
+  Future<void> _exportarExcel() async {
+    final excel = Excel.createExcel();
+    final sheet = excel['HistorialXD'];
+    // Encabezados
+    final headers = ['Usuario', 'Fecha', 'Archivo', ..._getAllKeys()];
+    sheet.appendRow(headers);
+    for (final h in historial) {
+      final row = [h.usuario, h.fecha.toString(), h.fileName];
+      for (final k in headers.skip(3)) {
+        row.add(h.datos[k] ?? '');
+      }
+      sheet.appendRow(row);
+    }
+    final fileBytes = excel.encode()!;
+    final blob = html.Blob([fileBytes],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'historial_hoja_xd.xlsx')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  List<String> _getAllKeys() {
+    final keys = <String>{};
+    for (final h in historial) {
+      keys.addAll(h.datos.keys);
+    }
+    return keys.toList();
+  }
+
+  List<HojaDeXDHistorial> historial = [];
+  String filtro = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarHistorial();
+  }
+
+  Future<void> _cargarHistorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('hoja_de_xd_historial') ?? '[]';
+    final List<dynamic> list = jsonDecode(raw);
+    setState(() {
+      historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtroLower = filtro.toLowerCase();
+    final historialFiltrado = filtro.isEmpty
+        ? historial
+        : historial.where((h) {
+            return h.usuario.toLowerCase().contains(filtroLower) ||
+                h.datos['CONTENEDOR O TARIMA']
+                        ?.toLowerCase()
+                        .contains(filtroLower) ==
+                    true ||
+                h.datos['DESTINO']?.toLowerCase().contains(filtroLower) ==
+                    true ||
+                h.datos['SKU']?.toLowerCase().contains(filtroLower) == true ||
+                h.datos['FECHA']?.toLowerCase().contains(filtroLower) == true ||
+                h.datos['TU']?.toLowerCase().contains(filtroLower) == true;
+          }).toList();
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.assignment,
+                    color: Color(0xFF2D6A4F), size: 32),
+                const SizedBox(width: 10),
+                const Text(
+                  'Historial Hoja de XD',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 26,
+                    color: Color(0xFF2D6A4F),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.table_view),
+                  tooltip: 'Exportar a Excel',
+                  onPressed: _exportarExcel,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText:
+                    'Buscar por usuario, contenedor, TU, destino, SKU, fecha',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (v) => setState(() => filtro = v.trim()),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: historialFiltrado.length,
+              itemBuilder: (context, i) {
+                final h = historialFiltrado[i];
+                return Card(
+                  margin:
+                      const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  child: ListTile(
+                    title: Text('Usuario: ${h.usuario}'),
+                    subtitle: Text('Fecha: ${h.fecha}'),
+                    trailing: Text(h.fileName),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Detalle de registro'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Usuario: ${h.usuario}'),
+                                Text('Fecha: ${h.fecha}'),
+                                Text('Archivo: ${h.fileName}'),
+                                const SizedBox(height: 12),
+                                ...h.datos.entries
+                                    .map((e) => Text('${e.key}: ${e.value}')),
+                              ],
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
