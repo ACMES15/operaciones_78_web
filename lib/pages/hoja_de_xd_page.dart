@@ -12,6 +12,29 @@ class HojaDeXDPage extends StatefulWidget {
 }
 
 class _HojaDeXDPageState extends State<HojaDeXDPage> {
+  Future<void> agregarRegistroHistorialXD({
+    required String usuario,
+    required DateTime fecha,
+    required Map<String, String> datos,
+    required String fileName,
+  }) async {
+    // Leer historial actual
+    final data = await leerDatosConCache('hoja_de_xd_historial', 'main');
+    List<dynamic> list = [];
+    if (data != null && data['historial'] != null) {
+      list = List<dynamic>.from(data['historial']);
+    }
+    list.add({
+      'usuario': usuario,
+      'fecha': fecha.toIso8601String(),
+      'datos': datos,
+      'fileName': fileName,
+    });
+    await guardarDatosFirestoreYCache('hoja_de_xd_historial', 'main', {
+      'historial': list,
+    });
+  }
+
   bool _cargandoXD = false;
   String? _ultimoDocIdXD;
   // Controla si se descargó el Word para cada fila
@@ -311,13 +334,21 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                             data[_columns[i]] =
                                                 rowCtrls[i].text;
                                           }
-                                          final fecha =
+                                          final now = DateTime.now();
+                                          final fechaStr =
                                               DateFormat('yyyyMMdd_HHmmss')
-                                                  .format(DateTime.now());
+                                                  .format(now);
                                           final fileName =
-                                              'caratula_${rowCtrls[1].text}_$fecha.docx';
+                                              'caratula_${rowCtrls[1].text}_$fechaStr.docx';
                                           await WordExporter.exportCaratula(
                                               data, fileName);
+                                          // Guardar registro en historial XD (Firestore/cache)
+                                          await agregarRegistroHistorialXD(
+                                            usuario: _usuario,
+                                            fecha: now,
+                                            datos: data,
+                                            fileName: fileName,
+                                          );
                                           // Guardar la tabla completa en Firestore y caché
                                           await guardarTablaHojaXD();
                                           // Guardar el último docId usado para poder cargarlo después

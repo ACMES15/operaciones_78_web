@@ -1,27 +1,28 @@
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../utils/firebase_cache_utils.dart';
 import 'package:flutter/material.dart';
 
 class CartaPorteHistorialManager {
-  // Lista estática en memoria
   static List<Map<String, dynamic>> historial = [];
 
-  // Cargar historial desde SharedPreferences
+  static const String coleccion = 'historial_carta_porte';
+  static const String docId = 'main';
+
+  // Cargar historial desde Firestore/cache
   static Future<void> loadHistorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('historial_carta_porte');
-    if (raw != null) {
-      final List<dynamic> decoded = json.decode(raw);
+    final data = await leerDatosConCache(coleccion, docId);
+    if (data != null && data['items'] != null) {
+      final List<dynamic> decoded = data['items'];
       historial = decoded
           .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
           .toList();
+    } else {
+      historial = [];
     }
   }
 
-  // Guardar historial en SharedPreferences
+  // Guardar historial en Firestore/cache
   static Future<void> saveHistorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('historial_carta_porte', json.encode(historial));
+    await guardarDatosFirestoreYCache(coleccion, docId, {'items': historial});
   }
 
   // Actualizar una carta en el historial (por índice)

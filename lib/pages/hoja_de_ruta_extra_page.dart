@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../utils/firebase_cache_utils.dart';
 import 'hoja_de_ruta_enviadas_page.dart'; // Asegúrate de que este archivo existe y contiene HojaDeRutaEnviadasPage
 
 class HojaDeRutaExtraPage extends StatefulWidget {
@@ -8,29 +9,28 @@ class HojaDeRutaExtraPage extends StatefulWidget {
   static const String tiendasKey = 'tiendasCache';
   static const String proveedoresKey = 'proveedoresCache';
 
-  // Guardar tiendas y proveedores en localStorage
+  // Guardar tiendas y proveedores en Firestore y cache
   static Future<void> saveTiendasProveedoresCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tiendasStr = json.encode(tiendasCache);
-    final proveedoresStr = json.encode(proveedoresCache);
-    await prefs.setString(tiendasKey, tiendasStr);
-    await prefs.setString(proveedoresKey, proveedoresStr);
+    await guardarDatosFirestoreYCache(
+        'hoja_ruta', tiendasKey, {'items': tiendasCache});
+    await guardarDatosFirestoreYCache(
+        'hoja_ruta', proveedoresKey, {'items': proveedoresCache});
   }
 
-  // Cargar tiendas y proveedores de localStorage
+  // Cargar tiendas y proveedores de Firestore/cache
   static Future<void> loadTiendasProveedoresCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tiendasStr = prefs.getString(tiendasKey);
-    final proveedoresStr = prefs.getString(proveedoresKey);
-    if (tiendasStr != null) {
-      final List<dynamic> decoded = json.decode(tiendasStr);
-      tiendasCache =
-          decoded.map<List<String>>((e) => List<String>.from(e)).toList();
+    final tiendasData = await leerDatosConCache('hoja_ruta', tiendasKey);
+    if (tiendasData != null && tiendasData['items'] != null) {
+      tiendasCache = List<List<String>>.from(
+        (tiendasData['items'] as List).map((e) => List<String>.from(e)),
+      );
     }
-    if (proveedoresStr != null) {
-      final List<dynamic> decoded = json.decode(proveedoresStr);
-      proveedoresCache =
-          decoded.map<List<String>>((e) => List<String>.from(e)).toList();
+    final proveedoresData =
+        await leerDatosConCache('hoja_ruta', proveedoresKey);
+    if (proveedoresData != null && proveedoresData['items'] != null) {
+      proveedoresCache = List<List<String>>.from(
+        (proveedoresData['items'] as List).map((e) => List<String>.from(e)),
+      );
     }
   }
 
@@ -47,23 +47,20 @@ class HojaDeRutaExtraPage extends StatefulWidget {
   // Cada elemento: { 'origen':String, 'fecha':String, 'numeroControl':String, 'tipo':String, 'caja':String, 'rows': List<List<String>>, 'createdAt': String }
   static List<Map<String, dynamic>> sentHojaRutas = [];
 
-  // Cargar desde cache local
+  // Cargar desde Firestore/cache
   static Future<void> loadSentHojaRutasCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString('sentHojaRutas');
-    if (jsonStr != null) {
-      final List<dynamic> decoded = json.decode(jsonStr);
-      sentHojaRutas = decoded
-          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-          .toList();
+    final data = await leerDatosConCache('hoja_ruta', 'sentHojaRutas');
+    if (data != null && data['items'] != null) {
+      sentHojaRutas = List<Map<String, dynamic>>.from(
+        (data['items'] as List).map((e) => Map<String, dynamic>.from(e)),
+      );
     }
   }
 
-  // Guardar en cache local
+  // Guardar en Firestore/cache
   static Future<void> saveSentHojaRutasCache() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = json.encode(sentHojaRutas);
-    await prefs.setString('sentHojaRutas', jsonStr);
+    await guardarDatosFirestoreYCache(
+        'hoja_ruta', 'sentHojaRutas', {'items': sentHojaRutas});
   }
 
   @override
@@ -140,7 +137,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
     });
   }
 
-  void _guardarCambios() {
+  Future<void> _guardarCambios() async {
     // Guardar filas no vacías en caché estática
     HojaDeRutaExtraPage.tiendasCache = _tiendasControllers
         .map((r) => [r[0].text.trim(), r[1].text.trim()])
@@ -150,7 +147,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
         .map((r) => [r[0].text.trim(), r[1].text.trim()])
         .where((r) => r[0].isNotEmpty || r[1].isNotEmpty)
         .toList();
-    HojaDeRutaExtraPage.saveTiendasProveedoresCache();
+    await HojaDeRutaExtraPage.saveTiendasProveedoresCache();
 
     // Guardar la hoja actual en el almacenamiento de hojas enviadas
     final Map<String, dynamic> hoja = {
@@ -165,11 +162,11 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
       'createdAt': DateTime.now().toString(),
     };
     HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
-    HojaDeRutaExtraPage.saveSentHojaRutasCache();
+    await HojaDeRutaExtraPage.saveSentHojaRutasCache();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          content: Text('Datos guardados en caché'),
+          content: Text('Datos guardados en Firestore y caché'),
           duration: Duration(seconds: 2)),
     );
   }

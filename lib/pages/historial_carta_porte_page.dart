@@ -1,11 +1,8 @@
 import 'carta_porte_edicion_completa_dialog.dart';
 import 'carta_porte_edicion_completa_page.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import 'carta_porte_edicion_dialog.dart';
-import 'carta_porte_edicion_completa_dialog.dart';
 import '../utils/exportar_excel.dart';
+import '../utils/firebase_cache_utils.dart';
 
 class HistorialCartaPortePage extends StatefulWidget {
   const HistorialCartaPortePage({Key? key}) : super(key: key);
@@ -16,8 +13,7 @@ class HistorialCartaPortePage extends StatefulWidget {
 }
 
 class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
-  // Filtros
-  final Map<String, TextEditingController> _filtros = {};
+  // Filtros (no usado)
   List<Map<String, dynamic>> _filtrado = [];
   List<String> _camposDinamicos = [];
   final TextEditingController _busquedaController = TextEditingController();
@@ -309,9 +305,17 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                             setState(() {
                               _historial.removeAt(idx);
                             });
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString('historial_carta_porte',
-                                jsonEncode(_historial));
+                            // Guardar en Firestore y cache
+                            try {
+                              await guardarDatosFirestoreYCache(
+                                'historial_carta_porte',
+                                'datos',
+                                {'datos': _historial},
+                              );
+                            } catch (e) {
+                              print(
+                                  'Error guardando historial actualizado: $e');
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                   content: Text('Hoja eliminada.'),
@@ -413,9 +417,17 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                             setState(() {
                               _historial.removeAt(idx);
                             });
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString('historial_carta_porte',
-                                jsonEncode(_historial));
+                            // Guardar en Firestore y cache
+                            try {
+                              await guardarDatosFirestoreYCache(
+                                'historial_carta_porte',
+                                'datos',
+                                {'datos': _historial},
+                              );
+                            } catch (e) {
+                              print(
+                                  'Error guardando historial actualizado: $e');
+                            }
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                   content: Text('Hoja eliminada.'),

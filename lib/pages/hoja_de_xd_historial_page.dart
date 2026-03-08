@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import '../utils/firebase_cache_utils.dart';
 import '../models/hoja_de_xd_historial.dart';
 import 'package:excel/excel.dart';
 import 'package:universal_html/html.dart' as html;
@@ -13,6 +12,15 @@ class HojaDeXDHistorialPage extends StatefulWidget {
 }
 
 class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
+  /// Guarda el historial completo en Firestore y cache
+  /// (Esta función puede ser llamada desde otras páginas al agregar registros)
+  Future<void> _guardarHistorial() async {
+    final data = {
+      'historial': historial.map((e) => e.toJson()).toList(),
+    };
+    await guardarDatosFirestoreYCache('hoja_de_xd_historial', 'main', data);
+  }
+
   Future<void> _exportarExcel() async {
     final excel = Excel.createExcel();
     final sheet = excel['HistorialXD'];
@@ -30,7 +38,7 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
     final blob = html.Blob([fileBytes],
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
+    html.AnchorElement(href: url)
       ..setAttribute('download', 'historial_hoja_xd.xlsx')
       ..click();
     html.Url.revokeObjectUrl(url);
@@ -54,12 +62,18 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   }
 
   Future<void> _cargarHistorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString('hoja_de_xd_historial') ?? '[]';
-    final List<dynamic> list = jsonDecode(raw);
-    setState(() {
-      historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
-    });
+    // Leer historial desde Firestore/cache
+    final data = await leerDatosConCache('hoja_de_xd_historial', 'main');
+    if (data != null && data['historial'] != null) {
+      final List<dynamic> list = data['historial'];
+      setState(() {
+        historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
+      });
+    } else {
+      setState(() {
+        historial = [];
+      });
+    }
   }
 
   @override

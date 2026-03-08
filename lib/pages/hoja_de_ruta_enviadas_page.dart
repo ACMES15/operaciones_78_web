@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'hoja_de_ruta_extra_page.dart';
+import '../utils/firebase_cache_utils.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
@@ -315,106 +316,132 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sent = HojaDeRutaExtraPage.sentHojaRutas.reversed.toList();
     final searchController = TextEditingController();
-    List<Map<String, dynamic>> filtered = List.from(sent);
+    return FutureBuilder(
+      future: leerDatosConCache('hoja_ruta', 'sentHojaRutas'),
+      builder: (context, snapshot) {
+        List<Map<String, dynamic>> sent = [];
+        final data = snapshot.data;
+        if (snapshot.connectionState == ConnectionState.done &&
+            snapshot.hasData &&
+            data != null &&
+            data is Map &&
+            data['items'] != null) {
+          sent = List<Map<String, dynamic>>.from(
+            (data['items'] as List).map((e) => Map<String, dynamic>.from(e)),
+          ).reversed.toList();
+        }
+        List<Map<String, dynamic>> filtered = List.from(sent);
 
-    return StatefulBuilder(
-      builder: (context, setModalState) {
-        void filterSheets(String query) {
-          final q = query.toLowerCase();
-          filtered = sent.where((sheet) {
-            // Buscar en campos principales
-            bool match = (sheet['numeroControl']
-                        ?.toString()
-                        .toLowerCase()
-                        .contains(q) ??
-                    false) ||
-                (sheet['origen']?.toString().toLowerCase().contains(q) ??
-                    false) ||
-                (sheet['tipo']?.toString().toLowerCase().contains(q) ??
-                    false) ||
-                (sheet['caja']?.toString().toLowerCase().contains(q) ??
-                    false) ||
-                (sheet['fecha']?.toString().toLowerCase().contains(q) ?? false);
-            // Buscar en todos los datos de la tabla
-            if (!match && sheet['rows'] != null) {
-              for (final row in (sheet['rows'] as List)) {
-                for (final cell in (row as List)) {
-                  if (cell.toString().toLowerCase().contains(q)) {
-                    match = true;
-                    break;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            void filterSheets(String query) {
+              final q = query.toLowerCase();
+              filtered = sent.where((sheet) {
+                // Buscar en campos principales
+                bool match = (sheet['numeroControl']
+                            ?.toString()
+                            .toLowerCase()
+                            .contains(q) ??
+                        false) ||
+                    (sheet['origen']?.toString().toLowerCase().contains(q) ??
+                        false) ||
+                    (sheet['tipo']?.toString().toLowerCase().contains(q) ??
+                        false) ||
+                    (sheet['caja']?.toString().toLowerCase().contains(q) ??
+                        false) ||
+                    (sheet['fecha']?.toString().toLowerCase().contains(q) ??
+                        false);
+                // Buscar en todos los datos de la tabla
+                if (!match && sheet['rows'] != null) {
+                  for (final row in (sheet['rows'] as List)) {
+                    for (final cell in (row as List)) {
+                      if (cell.toString().toLowerCase().contains(q)) {
+                        match = true;
+                        break;
+                      }
+                    }
+                    if (match) break;
                   }
                 }
-                if (match) break;
-              }
+                return match;
+              }).toList();
+              setModalState(() {});
             }
-            return match;
-          }).toList();
-          setModalState(() {});
-        }
 
-        return Scaffold(
-          appBar: AppBar(
-              title: const Text('Hoja de ruta enviadas'),
-              backgroundColor: const Color.fromARGB(184, 69, 70, 69)),
-          body: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                TextField(
-                  controller: searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Buscar hoja de ruta',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: filterSheets,
+            return Scaffold(
+              appBar: AppBar(
+                  title: const Text('Hoja de ruta enviadas'),
+                  backgroundColor: const Color.fromARGB(184, 69, 70, 69)),
+              body: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: searchController,
+                      decoration: const InputDecoration(
+                        labelText: 'Buscar hoja de ruta',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: filterSheets,
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Text('No hay hojas de ruta enviadas'))
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (context, idx) {
+                                final sheet = filtered[idx];
+                                return Card(
+                                  child: ListTile(
+                                    title: Text('Hoja: ${sheet['createdAt']}'),
+                                    subtitle: Text(
+                                        'Fecha: ${sheet['fecha']}  •  No. Control: ${sheet['numeroControl']}'),
+                                    trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                              icon: const Icon(Icons.print),
+                                              onPressed: () =>
+                                                  _printSheet(sheet)),
+                                          IconButton(
+                                              icon:
+                                                  const Icon(Icons.visibility),
+                                              onPressed: () => _showSheetDetail(
+                                                  context, sheet)),
+                                          if (HojaDeRutaExtraPage.isAdmin)
+                                            IconButton(
+                                              icon: const Icon(Icons.delete,
+                                                  color: Colors.red),
+                                              tooltip: 'Eliminar',
+                                              onPressed: () async {
+                                                HojaDeRutaExtraPage
+                                                    .sentHojaRutas
+                                                    .remove(sheet);
+                                                await guardarDatosFirestoreYCache(
+                                                    'hoja_ruta',
+                                                    'sentHojaRutas', {
+                                                  'items': HojaDeRutaExtraPage
+                                                      .sentHojaRutas
+                                                });
+                                                filterSheets(
+                                                    searchController.text);
+                                              },
+                                            ),
+                                        ]),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: filtered.isEmpty
-                      ? const Center(
-                          child: Text('No hay hojas de ruta enviadas'))
-                      : ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (context, idx) {
-                            final sheet = filtered[idx];
-                            return Card(
-                              child: ListTile(
-                                title: Text('Hoja: ${sheet['createdAt']}'),
-                                subtitle: Text(
-                                    'Fecha: ${sheet['fecha']}  •  No. Control: ${sheet['numeroControl']}'),
-                                trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                          icon: const Icon(Icons.print),
-                                          onPressed: () => _printSheet(sheet)),
-                                      IconButton(
-                                          icon: const Icon(Icons.visibility),
-                                          onPressed: () =>
-                                              _showSheetDetail(context, sheet)),
-                                      if (HojaDeRutaExtraPage.isAdmin)
-                                        IconButton(
-                                          icon: const Icon(Icons.delete,
-                                              color: Colors.red),
-                                          tooltip: 'Eliminar',
-                                          onPressed: () {
-                                            HojaDeRutaExtraPage.sentHojaRutas
-                                                .remove(sheet);
-                                            filterSheets(searchController.text);
-                                          },
-                                        ),
-                                    ]),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

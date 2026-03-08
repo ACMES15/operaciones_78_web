@@ -32,34 +32,43 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
     _cargarDatos();
   }
 
-  void _guardarDatosLocales() {
-    try {
-      final encoded = datos.map((fila) => fila.join('|')).join('~');
-      html.window.localStorage[_storageKey] = encoded;
-    } catch (e) {
-      print('Error guardando datos locales: $e');
-    }
-  }
+  // void _guardarDatosLocales() {
+  //   try {
+  //     final encoded = datos.map((fila) => fila.join('|')).join('~');
+  //     html.window.localStorage[_storageKey] = encoded;
+  //   } catch (e) {
+  //     print('Error guardando datos locales: $e');
+  //   }
+  // }
 
   // Botón alternativo solo para web usando input HTML nativo
   Widget _botonImportarHtmlWeb() {
     return ElevatedButton(
-      onPressed: () {
+      onPressed: () async {
         final uploadInput = html.FileUploadInputElement();
         uploadInput.accept = '.xlsx';
         uploadInput.click();
-        uploadInput.onChange.listen((e) {
+        uploadInput.onChange.listen((e) async {
           final files = uploadInput.files;
           if (files != null && files.isNotEmpty) {
             final reader = html.FileReader();
             reader.readAsArrayBuffer(files[0]);
-            reader.onLoadEnd.listen((event) {
+            reader.onLoadEnd.listen((event) async {
               final bytes = reader.result as Uint8List;
               final nuevosDatos = _procesarExcelDirecto(bytes, columnas);
               setState(() {
                 datos = nuevosDatos;
               });
-              _guardarDatosLocales();
+              // Guardar en Firestore y cache
+              try {
+                await guardarDatosFirestoreYCache(
+                  'plantilla_ejecutiva',
+                  'datos',
+                  {'datos': nuevosDatos},
+                );
+              } catch (e) {
+                print('Error guardando en Firestore/cache: $e');
+              }
             });
           }
         });
