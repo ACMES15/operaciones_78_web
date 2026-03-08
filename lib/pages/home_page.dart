@@ -344,14 +344,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // Si no hay páginas permitidas, mostrar mensaje
-    if (_paginasPermitidas.isEmpty) {
-      return Scaffold(
-        body: Center(
-          child: Text('No tienes permisos para ver ninguna página.'),
-        ),
-      );
-    }
     // Método para detectar si es celular (no tablet)
     bool esCelular(BuildContext context) {
       final ancho = MediaQuery.of(context).size.width;
@@ -359,28 +351,12 @@ class _HomePageState extends State<HomePage> {
       return ancho < 600 && alto < 1000;
     }
 
-    // Obtención de historiales para móvil
-    // Hoja de XD historial
-    Future<List<dynamic>> cargarHistorialHojaXD() async {
-      final prefs = await SharedPreferences.getInstance();
-      final data = prefs.getString('historial_hoja_de_xd');
-      if (data != null) {
-        final List<dynamic> decoded = jsonDecode(data);
-        return decoded;
-      }
-      return [];
-    }
-
-    // Detectar si es móvil
     final esMovil = esCelular(context);
-
-    // Si es móvil, filtra las páginas permitidas solo a las de móvil
     List<int> paginasPermitidas = _paginasPermitidas;
     if (esMovil) {
       paginasPermitidas = _paginasPermitidas
           .where((i) => _paginasMovil.contains(_paginas[i]))
           .toList();
-      // Si no hay ninguna página móvil permitida, muestra mensaje
       if (paginasPermitidas.isEmpty) {
         return Scaffold(
           body: Center(
@@ -388,84 +364,13 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       }
-      // Si el índice seleccionado no está en las páginas móviles, selecciona la primera
       if (!paginasPermitidas.contains(_paginasPermitidas[_selectedIndex])) {
         _selectedIndex = _paginasPermitidas.indexOf(paginasPermitidas.first);
       }
     }
 
-    // Selección de página actual
     final pagina = _paginas[paginasPermitidas[_selectedIndex]];
 
-    // Si es móvil, muestra los widgets móviles para cada proceso
-    if (esMovil) {
-      if (pagina == 'Historial Hoja de XD') {
-        return FutureBuilder<List<dynamic>>(
-          future: cargarHistorialHojaXD(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return HistorialHojaDeXDPageMobile(historial: snapshot.data!);
-          },
-        );
-      }
-      if (pagina == 'Historial Entregas DevCan') {
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _cargarHistorialDevCan(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return HistorialEntregasDevCanPageMobile(
-              historial: snapshot.data!,
-              tipoUsuarioActual: _tipoUsuario,
-            );
-          },
-        );
-      }
-      if (pagina == 'Historial Entregas Recogidos') {
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _cargarHistorialRecogidos(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return HistorialEntregasRecogidosPageMobile(
-              historial: snapshot.data!,
-              tipoUsuarioActual: _tipoUsuario,
-            );
-          },
-        );
-      }
-      if (pagina == 'Historial Carta Porte') {
-        Future<List<dynamic>> cargarHistorialCartaPorte() async {
-          final prefs = await SharedPreferences.getInstance();
-          final data = prefs.getString('historial_carta_porte');
-          if (data != null) {
-            final List<dynamic> decoded = jsonDecode(data);
-            return decoded;
-          }
-          return [];
-        }
-
-        return FutureBuilder<List<dynamic>>(
-          future: cargarHistorialCartaPorte(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            return HistorialCartaPortePageMobile(historial: snapshot.data!);
-          },
-        );
-      }
-      if (pagina == 'DevCan') {
-        return DevCanPage();
-      }
-      if (pagina == 'Recogidos') {
-        return RecogidosPage();
-      }
-    }
     return Scaffold(
       body: Row(
         children: [
@@ -598,44 +503,19 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Builder(
               builder: (context) {
-                final pagina = _paginas[(esMovil
-                    ? paginasPermitidas
-                    : _paginasPermitidas)[_selectedIndex]];
-                if (!esMovil) {
-                  if (pagina == 'Hoja de XD') {
-                    return Navigator(
-                      onGenerateRoute: (settings) {
-                        return MaterialPageRoute(
-                          builder: (context) => HojaDeXDPage(),
-                          settings: RouteSettings(arguments: widget.usuario),
-                        );
-                      },
-                    );
-                  } else if (pagina == 'Carta Porte') {
-                    return const CartaPorteTable();
-                  } else if (pagina == 'Historial Carta Porte') {
-                    return HistorialCartaPortePage(key: UniqueKey());
-                  } else if (pagina == 'Historial Entregas DevCan') {
-                    // Cargar historial desde SharedPreferences
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _cargarHistorialDevCan(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        return HistorialEntregasDevCanPage(
-                          historial: snapshot.data!,
-                          tipoUsuarioActual: _tipoUsuario,
-                        );
-                      },
-                    );
-                  } else {
-                    return _pages[_paginasPermitidas[_selectedIndex]];
-                  }
-                } else {
-                  // Ya manejado arriba para móvil
+                // Si es móvil, mostrar el contenido móvil con manejo de historial vacío
+                if (esMovil) {
                   if (pagina == 'Historial Hoja de XD') {
+                    Future<List<dynamic>> cargarHistorialHojaXD() async {
+                      final prefs = await SharedPreferences.getInstance();
+                      final data = prefs.getString('historial_hoja_de_xd');
+                      if (data != null) {
+                        final List<dynamic> decoded = jsonDecode(data);
+                        return decoded;
+                      }
+                      return [];
+                    }
+
                     return FutureBuilder<List<dynamic>>(
                       future: cargarHistorialHojaXD(),
                       builder: (context, snapshot) {
@@ -643,8 +523,28 @@ class _HomePageState extends State<HomePage> {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
-                        return HistorialHojaDeXDPageMobile(
-                            historial: snapshot.data!);
+                        final datos = snapshot.data!;
+                        if (datos.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('No hay historial disponible.'),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('Regresar al menú'),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedIndex = 0;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return HistorialHojaDeXDPageMobile(historial: datos);
                       },
                     );
                   }
@@ -656,8 +556,29 @@ class _HomePageState extends State<HomePage> {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
+                        final datos = snapshot.data!;
+                        if (datos.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('No hay historial disponible.'),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('Regresar al menú'),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedIndex = 0;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                         return HistorialEntregasDevCanPageMobile(
-                          historial: snapshot.data!,
+                          historial: datos,
                           tipoUsuarioActual: _tipoUsuario,
                         );
                       },
@@ -671,8 +592,29 @@ class _HomePageState extends State<HomePage> {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
+                        final datos = snapshot.data!;
+                        if (datos.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('No hay historial disponible.'),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('Regresar al menú'),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedIndex = 0;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }
                         return HistorialEntregasRecogidosPageMobile(
-                          historial: snapshot.data!,
+                          historial: datos,
                           tipoUsuarioActual: _tipoUsuario,
                         );
                       },
@@ -696,8 +638,28 @@ class _HomePageState extends State<HomePage> {
                           return const Center(
                               child: CircularProgressIndicator());
                         }
-                        return HistorialCartaPortePageMobile(
-                            historial: snapshot.data!);
+                        final datos = snapshot.data!;
+                        if (datos.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('No hay historial disponible.'),
+                                const SizedBox(height: 24),
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.arrow_back),
+                                  label: const Text('Regresar al menú'),
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedIndex = 0;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        return HistorialCartaPortePageMobile(historial: datos);
                       },
                     );
                   }
@@ -709,6 +671,38 @@ class _HomePageState extends State<HomePage> {
                   }
                   // fallback
                   return Center(child: Text('Página no disponible.'));
+                }
+                // Desktop/tablet
+                final paginaDesktop =
+                    _paginas[_paginasPermitidas[_selectedIndex]];
+                if (paginaDesktop == 'Hoja de XD') {
+                  return Navigator(
+                    onGenerateRoute: (settings) {
+                      return MaterialPageRoute(
+                        builder: (context) => HojaDeXDPage(),
+                        settings: RouteSettings(arguments: widget.usuario),
+                      );
+                    },
+                  );
+                } else if (paginaDesktop == 'Carta Porte') {
+                  return const CartaPorteTable();
+                } else if (paginaDesktop == 'Historial Carta Porte') {
+                  return HistorialCartaPortePage(key: UniqueKey());
+                } else if (paginaDesktop == 'Historial Entregas DevCan') {
+                  return FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _cargarHistorialDevCan(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return HistorialEntregasDevCanPage(
+                        historial: snapshot.data!,
+                        tipoUsuarioActual: _tipoUsuario,
+                      );
+                    },
+                  );
+                } else {
+                  return _pages[_paginasPermitidas[_selectedIndex]];
                 }
               },
             ),
