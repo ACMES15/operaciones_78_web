@@ -523,42 +523,55 @@ class _HomePageState extends State<HomePage> {
                     );
                   }
 
-                  if (pagina == 'DevCan') return DevCanPage();
-                  if (pagina == 'Recogidos') return RecogidosPage();
-
-                  return Center(child: Text('Página no disponible.'));
-                }
-
-                // Desktop/tablet behavior
-                final paginaDesktop =
-                    _paginas[_paginasPermitidas[selectedMenuIndex]];
-                if (paginaDesktop == 'Hoja de XD') {
-                  return Navigator(
-                    onGenerateRoute: (settings) {
-                      return MaterialPageRoute(
-                        builder: (context) => HojaDeXDPage(),
-                        settings: RouteSettings(arguments: widget.usuario),
+                  if (pagina == 'DevCan') {
+                    // For mobile show a shortcut to the DevCan historial or the DevCan page
+                    final idx = paginasPermitidas.indexWhere(
+                        (i) => _paginas[i] == 'Historial Entregas DevCan');
+                    if (idx != -1) {
+                      return Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedIndex = idx;
+                            });
+                          },
+                          child: const Text('Ver Entregas DevCan'),
+                        ),
                       );
-                    },
-                  );
-                } else if (paginaDesktop == 'Carta Porte') {
-                  return const CartaPorteTable();
-                } else if (paginaDesktop == 'Historial Carta Porte') {
-                  return HistorialCartaPortePage(key: UniqueKey());
-                } else if (paginaDesktop == 'Historial Entregas DevCan') {
-                  return FutureBuilder<List<Map<String, dynamic>>>(
-                    future: _cargarHistorialDevCan(),
-                    builder: (context, snapshot) {
-                      if (!snapshot.hasData)
-                        return const Center(child: CircularProgressIndicator());
-                      return HistorialEntregasDevCanPage(
-                        historial: snapshot.data!,
-                        tipoUsuarioActual: _tipoUsuario,
-                      );
-                    },
-                  );
+                    } else {
+                      return DevCanPage();
+                    }
+                  } else if (pagina == 'Recogidos') {
+                    return RecogidosPage();
+                  } else if (pagina == 'Hoja de XD') {
+                    return HojaDeXDPage();
+                  } else if (pagina == 'Carta Porte') {
+                    return const CartaPorteTable();
+                  } else if (pagina == 'Historial Carta Porte') {
+                    return HistorialCartaPortePage(key: UniqueKey());
+                  } else if (pagina == 'Historial Entregas DevCan') {
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _cargarHistorialDevCan(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialEntregasDevCanPage(
+                          historial: snapshot.data!,
+                          tipoUsuarioActual: _tipoUsuario,
+                        );
+                      },
+                    );
+                  } else if (_pages.isNotEmpty &&
+                      _paginasPermitidas.isNotEmpty) {
+                    return _pages[_paginasPermitidas[selectedMenuIndex]];
+                  } else {
+                    return const Center(child: Text('Página no disponible'));
+                  }
                 } else {
-                  return _pages[_paginasPermitidas[selectedMenuIndex]];
+                  // Desktop/tablet: always return the selected page
+                  return _pages[paginasPermitidas[selectedMenuIndex]];
                 }
               },
             ),
