@@ -10,7 +10,9 @@ import 'historial_hoja_de_xd_mobile.dart';
 import 'historial_entregas_devcan_mobile.dart';
 import 'historial_entregas_recogidos_mobile.dart';
 import 'historial_carta_porte_mobile.dart';
-import 'login_page.dart';
+// import 'login_page.dart';
+import 'entregas_devcan_page.dart';
+import 'recogidos/entregas_recogidos_page.dart';
 import 'carta_porte_table.dart';
 import 'historial_carta_porte_page.dart';
 import 'plantilla_ejecutiva_page.dart';
@@ -28,7 +30,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _notificacionesPendientes = 0;
+  // int _notificacionesPendientes = 0;
   int _selectedIndex = 0;
   bool _menuExpandido = false;
   String _tipoUsuario = '';
@@ -108,10 +110,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _actualizarNotificaciones() async {
-    final notificaciones = await _getNotificaciones();
-    setState(() {
-      _notificacionesPendientes = notificaciones.length;
-    });
+    // final notificaciones = await _getNotificaciones();
+    // setState(() {
+    //   _notificacionesPendientes = notificaciones.length;
+    // });
   }
 
   Future<void> _determinarTipoUsuario() async {
@@ -524,25 +526,80 @@ class _HomePageState extends State<HomePage> {
                   }
 
                   if (pagina == 'DevCan') {
-                    // For mobile show a shortcut to the DevCan historial or the DevCan page
-                    final idx = paginasPermitidas.indexWhere(
-                        (i) => _paginas[i] == 'Historial Entregas DevCan');
-                    if (idx != -1) {
-                      return Center(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              _selectedIndex = idx;
-                            });
-                          },
-                          child: const Text('Ver Entregas DevCan'),
-                        ),
-                      );
-                    } else {
-                      return DevCanPage();
-                    }
+                    // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasDevCanPage)
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final data = prefs.getString('entregas_devcan') ?? '[]';
+                        final List<dynamic> lista = jsonDecode(data);
+                        return lista
+                            .map<Map<String, dynamic>>(
+                                (e) => Map<String, dynamic>.from(e))
+                            .toList();
+                      }(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final entregasRecientes = snapshot.data!;
+                        return Center(
+                          child: ElevatedButton(
+                            onPressed: entregasRecientes.isEmpty
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            EntregasDevCanPage(
+                                                entregasRecientes:
+                                                    entregasRecientes),
+                                      ),
+                                    );
+                                  },
+                            child: const Text('Ver Entregas DevCan'),
+                          ),
+                        );
+                      },
+                    );
                   } else if (pagina == 'Recogidos') {
-                    return RecogidosPage();
+                    // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasRecogidosPage)
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        final data =
+                            prefs.getString('entregas_recogidos') ?? '[]';
+                        final List<dynamic> lista = jsonDecode(data);
+                        return lista
+                            .map<Map<String, dynamic>>(
+                                (e) => Map<String, dynamic>.from(e))
+                            .toList();
+                      }(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        final entregasRecientes = snapshot.data!;
+                        return Center(
+                          child: ElevatedButton(
+                            onPressed: entregasRecientes.isEmpty
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            EntregasRecogidosPage(
+                                                entregasRecientes:
+                                                    entregasRecientes),
+                                      ),
+                                    );
+                                  },
+                            child: const Text('Ver Entregas Recogidos'),
+                          ),
+                        );
+                      },
+                    );
                   } else if (pagina == 'Hoja de XD') {
                     return HojaDeXDPage();
                   } else if (pagina == 'Carta Porte') {
