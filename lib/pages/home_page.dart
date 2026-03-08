@@ -6,6 +6,10 @@ import 'user_permissions_page.dart';
 import 'hoja_de_ruta_page.dart';
 import 'hoja_de_xd_page.dart';
 import 'hoja_de_xd_historial_page.dart';
+import 'historial_hoja_de_xd_mobile.dart';
+import 'historial_entregas_devcan_mobile.dart';
+import 'historial_entregas_recogidos_mobile.dart';
+import 'historial_carta_porte_mobile.dart';
 import 'login_page.dart';
 import 'carta_porte_table.dart';
 import 'historial_carta_porte_page.dart';
@@ -336,6 +340,131 @@ class _HomePageState extends State<HomePage> {
         body: Center(
           child: Text('No tienes permisos para ver ninguna página.'),
         ),
+      );
+    }
+    // Método para detectar si es celular (no tablet)
+    bool esCelular(BuildContext context) {
+      final ancho = MediaQuery.of(context).size.width;
+      final alto = MediaQuery.of(context).size.height;
+      return ancho < 600 && alto < 1000;
+    }
+
+    // Obtención de historiales para móvil
+    // Hoja de XD historial
+    Future<List<dynamic>> cargarHistorialHojaXD() async {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString('historial_hoja_de_xd');
+      if (data != null) {
+        final List<dynamic> decoded = jsonDecode(data);
+        return decoded;
+      }
+      return [];
+    }
+
+    // Detectar si es móvil
+    final esMovil = esCelular(context);
+
+    // Procesos solo para PC
+    final soloPC = [
+      'Control de usuarios',
+      'Permisos de usuario',
+      'Hoja de ruta',
+      'Hoja de XD',
+      'Historial Hoja de XD',
+      'Carta Porte',
+      'Historial Carta Porte',
+      'Plantilla Ejecutiva',
+    ];
+
+    // Selección de página actual
+    final pagina = _paginas[_paginasPermitidas[_selectedIndex]];
+
+    if (esMovil && soloPC.contains(pagina)) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.desktop_windows, size: 80, color: Colors.grey),
+              SizedBox(height: 24),
+              Text(
+                'Este proceso debe ser únicamente para PC',
+                style: TextStyle(
+                    fontSize: 22,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Si es historial de Hoja de XD y es móvil, muestra el widget móvil
+    if (pagina == 'Historial Hoja de XD' && esMovil) {
+      return FutureBuilder<List<dynamic>>(
+        future: cargarHistorialHojaXD(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return HistorialHojaDeXDPageMobile(historial: snapshot.data!);
+        },
+      );
+    }
+    // Si es historial de Entregas DevCan y es móvil
+    if (pagina == 'Historial Entregas DevCan' && esMovil) {
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: _cargarHistorialDevCan(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return HistorialEntregasDevCanPageMobile(
+            historial: snapshot.data!,
+            tipoUsuarioActual: _tipoUsuario,
+          );
+        },
+      );
+    }
+    // Si es historial de Entregas Recogidos y es móvil
+    if (pagina == 'Historial Entregas Recogidos' && esMovil) {
+      return FutureBuilder<List<Map<String, dynamic>>>(
+        future: _cargarHistorialRecogidos(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return HistorialEntregasRecogidosPageMobile(
+            historial: snapshot.data!,
+            tipoUsuarioActual: _tipoUsuario,
+          );
+        },
+      );
+    }
+    // Si es historial de Carta Porte y es móvil
+    if (pagina == 'Historial Carta Porte' && esMovil) {
+      // Suponiendo que tienes un método para cargar el historial de carta porte
+      Future<List<dynamic>> cargarHistorialCartaPorte() async {
+        final prefs = await SharedPreferences.getInstance();
+        final data = prefs.getString('historial_carta_porte');
+        if (data != null) {
+          final List<dynamic> decoded = jsonDecode(data);
+          return decoded;
+        }
+        return [];
+      }
+
+      return FutureBuilder<List<dynamic>>(
+        future: cargarHistorialCartaPorte(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return HistorialCartaPortePageMobile(historial: snapshot.data!);
+        },
       );
     }
     return Scaffold(
