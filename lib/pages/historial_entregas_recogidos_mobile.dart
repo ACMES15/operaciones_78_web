@@ -10,7 +10,22 @@ class HistorialEntregasRecogidosPageMobile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (historial.isEmpty) {
-      return Center(child: Text('No hay historial disponible.'));
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('No hay historial disponible.'),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Regresar al menú'),
+              onPressed: () {
+                Navigator.of(context).maybePop();
+              },
+            ),
+          ],
+        ),
+      );
     }
     return ListView.builder(
       itemCount: historial.length,
