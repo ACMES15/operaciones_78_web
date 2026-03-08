@@ -47,6 +47,16 @@ class _HomePageState extends State<HomePage> {
     'Recogidos',
     'Historial Entregas Recogidos',
   ];
+
+  // Páginas permitidas en móvil (solo historiales y DevCan/Recogidos)
+  final List<String> _paginasMovil = [
+    'Historial Hoja de XD',
+    'Historial Entregas DevCan',
+    'Historial Carta Porte',
+    'Historial Entregas Recogidos',
+    'DevCan',
+    'Recogidos',
+  ];
   List<int> _paginasPermitidas = [];
   List<Widget> get _pages => [
         BienvenidaPage(usuario: widget.usuario, tipoUsuario: _tipoUsuario),
@@ -364,108 +374,97 @@ class _HomePageState extends State<HomePage> {
     // Detectar si es móvil
     final esMovil = esCelular(context);
 
-    // Procesos solo para PC
-    final soloPC = [
-      'Control de usuarios',
-      'Permisos de usuario',
-      'Hoja de ruta',
-      'Hoja de XD',
-      'Historial Hoja de XD',
-      'Carta Porte',
-      'Historial Carta Porte',
-      'Plantilla Ejecutiva',
-    ];
+    // Si es móvil, filtra las páginas permitidas solo a las de móvil
+    List<int> paginasPermitidas = _paginasPermitidas;
+    if (esMovil) {
+      paginasPermitidas = _paginasPermitidas
+          .where((i) => _paginasMovil.contains(_paginas[i]))
+          .toList();
+      // Si no hay ninguna página móvil permitida, muestra mensaje
+      if (paginasPermitidas.isEmpty) {
+        return Scaffold(
+          body: Center(
+            child: Text('No tienes permisos para ver ninguna página en móvil.'),
+          ),
+        );
+      }
+      // Si el índice seleccionado no está en las páginas móviles, selecciona la primera
+      if (!paginasPermitidas.contains(_paginasPermitidas[_selectedIndex])) {
+        _selectedIndex = _paginasPermitidas.indexOf(paginasPermitidas.first);
+      }
+    }
 
     // Selección de página actual
-    final pagina = _paginas[_paginasPermitidas[_selectedIndex]];
+    final pagina = _paginas[paginasPermitidas[_selectedIndex]];
 
-    if (esMovil && soloPC.contains(pagina)) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.desktop_windows, size: 80, color: Colors.grey),
-              SizedBox(height: 24),
-              Text(
-                'Este proceso debe ser únicamente para PC',
-                style: TextStyle(
-                    fontSize: 22,
-                    color: Colors.grey[700],
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Si es historial de Hoja de XD y es móvil, muestra el widget móvil
-    if (pagina == 'Historial Hoja de XD' && esMovil) {
-      return FutureBuilder<List<dynamic>>(
-        future: cargarHistorialHojaXD(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return HistorialHojaDeXDPageMobile(historial: snapshot.data!);
-        },
-      );
-    }
-    // Si es historial de Entregas DevCan y es móvil
-    if (pagina == 'Historial Entregas DevCan' && esMovil) {
-      return FutureBuilder<List<Map<String, dynamic>>>(
-        future: _cargarHistorialDevCan(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return HistorialEntregasDevCanPageMobile(
-            historial: snapshot.data!,
-            tipoUsuarioActual: _tipoUsuario,
-          );
-        },
-      );
-    }
-    // Si es historial de Entregas Recogidos y es móvil
-    if (pagina == 'Historial Entregas Recogidos' && esMovil) {
-      return FutureBuilder<List<Map<String, dynamic>>>(
-        future: _cargarHistorialRecogidos(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return HistorialEntregasRecogidosPageMobile(
-            historial: snapshot.data!,
-            tipoUsuarioActual: _tipoUsuario,
-          );
-        },
-      );
-    }
-    // Si es historial de Carta Porte y es móvil
-    if (pagina == 'Historial Carta Porte' && esMovil) {
-      // Suponiendo que tienes un método para cargar el historial de carta porte
-      Future<List<dynamic>> cargarHistorialCartaPorte() async {
-        final prefs = await SharedPreferences.getInstance();
-        final data = prefs.getString('historial_carta_porte');
-        if (data != null) {
-          final List<dynamic> decoded = jsonDecode(data);
-          return decoded;
-        }
-        return [];
+    // Si es móvil, muestra los widgets móviles para cada proceso
+    if (esMovil) {
+      if (pagina == 'Historial Hoja de XD') {
+        return FutureBuilder<List<dynamic>>(
+          future: cargarHistorialHojaXD(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return HistorialHojaDeXDPageMobile(historial: snapshot.data!);
+          },
+        );
       }
-
-      return FutureBuilder<List<dynamic>>(
-        future: cargarHistorialCartaPorte(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
+      if (pagina == 'Historial Entregas DevCan') {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _cargarHistorialDevCan(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return HistorialEntregasDevCanPageMobile(
+              historial: snapshot.data!,
+              tipoUsuarioActual: _tipoUsuario,
+            );
+          },
+        );
+      }
+      if (pagina == 'Historial Entregas Recogidos') {
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _cargarHistorialRecogidos(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return HistorialEntregasRecogidosPageMobile(
+              historial: snapshot.data!,
+              tipoUsuarioActual: _tipoUsuario,
+            );
+          },
+        );
+      }
+      if (pagina == 'Historial Carta Porte') {
+        Future<List<dynamic>> cargarHistorialCartaPorte() async {
+          final prefs = await SharedPreferences.getInstance();
+          final data = prefs.getString('historial_carta_porte');
+          if (data != null) {
+            final List<dynamic> decoded = jsonDecode(data);
+            return decoded;
           }
-          return HistorialCartaPortePageMobile(historial: snapshot.data!);
-        },
-      );
+          return [];
+        }
+
+        return FutureBuilder<List<dynamic>>(
+          future: cargarHistorialCartaPorte(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return HistorialCartaPortePageMobile(historial: snapshot.data!);
+          },
+        );
+      }
+      if (pagina == 'DevCan') {
+        return DevCanPage();
+      }
+      if (pagina == 'Recogidos') {
+        return RecogidosPage();
+      }
     }
     return Scaffold(
       body: Row(
@@ -516,7 +515,9 @@ class _HomePageState extends State<HomePage> {
                             unselectedLabelTextStyle:
                                 const TextStyle(color: Colors.white70),
                             destinations: [
-                              for (final i in _paginasPermitidas)
+                              for (final i in (esMovil
+                                  ? paginasPermitidas
+                                  : _paginasPermitidas))
                                 NavigationRailDestination(
                                   icon: Tooltip(
                                     message: _paginas[i],
@@ -595,187 +596,121 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  color: const Color(0xFF2D6A4F),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 8, horizontal: 24),
-                  child: Row(
-                    children: [
-                      Text(
-                        _paginas[_paginasPermitidas[_selectedIndex]],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black87,
-                              offset: Offset(2, 2),
-                              blurRadius: 6,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      if (_tipoUsuario == 'ADMINISTRATIVO' ||
-                          _tipoUsuario == 'ADMIN OMNICANAL' ||
-                          _tipoUsuario == 'ADMIN ENVIOS' ||
-                          _tipoUsuario == 'SUPERADMIN' ||
-                          widget.usuario == 'acmes15')
-                        Stack(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.notifications,
-                                  color: Colors.amber, size: 28),
-                              tooltip: 'Ver solicitudes de restablecimiento',
-                              onPressed: _mostrarNotificaciones,
-                            ),
-                            if (_notificacionesPendientes > 0)
-                              Positioned(
-                                right: 4,
-                                top: 4,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '$_notificacionesPendientes',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.25),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.person,
-                                    color: Colors.white, size: 18),
-                                const SizedBox(width: 6),
-                                Text(
-                                  widget.usuario,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black87,
-                                        offset: Offset(1, 1),
-                                        blurRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                const Icon(Icons.access_time,
-                                    color: Colors.white, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  _fechaHoraActual(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w400,
-                                    shadows: [
-                                      Shadow(
-                                        color: Colors.black87,
-                                        offset: Offset(1, 1),
-                                        blurRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          elevation: 4,
-                        ),
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Cerrar sesión',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => const LoginPage(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Builder(
-                    builder: (context) {
-                      final pagina =
-                          _paginas[_paginasPermitidas[_selectedIndex]];
-                      if (pagina == 'Hoja de XD') {
-                        return Navigator(
-                          onGenerateRoute: (settings) {
-                            return MaterialPageRoute(
-                              builder: (context) => HojaDeXDPage(),
-                              settings:
-                                  RouteSettings(arguments: widget.usuario),
-                            );
-                          },
+            child: Builder(
+              builder: (context) {
+                final pagina = _paginas[(esMovil
+                    ? paginasPermitidas
+                    : _paginasPermitidas)[_selectedIndex]];
+                if (!esMovil) {
+                  if (pagina == 'Hoja de XD') {
+                    return Navigator(
+                      onGenerateRoute: (settings) {
+                        return MaterialPageRoute(
+                          builder: (context) => HojaDeXDPage(),
+                          settings: RouteSettings(arguments: widget.usuario),
                         );
-                      } else if (pagina == 'Carta Porte') {
-                        return const CartaPorteTable();
-                      } else if (pagina == 'Historial Carta Porte') {
-                        return HistorialCartaPortePage(key: UniqueKey());
-                      } else if (pagina == 'Historial Entregas DevCan') {
-                        // Cargar historial desde SharedPreferences
-                        return FutureBuilder<List<Map<String, dynamic>>>(
-                          future: _cargarHistorialDevCan(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) {
-                              return const Center(
-                                  child: CircularProgressIndicator());
-                            }
-                            return HistorialEntregasDevCanPage(
-                              historial: snapshot.data!,
-                              tipoUsuarioActual: _tipoUsuario,
-                            );
-                          },
+                      },
+                    );
+                  } else if (pagina == 'Carta Porte') {
+                    return const CartaPorteTable();
+                  } else if (pagina == 'Historial Carta Porte') {
+                    return HistorialCartaPortePage(key: UniqueKey());
+                  } else if (pagina == 'Historial Entregas DevCan') {
+                    // Cargar historial desde SharedPreferences
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _cargarHistorialDevCan(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialEntregasDevCanPage(
+                          historial: snapshot.data!,
+                          tipoUsuarioActual: _tipoUsuario,
                         );
-                      } else {
-                        return _pages[_paginasPermitidas[_selectedIndex]];
+                      },
+                    );
+                  } else {
+                    return _pages[_paginasPermitidas[_selectedIndex]];
+                  }
+                } else {
+                  // Ya manejado arriba para móvil
+                  if (pagina == 'Historial Hoja de XD') {
+                    return FutureBuilder<List<dynamic>>(
+                      future: cargarHistorialHojaXD(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialHojaDeXDPageMobile(
+                            historial: snapshot.data!);
+                      },
+                    );
+                  }
+                  if (pagina == 'Historial Entregas DevCan') {
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _cargarHistorialDevCan(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialEntregasDevCanPageMobile(
+                          historial: snapshot.data!,
+                          tipoUsuarioActual: _tipoUsuario,
+                        );
+                      },
+                    );
+                  }
+                  if (pagina == 'Historial Entregas Recogidos') {
+                    return FutureBuilder<List<Map<String, dynamic>>>(
+                      future: _cargarHistorialRecogidos(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialEntregasRecogidosPageMobile(
+                          historial: snapshot.data!,
+                          tipoUsuarioActual: _tipoUsuario,
+                        );
+                      },
+                    );
+                  }
+                  if (pagina == 'Historial Carta Porte') {
+                    Future<List<dynamic>> cargarHistorialCartaPorte() async {
+                      final prefs = await SharedPreferences.getInstance();
+                      final data = prefs.getString('historial_carta_porte');
+                      if (data != null) {
+                        final List<dynamic> decoded = jsonDecode(data);
+                        return decoded;
                       }
-                    },
-                  ),
-                ),
-              ],
+                      return [];
+                    }
+
+                    return FutureBuilder<List<dynamic>>(
+                      future: cargarHistorialCartaPorte(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+                        return HistorialCartaPortePageMobile(
+                            historial: snapshot.data!);
+                      },
+                    );
+                  }
+                  if (pagina == 'DevCan') {
+                    return DevCanPage();
+                  }
+                  if (pagina == 'Recogidos') {
+                    return RecogidosPage();
+                  }
+                  // fallback
+                  return Center(child: Text('Página no disponible.'));
+                }
+              },
             ),
           ),
         ],
