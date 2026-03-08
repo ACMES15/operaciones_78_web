@@ -110,11 +110,31 @@ class _HomePageState extends State<HomePage> {
         orElse: () => null,
       );
       if (usuario != null) {
+        final tipo = usuario['tipo'] ?? '';
+        List<int> permitidas = [];
+        if (tipo == 'SUPERADMIN') {
+          permitidas = List.generate(_paginas.length, (i) => i);
+        } else {
+          // Leer permisos personalizados
+          final permisosData = prefs.getString('permisos_tipo_usuario');
+          if (permisosData != null) {
+            final permisos = jsonDecode(permisosData) as Map<String, dynamic>;
+            final permisosTipo = permisos[tipo] as Map<String, dynamic>?;
+            if (permisosTipo != null) {
+              for (int i = 0; i < _paginas.length; i++) {
+                final nombrePagina = _paginas[i];
+                if (permisosTipo[nombrePagina] == true) {
+                  permitidas.add(i);
+                }
+              }
+            }
+          }
+          // Si no hay permisos configurados, solo Inicio
+          if (permitidas.isEmpty) permitidas = [0];
+        }
         setState(() {
-          _tipoUsuario = usuario['tipo'] ?? '';
-          // Aquí puedes definir la lógica de permisos según el tipo de usuario
-          // Por ahora, permitimos todas las páginas:
-          _paginasPermitidas = List.generate(_paginas.length, (i) => i);
+          _tipoUsuario = tipo;
+          _paginasPermitidas = permitidas;
         });
       }
     }

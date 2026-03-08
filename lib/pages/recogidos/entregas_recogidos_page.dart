@@ -401,16 +401,131 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                               fontSize: isMobile ? 16 : 20,
                               color: Colors.white)),
                       onPressed: () async {
-                        // Aquí iría la lógica de firmado, igual que en DevCan
-                        // Debes copiar la lógica de firmado y guardado en historial de entregas_devcan_page.dart
-                        // y adaptarla para Recogidos, usando la clave 'historial_entregas_recogidos'.
-                        // Puedes reutilizar el mismo flujo de firmas, validaciones y guardado.
-                        // ...
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Funcionalidad de firmado pendiente de implementar.')),
+                        // Validar que ningún LP seleccionado ya esté firmado
+                        final lpsSeleccionadas = _seleccionados
+                            .map((idx) => _resultados[idx]['LP']?.toString())
+                            .toSet();
+                        final lpsYaFirmadas =
+                            lpsSeleccionadas.intersection(_lpsFirmadas);
+                        if (lpsYaFirmadas.isNotEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'Al menos un LP seleccionado ya fue firmado. Actualiza la lista.')),
+                          );
+                          setState(() {
+                            _seleccionados.removeWhere((idx) => _lpsFirmadas
+                                .contains(_resultados[idx]['LP']?.toString()));
+                          });
+                          return;
+                        }
+                        final nombreController = TextEditingController();
+                        final signatureController = SignatureController(
+                          penStrokeWidth: 3,
+                          penColor: Colors.black,
+                          exportBackgroundColor: Colors.white,
                         );
+                        await showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (ctx) => AlertDialog(
+                            title: Text('Firmar entregas',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2D6A4F),
+                                    fontSize: isMobile ? 18 : 22)),
+                            content: SizedBox(
+                              width: isMobile ? double.infinity : 400,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    TextField(
+                                      controller: nombreController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Nombre de quien recibe',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text('Firma:',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF2D6A4F))),
+                                    Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[200],
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: Color(0xFF2D6A4F)),
+                                      ),
+                                      width: double.infinity,
+                                      height: isMobile ? 100 : 140,
+                                      child: Signature(
+                                        controller: signatureController,
+                                        backgroundColor: Colors.white,
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        onPressed: () =>
+                                            signatureController.clear(),
+                                        icon: const Icon(
+                                            Icons.cleaning_services_outlined),
+                                        label: const Text('Limpiar firma'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () async {
+                                  final firmaBytes =
+                                      await signatureController.toPngBytes();
+                                  List<Map<String, dynamic>> firmadas = [];
+                                  setState(() {
+                                    for (var idx in _seleccionados) {
+                                      final entrega = _resultados[idx];
+                                      final registro = {
+                                        ...entrega,
+                                        'nombreRecibe': nombreController.text,
+                                        'firma': firmaBytes != null
+                                            ? base64Encode(firmaBytes)
+                                            : null,
+                                        'fechaFirma':
+                                            DateTime.now().toIso8601String(),
+                                      };
+                                      firmadas.add(registro);
+                                    }
+                                    _seleccionados.clear();
+                                  });
+                                  await _agregarAlHistorial(firmadas);
+                                  // Refrescar lista de entregas no firmadas
+                                  final lpsFirmadas = _lpsFirmadas;
+                                  setState(() {
+                                    _resultados = widget.entregasRecientes
+                                        .where((e) => !lpsFirmadas
+                                            .contains(e['LP']?.toString()))
+                                        .toList();
+                                  });
+                                  Navigator.of(ctx).pop();
+                                },
+                                child: const Text('Guardar'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancelar'),
+                              ),
+                            ],
+                          ),
+                        );
+                        signatureController.dispose();
                       },
                     ),
                   ),
