@@ -2,7 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:signature/signature.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/firebase_cache_utils.dart';
 
 class EntregasDevCanPage extends StatefulWidget {
   final List<Map<String, dynamic>> entregasRecientes;
@@ -30,10 +31,10 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   }
 
   Future<void> _cargarHistorialFirmadas() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('historial_entregas_devcan');
-    if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
+    final datos =
+        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> decoded = datos['items'];
       setState(() {
         _historialFirmadas = decoded
             .cast<Map<String, dynamic>>()
@@ -55,10 +56,12 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
 
   Future<void> _agregarAlHistorial(
       List<Map<String, dynamic>> nuevasFirmadas) async {
-    final prefs = await SharedPreferences.getInstance();
     _historialFirmadas.addAll(nuevasFirmadas);
-    await prefs.setString(
-        'historial_entregas_devcan', jsonEncode(_historialFirmadas));
+    await guardarDatosFirestoreYCache(
+      'historial_entregas',
+      'devcan_firmadas',
+      {'items': _historialFirmadas},
+    );
     setState(() {});
   }
 

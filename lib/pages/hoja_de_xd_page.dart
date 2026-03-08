@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../utils/word_exporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/hoja_de_xd_historial.dart';
-import 'dart:convert';
+import '../utils/firebase_cache_utils.dart';
 
 class HojaDeXDPage extends StatefulWidget {
   const HojaDeXDPage({super.key});
@@ -13,25 +12,30 @@ class HojaDeXDPage extends StatefulWidget {
 }
 
 class _HojaDeXDPageState extends State<HojaDeXDPage> {
+  bool _cargandoXD = false;
+  String? _ultimoDocIdXD;
   // Controla si se descargó el Word para cada fila
   final Set<int> _filasExportadas = {};
-  Future<void> _guardarHistorialXD(
-      Map<String, String> data, String fileName) async {
-    final prefs = await SharedPreferences.getInstance();
-    final usuario = _usuario;
-    final fecha = DateTime.now();
-    final registro = HojaDeXDHistorial(
-      usuario: usuario,
-      fecha: fecha,
-      datos: data,
-      fileName: fileName,
-    );
-    final historialRaw = prefs.getString('hoja_de_xd_historial') ?? '[]';
-    final List<dynamic> historial = historialRaw.isNotEmpty
-        ? List<dynamic>.from(jsonDecode(historialRaw))
-        : [];
-    historial.insert(0, registro.toJson());
-    await prefs.setString('hoja_de_xd_historial', jsonEncode(historial));
+
+  /// Guarda la tabla completa de Hoja de XD en Firestore y caché local
+  Future<void> guardarTablaHojaXD() async {
+    final sheet = <String, dynamic>{
+      'usuario': _usuario,
+      'fecha': DateTime.now().toIso8601String(),
+      'headers': _columns,
+      'rows': _controllers
+          .map((r) => r.map((c) => c.text.trim()).toList())
+          .toList(),
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    // Usar el usuario y la fecha como ID único (puedes ajustar esto según tu lógica)
+    final docId = '${_usuario}_${DateTime.now().millisecondsSinceEpoch}';
+    await guardarDatosFirestoreYCache('hojas_xd', docId, sheet);
+  }
+
+  /// Lee la tabla de Hoja de XD desde caché o Firestore
+  Future<Map<String, dynamic>?> leerTablaHojaXD(String docId) async {
+    return await leerDatosConCache('hojas_xd', docId);
   }
 
   final List<String> _columns = [
@@ -51,11 +55,12 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
   String _usuario = '';
 
   bool _initialized = false;
+  // bool _cargandoXD = false;
+  // String? _ultimoDocIdXD;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Obtener el usuario (login) desde el widget padre si está disponible
     final modalRoute = ModalRoute.of(context);
     String nuevoUsuario;
     if (modalRoute != null && modalRoute.settings.arguments is String) {
@@ -65,18 +70,53 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
     }
     if (_usuario != nuevoUsuario) {
       _usuario = nuevoUsuario;
-      // Actualizar todas las filas existentes con el nuevo usuario
       for (var row in _controllers) {
         row[1].text = _usuario;
       }
     }
     // Inicializar filas solo una vez
     if (!_initialized) {
+      _cargarUltimaHojaXD();
+      _initialized = true;
+    }
+  }
+
+  /// Carga la última hoja de XD guardada (si existe) desde caché o Firestore
+  Future<void> _cargarUltimaHojaXD() async {
+    setState(() {
+      _cargandoXD = true;
+    });
+    // Aquí podrías guardar el último docId en SharedPreferences para saber cuál cargar
+    final prefs = await SharedPreferences.getInstance();
+    final lastDocId = prefs.getString('hoja_xd_last_docId');
+    if (lastDocId != null) {
+      final data = await leerTablaHojaXD(lastDocId);
+      if (data != null && data['rows'] != null && data['headers'] != null) {
+        final List headers = data['headers'];
+        final List rows = data['rows'];
+        _controllers = rows
+            .map<List<TextEditingController>>((row) => List.generate(
+                headers.length,
+                (i) => TextEditingController(text: row[i]?.toString() ?? '')))
+            .toList();
+      } else {
+        // Si no hay datos, inicializar vacío
+        _controllers = [];
+        for (int i = 0; i < 5; i++) {
+          _addRow();
+        }
+      }
+      _ultimoDocIdXD = lastDocId;
+    } else {
+      // Si no hay docId, inicializar vacío
+      _controllers = [];
       for (int i = 0; i < 5; i++) {
         _addRow();
       }
-      _initialized = true;
     }
+    setState(() {
+      _cargandoXD = false;
+    });
   }
 
   @override
@@ -278,10 +318,18 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                               'caratula_${rowCtrls[1].text}_$fecha.docx';
                                           await WordExporter.exportCaratula(
                                               data, fileName);
-                                          await _guardarHistorialXD(
-                                              data, fileName);
+                                          // Guardar la tabla completa en Firestore y caché
+                                          await guardarTablaHojaXD();
+                                          // Guardar el último docId usado para poder cargarlo después
+                                          final prefs = await SharedPreferences
+                                              .getInstance();
+                                          final docId =
+                                              '${_usuario}_${DateTime.now().millisecondsSinceEpoch}';
+                                          await prefs.setString(
+                                              'hoja_xd_last_docId', docId);
                                           setState(() {
                                             _filasExportadas.add(rowIdx);
+                                            _ultimoDocIdXD = docId;
                                           });
                                         },
                                       ),

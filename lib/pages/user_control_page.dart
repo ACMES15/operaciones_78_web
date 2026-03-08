@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/firebase_cache_utils.dart';
 import 'dart:convert';
 import '../dialogs/dialog_agregar_usuario.dart';
 import '../dialogs/dialog_agregar_masivo.dart';
@@ -56,46 +57,30 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
   // ...existing code...
 
   Future<void> _cargarUsuarios() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('usuarios_guardados');
-    if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
-      setState(() {
-        usuarios = decoded
-            .cast<Map<String, dynamic>>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-        final existeAcmes = usuarios.any((u) => u['usuario'] == 'acmes15');
-        if (!existeAcmes) {
-          usuarios.add({
-            'nombre': 'Administrador General',
-            'usuario': 'acmes15',
-            'correo': 'acmes15@empresa.com',
-            'tipo': 'SUPERADMIN',
-            'activo': true,
-            'password': 'cecoatl1315',
-            'requiereCambioPassword': false,
-          });
+    final datos = await leerDatosConCache('usuarios', 'usuarios_guardados');
+    if (datos != null && datos['items'] != null) {
+      usuarios = List<Map<String, dynamic>>.from(datos['items']);
+    } else {
+      // Si no hay datos en cache, inicializa con el usuario maestro
+      usuarios = [
+        {
+          'nombre': 'Administrador General',
+          'usuario': 'acmes15',
+          'correo': 'acmes15@empresa.com',
+          'tipo': 'SUPERADMIN',
+          'activo': true,
+          'password': 'cecoatl1315',
+          'requiereCambioPassword': false,
         }
-      });
+      ];
     }
     setState(() {
       _cargando = false;
-    });
-  }
-
-  Future<void> _guardarCambios() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('usuarios_guardados', jsonEncode(usuarios));
-    setState(() {
       _tieneCambios = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cambios guardados correctamente.')),
-    );
   }
 
-  void _agregarUsuario() async {
+  Future<void> _agregarUsuario() async {
     final nuevo = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => DialogAgregarUsuario(tiposUsuario: tiposUsuario),
@@ -110,7 +95,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
   }
 
-  void _agregarMasivo() async {
+  Future<void> _agregarMasivo() async {
     final nuevos = await showDialog<List<Map<String, dynamic>>>(
       context: context,
       builder: (context) => const DialogAgregarMasivo(),
@@ -124,7 +109,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
   }
 
-  void _editarTipo(int index) async {
+  Future<void> _editarTipo(int index) async {
     if (usuarios[index]['usuario'] == 'acmes15') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se puede editar el usuario maestro.')),
@@ -145,7 +130,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
   }
 
-  void _eliminarUsuario(int index) async {
+  Future<void> _eliminarUsuario(int index) async {
     if (usuarios[index]['usuario'] == 'acmes15') {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('No se puede eliminar el usuario maestro.')),
@@ -159,7 +144,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     await _guardarCambios();
   }
 
-  void _restablecerPassword(int index) async {
+  Future<void> _restablecerPassword(int index) async {
     final nueva = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -191,21 +176,35 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
         _tieneCambios = true;
       });
       // Notificar al usuario que su contraseña fue restablecida
-      final prefs = await SharedPreferences.getInstance();
-      final notificaciones = prefs.getString('notificaciones_password') ?? '[]';
-      final List<dynamic> lista = jsonDecode(notificaciones);
+      // Guardar notificación en Firestore/cache
+      final datos = await leerDatosConCache('notificaciones', 'password');
+      List<dynamic> lista = datos != null && datos['items'] != null
+          ? List<dynamic>.from(datos['items'])
+          : [];
       lista.add({
         'usuario': usuarios[index]['usuario'],
         'fecha': DateTime.now().toIso8601String(),
         'mensaje': 'Tu contraseña ha sido restablecida por el administrador',
       });
-      await prefs.setString('notificaciones_password', jsonEncode(lista));
+      await guardarDatosFirestoreYCache(
+          'notificaciones', 'password', {'items': lista});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Contraseña restablecida. Se notificó al usuario.')),
       );
       await _guardarCambios();
     }
+  }
+
+  Future<void> _guardarCambios() async {
+    await guardarDatosFirestoreYCache(
+        'usuarios', 'usuarios_guardados', {'items': usuarios});
+    setState(() {
+      _tieneCambios = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cambios guardados correctamente.')),
+    );
   }
 
   @override

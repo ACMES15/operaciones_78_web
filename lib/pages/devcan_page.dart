@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/firebase_cache_utils.dart';
 
 class DevCanPage extends StatefulWidget {
   const DevCanPage({Key? key}) : super(key: key);
@@ -21,14 +23,13 @@ class _DevCanPageState extends State<DevCanPage> {
   List<Map<String, dynamic>> _ultimaEntregaGuardada = [];
 
   Future<void> _cargarUltimaEntregaGuardada() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('entregas_devcan') ?? '[]';
-    final List<dynamic> lista = jsonDecode(data);
-    setState(() {
-      _ultimaEntregaGuardada = lista
-          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-          .toList();
-    });
+    final datos = await leerDatosConCache('entregas', 'devcan');
+    if (datos != null && datos['items'] != null) {
+      setState(() {
+        _ultimaEntregaGuardada =
+            List<Map<String, dynamic>>.from(datos['items']);
+      });
+    }
   }
 
   List<Map<String, dynamic>> _generarEntregaActual() {
@@ -316,7 +317,6 @@ class _DevCanPageState extends State<DevCanPage> {
     }
 
     // Guardar la información para entregas
-    final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
@@ -324,7 +324,8 @@ class _DevCanPageState extends State<DevCanPage> {
       }
       return map;
     }).toList();
-    await prefs.setString('entregas_devcan', jsonEncode(entregasRecientes));
+    await guardarDatosFirestoreYCache(
+        'entregas', 'devcan', {'items': entregasRecientes});
     setState(() {
       _entregasRecientes = entregasRecientes;
       _ultimaFechaEntrega = DateTime.now();
@@ -335,9 +336,11 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('notificaciones_password') ?? '[]';
-    final List<dynamic> lista = jsonDecode(data);
+    final datos = await leerDatosConCache('notificaciones', 'password');
+    List<dynamic> lista = [];
+    if (datos != null && datos['items'] != null) {
+      lista = List<dynamic>.from(datos['items']);
+    }
     for (final idx in filasFaltantes) {
       final row = _rows[idx - 1];
       final detalle = _headers
@@ -352,7 +355,8 @@ class _DevCanPageState extends State<DevCanPage> {
         'detalle': detalle,
       });
     }
-    await prefs.setString('notificaciones_password', jsonEncode(lista));
+    await guardarDatosFirestoreYCache(
+        'notificaciones', 'password', {'items': lista});
 
     // Construir lista de entregas recientes para pasar a la nueva página
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {

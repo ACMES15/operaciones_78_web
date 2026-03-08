@@ -1,31 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../utils/firebase_cache_utils.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:universal_html/html.dart' as html;
 import 'hoja_de_ruta_extra_page.dart';
 // import 'hoja_de_xd_historial_page.dart';
 import '../models/hoja_de_xd_historial.dart';
 
-/// Simple manager to persist carta porte historial in SharedPreferences.
+/// Manager para historial de carta porte usando Firestore + caché
 class CartaPorteHistorialManager {
-  static const String _prefKey = 'historial_carta_porte';
+  static const String coleccion = 'historial_carta_porte';
 
-  /// Adds a carta entry to the persisted historial (appends and saves).
+  /// Agrega una carta al historial (Firestore + caché)
   static Future<void> addCarta(Map<String, dynamic> carta) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefKey) ?? '[]';
-    final List<dynamic> list = jsonDecode(raw);
-    list.add(carta);
-    await prefs.setString(_prefKey, jsonEncode(list));
+    final docId = carta['NUMERO_CONTROL'] ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    await guardarDatosFirestoreYCache(coleccion, docId, carta);
   }
 
-  /// Optional helper to load all cartas.
+  /// Carga todas las cartas del historial (solo caché, si no hay, busca en Firestore y cachea)
   static Future<List<Map<String, dynamic>>> loadAll() async {
+    // Para mantener compatibilidad, podrías guardar una lista de IDs en caché
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_prefKey) ?? '[]';
-    final List<dynamic> list = jsonDecode(raw);
-    return list.cast<Map<String, dynamic>>();
+    final idsRaw = prefs.getString('${coleccion}_ids');
+    List<String> ids = [];
+    if (idsRaw != null) {
+      ids = List<String>.from(jsonDecode(idsRaw));
+    }
+    List<Map<String, dynamic>> cartas = [];
+    for (final id in ids) {
+      final data = await leerDatosConCache(coleccion, id);
+      if (data != null) cartas.add(data);
+    }
+    return cartas;
+  }
+
+  /// Guarda el ID de la carta en la lista de historial
+  static Future<void> addCartaId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final idsRaw = prefs.getString('${coleccion}_ids');
+    List<String> ids =
+        idsRaw != null ? List<String>.from(jsonDecode(idsRaw)) : [];
+    if (!ids.contains(id)) {
+      ids.add(id);
+      await prefs.setString('${coleccion}_ids', jsonEncode(ids));
+    }
   }
 }
 
@@ -58,7 +78,7 @@ class CartaPorteTable extends StatefulWidget {
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
-  // Guardar carta porte en historial (ahora incluye toda la tabla y columnas)
+  // Guardar carta porte en historial (Firestore + caché)
   Future<void> _guardarCartaPorteEnHistorial() async {
     if (_numeroControlActual == null) {
       _numeroControlActual = await _generarNumeroDeControl();
@@ -76,9 +96,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       'COLUMNS': _columns,
       'TABLE':
           _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+      'createdAt': DateTime.now().toIso8601String(),
     };
-    // Usar el manager para agregar y sincronizar historial
     await CartaPorteHistorialManager.addCarta(carta);
+    await CartaPorteHistorialManager.addCartaId(_numeroControlActual!);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(

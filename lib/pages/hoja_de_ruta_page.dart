@@ -7,6 +7,8 @@ import 'package:pdf/pdf.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
 import '../utils/word_exporter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/firebase_cache_utils.dart';
 
 // Top-level function for PDF generation to be used with compute
 Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
@@ -391,6 +393,28 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       //   _attachListenersForRow(i);
       // }
     });
+  }
+
+  Future<void> guardarTablaHojaRuta() async {
+    final sheet = <String, dynamic>{
+      'origen': _origen,
+      'fecha': _fechaEnvio,
+      'numeroControl': _numeroControlActual ?? '',
+      'tipo':
+          _opcionSeleccionada != null ? _opciones[_opcionSeleccionada!] : '',
+      'caja': _cajaController.text.trim(),
+      'headers': _columns,
+      'rows': _controllers
+          .map((r) => r.map((c) => c.text.trim()).toList())
+          .toList(),
+      'createdAt': DateTime.now().toIso8601String(),
+    };
+    await guardarDatosFirestoreYCache('hojas_ruta',
+        sheet['numeroControl'] ?? DateTime.now().toIso8601String(), sheet);
+  }
+
+  Future<Map<String, dynamic>?> leerTablaHojaRuta(String numeroControl) async {
+    return await leerDatosConCache('hojas_ruta', numeroControl);
   }
 
   // Muestra diálogo con la tabla

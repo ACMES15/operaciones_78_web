@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
+import '../utils/firebase_cache_utils.dart';
 
 class PlantillaEjecutivaPage extends StatelessWidget {
   const PlantillaEjecutivaPage({Key? key}) : super(key: key);
@@ -28,7 +29,7 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
   @override
   void initState() {
     super.initState();
-    _cargarDatosLocales();
+    _cargarDatos();
   }
 
   void _guardarDatosLocales() {
@@ -37,20 +38,6 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
       html.window.localStorage[_storageKey] = encoded;
     } catch (e) {
       print('Error guardando datos locales: $e');
-    }
-  }
-
-  void _cargarDatosLocales() {
-    try {
-      final encoded = html.window.localStorage[_storageKey];
-      if (encoded != null && encoded.isNotEmpty) {
-        final filas = encoded.split('~');
-        setState(() {
-          datos = filas.map((f) => f.split('|')).toList();
-        });
-      }
-    } catch (e) {
-      print('Error cargando datos locales: $e');
     }
   }
 
@@ -129,6 +116,29 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
     return datos;
   }
 
+  Future<void> _cargarDatos() async {
+    try {
+      final datosRemotos =
+          await leerDatosConCache('plantilla_ejecutiva', 'datos');
+      if (datosRemotos != null && datosRemotos['datos'] != null) {
+        setState(() {
+          datos = List<List<String>>.from((datosRemotos['datos'] as List)
+              .map((fila) => List<String>.from(fila)));
+        });
+        return;
+      }
+      final encoded = html.window.localStorage[_storageKey];
+      if (encoded != null && encoded.isNotEmpty) {
+        final filas = encoded.split('~');
+        setState(() {
+          datos = filas.map((f) => f.split('|')).toList();
+        });
+      }
+    } catch (e) {
+      print('Error cargando datos: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -139,16 +149,9 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
           Row(
             children: [
               const Icon(Icons.assignment, color: Color(0xFF2D6A4F), size: 32),
-              const SizedBox(width: 10),
-              const Text(
-                'Plantilla Ejecutiva',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 26,
-                  color: Color(0xFF2D6A4F),
-                  letterSpacing: 0.5,
-                ),
-              ),
+              const SizedBox(width: 12),
+              const Text('Plantilla Ejecutiva',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const Spacer(),
               _botonImportarHtmlWeb(),
             ],
@@ -223,30 +226,5 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
         ],
       ),
     );
-  }
-
-  // Función para procesar el archivo Excel en un isolate
-  Future<List<List<String>>> _procesarExcelEnIsolate(
-      Map<String, dynamic> params) async {
-    final Uint8List bytes = params['bytes'];
-    final List<String> columnas = List<String>.from(params['columnas']);
-    final excel = Excel.decodeBytes(bytes);
-    final List<List<String>> datos = [];
-
-    for (final table in excel.tables.keys) {
-      final sheet = excel.tables[table];
-      if (sheet == null) continue;
-      for (int rowIndex = 1; rowIndex < sheet.maxRows; rowIndex++) {
-        final row = sheet.row(rowIndex);
-        final fila = List<String>.generate(
-          columnas.length,
-          (i) =>
-              i < row.length && row[i] != null ? row[i]!.value.toString() : '',
-        );
-        datos.add(fila);
-      }
-      break; // Solo la primera hoja
-    }
-    return datos;
   }
 }

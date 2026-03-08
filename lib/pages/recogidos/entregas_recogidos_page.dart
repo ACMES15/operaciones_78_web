@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:signature/signature.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/firebase_cache_utils.dart';
 
 class EntregasRecogidosPage extends StatefulWidget {
   final List<Map<String, dynamic>> entregasRecientes;
@@ -14,6 +14,10 @@ class EntregasRecogidosPage extends StatefulWidget {
 }
 
 class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
+  late TextEditingController _lpController;
+  late List<Map<String, dynamic>> _resultados;
+  Set<int> _seleccionados = {};
+  String _jefaturaSeleccionada = '';
   Set<String> get _lpsFirmadas => _historialFirmadas
       .map((e) => e['LP']?.toString())
       .whereType<String>()
@@ -29,10 +33,10 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
   }
 
   Future<void> _cargarHistorialFirmadas() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('historial_entregas_recogidos');
-    if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
+    final datos =
+        await leerDatosConCache('historial_entregas', 'recogidos_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> decoded = datos['items'];
       setState(() {
         _historialFirmadas = decoded
             .cast<Map<String, dynamic>>()
@@ -54,23 +58,14 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
 
   Future<void> _agregarAlHistorial(
       List<Map<String, dynamic>> nuevasFirmadas) async {
-    final prefs = await SharedPreferences.getInstance();
-    _historialFirmadas.addAll(nuevasFirmadas);
-    await prefs.setString(
-        'historial_entregas_recogidos', jsonEncode(_historialFirmadas));
-    setState(() {});
-  }
-
-  Set<int> _seleccionados = {};
-  List<Map<String, dynamic>> _firmados = [];
-  String _jefaturaSeleccionada = '';
-  late TextEditingController _lpController;
-  late List<Map<String, dynamic>> _resultados;
-
-  @override
-  void dispose() {
-    _lpController.dispose();
-    super.dispose();
+    setState(() {
+      _historialFirmadas.addAll(nuevasFirmadas);
+    });
+    await guardarDatosFirestoreYCache(
+      'historial_entregas',
+      'recogidos_firmadas',
+      {'items': _historialFirmadas},
+    );
   }
 
   @override

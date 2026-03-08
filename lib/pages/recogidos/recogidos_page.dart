@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/firebase_cache_utils.dart';
 
 class RecogidosPage extends StatefulWidget {
   const RecogidosPage({Key? key}) : super(key: key);
@@ -20,14 +21,13 @@ class _RecogidosPageState extends State<RecogidosPage> {
   List<Map<String, dynamic>> _ultimaEntregaGuardada = [];
 
   Future<void> _cargarUltimaEntregaGuardada() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('entregas_recogidos') ?? '[]';
-    final List<dynamic> lista = jsonDecode(data);
-    setState(() {
-      _ultimaEntregaGuardada = lista
-          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-          .toList();
-    });
+    final datos = await leerDatosConCache('entregas', 'recogidos');
+    if (datos != null && datos['items'] != null) {
+      setState(() {
+        _ultimaEntregaGuardada =
+            List<Map<String, dynamic>>.from(datos['items']);
+      });
+    }
   }
 
   List<Map<String, dynamic>> _generarEntregaActual() {
@@ -50,7 +50,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
   }
 
   DateTime? _ultimaFechaEntrega;
-  List<Map<String, dynamic>> _entregasRecientes = [];
+  // List<Map<String, dynamic>> _entregasRecientes = [];
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
   String _scanSeccion = '';
@@ -303,7 +303,6 @@ class _RecogidosPageState extends State<RecogidosPage> {
       await _guardarNotificacionFaltantes(filasFaltantes);
     }
 
-    final prefs = await SharedPreferences.getInstance();
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
@@ -311,9 +310,10 @@ class _RecogidosPageState extends State<RecogidosPage> {
       }
       return map;
     }).toList();
-    await prefs.setString('entregas_recogidos', jsonEncode(entregasRecientes));
+    await guardarDatosFirestoreYCache(
+        'entregas', 'recogidos', {'items': entregasRecientes});
     setState(() {
-      _entregasRecientes = entregasRecientes;
+      _ultimaEntregaGuardada = entregasRecientes;
       _ultimaFechaEntrega = DateTime.now();
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -322,9 +322,11 @@ class _RecogidosPageState extends State<RecogidosPage> {
   }
 
   Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('notificaciones_password') ?? '[]';
-    final List<dynamic> lista = jsonDecode(data);
+    final datos = await leerDatosConCache('notificaciones', 'password');
+    List<dynamic> lista = [];
+    if (datos != null && datos['items'] != null) {
+      lista = List<dynamic>.from(datos['items']);
+    }
     for (final idx in filasFaltantes) {
       final row = _rows[idx - 1];
       final detalle = _headers
@@ -339,7 +341,8 @@ class _RecogidosPageState extends State<RecogidosPage> {
         'detalle': detalle,
       });
     }
-    await prefs.setString('notificaciones_password', jsonEncode(lista));
+    await guardarDatosFirestoreYCache(
+        'notificaciones', 'password', {'items': lista});
 
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
       Map<String, dynamic> map = {};

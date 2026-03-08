@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/firebase_cache_utils.dart';
 import 'dart:convert';
 
 // ...existing code...
@@ -53,10 +55,9 @@ class _PermisosBodyState extends State<_PermisosBody> {
   }
 
   Future<void> _cargarTiposUsuario({bool internal = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final tipos = prefs.getString('tipos_usuario');
-    if (tipos != null) {
-      tiposUsuario = List<String>.from(jsonDecode(tipos));
+    final datos = await leerDatosConCache('usuarios', 'tipos_usuario');
+    if (datos != null && datos['tipos'] != null) {
+      tiposUsuario = List<String>.from(datos['tipos']);
     } else {
       tiposUsuario = List<String>.from(UserPermissionsPage.tipos);
     }
@@ -64,15 +65,17 @@ class _PermisosBodyState extends State<_PermisosBody> {
   }
 
   Future<void> _cargarPermisos({bool internal = false}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('permisos_tipo_usuario');
-    if (data != null) {
-      final decoded = jsonDecode(data) as Map<String, dynamic>;
-      permisos = decoded.map((tipo, pags) => MapEntry(
+    final datos = await leerDatosConCache('usuarios', 'permisos_tipo_usuario');
+    if (datos != null && datos['permisos'] != null) {
+      permisos = Map<String, Map<String, bool>>.from(
+        (datos['permisos'] as Map<String, dynamic>).map(
+          (tipo, pags) => MapEntry(
             tipo,
             (pags as Map<String, dynamic>)
                 .map((pag, val) => MapEntry(pag, val == true)),
-          ));
+          ),
+        ),
+      );
       // Sincronizar: agregar páginas nuevas a cada tipo
       for (final tipo in tiposUsuario) {
         permisos[tipo] ??= {};
@@ -88,7 +91,8 @@ class _PermisosBodyState extends State<_PermisosBody> {
             (pag, _) => !UserPermissionsPage.paginas.contains(pag));
       }
       // Guardar sincronización si hubo cambios
-      await prefs.setString('permisos_tipo_usuario', jsonEncode(permisos));
+      await guardarDatosFirestoreYCache(
+          'usuarios', 'permisos_tipo_usuario', {'permisos': permisos});
     } else {
       for (final tipo in tiposUsuario) {
         permisos[tipo] = {};
@@ -107,8 +111,8 @@ class _PermisosBodyState extends State<_PermisosBody> {
   bool _tieneCambios = false;
 
   Future<void> _guardarTiposUsuario() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('tipos_usuario', jsonEncode(tiposUsuario));
+    await guardarDatosFirestoreYCache(
+        'usuarios', 'tipos_usuario', {'tipos': tiposUsuario});
   }
 
   @override
@@ -285,22 +289,17 @@ class _PermisosBodyState extends State<_PermisosBody> {
                               await _guardarTiposUsuario();
                               await _guardarPermisos();
                               // Eliminar usuarios de ese tipo
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              final data =
-                                  prefs.getString('usuarios_guardados');
+                              final datos = await leerDatosConCache(
+                                  'usuarios', 'usuarios_guardados');
                               List<Map<String, dynamic>> usuarios = [];
-                              if (data != null) {
-                                final List<dynamic> decoded = jsonDecode(data);
-                                usuarios = decoded
-                                    .cast<Map<String, dynamic>>()
-                                    .map((e) => Map<String, dynamic>.from(e))
-                                    .toList();
+                              if (datos != null && datos['items'] != null) {
+                                usuarios = List<Map<String, dynamic>>.from(
+                                    datos['items']);
                               }
                               usuarios.removeWhere(
                                   (u) => u['tipo'] == tipoSeleccionado);
-                              await prefs.setString(
-                                  'usuarios_guardados', jsonEncode(usuarios));
+                              await guardarDatosFirestoreYCache('usuarios',
+                                  'usuarios_guardados', {'items': usuarios});
                               setState(() {
                                 tipoSeleccionado = tiposUsuario.isNotEmpty
                                     ? tiposUsuario.first
@@ -414,8 +413,8 @@ class _PermisosBodyState extends State<_PermisosBody> {
   // (Removed misplaced code block that was outside any function)
 
   Future<void> _guardarPermisos() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('permisos_tipo_usuario', jsonEncode(permisos));
+    await guardarDatosFirestoreYCache(
+        'usuarios', 'permisos_tipo_usuario', {'permisos': permisos});
     setState(() {
       _tieneCambios = false;
     });
