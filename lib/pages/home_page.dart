@@ -167,11 +167,6 @@ class _HomePageState extends State<HomePage> {
     return [];
   }
 
-  String _fechaHoraActual() {
-    final ahora = DateTime.now();
-    return '${ahora.day.toString().padLeft(2, '0')}/${ahora.month.toString().padLeft(2, '0')}/${ahora.year} ${ahora.hour.toString().padLeft(2, '0')}:${ahora.minute.toString().padLeft(2, '0')}:${ahora.second.toString().padLeft(2, '0')}';
-  }
-
   Future<List<Map<String, dynamic>>> _getNotificaciones() async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('notificaciones_password') ?? '[]';
@@ -192,156 +187,6 @@ class _HomePageState extends State<HomePage> {
     return [];
   }
 
-  void _mostrarNotificaciones() async {
-    final notificaciones = await _getNotificaciones();
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Notificaciones'),
-          content: SizedBox(
-            width: 400,
-            child: notificaciones.isEmpty
-                ? const Text('No hay notificaciones pendientes.')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: notificaciones.length,
-                    itemBuilder: (context, i) {
-                      final n = notificaciones[i];
-                      final esFaltante = n['mensaje'] == 'FALTANTE DevCan';
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          leading: Icon(
-                            esFaltante
-                                ? Icons.warning_amber_rounded
-                                : Icons.person_outline,
-                            color: esFaltante ? Colors.red : null,
-                          ),
-                          title: Text(esFaltante
-                              ? 'Faltante DevCan'
-                              : (n['usuario'] ?? '')),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(n['fecha'] ?? ''),
-                              if (esFaltante && n['detalle'] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(n['detalle'],
-                                      style: const TextStyle(fontSize: 13)),
-                                ),
-                              if (!esFaltante && n['mensaje'] != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(n['mensaje'],
-                                      style: const TextStyle(fontSize: 13)),
-                                ),
-                            ],
-                          ),
-                          trailing: esFaltante
-                              ? ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.green,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: const Text('Atendido'),
-                                  onPressed: () async {
-                                    final prefs =
-                                        await SharedPreferences.getInstance();
-                                    final notificaciones = prefs.getString(
-                                            'notificaciones_password') ??
-                                        '[]';
-                                    final List<dynamic> lista =
-                                        jsonDecode(notificaciones);
-                                    lista.removeAt(i);
-                                    await prefs.setString(
-                                        'notificaciones_password',
-                                        jsonEncode(lista));
-                                    Navigator.pop(context);
-                                    _actualizarNotificaciones();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Notificación de faltante marcada como atendida.')),
-                                    );
-                                  },
-                                )
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.amber,
-                                    foregroundColor: Colors.black,
-                                  ),
-                                  child: const Text('Restablecer'),
-                                  onPressed: () async {
-                                    // Restablecer usuario y notificar
-                                    final prefs =
-                                        await SharedPreferences.getInstance();
-                                    final usuariosData =
-                                        prefs.getString('usuarios_guardados');
-                                    List<Map<String, dynamic>> usuarios = [];
-                                    if (usuariosData != null) {
-                                      final List<dynamic> decoded =
-                                          jsonDecode(usuariosData);
-                                      usuarios = decoded
-                                          .cast<Map<String, dynamic>>()
-                                          .map((e) =>
-                                              Map<String, dynamic>.from(e))
-                                          .toList();
-                                    }
-                                    final index = usuarios.indexWhere(
-                                        (u) => u['usuario'] == n['usuario']);
-                                    if (index != -1) {
-                                      usuarios[index]['password'] =
-                                          n['usuario'];
-                                      await prefs.setString(
-                                          'usuarios_guardados',
-                                          jsonEncode(usuarios));
-                                      // Notificar al usuario
-                                      final notificaciones = prefs.getString(
-                                              'notificaciones_password') ??
-                                          '[]';
-                                      final List<dynamic> lista =
-                                          jsonDecode(notificaciones);
-                                      lista.add({
-                                        'usuario': n['usuario'],
-                                        'fecha':
-                                            DateTime.now().toIso8601String(),
-                                        'mensaje':
-                                            'Tu contraseña ha sido restablecida por el administrador',
-                                      });
-                                      // Eliminar solicitud
-                                      lista.removeAt(i);
-                                      await prefs.setString(
-                                          'notificaciones_password',
-                                          jsonEncode(lista));
-                                      Navigator.pop(context);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        SnackBar(
-                                            content: Text(
-                                                'Contraseña de ${n['usuario']} restablecida y notificada.')),
-                                      );
-                                      _actualizarNotificaciones();
-                                    }
-                                  },
-                                ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     // Método para detectar si es celular (no tablet)
@@ -353,6 +198,7 @@ class _HomePageState extends State<HomePage> {
 
     final esMovil = esCelular(context);
     List<int> paginasPermitidas = _paginasPermitidas;
+    int selectedMenuIndex = _selectedIndex;
     if (esMovil) {
       paginasPermitidas = _paginasPermitidas
           .where((i) => _paginasMovil.contains(_paginas[i]))
@@ -364,12 +210,18 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       }
-      if (!paginasPermitidas.contains(_paginasPermitidas[_selectedIndex])) {
-        _selectedIndex = _paginasPermitidas.indexOf(paginasPermitidas.first);
+      if (selectedMenuIndex < 0 ||
+          selectedMenuIndex >= paginasPermitidas.length) {
+        selectedMenuIndex = 0;
+      }
+    } else {
+      if (selectedMenuIndex < 0 ||
+          selectedMenuIndex >= paginasPermitidas.length) {
+        selectedMenuIndex = 0;
       }
     }
 
-    final pagina = _paginas[paginasPermitidas[_selectedIndex]];
+    final pagina = _paginas[paginasPermitidas[selectedMenuIndex]];
 
     return Scaffold(
       body: Row(
@@ -401,7 +253,7 @@ class _HomePageState extends State<HomePage> {
                             maxHeight: 900,
                           ),
                           child: NavigationRail(
-                            selectedIndex: _selectedIndex,
+                            selectedIndex: selectedMenuIndex,
                             onDestinationSelected: (int index) {
                               setState(() {
                                 _selectedIndex = index;
@@ -420,21 +272,59 @@ class _HomePageState extends State<HomePage> {
                             unselectedLabelTextStyle:
                                 const TextStyle(color: Colors.white70),
                             destinations: [
-                              for (final i in (esMovil
-                                  ? paginasPermitidas
-                                  : _paginasPermitidas))
+                              for (int menuIdx = 0;
+                                  menuIdx < paginasPermitidas.length;
+                                  menuIdx++)
                                 NavigationRailDestination(
                                   icon: Tooltip(
-                                    message: _paginas[i],
-                                    child: i == 0
-                                        ? const Icon(Icons.people_outline)
+                                    message:
+                                        _paginas[paginasPermitidas[menuIdx]],
+                                    child: (() {
+                                      int i = paginasPermitidas[menuIdx];
+                                      return i == 0
+                                          ? const Icon(Icons.people_outline)
+                                          : i == 1
+                                              ? const Icon(Icons.lock_outline)
+                                              : i == 2
+                                                  ? const Icon(
+                                                      Icons.map_outlined)
+                                                  : i == 3
+                                                      ? const Icon(Icons
+                                                          .description_outlined)
+                                                      : i == 4
+                                                          ? const Icon(
+                                                              Icons.history)
+                                                          : i == 5
+                                                              ? const Icon(Icons
+                                                                  .table_view)
+                                                              : i == 6
+                                                                  ? const Icon(Icons
+                                                                      .history_toggle_off)
+                                                                  : i == 7
+                                                                      ? const Icon(
+                                                                          Icons
+                                                                              .assignment)
+                                                                      : i == 8
+                                                                          ? const Icon(
+                                                                              Icons.fact_check)
+                                                                          : i == 9
+                                                                              ? const Icon(Icons.archive)
+                                                                              : i == 10
+                                                                                  ? const Icon(Icons.archive_outlined)
+                                                                                  : const Icon(Icons.pages);
+                                    })(),
+                                  ),
+                                  selectedIcon: (() {
+                                    int i = paginasPermitidas[menuIdx];
+                                    return i == 0
+                                        ? const Icon(Icons.people)
                                         : i == 1
-                                            ? const Icon(Icons.lock_outline)
+                                            ? const Icon(Icons.lock)
                                             : i == 2
-                                                ? const Icon(Icons.map_outlined)
+                                                ? const Icon(Icons.map)
                                                 : i == 3
-                                                    ? const Icon(Icons
-                                                        .description_outlined)
+                                                    ? const Icon(
+                                                        Icons.description)
                                                     : i == 4
                                                         ? const Icon(
                                                             Icons.history)
@@ -455,40 +345,10 @@ class _HomePageState extends State<HomePage> {
                                                                             ? const Icon(Icons.archive)
                                                                             : i == 10
                                                                                 ? const Icon(Icons.archive_outlined)
-                                                                                : const Icon(Icons.pages),
-                                  ),
-                                  selectedIcon: i == 0
-                                      ? const Icon(Icons.people)
-                                      : i == 1
-                                          ? const Icon(Icons.lock)
-                                          : i == 2
-                                              ? const Icon(Icons.map)
-                                              : i == 3
-                                                  ? const Icon(
-                                                      Icons.description)
-                                                  : i == 4
-                                                      ? const Icon(
-                                                          Icons.history)
-                                                      : i == 5
-                                                          ? const Icon(
-                                                              Icons.table_view)
-                                                          : i == 6
-                                                              ? const Icon(Icons
-                                                                  .history_toggle_off)
-                                                              : i == 7
-                                                                  ? const Icon(Icons
-                                                                      .assignment)
-                                                                  : i == 8
-                                                                      ? const Icon(
-                                                                          Icons
-                                                                              .fact_check)
-                                                                      : i == 9
-                                                                          ? const Icon(
-                                                                              Icons.archive)
-                                                                          : i == 10
-                                                                              ? const Icon(Icons.archive_outlined)
-                                                                              : const Icon(Icons.pages),
-                                  label: Text(_paginas[i]),
+                                                                                : const Icon(Icons.pages);
+                                  })(),
+                                  label: Text(
+                                      _paginas[paginasPermitidas[menuIdx]]),
                                 ),
                             ],
                           ),
@@ -503,7 +363,7 @@ class _HomePageState extends State<HomePage> {
           Expanded(
             child: Builder(
               builder: (context) {
-                // Si es móvil, mostrar el contenido móvil con manejo de historial vacío
+                // Manejo móvil simplificado y sin duplicaciones
                 if (esMovil) {
                   if (pagina == 'Historial Hoja de XD') {
                     Future<List<dynamic>> cargarHistorialHojaXD() async {
@@ -519,10 +379,9 @@ class _HomePageState extends State<HomePage> {
                     return FutureBuilder<List<dynamic>>(
                       future: cargarHistorialHojaXD(),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                        if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        }
                         final datos = snapshot.data!;
                         if (datos.isEmpty) {
                           return Center(
@@ -548,14 +407,14 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   }
+
                   if (pagina == 'Historial Entregas DevCan') {
                     return FutureBuilder<List<Map<String, dynamic>>>(
                       future: _cargarHistorialDevCan(),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                        if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        }
                         final datos = snapshot.data!;
                         if (datos.isEmpty) {
                           return Center(
@@ -584,14 +443,14 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   }
+
                   if (pagina == 'Historial Entregas Recogidos') {
                     return FutureBuilder<List<Map<String, dynamic>>>(
                       future: _cargarHistorialRecogidos(),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                        if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        }
                         final datos = snapshot.data!;
                         if (datos.isEmpty) {
                           return Center(
@@ -620,6 +479,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   }
+
                   if (pagina == 'Historial Carta Porte') {
                     Future<List<dynamic>> cargarHistorialCartaPorte() async {
                       final prefs = await SharedPreferences.getInstance();
@@ -634,10 +494,9 @@ class _HomePageState extends State<HomePage> {
                     return FutureBuilder<List<dynamic>>(
                       future: cargarHistorialCartaPorte(),
                       builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
+                        if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        }
                         final datos = snapshot.data!;
                         if (datos.isEmpty) {
                           return Center(
@@ -663,18 +522,16 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   }
-                  if (pagina == 'DevCan') {
-                    return DevCanPage();
-                  }
-                  if (pagina == 'Recogidos') {
-                    return RecogidosPage();
-                  }
-                  // fallback
+
+                  if (pagina == 'DevCan') return DevCanPage();
+                  if (pagina == 'Recogidos') return RecogidosPage();
+
                   return Center(child: Text('Página no disponible.'));
                 }
-                // Desktop/tablet
+
+                // Desktop/tablet behavior
                 final paginaDesktop =
-                    _paginas[_paginasPermitidas[_selectedIndex]];
+                    _paginas[_paginasPermitidas[selectedMenuIndex]];
                 if (paginaDesktop == 'Hoja de XD') {
                   return Navigator(
                     onGenerateRoute: (settings) {
@@ -692,9 +549,8 @@ class _HomePageState extends State<HomePage> {
                   return FutureBuilder<List<Map<String, dynamic>>>(
                     future: _cargarHistorialDevCan(),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData) {
+                      if (!snapshot.hasData)
                         return const Center(child: CircularProgressIndicator());
-                      }
                       return HistorialEntregasDevCanPage(
                         historial: snapshot.data!,
                         tipoUsuarioActual: _tipoUsuario,
@@ -702,7 +558,7 @@ class _HomePageState extends State<HomePage> {
                     },
                   );
                 } else {
-                  return _pages[_paginasPermitidas[_selectedIndex]];
+                  return _pages[_paginasPermitidas[selectedMenuIndex]];
                 }
               },
             ),
