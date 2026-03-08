@@ -15,9 +15,9 @@ class BienvenidaPage extends StatefulWidget {
 class _BienvenidaPageState extends State<BienvenidaPage> {
   bool _cargando = true;
   String _textoAnimado = '';
-  String _acmesAnimado = '';
+  String _usuarioAnimado = '';
   int _puntos = 0;
-  final String _acmes = 'ACMES';
+  late final String _usuarioAnimar;
 
   @override
   void initState() {
@@ -26,6 +26,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
   }
 
   void _verificarBienvenida() async {
+    _usuarioAnimar = widget.usuario;
     final yaMostrada = await BienvenidaCache.fueMostrada();
     if (yaMostrada) {
       setState(() {
@@ -44,10 +45,10 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         _puntos = (i % 4);
       });
     }
-    for (int i = 1; i <= _acmes.length; i++) {
+    for (int i = 1; i <= _usuarioAnimar.length; i++) {
       await Future.delayed(const Duration(milliseconds: 120));
       setState(() {
-        _acmesAnimado = _acmes.substring(0, i);
+        _usuarioAnimado = _usuarioAnimar.substring(0, i);
       });
     }
     await Future.delayed(const Duration(milliseconds: 600));
@@ -79,7 +80,7 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
                     color: Color(0xFF2D6A4F),
                     letterSpacing: 8,
                   ),
-                  child: Text(_acmesAnimado),
+                  child: Text(_usuarioAnimado),
                 ),
               ],
             ),
