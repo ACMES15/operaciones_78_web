@@ -830,30 +830,32 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                         } catch (_) {}
                                                       }
                                                     }
-                                                    // Buscar en historial de XD
-                                                    final prefs =
-                                                        await SharedPreferences
-                                                            .getInstance();
-                                                    final raw = prefs.getString(
-                                                            'hoja_de_xd_historial') ??
-                                                        '[]';
-                                                    final List<dynamic> list =
-                                                        jsonDecode(raw);
-                                                    final List<
-                                                            HojaDeXDHistorial>
-                                                        historial = list
-                                                            .map((e) =>
-                                                                HojaDeXDHistorial
-                                                                    .fromJson(
-                                                                        e))
+                                                    // Buscar en historial de XD (cache primero, luego Firebase)
+                                                    final dataXD =
+                                                        await leerDatosConCache(
+                                                            'hoja_de_xd_historial',
+                                                            'main');
+                                                    List<HojaDeXDHistorial>
+                                                        historialXD = [];
+                                                    if (dataXD != null &&
+                                                        dataXD['historial'] !=
+                                                            null) {
+                                                      final List<dynamic> list =
+                                                          dataXD['historial'];
+                                                      historialXD = list
+                                                          .map((e) =>
+                                                              HojaDeXDHistorial
+                                                                  .fromJson(e))
+                                                          .toList();
+                                                    }
+                                                    final historialFiltrado =
+                                                        historialXD
+                                                            .where((h) =>
+                                                                (h.datos['CONTENEDOR O TARIMA']
+                                                                        ?.trim() ??
+                                                                    '') ==
+                                                                value.trim())
                                                             .toList();
-                                                    final historialFiltrado = historial
-                                                        .where((h) =>
-                                                            (h.datos['CONTENEDOR O TARIMA']
-                                                                    ?.trim() ??
-                                                                '') ==
-                                                            value.trim())
-                                                        .toList();
                                                     HojaDeXDHistorial?
                                                         xdReciente;
                                                     if (historialFiltrado
