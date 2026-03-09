@@ -4,6 +4,7 @@ import '../utils/firebase_cache_utils.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HojaDeRutaEnviadasPage extends StatelessWidget {
   const HojaDeRutaEnviadasPage({super.key});
@@ -318,7 +319,8 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final searchController = TextEditingController();
     return FutureBuilder(
-      future: leerDatosConCache('hoja_ruta', 'sentHojaRutas'),
+      future: HojaDeRutaExtraPage.loadSentHojaRutasCache()
+          .then((_) => leerDatosConCache('hoja_ruta', 'sentHojaRutas')),
       builder: (context, snapshot) {
         List<Map<String, dynamic>> sent = [];
         final data = snapshot.data;
@@ -335,10 +337,24 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
 
         return StatefulBuilder(
           builder: (context, setModalState) {
+            void reloadSheets() async {
+              await HojaDeRutaExtraPage.loadSentHojaRutasCache();
+              final newData =
+                  await leerDatosConCache('hoja_ruta', 'sentHojaRutas');
+              sent = [];
+              if (newData != null && newData['items'] != null) {
+                sent = List<Map<String, dynamic>>.from(
+                  (newData['items'] as List)
+                      .map((e) => Map<String, dynamic>.from(e)),
+                ).reversed.toList();
+              }
+              filtered = List.from(sent);
+              setModalState(() {});
+            }
+
             void filterSheets(String query) {
               final q = query.toLowerCase();
               filtered = sent.where((sheet) {
-                // Buscar en campos principales
                 bool match = (sheet['numeroControl']
                             ?.toString()
                             .toLowerCase()
@@ -352,7 +368,6 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                         false) ||
                     (sheet['fecha']?.toString().toLowerCase().contains(q) ??
                         false);
-                // Buscar en todos los datos de la tabla
                 if (!match && sheet['rows'] != null) {
                   for (final row in (sheet['rows'] as List)) {
                     for (final cell in (row as List)) {
@@ -427,8 +442,7 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                                                   'items': HojaDeRutaExtraPage
                                                       .sentHojaRutas
                                                 });
-                                                filterSheets(
-                                                    searchController.text);
+                                                reloadSheets();
                                               },
                                             ),
                                         ]),

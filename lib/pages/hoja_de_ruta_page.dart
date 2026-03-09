@@ -345,6 +345,13 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   }
 
   Future<void> _guardarHojaRuta() async {
+    final rowsAsMap = _controllers
+        .map((r) => {
+              for (int i = 0; i < _columns.length; i++)
+                _columns[i]: r[i].text.trim(),
+            })
+        .where((m) => m.values.any((v) => v.isNotEmpty))
+        .toList();
     final sheet = <String, dynamic>{
       'origen': _origen,
       'fecha': _fechaEnvio,
@@ -353,9 +360,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
           _opcionSeleccionada != null ? _opciones[_opcionSeleccionada!] : '',
       'caja': _cajaController.text.trim(),
       'headers': _columns,
-      'rows': _controllers
-          .map((r) => r.map((c) => c.text.trim()).toList())
-          .toList(),
+      'rows': rowsAsMap,
       'createdAt': DateTime.now().toIso8601String(),
     };
     HojaDeRutaExtraPage.sentHojaRutas.add(sheet);

@@ -159,15 +159,20 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
       await HojaDeRutaExtraPage.saveTiendasProveedoresCache();
 
       // Guardar la hoja actual en el almacenamiento de hojas enviadas
+      final List<Map<String, String>> rowsAsMap = _tiendasControllers
+          .map((r) => {
+                'col1': r[0].text.trim(),
+                'col2': r[1].text.trim(),
+              })
+          .where((m) => m['col1']!.isNotEmpty || m['col2']!.isNotEmpty)
+          .toList();
       final Map<String, dynamic> hoja = {
         'origen': 'Tiendas/Proveedores',
         'fecha': DateTime.now().toString(),
         'numeroControl': 'Hoja de Ruta Extra',
         'tipo': 'Hoja de Ruta',
         'caja': 'Caja de Control',
-        'rows': _tiendasControllers
-            .map((r) => [r[0].text.trim(), r[1].text.trim()])
-            .toList(),
+        'rows': rowsAsMap,
         'createdAt': DateTime.now().toString(),
       };
       HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
