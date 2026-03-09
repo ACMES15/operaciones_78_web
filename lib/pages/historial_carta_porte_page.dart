@@ -159,11 +159,23 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               final tabla = carta['TABLE'];
               if (tabla == null || tabla is! List || tabla.isEmpty)
                 return false;
-              // Al menos una fila con datos
+              // Al menos una fila con datos (Map o List)
+              final columnas = carta['COLUMNS'] is List
+                  ? List<String>.from(carta['COLUMNS'])
+                  : <String>[];
               final tieneFila = tabla.any((row) {
                 if (row is Map) {
                   return row.values
                       .any((v) => v != null && v.toString().trim().isNotEmpty);
+                } else if (row is List) {
+                  // Si hay columnas, ignorar la columna NO. (índice 0)
+                  final startIdx = (columnas.isNotEmpty &&
+                          columnas[0].toUpperCase().contains('NO'))
+                      ? 1
+                      : 0;
+                  return row.asMap().entries.any((e) =>
+                      e.key >= startIdx &&
+                      (e.value?.toString().trim().isNotEmpty ?? false));
                 }
                 return false;
               });
