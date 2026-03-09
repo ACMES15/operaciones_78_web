@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../home_page.dart';
+import 'cambiar_password_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
@@ -94,45 +95,58 @@ class _LoginPageState extends State<LoginPage> {
                     if (!_formKey.currentState!.validate()) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
+                    final usuarioInput = usuario.trim().toLowerCase();
+                    final passInput = password.trim().toLowerCase();
                     try {
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
-                          .where('usuario', isEqualTo: usuario)
+                          .where('usuario', isEqualTo: usuarioInput)
                           .limit(1)
                           .get();
                       if (query.docs.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content:
-                                  Text('Usuario o contraseña incorrectos.')),
+                              content: Text('Usuario no registrado.')),
                         );
                         return;
                       }
                       final data = query.docs.first.data();
-                      final usuarioDb = (data['usuario'] ?? '')
-                          .toString()
-                          .trim()
-                          .toLowerCase();
-                      final usuarioInput = usuario.trim().toLowerCase();
                       final passDb = (data['password'] ?? '')
                           .toString()
                           .trim()
                           .toLowerCase();
-                      final passInput = password.trim().toLowerCase();
-                      if (usuarioDb != usuarioInput || passDb != passInput) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content:
-                                  Text('Usuario o contraseña incorrectos.')),
+                      // Si es la primera vez, la contraseña es igual al usuario
+                      if (passDb == usuarioInput && passInput == usuarioInput) {
+                        final changed = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CambiarPasswordPage(usuario: usuarioInput),
+                          ),
+                        );
+                        if (changed == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Contraseña cambiada. Ingresa con tu nueva contraseña.'),
+                            ),
+                          );
+                        }
+                        return;
+                      }
+                      // Si ya cambió la contraseña, validar normalmente
+                      if (passDb == passInput) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomePage(usuario: usuario),
+                          ),
                         );
                         return;
                       }
-                      // Usuario válido, continuar
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => HomePage(usuario: usuario),
-                        ),
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Usuario o contraseña incorrectos.')),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
