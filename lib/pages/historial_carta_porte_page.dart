@@ -171,6 +171,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
             }
 
             final completas = filtrado.where(_esCartaCompleta).toList();
+            // Cartas incompletas (no cumplen _esCartaCompleta)
             final incompletas =
                 filtrado.where((c) => !_esCartaCompleta(c)).toList();
             // Función para exportar Excel con historial actual
@@ -218,6 +219,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                           width: 350,
                           child: TextField(
                             controller: _busquedaController,
+                            onChanged: (_) => setState(() {}),
                             decoration: const InputDecoration(
                               prefixIcon: Icon(Icons.search),
                               labelText: 'Buscar en todos los campos',
@@ -243,32 +245,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                       ),
                     )
                   else ...[
-                    if (incompletas.isNotEmpty)
-                      Container(
-                        color: Colors.amber.shade100,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 8),
-                        margin: const EdgeInsets.all(8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.warning,
-                                color: Colors.orange, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '¡Atención! Hay cartas porte con datos incompletos:',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    // Cartas completas primero
+                    // Solo cartas completas
                     ...completas.map((carta) {
                       bool verDetalles = false;
                       return StatefulBuilder(
@@ -441,23 +418,51 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                         horizontal: 16, vertical: 8),
                                     child: SingleChildScrollView(
                                       scrollDirection: Axis.horizontal,
-                                      child: DataTable(
-                                        columns: (carta['TABLE'][0]
-                                                as Map<String, dynamic>)
-                                            .keys
-                                            .map((k) =>
-                                                DataColumn(label: Text(k)))
-                                            .toList(),
-                                        rows: (carta['TABLE'] as List)
-                                            .map<DataRow>((row) => DataRow(
-                                                  cells: (row as Map<String,
-                                                          dynamic>)
-                                                      .values
+                                      child: Builder(
+                                        builder: (context) {
+                                          final table = carta['TABLE'] as List;
+                                          if (table.isEmpty)
+                                            return const SizedBox();
+                                          // Soportar tanto Map como List
+                                          final firstRow = table.first;
+                                          List<DataColumn> columns;
+                                          if (firstRow is Map) {
+                                            columns = firstRow.keys
+                                                .map((k) =>
+                                                    DataColumn(label: Text(k)))
+                                                .toList();
+                                          } else if (firstRow is List &&
+                                              carta['COLUMNS'] is List) {
+                                            columns = (carta['COLUMNS'] as List)
+                                                .map<DataColumn>((k) =>
+                                                    DataColumn(
+                                                        label:
+                                                            Text(k.toString())))
+                                                .toList();
+                                          } else {
+                                            columns = [];
+                                          }
+                                          List<DataRow> rows =
+                                              table.map<DataRow>((row) {
+                                            if (row is Map) {
+                                              return DataRow(
+                                                  cells: row.values
                                                       .map((v) => DataCell(Text(
                                                           v?.toString() ?? '')))
-                                                      .toList(),
-                                                ))
-                                            .toList(),
+                                                      .toList());
+                                            } else if (row is List) {
+                                              return DataRow(
+                                                  cells: row
+                                                      .map((v) => DataCell(Text(
+                                                          v?.toString() ?? '')))
+                                                      .toList());
+                                            } else {
+                                              return const DataRow(cells: []);
+                                            }
+                                          }).toList();
+                                          return DataTable(
+                                              columns: columns, rows: rows);
+                                        },
                                       ),
                                     ),
                                   ),
