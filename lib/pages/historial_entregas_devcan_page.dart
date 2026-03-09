@@ -4,6 +4,7 @@ import 'package:excel/excel.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HistorialEntregasDevCanPage extends StatefulWidget {
   final List<Map<String, dynamic>> historial;
@@ -29,6 +30,12 @@ class _HistorialEntregasDevCanPageState
     // Se asume que el historial se guarda en SharedPreferences con la clave 'historial_entregas_devcan'
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('historial_entregas_devcan', jsonEncode(_resultados));
+    // Actualizar Firestore
+    final firestore = FirebaseFirestore.instance;
+    await firestore
+        .collection('historial_entregas_devcan')
+        .doc('devcan_firmadas')
+        .set({'items': _resultados});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro eliminado del historial.')),
     );

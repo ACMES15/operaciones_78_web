@@ -8,6 +8,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecogidosPage extends StatefulWidget {
   const RecogidosPage({Key? key}) : super(key: key);

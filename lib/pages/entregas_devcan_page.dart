@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:signature/signature.dart';
 
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EntregasDevCanPage extends StatefulWidget {
   final List<Map<String, dynamic>> entregasRecientes;

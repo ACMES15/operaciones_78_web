@@ -3,6 +3,7 @@ import 'carta_porte_edicion_completa_page.dart';
 import 'package:flutter/material.dart';
 import '../utils/exportar_excel.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HistorialCartaPortePage extends StatefulWidget {
   const HistorialCartaPortePage({Key? key}) : super(key: key);

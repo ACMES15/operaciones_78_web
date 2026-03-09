@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HistorialEntregasRecogidosPageMobile extends StatelessWidget {
   final List<Map<String, dynamic>> historial;

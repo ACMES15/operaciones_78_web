@@ -5,6 +5,7 @@ import 'carta_porte_printer.dart';
 import 'carta_porte_pdf_printer.dart';
 import 'carta_porte_edicion_completa_dialog.dart';
 import '../utils/exportar_excel.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CartaPorteEdicionCompletaPage extends StatefulWidget {
   final Map<String, dynamic> carta;

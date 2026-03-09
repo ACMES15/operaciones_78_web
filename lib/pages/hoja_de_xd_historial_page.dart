@@ -3,6 +3,7 @@ import '../utils/firebase_cache_utils.dart';
 import '../models/hoja_de_xd_historial.dart';
 import 'package:excel/excel.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HojaDeXDHistorialPage extends StatefulWidget {
   const HojaDeXDHistorialPage({super.key});
