@@ -1,5 +1,7 @@
 // --- HOME PAGE CON MENÚ LATERAL ---
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'pages/user_control_page.dart';
 import 'pages/user_permissions_page.dart';
 import 'pages/login_page.dart';
@@ -12,6 +14,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Notificaciones en tiempo real desde Firebase
+  List<String> _notificaciones = [];
+  late Stream<QuerySnapshot<Map<String, dynamic>>> _notificacionesStream;
+  int get _notificacionesNoLeidas => _notificaciones.length;
   int _selectedIndex = 0;
   bool _menuExpandido = false;
   final List<Widget> _pages = [
@@ -24,7 +30,30 @@ class _HomePageState extends State<HomePage> {
     'Permisos de Usuario',
     'Hoja de XD',
   ];
-  String _usuario = 'acmes15'; // Puedes cambiar por variable global o login
+  String _usuario = FirebaseAuth.instance.currentUser?.email ?? 'Usuario';
+  @override
+  void initState() {
+    super.initState();
+    // Escuchar notificaciones en tiempo real (colección 'notificaciones', doc 'main', campo 'items')
+    _notificacionesStream = FirebaseFirestore.instance
+        .collection('notificaciones')
+        .doc('main')
+        .snapshots()
+        .map((doc) {
+      final data = doc.data();
+      if (data != null && data['items'] is List) {
+        _notificaciones = List<String>.from(data['items']);
+      } else {
+        _notificaciones = [];
+      }
+      // Forzar rebuild
+      if (mounted) setState(() {});
+      // Retornar un QuerySnapshot simulado (no se usa)
+      return QuerySnapshot<Map<String, dynamic>>.fromQuerySnapshot(
+          doc as dynamic);
+    });
+    // Alternativamente, puedes usar un StreamBuilder en el widget, pero aquí lo hacemos en initState para mantener la lógica en el estado.
+  }
 
   // Para mostrar el usuario firmado, puedes recibirlo por constructor o variable global
   // Ejemplo: final String usuario;
@@ -127,6 +156,74 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const Spacer(),
+                      // CAMPANA DE NOTIFICACIONES
+                      Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications,
+                                color: Colors.white, size: 28),
+                            tooltip: 'Notificaciones',
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text('Notificaciones'),
+                                    content: SizedBox(
+                                      width: 350,
+                                      child: _notificaciones.isEmpty
+                                          ? const Text('No hay notificaciones')
+                                          : ListView.separated(
+                                              shrinkWrap: true,
+                                              itemCount: _notificaciones.length,
+                                              separatorBuilder: (_, __) =>
+                                                  const Divider(),
+                                              itemBuilder: (context, idx) =>
+                                                  ListTile(
+                                                leading: const Icon(
+                                                    Icons.notifications_active,
+                                                    color: Colors.teal),
+                                                title:
+                                                    Text(_notificaciones[idx]),
+                                              ),
+                                            ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: const Text('Cerrar'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          if (_notificacionesNoLeidas > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  _notificacionesNoLeidas.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 16),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -195,12 +292,15 @@ class _HomePageState extends State<HomePage> {
                         icon: const Icon(Icons.logout),
                         label: const Text('Cerrar sesión',
                             style: TextStyle(fontWeight: FontWeight.bold)),
-                        onPressed: () {
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (context) => const LoginPage(),
-                            ),
-                          );
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted) {
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (context) => const LoginPage(),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ],

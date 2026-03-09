@@ -182,7 +182,20 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               return tieneFila;
             }
 
+            // LOGS DE DEPURACIÓN
+            print('--- DEPURACIÓN HISTORIAL CARTA PORTE ---');
+            print('Cartas porte desde Firebase: \\n' +
+                cartasPorte.length.toString());
+            print('Hojas de ruta desde Firebase: \\n' +
+                hojasRuta.length.toString());
+            print(
+                'Historial fusionado total: \\n' + historial.length.toString());
+
             final completas = filtrado.where(_esCartaCompleta).toList();
+
+            print('Cartas porte completas (mostradas): \\n' +
+                completas.length.toString());
+
             // Función para exportar Excel con historial actual
             Future<void> exportarHistorialExcel() async {
               if (historial.isEmpty) return;
