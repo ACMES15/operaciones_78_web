@@ -99,6 +99,12 @@ class _LoginPageState extends State<LoginPage> {
                           .get();
                       print('DEBUG Firestore usuarios:');
                       for (var doc in debugQuery.docs) {
+                        if (!doc.data().containsKey('usuario')) {
+                          print(
+                              'ADVERTENCIA: Documento sin campo "usuario". ID: ' +
+                                  doc.id);
+                          continue;
+                        }
                         print('usuario: "' +
                             (doc['usuario'] ?? '').toString() +
                             '", password: "' +
@@ -119,6 +125,12 @@ class _LoginPageState extends State<LoginPage> {
                           .get();
                       // Buscar usuario ignorando mayúsculas y espacios
                       final docs = query.docs.where((doc) {
+                        if (!doc.data().containsKey('usuario')) {
+                          print(
+                              'ADVERTENCIA: Documento sin campo "usuario". ID: ' +
+                                  doc.id);
+                          return false;
+                        }
                         final dbUser = (doc['usuario'] ?? '')
                             .toString()
                             .trim()
