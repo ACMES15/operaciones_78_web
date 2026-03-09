@@ -270,132 +270,197 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     // Cartas completas primero
                     ...completas.map((carta) {
                       final idx = _historial.indexOf(carta);
-                      return Card(
-                        color: const Color(0xFFF5F6FA), // Blanco grisáceo
-                        child: ListTile(
-                          title: Row(
-                            children: [
-                              Text('Destino: ${carta['DESTINO'] ?? '-'}'),
-                              if ((carta['NUMERO_CONTROL'] ?? '')
-                                  .toString()
-                                  .isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 10),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFB7E4C7),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border:
-                                          Border.all(color: Color(0xFF2D6A4F)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.confirmation_number,
-                                            size: 14, color: Color(0xFF2D6A4F)),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          carta['NUMERO_CONTROL'],
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF2D6A4F),
-                                              fontSize: 12),
+                      bool verDetalles = false;
+                      return StatefulBuilder(
+                        builder: (context, setStateCard) {
+                          return Card(
+                            color: const Color(0xFFF5F6FA),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ListTile(
+                                  title: Row(
+                                    children: [
+                                      Text(
+                                          'Destino: ${carta['DESTINO'] ?? '-'}'),
+                                      if ((carta['NUMERO_CONTROL'] ?? '')
+                                          .toString()
+                                          .isNotEmpty)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(left: 10),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFB7E4C7),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                  color: Color(0xFF2D6A4F)),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                    Icons.confirmation_number,
+                                                    size: 14,
+                                                    color: Color(0xFF2D6A4F)),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  carta['NUMERO_CONTROL'],
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Color(0xFF2D6A4F),
+                                                      fontSize: 12),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      ],
-                                    ),
+                                    ],
+                                  ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Chofer: ${carta['CHOFER'] ?? '-'}'),
+                                      Text('Unidad: ${carta['UNIDAD'] ?? '-'}'),
+                                      Text('RFC: ${carta['RFC'] ?? '-'}'),
+                                      Text(
+                                          'Concentrado: ${carta['CONCENTRADO'] ?? '-'}'),
+                                      if (carta['FECHA'] != null)
+                                        Text('Fecha: ${carta['FECHA']}'),
+                                    ],
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit,
+                                            color: Colors.blue),
+                                        onPressed: () => _editarCarta(idx),
+                                      ),
+                                      if (_esAdmin)
+                                        IconButton(
+                                          icon: const Icon(Icons.delete,
+                                              color: Colors.red),
+                                          tooltip: 'Eliminar',
+                                          onPressed: () async {
+                                            final confirm =
+                                                await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text(
+                                                    'Eliminar carta porte'),
+                                                content: const Text(
+                                                    '¿Estás seguro de eliminar esta hoja de carta porte? Esta acción no se puede deshacer.'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(context)
+                                                            .pop(false),
+                                                    child:
+                                                        const Text('Cancelar'),
+                                                  ),
+                                                  ElevatedButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(context)
+                                                            .pop(true),
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.red),
+                                                    child:
+                                                        const Text('Eliminar'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true) {
+                                              setState(() {
+                                                _historial.removeAt(idx);
+                                              });
+                                              try {
+                                                await guardarDatosFirestoreYCache(
+                                                  'historial_carta_porte',
+                                                  'datos',
+                                                  {'datos': _historial},
+                                                );
+                                                print(
+                                                    'Guardado exitoso en Firestore: historial_carta_porte/datos');
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                      content: Text(
+                                                          'Hoja eliminada y guardada en Firebase.'),
+                                                      backgroundColor:
+                                                          Colors.green),
+                                                );
+                                              } catch (e) {
+                                                print(
+                                                    'Error guardando historial actualizado en Firestore: $e');
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(
+                                                          'Error guardando en Firebase: $e'),
+                                                      backgroundColor:
+                                                          Colors.red),
+                                                );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      IconButton(
+                                        icon: Icon(
+                                            verDetalles
+                                                ? Icons.visibility_off
+                                                : Icons.visibility,
+                                            color: Colors.teal),
+                                        tooltip: verDetalles
+                                            ? 'Ocultar detalles'
+                                            : 'Ver detalles',
+                                        onPressed: () => setStateCard(
+                                            () => verDetalles = !verDetalles),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Chofer: ${carta['CHOFER'] ?? '-'}'),
-                              Text('Unidad: ${carta['UNIDAD'] ?? '-'}'),
-                              Text('RFC: ${carta['RFC'] ?? '-'}'),
-                              Text(
-                                  'Concentrado: ${carta['CONCENTRADO'] ?? '-'}'),
-                              if (carta['FECHA'] != null)
-                                Text('Fecha: ${carta['FECHA']}'),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editarCarta(idx),
-                              ),
-                              if (_esAdmin)
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  tooltip: 'Eliminar',
-                                  onPressed: () async {
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (context) => AlertDialog(
-                                        title:
-                                            const Text('Eliminar carta porte'),
-                                        content: const Text(
-                                            '¿Estás seguro de eliminar esta hoja de carta porte? Esta acción no se puede deshacer.'),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.of(context)
-                                                    .pop(false),
-                                            child: const Text('Cancelar'),
-                                          ),
-                                          ElevatedButton(
-                                            onPressed: () =>
-                                                Navigator.of(context).pop(true),
-                                            style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.red),
-                                            child: const Text('Eliminar'),
-                                          ),
-                                        ],
+                                if (verDetalles &&
+                                    carta['TABLE'] != null &&
+                                    carta['TABLE'] is List &&
+                                    (carta['TABLE'] as List).isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: DataTable(
+                                        columns: (carta['TABLE'][0]
+                                                as Map<String, dynamic>)
+                                            .keys
+                                            .map((k) =>
+                                                DataColumn(label: Text(k)))
+                                            .toList(),
+                                        rows: (carta['TABLE'] as List)
+                                            .map<DataRow>((row) => DataRow(
+                                                  cells: (row as Map<String,
+                                                          dynamic>)
+                                                      .values
+                                                      .map((v) => DataCell(Text(
+                                                          v?.toString() ?? '')))
+                                                      .toList(),
+                                                ))
+                                            .toList(),
                                       ),
-                                    );
-                                    if (confirm == true) {
-                                      setState(() {
-                                        _historial.removeAt(idx);
-                                      });
-                                      // Guardar en Firestore y cache con logs visuales
-                                      try {
-                                        await guardarDatosFirestoreYCache(
-                                          'historial_carta_porte',
-                                          'datos',
-                                          {'datos': _historial},
-                                        );
-                                        print(
-                                            'Guardado exitoso en Firestore: historial_carta_porte/datos');
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  'Hoja eliminada y guardada en Firebase.'),
-                                              backgroundColor: Colors.green),
-                                        );
-                                      } catch (e) {
-                                        print(
-                                            'Error guardando historial actualizado en Firestore: $e');
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'Error guardando en Firebase: $e'),
-                                              backgroundColor: Colors.red),
-                                        );
-                                      }
-                                    }
-                                  },
-                                ),
-                            ],
-                          ),
-                        ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          );
+                        },
                       );
                     }),
                     // Cartas incompletas después, en naranja

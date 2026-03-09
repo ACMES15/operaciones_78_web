@@ -98,8 +98,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             ? _controllers[0][10].text.trim()
             : '',
         'COLUMNS': _columns,
-        'TABLE':
-            _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+        'TABLE': _controllers.map((row) {
+          final map = <String, dynamic>{};
+          for (int i = 0; i < _columns.length; i++) {
+            map[_columns[i]] = row[i].text;
+          }
+          return map;
+        }).toList(),
         'createdAt': DateTime.now().toIso8601String(),
       };
       await CartaPorteHistorialManager.addCarta(carta);
