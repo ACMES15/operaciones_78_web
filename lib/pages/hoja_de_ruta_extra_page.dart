@@ -140,36 +140,50 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
 
   Future<void> _guardarCambios() async {
     // Guardar filas no vacías en caché estática
-    HojaDeRutaExtraPage.tiendasCache = _tiendasControllers
-        .map((r) => [r[0].text.trim(), r[1].text.trim()])
-        .where((r) => r[0].isNotEmpty || r[1].isNotEmpty)
-        .toList();
-    HojaDeRutaExtraPage.proveedoresCache = _proveedoresControllers
-        .map((r) => [r[0].text.trim(), r[1].text.trim()])
-        .where((r) => r[0].isNotEmpty || r[1].isNotEmpty)
-        .toList();
-    await HojaDeRutaExtraPage.saveTiendasProveedoresCache();
-
-    // Guardar la hoja actual en el almacenamiento de hojas enviadas
-    final Map<String, dynamic> hoja = {
-      'origen': 'Tiendas/Proveedores',
-      'fecha': DateTime.now().toString(),
-      'numeroControl': 'Hoja de Ruta Extra',
-      'tipo': 'Hoja de Ruta',
-      'caja': 'Caja de Control',
-      'rows': _tiendasControllers
+    try {
+      HojaDeRutaExtraPage.tiendasCache = _tiendasControllers
           .map((r) => [r[0].text.trim(), r[1].text.trim()])
-          .toList(),
-      'createdAt': DateTime.now().toString(),
-    };
-    HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
-    await HojaDeRutaExtraPage.saveSentHojaRutasCache();
+          .where((r) => r[0].isNotEmpty || r[1].isNotEmpty)
+          .toList();
+      HojaDeRutaExtraPage.proveedoresCache = _proveedoresControllers
+          .map((r) => [r[0].text.trim(), r[1].text.trim()])
+          .where((r) => r[0].isNotEmpty || r[1].isNotEmpty)
+          .toList();
+      await HojaDeRutaExtraPage.saveTiendasProveedoresCache();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Datos guardados en Firestore y caché'),
-          duration: Duration(seconds: 2)),
-    );
+      // Guardar la hoja actual en el almacenamiento de hojas enviadas
+      final Map<String, dynamic> hoja = {
+        'origen': 'Tiendas/Proveedores',
+        'fecha': DateTime.now().toString(),
+        'numeroControl': 'Hoja de Ruta Extra',
+        'tipo': 'Hoja de Ruta',
+        'caja': 'Caja de Control',
+        'rows': _tiendasControllers
+            .map((r) => [r[0].text.trim(), r[1].text.trim()])
+            .toList(),
+        'createdAt': DateTime.now().toString(),
+      };
+      HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
+      await HojaDeRutaExtraPage.saveSentHojaRutasCache();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Datos guardados en Firestore y caché'),
+            duration: Duration(seconds: 2)),
+      );
+      if (mounted) {
+        // Log de éxito
+        print('[HojaDeRutaExtraPage] Guardado exitoso en Firestore y caché.');
+      }
+    } catch (e, st) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error al guardar: $e'),
+            duration: const Duration(seconds: 4)),
+      );
+      print(
+          '[HojaDeRutaExtraPage] Error al guardar en Firestore/caché: $e\n$st');
+    }
   }
 
   Widget _buildRow(

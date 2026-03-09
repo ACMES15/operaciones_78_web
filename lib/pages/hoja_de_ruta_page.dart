@@ -344,7 +344,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
     }
   }
 
-  void _guardarHojaRuta() {
+  Future<void> _guardarHojaRuta() async {
     final sheet = <String, dynamic>{
       'origen': _origen,
       'fecha': _fechaEnvio,
@@ -359,6 +359,9 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       'createdAt': DateTime.now().toIso8601String(),
     };
     HojaDeRutaExtraPage.sentHojaRutas.add(sheet);
+    // Guardar en Firebase y actualizar cache
+    await guardarDatosFirestoreYCache('hoja_ruta', 'sentHojaRutas',
+        {'items': HojaDeRutaExtraPage.sentHojaRutas});
 
     // Generar Word con los datos principales
     final destino = _controllers.isNotEmpty
