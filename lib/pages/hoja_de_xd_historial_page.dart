@@ -56,135 +56,132 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   List<HojaDeXDHistorial> historial = [];
   String filtro = '';
 
-  @override
-  void initState() {
-    super.initState();
-    _cargarHistorial();
-  }
-
-  Future<void> _cargarHistorial() async {
-    // Leer historial desde Firestore/cache
-    final data = await leerDatosConCache('hoja_de_xd_historial', 'main');
-    if (data != null && data['historial'] != null) {
-      final List<dynamic> list = data['historial'];
-      setState(() {
-        historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
-      });
-    } else {
-      setState(() {
-        historial = [];
-      });
-    }
-  }
+  // Ya no se usa initState ni _cargarHistorial, todo será reactivo con StreamBuilder
 
   @override
   Widget build(BuildContext context) {
-    final filtroLower = filtro.toLowerCase();
-    final historialFiltrado = filtro.isEmpty
-        ? historial
-        : historial.where((h) {
-            return h.usuario.toLowerCase().contains(filtroLower) ||
-                h.datos['CONTENEDOR O TARIMA']
-                        ?.toLowerCase()
-                        .contains(filtroLower) ==
-                    true ||
-                h.datos['DESTINO']?.toLowerCase().contains(filtroLower) ==
-                    true ||
-                h.datos['SKU']?.toLowerCase().contains(filtroLower) == true ||
-                h.datos['FECHA']?.toLowerCase().contains(filtroLower) == true ||
-                h.datos['TU']?.toLowerCase().contains(filtroLower) == true;
-          }).toList();
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.assignment,
-                    color: Color(0xFF2D6A4F), size: 32),
-                const SizedBox(width: 10),
-                const Text(
-                  'Historial Hoja de XD',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 26,
-                    color: Color(0xFF2D6A4F),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.table_view),
-                  tooltip: 'Exportar a Excel',
-                  onPressed: _exportarExcel,
-                ),
-              ],
-            ),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .doc('main')
+          .snapshots(),
+      builder: (context, snapshot) {
+        List<HojaDeXDHistorial> historial = [];
+        final data = snapshot.data?.data();
+        if (snapshot.hasData && data != null && data['historial'] != null) {
+          final List<dynamic> list = data['historial'];
+          historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
+        }
+        final filtroLower = filtro.toLowerCase();
+        final historialFiltrado = filtro.isEmpty
+            ? historial
+            : historial.where((h) {
+                return h.usuario.toLowerCase().contains(filtroLower) ||
+                    h.datos['CONTENEDOR O TARIMA']
+                            ?.toLowerCase()
+                            .contains(filtroLower) ==
+                        true ||
+                    h.datos['DESTINO']?.toLowerCase().contains(filtroLower) ==
+                        true ||
+                    h.datos['SKU']?.toLowerCase().contains(filtroLower) ==
+                        true ||
+                    h.datos['FECHA']?.toLowerCase().contains(filtroLower) ==
+                        true ||
+                    h.datos['TU']?.toLowerCase().contains(filtroLower) == true;
+              }).toList();
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF2D6A4F),
+            elevation: 0,
+            toolbarHeight: 0,
           ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: TextField(
-              decoration: const InputDecoration(
-                labelText:
-                    'Buscar por usuario, contenedor, TU, destino, SKU, fecha',
-                prefixIcon: Icon(Icons.search),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.assignment,
+                        color: Color(0xFF2D6A4F), size: 32),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Historial Hoja de XD',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                        color: Color(0xFF2D6A4F),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.table_view),
+                      tooltip: 'Exportar a Excel',
+                      onPressed: _exportarExcel,
+                    ),
+                  ],
+                ),
               ),
-              onChanged: (v) => setState(() => filtro = v.trim()),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: historialFiltrado.length,
-              itemBuilder: (context, i) {
-                final h = historialFiltrado[i];
-                return Card(
-                  margin:
-                      const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                  child: ListTile(
-                    title: Text('Usuario: ${h.usuario}'),
-                    subtitle: Text('Fecha: ${h.fecha}'),
-                    trailing: Text(h.fileName),
-                    onTap: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Detalle de registro'),
-                          content: SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Usuario: ${h.usuario}'),
-                                Text('Fecha: ${h.fecha}'),
-                                Text('Archivo: ${h.fileName}'),
-                                const SizedBox(height: 12),
-                                ...h.datos.entries
-                                    .map((e) => Text('${e.key}: ${e.value}')),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: TextField(
+                  decoration: const InputDecoration(
+                    labelText:
+                        'Buscar por usuario, contenedor, TU, destino, SKU, fecha',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: (v) => setState(() => filtro = v.trim()),
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: historialFiltrado.length,
+                  itemBuilder: (context, i) {
+                    final h = historialFiltrado[i];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          vertical: 6, horizontal: 12),
+                      child: ListTile(
+                        title: Text('Usuario: ${h.usuario}'),
+                        subtitle: Text('Fecha: ${h.fecha}'),
+                        trailing: Text(h.fileName),
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Detalle de registro'),
+                              content: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Usuario: ${h.usuario}'),
+                                    Text('Fecha: ${h.fecha}'),
+                                    Text('Archivo: ${h.fileName}'),
+                                    const SizedBox(height: 12),
+                                    ...h.datos.entries.map(
+                                        (e) => Text('${e.key}: ${e.value}')),
+                                  ],
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cerrar'),
+                                ),
                               ],
                             ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
