@@ -155,31 +155,46 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text('Ingresar'),
                 ),
                 TextButton(
+                  child: const Text('Olvidé mi contraseña'),
                   onPressed: () async {
                     final email = _emailController.text.trim();
                     if (email.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
-                                'Ingrese su correo para restablecer la contraseña.')),
+                                'Por favor ingresa tu correo electrónico para restablecer la contraseña.')),
                       );
                       return;
                     }
                     try {
                       await FirebaseAuth.instance
                           .sendPasswordResetEmail(email: email);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Se ha enviado un correo de restablecimiento a $email.')),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Revisa tu correo'),
+                          content: Text(
+                              'Se ha enviado un enlace para restablecer tu contraseña a $email.\n\n'
+                              'Por favor revisa tu bandeja de entrada (y la carpeta de spam). Sigue el enlace para crear una nueva contraseña.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Entendido'),
+                            ),
+                          ],
+                        ),
                       );
-                    } catch (e) {
+                    } on FirebaseAuthException catch (e) {
+                      String msg =
+                          'Error al enviar el correo de restablecimiento';
+                      if (e.code == 'user-not-found') {
+                        msg = 'No existe una cuenta con ese correo.';
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
+                        SnackBar(content: Text(msg)),
                       );
                     }
                   },
-                  child: const Text('Olvidé mi contraseña'),
                 ),
               ],
             ),
