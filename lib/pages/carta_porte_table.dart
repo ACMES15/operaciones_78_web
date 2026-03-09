@@ -126,10 +126,25 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           }
         }
       });
+    } on FirebaseException catch (e) {
+      String msg = 'Error de Firebase: ';
+      if (e.code == 'permission-denied') {
+        msg += 'Permisos insuficientes para guardar en Firestore.';
+      } else if (e.code == 'unavailable') {
+        msg += 'No hay conexión con el servidor de Firestore.';
+      } else {
+        msg += e.message ?? e.code;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red,
+        ),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al guardar en historial: $e'),
+          content: Text('Error inesperado al guardar en historial: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -140,17 +155,34 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   List<Map<String, String>> _choferes = [];
   int? _choferSeleccionado;
 
-  Future<void> _cargarChoferes() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString('choferes_db');
-    if (jsonStr != null) {
-      final List<dynamic> decoded = json.decode(jsonStr);
-      setState(() {
-        _choferes = decoded
-            .map<Map<String, String>>((e) => Map<String, String>.from(e))
-            .toList();
-      });
-    }
+  // Cargar choferes en tiempo real desde Firestore
+  void _escucharChoferesRealtime() {
+    FirebaseFirestore.instance
+        .collection('choferes')
+        .doc('main')
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists &&
+          snapshot.data() != null &&
+          snapshot.data()!['items'] != null) {
+        final items = snapshot.data()!['items'] as List;
+        setState(() {
+          _choferes = items
+              .map<Map<String, String>>((e) => Map<String, String>.from(e))
+              .toList();
+        });
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture = _initControllers();
+    final now = DateTime.now();
+    _fechaActual =
+        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+    _escucharChoferesRealtime();
   }
 
   Future<void> _guardarChoferes() async {
@@ -160,7 +192,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   void _mostrarDialogoChoferes() async {
-    await _cargarChoferes();
+    // Ya no es necesario cargar choferes manualmente, se sincronizan en tiempo real
     showDialog(
       context: context,
       builder: (context) {
@@ -355,15 +387,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   final TextEditingController _destinoController = TextEditingController();
   late String _fechaActual;
 
-  @override
-  void initState() {
-    super.initState();
-    _initFuture = _initControllers();
-    final now = DateTime.now();
-    _fechaActual =
-        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-  }
-
   Future<void> _initControllers() async {
     // Simula carga y reduce filas iniciales a 5 para evitar congelamiento
     await Future.delayed(const Duration(milliseconds: 600));
@@ -399,10 +422,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
 
   @override
   Widget build(BuildContext context) {
-    // Cargar base de datos de choferes si está vacía
-    if (_choferes.isEmpty) {
-      _cargarChoferes();
-    }
+    // Ya no es necesario cargar choferes manualmente, se sincronizan en tiempo real
     final double screenWidth = MediaQuery.of(context).size.width;
     final double horizontalMargin = 24.0;
     // Ajuste: todos los encabezados visibles en pantalla
