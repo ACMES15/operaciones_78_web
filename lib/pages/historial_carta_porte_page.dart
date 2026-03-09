@@ -15,61 +15,8 @@ class HistorialCartaPortePage extends StatefulWidget {
 
 class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   // Filtros (no usado)
-  List<Map<String, dynamic>> _filtrado = [];
-  List<String> _camposDinamicos = [];
   final TextEditingController _busquedaController = TextEditingController();
-  // Exportar historial a Excel
-  Future<void> _exportarHistorialExcel() async {
-    if (_historial.isEmpty) return;
-    // Importar utilitario
-    // ignore: unused_import
-
-    await exportarExcel(
-        cartas: _historial, fileName: 'historial_cartas_porte.xlsx');
-  }
-
-  List<Map<String, dynamic>> _historial = [];
-  // bool _loading = true;
   bool _esAdmin = true; // Cambia esto según tu lógica de permisos
-
-  @override
-  void initState() {
-    super.initState();
-    _busquedaController.addListener(_aplicarFiltros);
-  }
-
-  Future<void> _cargarHistorial() async {
-    // setState(() => _loading = true);
-    final cartas = await table_historial.CartaPorteHistorialManager.loadAll();
-    setState(() {
-      _historial = List<Map<String, dynamic>>.from(cartas);
-      // Detectar todos los campos presentes en las cartas
-      final campos = <String>{};
-      for (final carta in _historial) {
-        campos.addAll(carta.keys.map((k) => k.toString()));
-      }
-      _camposDinamicos = campos.toList();
-      _aplicarFiltros();
-      // _loading = false;
-    });
-  }
-
-  void _aplicarFiltros() {
-    setState(() {
-      final busqueda = _busquedaController.text.trim().toLowerCase();
-      if (busqueda.isEmpty) {
-        _filtrado = List<Map<String, dynamic>>.from(_historial);
-      } else {
-        _filtrado = _historial.where((carta) {
-          for (final campo in _camposDinamicos) {
-            final valor = (carta[campo]?.toString() ?? '').toLowerCase();
-            if (valor.contains(busqueda)) return true;
-          }
-          return false;
-        }).toList();
-      }
-    });
-  }
 
   bool _isCompleta(Map<String, dynamic> carta) {
     final campos = ['DESTINO', 'CHOFER', 'UNIDAD', 'RFC', 'CONCENTRADO'];
@@ -81,18 +28,12 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
     return true;
   }
 
-  void _editarCarta(int idx) {
-    final carta = _historial[idx];
-    Navigator.of(context)
-        .push<bool>(
+  void _editarCarta(Map<String, dynamic> carta) {
+    Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (context) => CartaPorteEdicionCompletaPage(
           carta: carta,
           onGuardar: (nuevaCarta) async {
-            // Aquí deberías implementar la actualización en Firestore y cache si tienes updateCarta
-            // await CartaPorteHistorialManager.updateCarta(idx, nuevaCarta);
-            // Recargar historial después de guardar
-            await _cargarHistorial();
             Navigator.of(context).pop(true);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -110,12 +51,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
           },
         ),
       ),
-    )
-        .then((actualizar) async {
-      if (actualizar == true) {
-        await _cargarHistorial();
-      }
-    });
+    );
   }
 
   @override
@@ -168,17 +104,36 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               );
             }
             // Fusionar ambos historiales
-            _historial = [...cartasPorte, ...hojasRuta];
+            final historial = [...cartasPorte, ...hojasRuta];
             // Detectar todos los campos presentes en las cartas
             final campos = <String>{};
-            for (final carta in _historial) {
+            for (final carta in historial) {
               campos.addAll(carta.keys.map((k) => k.toString()));
             }
-            _camposDinamicos = campos.toList();
-            _aplicarFiltros();
-            final incompletas =
-                _filtrado.where((c) => !_isCompleta(c)).toList();
-            final completas = _filtrado.where((c) => _isCompleta(c)).toList();
+            final camposDinamicos = campos.toList();
+            // Filtrado local
+            final busqueda = _busquedaController.text.trim().toLowerCase();
+            List<Map<String, dynamic>> filtrado;
+            if (busqueda.isEmpty) {
+              filtrado = List<Map<String, dynamic>>.from(historial);
+            } else {
+              filtrado = historial.where((carta) {
+                for (final campo in camposDinamicos) {
+                  final valor = (carta[campo]?.toString() ?? '').toLowerCase();
+                  if (valor.contains(busqueda)) return true;
+                }
+                return false;
+              }).toList();
+            }
+            final incompletas = filtrado.where((c) => !_isCompleta(c)).toList();
+            final completas = filtrado.where((c) => _isCompleta(c)).toList();
+            // Función para exportar Excel con historial actual
+            Future<void> exportarHistorialExcel() async {
+              if (historial.isEmpty) return;
+              await exportarExcel(
+                  cartas: historial, fileName: 'historial_cartas_porte.xlsx');
+            }
+
             return Scaffold(
               appBar: AppBar(
                 backgroundColor: const Color(0xFF2D6A4F),
@@ -189,7 +144,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     icon: const Icon(Icons.file_download),
                     tooltip: 'Exportar historial a Excel',
                     onPressed:
-                        _historial.isEmpty ? null : _exportarHistorialExcel,
+                        historial.isEmpty ? null : exportarHistorialExcel,
                   ),
                 ],
               ),
@@ -228,7 +183,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                       ],
                     ),
                   ),
-                  if (_historial.isEmpty)
+                  if (historial.isEmpty)
                     Expanded(
                       child: Center(
                         child: Text(
@@ -269,7 +224,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                       ),
                     // Cartas completas primero
                     ...completas.map((carta) {
-                      final idx = _historial.indexOf(carta);
                       bool verDetalles = false;
                       return StatefulBuilder(
                         builder: (context, setStateCard) {
@@ -340,7 +294,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                       IconButton(
                                         icon: const Icon(Icons.edit,
                                             color: Colors.blue),
-                                        onPressed: () => _editarCarta(idx),
+                                        onPressed: () => _editarCarta(carta),
                                       ),
                                       if (_esAdmin)
                                         IconButton(
@@ -379,36 +333,40 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                               ),
                                             );
                                             if (confirm == true) {
-                                              setState(() {
-                                                _historial.removeAt(idx);
-                                              });
-                                              try {
-                                                await guardarDatosFirestoreYCache(
-                                                  'historial_carta_porte',
-                                                  'datos',
-                                                  {'datos': _historial},
-                                                );
-                                                print(
-                                                    'Guardado exitoso en Firestore: historial_carta_porte/datos');
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  const SnackBar(
-                                                      content: Text(
-                                                          'Hoja eliminada y guardada en Firebase.'),
-                                                      backgroundColor:
-                                                          Colors.green),
-                                                );
-                                              } catch (e) {
-                                                print(
-                                                    'Error guardando historial actualizado en Firestore: $e');
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                      content: Text(
-                                                          'Error guardando en Firebase: $e'),
-                                                      backgroundColor:
-                                                          Colors.red),
-                                                );
+                                              final idx =
+                                                  historial.indexOf(carta);
+                                              if (idx != -1) {
+                                                setState(() {
+                                                  historial.removeAt(idx);
+                                                });
+                                                try {
+                                                  await guardarDatosFirestoreYCache(
+                                                    'historial_carta_porte',
+                                                    'datos',
+                                                    {'datos': historial},
+                                                  );
+                                                  print(
+                                                      'Guardado exitoso en Firestore: historial_carta_porte/datos');
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                        content: Text(
+                                                            'Hoja eliminada y guardada en Firebase.'),
+                                                        backgroundColor:
+                                                            Colors.green),
+                                                  );
+                                                } catch (e) {
+                                                  print(
+                                                      'Error guardando historial actualizado en Firestore: $e');
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                        content: Text(
+                                                            'Error guardando en Firebase: $e'),
+                                                        backgroundColor:
+                                                            Colors.red),
+                                                  );
+                                                }
                                               }
                                             }
                                           },
@@ -465,7 +423,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     }),
                     // Cartas incompletas después, en naranja
                     ...incompletas.map((carta) {
-                      final idx = _historial.indexOf(carta);
                       return Card(
                         color: Colors.orange.shade100,
                         child: ListTile(
@@ -522,7 +479,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                               IconButton(
                                 icon:
                                     const Icon(Icons.edit, color: Colors.blue),
-                                onPressed: () => _editarCarta(idx),
+                                onPressed: () => _editarCarta(carta),
                               ),
                               if (_esAdmin)
                                 IconButton(
@@ -555,26 +512,29 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                       ),
                                     );
                                     if (confirm == true) {
-                                      setState(() {
-                                        _historial.removeAt(idx);
-                                      });
-                                      // Guardar en Firestore y cache
-                                      try {
-                                        await guardarDatosFirestoreYCache(
-                                          'historial_carta_porte',
-                                          'datos',
-                                          {'datos': _historial},
+                                      final idx = historial.indexOf(carta);
+                                      if (idx != -1) {
+                                        setState(() {
+                                          historial.removeAt(idx);
+                                        });
+                                        // Guardar en Firestore y cache
+                                        try {
+                                          await guardarDatosFirestoreYCache(
+                                            'historial_carta_porte',
+                                            'datos',
+                                            {'datos': historial},
+                                          );
+                                        } catch (e) {
+                                          print(
+                                              'Error guardando historial actualizado: $e');
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text('Hoja eliminada.'),
+                                              backgroundColor: Colors.red),
                                         );
-                                      } catch (e) {
-                                        print(
-                                            'Error guardando historial actualizado: $e');
                                       }
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                            content: Text('Hoja eliminada.'),
-                                            backgroundColor: Colors.red),
-                                      );
                                     }
                                   },
                                 ),
