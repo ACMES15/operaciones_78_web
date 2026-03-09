@@ -92,6 +92,22 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () async {
+                    // DEBUG: Mostrar todos los usuarios leídos de Firestore
+                    try {
+                      final debugQuery = await FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .get();
+                      print('DEBUG Firestore usuarios:');
+                      for (var doc in debugQuery.docs) {
+                        print('usuario: "' +
+                            (doc['usuario'] ?? '').toString() +
+                            '", password: "' +
+                            (doc['password'] ?? '').toString() +
+                            '"');
+                      }
+                    } catch (e) {
+                      print('DEBUG Error leyendo usuarios Firestore: $e');
+                    }
                     if (!_formKey.currentState!.validate()) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
@@ -100,17 +116,24 @@ class _LoginPageState extends State<LoginPage> {
                     try {
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
-                          .where('usuario', isEqualTo: usuarioInput)
-                          .limit(1)
                           .get();
-                      if (query.docs.isEmpty) {
+                      // Buscar usuario ignorando mayúsculas y espacios
+                      final docs = query.docs.where((doc) {
+                        final dbUser = (doc['usuario'] ?? '')
+                            .toString()
+                            .trim()
+                            .toLowerCase();
+                        return dbUser == usuarioInput;
+                      }).toList();
+                      if (docs.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Usuario no registrado.')),
+                          SnackBar(
+                              content: Text(
+                                  'Usuario no registrado. Verifica el campo "usuario" en Firestore.')),
                         );
                         return;
                       }
-                      final data = query.docs.first.data();
+                      final data = docs.first.data();
                       final passDb = (data['password'] ?? '')
                           .toString()
                           .trim()
