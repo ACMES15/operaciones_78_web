@@ -56,38 +56,46 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
   }
 
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
+    // Asegurar que rows sea List<List<String>> aunque venga como List<Map> de Firestore
+    List<List<String>> rows = [];
+    if (sheet['rows'] != null && sheet['rows'] is List) {
+      final rawRows = sheet['rows'] as List;
+      if (rawRows.isNotEmpty && rawRows.first is Map) {
+        // Convertir List<Map> a List<List<String>>
+        rows = rawRows
+            .map((e) => (e as Map).values.map((v) => v.toString()).toList())
+            .toList();
+      } else {
+        rows = rawRows.map((e) => List<String>.from(e)).toList();
+      }
+    }
+    final List<String> columns = sheet['headers'] != null
+        ? List<String>.from(sheet['headers'])
+        : (rows.isNotEmpty
+            ? List.generate(rows[0].length, (i) => 'Col${i + 1}')
+            : []);
+    final List<List<TextEditingController>> rowControllers = List.generate(
+      rows.length,
+      (i) => List.generate(
+        rows[i].length,
+        (j) => TextEditingController(text: rows[i][j]),
+      ),
+    );
+    void saveEdits(StateSetter setModalState) {
+      sheet['rows'] = rowControllers
+          .map((r) => r.map((c) => c.text.trim()).toList())
+          .toList();
+      Navigator.of(context).pop();
+    }
+
+    void deleteSheet(StateSetter setModalState) {
+      HojaDeRutaExtraPage.sentHojaRutas.remove(sheet);
+      Navigator.of(context).pop();
+    }
+
     showDialog(
       context: context,
       builder: (context) {
-        // Copia editable de las filas
-        final List<String> columns = sheet['headers'] != null
-            ? List<String>.from(sheet['headers'])
-            : (sheet['rows'].isNotEmpty
-                ? (sheet['rows'][0] as List)
-                    .asMap()
-                    .keys
-                    .map((i) => 'Col${i + 1}')
-                    .toList()
-                : []);
-        final List<List<TextEditingController>> rowControllers = List.generate(
-          sheet['rows'].length,
-          (i) => List.generate(
-            (sheet['rows'][i] as List).length,
-            (j) => TextEditingController(text: sheet['rows'][i][j]),
-          ),
-        );
-        void saveEdits(StateSetter setModalState) {
-          sheet['rows'] = rowControllers
-              .map((r) => r.map((c) => c.text.trim()).toList())
-              .toList();
-          Navigator.of(context).pop();
-        }
-
-        void deleteSheet(StateSetter setModalState) {
-          HojaDeRutaExtraPage.sentHojaRutas.remove(sheet);
-          Navigator.of(context).pop();
-        }
-
         return StatefulBuilder(builder: (context, setModalState) {
           final double maxWidth = MediaQuery.of(context).size.width * 0.95;
           double colWidth = ((maxWidth - 48) / columns.length).clamp(70, 120);
@@ -318,17 +326,15 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchController = TextEditingController();
-    return FutureBuilder(
-      future: HojaDeRutaExtraPage.loadSentHojaRutasCache()
-          .then((_) => leerDatosConCache('hoja_ruta', 'sentHojaRutas')),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .doc('sentHojaRutas')
+          .snapshots(),
       builder: (context, snapshot) {
         List<Map<String, dynamic>> sent = [];
-        final data = snapshot.data;
-        if (snapshot.connectionState == ConnectionState.done &&
-            snapshot.hasData &&
-            data != null &&
-            data is Map &&
-            data['items'] != null) {
+        final data = snapshot.data?.data();
+        if (snapshot.hasData && data != null && data['items'] != null) {
           sent = List<Map<String, dynamic>>.from(
             (data['items'] as List).map((e) => Map<String, dynamic>.from(e)),
           ).reversed.toList();
@@ -337,21 +343,6 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
 
         return StatefulBuilder(
           builder: (context, setModalState) {
-            void reloadSheets() async {
-              await HojaDeRutaExtraPage.loadSentHojaRutasCache();
-              final newData =
-                  await leerDatosConCache('hoja_ruta', 'sentHojaRutas');
-              sent = [];
-              if (newData != null && newData['items'] != null) {
-                sent = List<Map<String, dynamic>>.from(
-                  (newData['items'] as List)
-                      .map((e) => Map<String, dynamic>.from(e)),
-                ).reversed.toList();
-              }
-              filtered = List.from(sent);
-              setModalState(() {});
-            }
-
             void filterSheets(String query) {
               final q = query.toLowerCase();
               filtered = sent.where((sheet) {
@@ -370,7 +361,7 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                         false);
                 if (!match && sheet['rows'] != null) {
                   for (final row in (sheet['rows'] as List)) {
-                    for (final cell in (row as List)) {
+                    for (final cell in (row is Map ? row.values : row)) {
                       if (cell.toString().toLowerCase().contains(q)) {
                         match = true;
                         break;
@@ -442,7 +433,6 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                                                   'items': HojaDeRutaExtraPage
                                                       .sentHojaRutas
                                                 });
-                                                reloadSheets();
                                               },
                                             ),
                                         ]),
