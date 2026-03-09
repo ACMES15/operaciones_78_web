@@ -1,6 +1,5 @@
 // --- HOME PAGE CON MENÚ LATERAL ---
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/user_control_page.dart';
 import 'pages/user_permissions_page.dart';
@@ -8,14 +7,15 @@ import 'pages/login_page.dart';
 import 'pages/hoja_de_xd_page.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final String usuario;
+  const HomePage({required this.usuario, super.key});
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
   // Simulación de notificaciones (puedes conectar a Firebase o tu backend)
-  String _usuario = '';
+  late String _usuario;
   String _tipoUsuario = '';
   List<String> _notificaciones = [];
   int get _notificacionesNoLeidas => _notificaciones.length;
@@ -29,40 +29,39 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    _usuario = user?.email ?? 'Usuario';
-    // Leer tipo de usuario desde Firestore (colección 'usuarios', doc con uid)
-    if (user != null) {
-      FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(user.uid)
-          .get()
-          .then((doc) {
-        if (doc.exists && doc.data() != null && doc.data()!['tipo'] != null) {
-          setState(() {
-            _tipoUsuario = doc.data()!['tipo'].toString();
-          });
-        }
-      });
-    }
-    // Escuchar notificaciones en tiempo real (colección 'notificaciones', doc con uid)
-    if (user != null) {
-      FirebaseFirestore.instance
-          .collection('notificaciones')
-          .doc(user.uid)
-          .snapshots()
-          .listen((doc) {
-        if (doc.exists && doc.data() != null && doc.data()!['items'] is List) {
-          setState(() {
-            _notificaciones = List<String>.from(doc.data()!['items']);
-          });
-        } else {
-          setState(() {
-            _notificaciones = [];
-          });
-        }
-      });
-    }
+    _usuario = widget.usuario;
+    // Leer tipo de usuario desde Firestore (colección 'usuarios', campo 'usuario')
+    FirebaseFirestore.instance
+        .collection('usuarios')
+        .where('usuario', isEqualTo: _usuario)
+        .limit(1)
+        .get()
+        .then((query) {
+      if (query.docs.isNotEmpty &&
+          query.docs.first.data().containsKey('tipo')) {
+        setState(() {
+          _tipoUsuario = query.docs.first['tipo'].toString();
+        });
+      }
+    });
+    // Adaptar notificaciones por nombre de usuario
+    FirebaseFirestore.instance
+        .collection('notificaciones')
+        .where('usuario', isEqualTo: _usuario)
+        .limit(1)
+        .snapshots()
+        .listen((query) {
+      if (query.docs.isNotEmpty &&
+          query.docs.first.data().containsKey('items')) {
+        setState(() {
+          _notificaciones = List<String>.from(query.docs.first['items']);
+        });
+      } else {
+        setState(() {
+          _notificaciones = [];
+        });
+      }
+    });
   }
   // Si tienes notificaciones en Firebase, usa un StreamBuilder en el widget.
 
@@ -322,15 +321,12 @@ class _HomePageState extends State<HomePage> {
                         icon: const Icon(Icons.logout),
                         label: const Text('Cerrar sesión',
                             style: TextStyle(fontWeight: FontWeight.bold)),
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          if (mounted) {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (context) => const LoginPage(),
-                              ),
-                            );
-                          }
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (context) => const LoginPage(),
+                            ),
+                          );
                         },
                       ),
                     ],

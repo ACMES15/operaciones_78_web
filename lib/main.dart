@@ -32,10 +32,8 @@ class MyApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF6F7FB),
       ),
       home: const LoginPage(),
-      routes: {
-        '/home': (context) => HomePage(),
-        // Puedes agregar más rutas aquí si es necesario
-      },
+      // El acceso a HomePage requiere usuario, así que elimina la ruta directa
+      // Puedes agregar más rutas aquí si es necesario
     );
   }
 }

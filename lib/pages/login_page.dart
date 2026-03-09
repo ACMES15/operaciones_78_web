@@ -12,6 +12,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _usuarioController = TextEditingController();
+  final _passController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +73,17 @@ class _LoginPageState extends State<LoginPage> {
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Ingrese su usuario' : null,
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passController,
+                  decoration: const InputDecoration(
+                    labelText: 'Contraseña',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  obscureText: true,
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Ingrese su contraseña' : null,
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -82,30 +94,19 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () async {
                     if (!_formKey.currentState!.validate()) return;
                     final usuario = _usuarioController.text.trim();
+                    final password = _passController.text.trim();
                     try {
-                      // Autenticación anónima
-                      final cred =
-                          await FirebaseAuth.instance.signInAnonymously();
-                      final uid = cred.user?.uid;
-                      if (uid == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('No se pudo autenticar.')),
-                        );
-                        return;
-                      }
-                      // Buscar usuario en Firestore
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
                           .where('usuario', isEqualTo: usuario)
+                          .where('password', isEqualTo: password)
                           .limit(1)
                           .get();
                       if (query.docs.isEmpty) {
-                        await FirebaseAuth.instance.currentUser?.delete();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:
-                                  Text('Usuario no autorizado o no existe.')),
+                                  Text('Usuario o contraseña incorrectos.')),
                         );
                         return;
                       }
@@ -113,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => HomePage(),
+                          builder: (context) => HomePage(usuario: usuario),
                         ),
                       );
                     } catch (e) {
@@ -124,18 +125,7 @@ class _LoginPageState extends State<LoginPage> {
                   },
                   child: const Text('Ingresar'),
                 ),
-                TextButton(
-                  child: const Text('Olvidé mi contraseña'),
-                  onPressed: () async {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'La recuperación de contraseña no aplica para autenticación anónima.',
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                // Puedes agregar aquí un flujo de recuperación de contraseña personalizado si lo deseas
               ],
             ),
           ),
