@@ -1,7 +1,7 @@
 // --- HOME PAGE CON MENÚ LATERAL ---
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'pages/user_control_page.dart';
 import 'pages/user_permissions_page.dart';
 import 'pages/login_page.dart';
@@ -14,9 +14,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Notificaciones en tiempo real desde Firebase
+  // Simulación de notificaciones (puedes conectar a Firebase o tu backend)
+  String _usuario = '';
+  String _tipoUsuario = '';
   List<String> _notificaciones = [];
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _notificacionesStream;
   int get _notificacionesNoLeidas => _notificaciones.length;
   int _selectedIndex = 0;
   bool _menuExpandido = false;
@@ -25,35 +26,45 @@ class _HomePageState extends State<HomePage> {
     UserPermissionsPage(),
     HojaDeXDPage(),
   ];
-  final List<String> _titles = const [
-    'Control de Usuarios',
-    'Permisos de Usuario',
-    'Hoja de XD',
-  ];
-  String _usuario = FirebaseAuth.instance.currentUser?.email ?? 'Usuario';
   @override
   void initState() {
     super.initState();
-    // Escuchar notificaciones en tiempo real (colección 'notificaciones', doc 'main', campo 'items')
-    _notificacionesStream = FirebaseFirestore.instance
-        .collection('notificaciones')
-        .doc('main')
-        .snapshots()
-        .map((doc) {
-      final data = doc.data();
-      if (data != null && data['items'] is List) {
-        _notificaciones = List<String>.from(data['items']);
-      } else {
-        _notificaciones = [];
-      }
-      // Forzar rebuild
-      if (mounted) setState(() {});
-      // Retornar un QuerySnapshot simulado (no se usa)
-      return QuerySnapshot<Map<String, dynamic>>.fromQuerySnapshot(
-          doc as dynamic);
-    });
-    // Alternativamente, puedes usar un StreamBuilder en el widget, pero aquí lo hacemos en initState para mantener la lógica en el estado.
+    final user = FirebaseAuth.instance.currentUser;
+    _usuario = user?.email ?? 'Usuario';
+    // Leer tipo de usuario desde Firestore (colección 'usuarios', doc con uid)
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(user.uid)
+          .get()
+          .then((doc) {
+        if (doc.exists && doc.data() != null && doc.data()!['tipo'] != null) {
+          setState(() {
+            _tipoUsuario = doc.data()!['tipo'].toString();
+          });
+        }
+      });
+    }
+    // Escuchar notificaciones en tiempo real (colección 'notificaciones', doc con uid)
+    if (user != null) {
+      FirebaseFirestore.instance
+          .collection('notificaciones')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) {
+        if (doc.exists && doc.data() != null && doc.data()!['items'] is List) {
+          setState(() {
+            _notificaciones = List<String>.from(doc.data()!['items']);
+          });
+        } else {
+          setState(() {
+            _notificaciones = [];
+          });
+        }
+      });
+    }
   }
+  // Si tienes notificaciones en Firebase, usa un StreamBuilder en el widget.
 
   // Para mostrar el usuario firmado, puedes recibirlo por constructor o variable global
   // Ejemplo: final String usuario;
@@ -254,6 +265,25 @@ class _HomePageState extends State<HomePage> {
                                     ],
                                   ),
                                 ),
+                                if (_tipoUsuario.isNotEmpty) ...[
+                                  const SizedBox(width: 12),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.teal.shade700,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      _tipoUsuario,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                ]
                               ],
                             ),
                             const SizedBox(height: 4),

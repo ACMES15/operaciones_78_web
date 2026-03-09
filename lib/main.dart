@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
-import 'pages/home_page.dart';
+import 'home_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'utils/firebase_cache_utils.dart';
+// import 'utils/firebase_cache_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,7 +33,7 @@ class MyApp extends StatelessWidget {
       ),
       home: const LoginPage(),
       routes: {
-        '/home': (context) => HomePage(usuario: 'acmes15'),
+        '/home': (context) => HomePage(),
         // Puedes agregar más rutas aquí si es necesario
       },
     );

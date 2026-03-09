@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'home_page.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../utils/bienvenida_cache.dart';
+import '../home_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,134 +10,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  String _mensajeRestablecido = '';
-  @override
-  void initState() {
-    super.initState();
-    _userController.addListener(_verificarRestablecido);
-  }
-
-  void _verificarRestablecido() async {
-    final usuario = _userController.text.trim();
-    if (usuario.isEmpty) {
-      setState(() {
-        _mensajeRestablecido = '';
-      });
-      return;
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final notificaciones = prefs.getString('notificaciones_password') ?? '[]';
-    final List<dynamic> lista = jsonDecode(notificaciones);
-    final existe = lista.any((n) =>
-        n['usuario'] == usuario &&
-        n['mensaje'] ==
-            'Tu contraseña ha sido restablecida por el administrador');
-    setState(() {
-      _mensajeRestablecido =
-          existe ? 'Usuario reestablecido por el administrador' : '';
-    });
-    if (existe && !_mostrandoDialogo) {
-      _mostrarDialogoCambio(usuario, prefs, lista);
-    }
-  }
-
-  bool _mostrandoDialogo = false;
-  void _mostrarDialogoCambio(
-      String usuario, SharedPreferences prefs, List<dynamic> lista) async {
-    _mostrandoDialogo = true;
-    String nuevaPass = '';
-    String confirmPass = '';
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Cambiar contraseña'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                  'Tu contraseña fue restablecida por el administrador. Ingresa una nueva.'),
-              const SizedBox(height: 12),
-              TextField(
-                obscureText: true,
-                decoration:
-                    const InputDecoration(labelText: 'Nueva contraseña'),
-                onChanged: (v) => nuevaPass = v,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                obscureText: true,
-                decoration:
-                    const InputDecoration(labelText: 'Confirmar contraseña'),
-                onChanged: (v) => confirmPass = v,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nuevaPass.isEmpty || confirmPass.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Completa ambos campos.')),
-                  );
-                  return;
-                }
-                if (nuevaPass != confirmPass) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Las contraseñas no coinciden.')),
-                  );
-                  return;
-                }
-                // Actualizar contraseña
-                final data = prefs.getString('usuarios_guardados');
-                List<Map<String, dynamic>> usuarios = [];
-                if (data != null) {
-                  final List<dynamic> decoded = jsonDecode(data);
-                  usuarios = decoded
-                      .cast<Map<String, dynamic>>()
-                      .map((e) => Map<String, dynamic>.from(e))
-                      .toList();
-                }
-                final index =
-                    usuarios.indexWhere((u) => u['usuario'] == usuario);
-                if (index != -1) {
-                  usuarios[index]['password'] = nuevaPass;
-                  await prefs.setString(
-                      'usuarios_guardados', jsonEncode(usuarios));
-                }
-                // Eliminar notificación
-                lista.removeWhere((n) =>
-                    n['usuario'] == usuario &&
-                    n['mensaje'] ==
-                        'Tu contraseña ha sido restablecida por el administrador');
-                await prefs.setString(
-                    'notificaciones_password', jsonEncode(lista));
-                setState(() {
-                  _mensajeRestablecido = '';
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Contraseña actualizada correctamente.')),
-                );
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        );
-      },
-    );
-    _mostrandoDialogo = false;
-  }
-
   final _formKey = GlobalKey<FormState>();
-  final _userController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passController = TextEditingController();
 
   @override
@@ -192,26 +65,14 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 24),
                 TextFormField(
-                  controller: _userController,
+                  controller: _emailController,
                   decoration: const InputDecoration(
-                    labelText: 'Usuario',
+                    labelText: 'Correo electrónico',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   validator: (v) =>
-                      v == null || v.isEmpty ? 'Ingrese usuario' : null,
+                      v == null || v.isEmpty ? 'Ingrese correo' : null,
                 ),
-                if (_mensajeRestablecido.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 8),
-                    child: Text(
-                      _mensajeRestablecido,
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passController,
@@ -231,55 +92,63 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () async {
-                    final usuario = _userController.text.trim();
+                    if (!_formKey.currentState!.validate()) return;
+                    final email = _emailController.text.trim();
                     final password = _passController.text.trim();
-                    final prefs = await SharedPreferences.getInstance();
-                    final data = prefs.getString('usuarios_guardados');
-                    List<Map<String, dynamic>> usuarios = [];
-                    if (data != null) {
-                      final List<dynamic> decoded = jsonDecode(data);
-                      usuarios = decoded
-                          .cast<Map<String, dynamic>>()
-                          .map((e) => Map<String, dynamic>.from(e))
-                          .toList();
-                    }
-                    // Asegurar usuario maestro
-                    final existeAcmes =
-                        usuarios.any((u) => u['usuario'] == 'acmes15');
-                    if (!existeAcmes) {
-                      usuarios.add({
-                        'nombre': 'Administrador General',
-                        'usuario': 'acmes15',
-                        'correo': 'acmes15@empresa.com',
-                        'tipo': 'SUPERADMIN',
-                        'activo': true,
-                        'password': 'cecoatl1315',
-                        'requiereCambioPassword': false,
-                      });
-                      await prefs.setString(
-                          'usuarios_guardados', jsonEncode(usuarios));
-                    }
-                    final user = usuarios.firstWhere(
-                      (u) =>
-                          u['usuario'] == usuario &&
-                          u['password'] == password &&
-                          (u['activo'] ?? true),
-                      orElse: () => {},
-                    );
-                    if (user.isNotEmpty) {
-                      // Limpiar flag de bienvenida para mostrar animación tras login
-                      await BienvenidaCache.limpiar();
+                    try {
+                      final cred = await FirebaseAuth.instance
+                          .signInWithEmailAndPassword(
+                        email: email,
+                        password: password,
+                      );
+                      // Crear documento de usuario y notificaciones si no existen
+                      final uid = cred.user?.uid;
+                      if (uid != null) {
+                        final userDoc = await FirebaseFirestore.instance
+                            .collection('usuarios')
+                            .doc(uid)
+                            .get();
+                        if (!userDoc.exists) {
+                          await FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc(uid)
+                              .set({
+                            'email': email,
+                            'tipo': 'usuario', // Cambia según lógica de tu app
+                          });
+                        }
+                        final notifDoc = await FirebaseFirestore.instance
+                            .collection('notificaciones')
+                            .doc(uid)
+                            .get();
+                        if (!notifDoc.exists) {
+                          await FirebaseFirestore.instance
+                              .collection('notificaciones')
+                              .doc(uid)
+                              .set({
+                            'items': [],
+                          });
+                        }
+                      }
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => HomePage(usuario: usuario),
+                          builder: (context) => HomePage(),
                         ),
                       );
-                    } else {
+                    } on FirebaseAuthException catch (e) {
+                      String msg = 'Error de autenticación';
+                      if (e.code == 'user-not-found') {
+                        msg = 'Usuario no encontrado';
+                      } else if (e.code == 'wrong-password') {
+                        msg = 'Contraseña incorrecta';
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Usuario o contraseña incorrectos'),
-                        ),
+                        SnackBar(content: Text(msg)),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
                       );
                     }
                   },
@@ -287,32 +156,28 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 TextButton(
                   onPressed: () async {
-                    final usuario = _userController.text.trim();
-                    if (usuario.isEmpty) {
+                    final email = _emailController.text.trim();
+                    if (email.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
-                                'Ingrese su usuario para solicitar el restablecimiento.')),
+                                'Ingrese su correo para restablecer la contraseña.')),
                       );
                       return;
                     }
-                    // Guardar notificación en SharedPreferences
-                    final prefs = await SharedPreferences.getInstance();
-                    final notificaciones =
-                        prefs.getString('notificaciones_password') ?? '[]';
-                    final List<dynamic> lista = jsonDecode(notificaciones);
-                    lista.add({
-                      'usuario': usuario,
-                      'fecha': DateTime.now().toIso8601String(),
-                      'mensaje': 'Solicitud de restablecimiento de contraseña',
-                    });
-                    await prefs.setString(
-                        'notificaciones_password', jsonEncode(lista));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'Se ha enviado una solicitud de restablecimiento de contraseña para $usuario al administrador.')),
-                    );
+                    try {
+                      await FirebaseAuth.instance
+                          .sendPasswordResetEmail(email: email);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Se ha enviado un correo de restablecimiento a $email.')),
+                      );
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
                   },
                   child: const Text('Olvidé mi contraseña'),
                 ),
