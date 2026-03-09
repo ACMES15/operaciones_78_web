@@ -21,6 +21,7 @@ import 'historial_entregas_devcan_page.dart';
 import 'recogidos/recogidos_page.dart';
 import 'recogidos/historial_entregas_recogidos_page.dart';
 import 'bienvenida_page.dart';
+import '../utils/firebase_cache_utils.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -157,11 +158,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<List<Map<String, dynamic>>> _cargarHistorialRecogidos() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('historial_entregas_recogidos');
-    if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
-      return decoded
+    // Intenta leer de cache, si no existe, lee de Firestore y cachea
+    final datos =
+        await leerDatosConCache('historial_entregas', 'recogidos_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> items = datos['items'];
+      return items
           .cast<Map<String, dynamic>>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
@@ -177,11 +179,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<List<Map<String, dynamic>>> _cargarHistorialDevCan() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('historial_entregas_devcan');
-    if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
-      return decoded
+    // Intenta leer de cache, si no existe, lee de Firestore y cachea
+    final datos =
+        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> items = datos['items'];
+      return items
           .cast<Map<String, dynamic>>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();

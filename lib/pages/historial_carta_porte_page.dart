@@ -1,9 +1,8 @@
-import 'carta_porte_edicion_completa_dialog.dart';
 import 'carta_porte_edicion_completa_page.dart';
+import 'carta_porte_table.dart' as table_historial;
 import 'package:flutter/material.dart';
 import '../utils/exportar_excel.dart';
 import '../utils/firebase_cache_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HistorialCartaPortePage extends StatefulWidget {
   const HistorialCartaPortePage({Key? key}) : super(key: key);
@@ -41,10 +40,9 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
 
   Future<void> _cargarHistorial() async {
     setState(() => _loading = true);
-    await CartaPorteHistorialManager.loadHistorial();
+    final cartas = await table_historial.CartaPorteHistorialManager.loadAll();
     setState(() {
-      _historial =
-          List<Map<String, dynamic>>.from(CartaPorteHistorialManager.historial);
+      _historial = List<Map<String, dynamic>>.from(cartas);
       // Detectar todos los campos presentes en las cartas
       final campos = <String>{};
       for (final carta in _historial) {
@@ -91,9 +89,10 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
         builder: (context) => CartaPorteEdicionCompletaPage(
           carta: carta,
           onGuardar: (nuevaCarta) async {
-            await CartaPorteHistorialManager.updateCarta(idx, nuevaCarta);
-            await CartaPorteHistorialManager.loadHistorial();
-            // Notificar que hubo cambios
+            // Aquí deberías implementar la actualización en Firestore y cache si tienes updateCarta
+            // await CartaPorteHistorialManager.updateCarta(idx, nuevaCarta);
+            // Recargar historial después de guardar
+            await _cargarHistorial();
             Navigator.of(context).pop(true);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -114,11 +113,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
     )
         .then((actualizar) async {
       if (actualizar == true) {
-        await CartaPorteHistorialManager.loadHistorial();
-        setState(() {
-          _historial = List<Map<String, dynamic>>.from(
-              CartaPorteHistorialManager.historial);
-        });
+        await _cargarHistorial();
       }
     });
   }

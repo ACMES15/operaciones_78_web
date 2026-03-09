@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
 import '../utils/firebase_cache_utils.dart';
 
 class PlantillaEjecutivaPage extends StatelessWidget {
@@ -25,6 +28,31 @@ class _PlantillaEjecutivaBody extends StatefulWidget {
 }
 
 class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
+  Future<void> _guardarDatosFirebase() async {
+    try {
+      await guardarDatosFirestoreYCache(
+        'plantilla_ejecutiva',
+        'datos',
+        {'datos': datos},
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Datos guardados en Firebase/cache.'),
+              backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error al guardar: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   static const String _storageKey = 'plantilla_ejecutiva_datos';
   @override
   void initState() {
@@ -127,15 +155,37 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
 
   Future<void> _cargarDatos() async {
     try {
-      final datosRemotos =
-          await leerDatosConCache('plantilla_ejecutiva', 'datos');
-      if (datosRemotos != null && datosRemotos['datos'] != null) {
+      // Leer primero del cache local, luego de Firestore si no hay datos
+      final prefs = await SharedPreferences.getInstance();
+      final cacheData = prefs.getString('plantilla_ejecutiva_datos');
+      if (cacheData != null) {
+        final datosCache = jsonDecode(cacheData);
+        if (datosCache != null && datosCache['datos'] != null) {
+          setState(() {
+            datos = List<List<String>>.from((datosCache['datos'] as List)
+                .map((fila) => List<String>.from(fila)));
+          });
+          return;
+        }
+      }
+      // Si no hay en cache, intenta Firestore
+      final firestore = await FirebaseFirestore.instance
+          .collection('plantilla_ejecutiva')
+          .doc('datos')
+          .get();
+      if (firestore.exists &&
+          firestore.data() != null &&
+          firestore.data()!['datos'] != null) {
         setState(() {
-          datos = List<List<String>>.from((datosRemotos['datos'] as List)
+          datos = List<List<String>>.from((firestore.data()!['datos'] as List)
               .map((fila) => List<String>.from(fila)));
         });
+        // Actualizar cache local
+        await prefs.setString(
+            'plantilla_ejecutiva_datos', jsonEncode(firestore.data()));
         return;
       }
+      // Como último recurso, intenta localStorage (legacy)
       final encoded = html.window.localStorage[_storageKey];
       if (encoded != null && encoded.isNotEmpty) {
         final filas = encoded.split('~');
@@ -163,6 +213,13 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const Spacer(),
               _botonImportarHtmlWeb(),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: datos.isEmpty ? null : _guardarDatosFirebase,
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              ),
             ],
           ),
           const SizedBox(height: 16),
