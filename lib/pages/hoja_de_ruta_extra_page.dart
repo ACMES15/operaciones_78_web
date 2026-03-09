@@ -79,42 +79,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
   final List<List<TextEditingController>> _tiendasControllers = [];
   final List<List<TextEditingController>> _proveedoresControllers = [];
 
-  @override
-  void initState() {
-    super.initState();
-    // Cargar hojas de ruta enviadas y tiendas/proveedores desde cache local
-    HojaDeRutaExtraPage.loadSentHojaRutasCache();
-    HojaDeRutaExtraPage.loadTiendasProveedoresCache().then((_) {
-      // Inicializar controladores desde caché si existe, sino crear 3 filas vacías
-      if (HojaDeRutaExtraPage.tiendasCache.isNotEmpty) {
-        for (var row in HojaDeRutaExtraPage.tiendasCache) {
-          _tiendasControllers.add([
-            TextEditingController(text: row.length > 0 ? row[0] : ''),
-            TextEditingController(text: row.length > 1 ? row[1] : ''),
-          ]);
-        }
-      } else {
-        for (int i = 0; i < 3; i++) {
-          _tiendasControllers
-              .add([TextEditingController(), TextEditingController()]);
-        }
-      }
-      if (HojaDeRutaExtraPage.proveedoresCache.isNotEmpty) {
-        for (var row in HojaDeRutaExtraPage.proveedoresCache) {
-          _proveedoresControllers.add([
-            TextEditingController(text: row.length > 0 ? row[0] : ''),
-            TextEditingController(text: row.length > 1 ? row[1] : ''),
-          ]);
-        }
-      } else {
-        for (int i = 0; i < 3; i++) {
-          _proveedoresControllers
-              .add([TextEditingController(), TextEditingController()]);
-        }
-      }
-      setState(() {});
-    });
-  }
+  // Ya no usamos initState para cargar datos, todo será reactivo con StreamBuilder
 
   @override
   void dispose() {
@@ -246,134 +211,190 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Expanded(
-              child: Row(
-                children: [
-                  // Tiendas
-                  Expanded(
-                    child: Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Tiendas',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: const [
-                                SizedBox(width: 8),
-                                Expanded(
-                                    child: Text('No. Tienda',
+        child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('hoja_ruta')
+              .doc(HojaDeRutaExtraPage.tiendasKey)
+              .snapshots(),
+          builder: (context, tiendasSnapshot) {
+            final tiendasData = tiendasSnapshot.data?.data();
+            final tiendasList =
+                tiendasData != null && tiendasData['items'] != null
+                    ? List<List<String>>.from((tiendasData['items'] as List)
+                        .map((e) => [e['col1'] ?? '', e['col2'] ?? '']))
+                    : <List<String>>[];
+            return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('hoja_ruta')
+                  .doc(HojaDeRutaExtraPage.proveedoresKey)
+                  .snapshots(),
+              builder: (context, proveedoresSnapshot) {
+                final proveedoresData = proveedoresSnapshot.data?.data();
+                final proveedoresList = proveedoresData != null &&
+                        proveedoresData['items'] != null
+                    ? List<List<String>>.from((proveedoresData['items'] as List)
+                        .map((e) => [e['col1'] ?? '', e['col2'] ?? '']))
+                    : <List<String>>[];
+                // Controladores para edición local
+                final List<List<TextEditingController>> tiendasControllers =
+                    tiendasList
+                        .map((row) => [
+                              TextEditingController(
+                                  text: row.length > 0 ? row[0] : ''),
+                              TextEditingController(
+                                  text: row.length > 1 ? row[1] : ''),
+                            ])
+                        .toList();
+                final List<List<TextEditingController>> proveedoresControllers =
+                    proveedoresList
+                        .map((row) => [
+                              TextEditingController(
+                                  text: row.length > 0 ? row[0] : ''),
+                              TextEditingController(
+                                  text: row.length > 1 ? row[1] : ''),
+                            ])
+                        .toList();
+                return Column(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          // Tiendas
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Tiendas',
                                         style: TextStyle(
-                                            fontWeight: FontWeight.bold))),
-                                SizedBox(width: 8),
-                                Expanded(
-                                    child: Text('Nombre Tienda',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold))),
-                                SizedBox(width: 8),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: _tiendasControllers.length,
-                                itemBuilder: (context, idx) {
-                                  return _buildRow(_tiendasControllers[idx],
-                                      'No. Tienda', 'Nombre Tienda');
-                                },
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: const [
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text('No. Tienda',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold))),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text('Nombre Tienda',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold))),
+                                        SizedBox(width: 8),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Expanded(
+                                      child: ListView.builder(
+                                        itemCount: tiendasControllers.length,
+                                        itemBuilder: (context, idx) {
+                                          return _buildRow(
+                                              tiendasControllers[idx],
+                                              'No. Tienda',
+                                              'Nombre Tienda');
+                                        },
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Agregar fila'),
+                                        onPressed: _addTiendaRow,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.add),
-                                label: const Text('Agregar fila'),
-                                onPressed: _addTiendaRow,
+                          ),
+                          const SizedBox(width: 12),
+                          // Proveedores
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Proveedores',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16)),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: const [
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text('No. Proveedor',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold))),
+                                        SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text('Nombre Proveedor',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold))),
+                                        SizedBox(width: 8),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Expanded(
+                                      child: ListView.builder(
+                                        itemCount:
+                                            proveedoresControllers.length,
+                                        itemBuilder: (context, idx) {
+                                          return _buildRow(
+                                              proveedoresControllers[idx],
+                                              'No. Proveedor',
+                                              'Nombre Proveedor');
+                                        },
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        icon: const Icon(Icons.add),
+                                        label: const Text('Agregar fila'),
+                                        onPressed: _addProveedorRow,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Proveedores
-                  Expanded(
-                    child: Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Proveedores',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: const [
-                                SizedBox(width: 8),
-                                Expanded(
-                                    child: Text('No. Proveedor',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold))),
-                                SizedBox(width: 8),
-                                Expanded(
-                                    child: Text('Nombre Proveedor',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold))),
-                                SizedBox(width: 8),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: _proveedoresControllers.length,
-                                itemBuilder: (context, idx) {
-                                  return _buildRow(_proveedoresControllers[idx],
-                                      'No. Proveedor', 'Nombre Proveedor');
-                                },
-                              ),
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                icon: const Icon(Icons.add),
-                                label: const Text('Agregar fila'),
-                                onPressed: _addProveedorRow,
-                              ),
-                            ),
-                          ],
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.save),
+                          label: const Text('Guardar cambios'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF2D6A4F),
+                              foregroundColor: Colors.white),
+                          onPressed: _guardarCambios,
                         ),
-                      ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar cambios'),
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor:
-                          Colors.white // <- texto e ícono en blanco
-                      ),
-                  onPressed: _guardarCambios,
-                ),
-              ],
-            ),
-          ],
+                  ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
