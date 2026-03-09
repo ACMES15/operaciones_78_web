@@ -142,6 +142,8 @@ class _LoginPageState extends State<LoginPage> {
                         msg = 'Usuario no encontrado';
                       } else if (e.code == 'wrong-password') {
                         msg = 'Contraseña incorrecta';
+                      } else {
+                        msg = '(${e.code}) ${e.message ?? e.toString()}';
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(msg)),
