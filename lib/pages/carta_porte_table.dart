@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:universal_html/html.dart' as html;
 import 'hoja_de_ruta_extra_page.dart';
@@ -53,19 +54,21 @@ String? _numeroControlActual;
 
 // Genera el siguiente número de control único y consecutivo basado en historial
 Future<String> _generarNumeroDeControl() async {
-  final prefs = await SharedPreferences.getInstance();
-  final raw = prefs.getString('historial_carta_porte') ?? '[]';
-  final List<dynamic> list = jsonDecode(raw);
-  // Buscar todos los números de control existentes
-  final usados = list
-      .map((c) => (c['NUMERO_CONTROL'] ?? '').toString())
-      .where((n) => n.startsWith('0078-CP-'))
-      .toList();
+  // Cargar historial desde Firestore para evitar repeticiones
+  final snapshot = await FirebaseFirestore.instance
+      .collection('historial_carta_porte')
+      .orderBy('createdAt', descending: true)
+      .limit(1)
+      .get();
   int maxNum = 0;
-  for (final n in usados) {
-    final numStr = n.replaceFirst('0078-CP-', '');
-    final num = int.tryParse(numStr);
-    if (num != null && num > maxNum) maxNum = num;
+  if (snapshot.docs.isNotEmpty) {
+    final last = snapshot.docs.first.data();
+    final lastNum = (last['NUMERO_CONTROL'] ?? '').toString();
+    if (lastNum.startsWith('0078-CP-')) {
+      final numStr = lastNum.replaceFirst('0078-CP-', '');
+      final num = int.tryParse(numStr);
+      if (num != null && num > maxNum) maxNum = num;
+    }
   }
   return '0078-CP-${(maxNum + 1).toString().padLeft(2, '0')}';
 }
@@ -80,36 +83,57 @@ class CartaPorteTable extends StatefulWidget {
 class _CartaPorteTableState extends State<CartaPorteTable> {
   // Guardar carta porte en historial (Firestore + caché)
   Future<void> _guardarCartaPorteEnHistorial() async {
-    if (_numeroControlActual == null) {
-      _numeroControlActual = await _generarNumeroDeControl();
+    try {
+      if (_numeroControlActual == null) {
+        _numeroControlActual = await _generarNumeroDeControl();
+      }
+      final Map<String, dynamic> carta = {
+        'NUMERO_CONTROL': _numeroControlActual,
+        'DESTINO': _destinoController.text.trim(),
+        'CHOFER': _choferController.text.trim(),
+        'UNIDAD': _unidadController.text.trim(),
+        'RFC': _rfcController.text.trim(),
+        'FECHA': _fechaActual,
+        'CONCENTRADO': _controllers.isNotEmpty && _controllers[0].length > 10
+            ? _controllers[0][10].text.trim()
+            : '',
+        'COLUMNS': _columns,
+        'TABLE':
+            _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+        'createdAt': DateTime.now().toIso8601String(),
+      };
+      await CartaPorteHistorialManager.addCarta(carta);
+      await CartaPorteHistorialManager.addCartaId(_numeroControlActual!);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Carta porte guardada en historial. Número de control: ${_numeroControlActual ?? ''}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      setState(() {
+        _numeroControlActual = null;
+        // Limpiar campos principales
+        _choferController.clear();
+        _unidadController.clear();
+        _destinoController.clear();
+        _rfcController.clear();
+        _choferSeleccionado = null;
+        // Limpiar tabla
+        for (var row in _controllers) {
+          for (var c in row) {
+            c.clear();
+          }
+        }
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar en historial: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-    final Map<String, dynamic> carta = {
-      'NUMERO_CONTROL': _numeroControlActual,
-      'DESTINO': _destinoController.text.trim(),
-      'CHOFER': _choferController.text.trim(),
-      'UNIDAD': _unidadController.text.trim(),
-      'RFC': _rfcController.text.trim(),
-      'FECHA': _fechaActual,
-      'CONCENTRADO': _controllers.isNotEmpty && _controllers[0].length > 10
-          ? _controllers[0][10].text.trim()
-          : '',
-      'COLUMNS': _columns,
-      'TABLE':
-          _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
-      'createdAt': DateTime.now().toIso8601String(),
-    };
-    await CartaPorteHistorialManager.addCarta(carta);
-    await CartaPorteHistorialManager.addCartaId(_numeroControlActual!);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-            'Carta porte guardada en historial. Número de control: ${_numeroControlActual ?? ''}'),
-        backgroundColor: Colors.green,
-      ),
-    );
-    setState(() {
-      _numeroControlActual = null;
-    });
   }
 
   final TextEditingController _rfcController = TextEditingController();
@@ -130,8 +154,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _guardarChoferes() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('choferes_db', json.encode(_choferes));
+    // Guardar en Firestore y en caché local
+    final Map<String, dynamic> data = {'items': _choferes};
+    await guardarDatosFirestoreYCache('choferes', 'main', data);
   }
 
   void _mostrarDialogoChoferes() async {
