@@ -22,6 +22,86 @@ class CartaPorteEdicionCompletaPage extends StatefulWidget {
 
 class _CartaPorteEdicionCompletaPageState
     extends State<CartaPorteEdicionCompletaPage> {
+  // Construye el mapa actualizado de la carta porte desde los controles actuales
+  Map<String, dynamic> _buildCartaActual() {
+    return {
+      ...widget.carta,
+      'DESTINO': _destinoController.text.trim(),
+      'CHOFER': _choferSeleccionado != null &&
+              _choferSeleccionado! >= 0 &&
+              _choferSeleccionado! < _choferes.length
+          ? _choferes[_choferSeleccionado!]['nombre'] ?? ''
+          : '',
+      'UNIDAD': _unidadController.text.trim(),
+      'RFC': _rfcController.text.trim(),
+      'FECHA': _fechaActual,
+      'COLUMNS': _columns,
+      'TABLE':
+          _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+    };
+  }
+
+  // Stub para exportar a Excel (implementar según necesidad)
+  void _exportarExcel() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Función de exportar a Excel no implementada.'),
+          backgroundColor: Colors.orange),
+    );
+  }
+
+  // Valida que la carta porte esté completa y sin errores
+  String? _validarCartaPorte() {
+    if (_choferSeleccionado == null ||
+        _choferSeleccionado! < 0 ||
+        _choferSeleccionado! >= _choferes.length) {
+      return 'Selecciona un chofer.';
+    }
+    if (_unidadController.text.trim().isEmpty) {
+      return 'La unidad es obligatoria.';
+    }
+    if (_destinoController.text.trim().isEmpty) {
+      return 'El destino es obligatorio.';
+    }
+    if (_rfcController.text.trim().isEmpty) {
+      return 'El RFC es obligatorio.';
+    }
+    if (_columns.isEmpty) {
+      return 'La tabla debe tener columnas.';
+    }
+    if (_controllers.isEmpty) {
+      return 'La tabla debe tener al menos una fila.';
+    }
+    // Validar que al menos una fila tenga datos (excepto la columna NO.)
+    bool hayFilaValida = false;
+    for (final row in _controllers) {
+      bool filaConDatos = false;
+      for (int i = 0; i < row.length; i++) {
+        if (i == 0) continue; // Saltar columna NO.
+        if (row[i].text.trim().isNotEmpty) {
+          filaConDatos = true;
+          break;
+        }
+      }
+      if (filaConDatos) {
+        hayFilaValida = true;
+        break;
+      }
+    }
+    if (!hayFilaValida) {
+      return 'La tabla debe tener al menos una fila con datos.';
+    }
+    // Validar que no haya celdas requeridas vacías (excepto columna NO.)
+    for (final row in _controllers) {
+      for (int i = 1; i < row.length; i++) {
+        if (_columns[i].toUpperCase() != 'NO.' && row[i].text.trim().isEmpty) {
+          return 'Todas las celdas requeridas deben estar llenas.';
+        }
+      }
+    }
+    return null; // Sin errores
+  }
+
   late List<List<TextEditingController>> _controllers;
   late List<String> _columns;
   late TextEditingController _unidadController;
@@ -59,296 +139,342 @@ class _CartaPorteEdicionCompletaPageState
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: (widget.carta['NUMERO_CONTROL'] != null &&
-              widget.carta['NUMERO_CONTROL'].toString().isNotEmpty)
-          ? FirebaseFirestore.instance
-              .collection('cartas_porte')
-              .doc(widget.carta['NUMERO_CONTROL'].toString())
-              .snapshots()
-          : null,
-      builder: (context, cartaSnapshot) {
-        if (cartaSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (cartaSnapshot.hasError) {
-          return Center(child: Text('Error cargando carta porte'));
-        }
-        Map<String, dynamic> cartaData = widget.carta;
-        if (cartaSnapshot.hasData && cartaSnapshot.data?.data() != null) {
-          cartaData = cartaSnapshot.data!.data()!;
-        }
-        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-          stream: _choferesStream,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(child: Text('Error cargando choferes'));
-            }
-            final data = snapshot.data?.data();
-            List<Map<String, String>> choferes = [];
-            if (data != null && data['items'] != null) {
-              choferes = (data['items'] as List)
-                  .map<Map<String, String>>((e) => Map<String, String>.from(e))
-                  .toList();
-              _choferes = choferes;
-              SharedPreferences.getInstance().then((prefs) {
-                prefs.setString(
-                    'choferes_db_main', jsonEncode({'items': data['items']}));
-              });
-            }
-            if (_choferSeleccionado == null && choferes.isNotEmpty) {
-              final nombreChofer = cartaData['CHOFER'] ?? '';
-              if (nombreChofer.isNotEmpty) {
-                final idx =
-                    choferes.indexWhere((c) => c['nombre'] == nombreChofer);
-                if (idx != -1) {
-                  _choferSeleccionado = idx;
-                  _rfcController.text = choferes[idx]['rfc'] ?? '';
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        title: const Text('Edición Completa Carta Porte'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Imprimir',
+            onPressed: widget.onImprimir,
+          ),
+          IconButton(
+            icon: const Icon(Icons.save),
+            tooltip: 'Guardar',
+            onPressed: () {
+              final error = _validarCartaPorte();
+              if (error != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error), backgroundColor: Colors.red),
+                );
+                return;
+              }
+              if (widget.onGuardar != null) {
+                // Construir carta actualizada y llamar onGuardar
+                final cartaActualizada = _buildCartaActual();
+                widget.onGuardar!(cartaActualizada);
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            tooltip: 'Exportar a Excel',
+            onPressed: _exportarExcel,
+          ),
+        ],
+      ),
+      body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        stream: (widget.carta['NUMERO_CONTROL'] != null &&
+                widget.carta['NUMERO_CONTROL'].toString().isNotEmpty)
+            ? FirebaseFirestore.instance
+                .collection('cartas_porte')
+                .doc(widget.carta['NUMERO_CONTROL'].toString())
+                .snapshots()
+            : null,
+        builder: (context, cartaSnapshot) {
+          if (cartaSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (cartaSnapshot.hasError) {
+            return Center(child: Text('Error cargando carta porte'));
+          }
+          Map<String, dynamic> cartaData = widget.carta;
+          if (cartaSnapshot.hasData && cartaSnapshot.data?.data() != null) {
+            cartaData = cartaSnapshot.data!.data()!;
+          }
+          return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: _choferesStream,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error cargando choferes'));
+              }
+              final data = snapshot.data?.data();
+              List<Map<String, String>> choferes = [];
+              if (data != null && data['items'] != null) {
+                choferes = (data['items'] as List)
+                    .map<Map<String, String>>(
+                        (e) => Map<String, String>.from(e))
+                    .toList();
+                _choferes = choferes;
+                SharedPreferences.getInstance().then((prefs) {
+                  prefs.setString(
+                      'choferes_db_main', jsonEncode({'items': data['items']}));
+                });
+              }
+              if (_choferSeleccionado == null && choferes.isNotEmpty) {
+                final nombreChofer = cartaData['CHOFER'] ?? '';
+                if (nombreChofer.isNotEmpty) {
+                  final idx =
+                      choferes.indexWhere((c) => c['nombre'] == nombreChofer);
+                  if (idx != -1) {
+                    _choferSeleccionado = idx;
+                    _rfcController.text = choferes[idx]['rfc'] ?? '';
+                  }
                 }
               }
-            }
-            _unidadController.text = cartaData['UNIDAD'] ?? '';
-            _destinoController.text = cartaData['DESTINO'] ?? '';
-            _rfcController.text = cartaData['RFC'] ?? '';
-            _fechaActual = cartaData['FECHA'] ?? '';
-            _columns = List<String>.from(cartaData['COLUMNS'] ?? []);
-            final tableData = (cartaData['TABLE'] as List?) ?? [];
-            if (tableData.length == _controllers.length) {
-              for (int i = 0; i < tableData.length; i++) {
-                final row = tableData[i] as List;
-                for (int j = 0;
-                    j < row.length && j < _controllers[i].length;
-                    j++) {
-                  _controllers[i][j].text = row[j]?.toString() ?? '';
+              _unidadController.text = cartaData['UNIDAD'] ?? '';
+              _destinoController.text = cartaData['DESTINO'] ?? '';
+              _rfcController.text = cartaData['RFC'] ?? '';
+              _fechaActual = cartaData['FECHA'] ?? '';
+              _columns = List<String>.from(cartaData['COLUMNS'] ?? []);
+              final tableData = (cartaData['TABLE'] as List?) ?? [];
+              if (tableData.length == _controllers.length) {
+                for (int i = 0; i < tableData.length; i++) {
+                  final row = tableData[i] as List;
+                  for (int j = 0;
+                      j < row.length && j < _controllers[i].length;
+                      j++) {
+                    _controllers[i][j].text = row[j]?.toString() ?? '';
+                  }
                 }
               }
-            }
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: DropdownButtonFormField<int>(
-                              value: _choferSeleccionado,
-                              items: [
-                                for (int i = 0; i < choferes.length; i++)
-                                  DropdownMenuItem(
-                                    value: i,
-                                    child: Text(choferes[i]['nombre'] ?? ''),
-                                  ),
-                              ],
-                              onChanged: (val) {
-                                setState(() {
-                                  _choferSeleccionado = val;
-                                  if (val != null) {
-                                    _rfcController.text =
-                                        choferes[val]['rfc'] ?? '';
-                                  } else {
-                                    _rfcController.text = '';
-                                  }
-                                });
-                              },
-                              decoration: const InputDecoration(
-                                labelText: 'Chofer',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: _unidadController,
-                              decoration: const InputDecoration(
-                                labelText: 'Unidad',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: _destinoController,
-                              decoration: const InputDecoration(
-                                labelText: 'Destino',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: _rfcController,
-                              readOnly: true,
-                              decoration: const InputDecoration(
-                                labelText: 'RFC',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            left: BorderSide(
-                                color: Colors.grey.shade300, width: 1),
-                            right: BorderSide(
-                                color: Colors.grey.shade300, width: 1),
-                          ),
-                        ),
-                        child: DataTable(
-                          columns: _columns.asMap().entries.map((entry) {
-                            final col = entry.value;
-                            final idx = entry.key;
-                            return DataColumn(
-                              label: Container(
-                                decoration: BoxDecoration(
-                                  border: idx < _columns.length - 1
-                                      ? Border(
-                                          right: BorderSide(
-                                              color: Colors.grey.shade300,
-                                              width: 1))
-                                      : null,
-                                ),
-                                child: Text(
-                                  col,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              numeric: idx == 1, // N0. columna
-                            );
-                          }).toList(),
-                          rows: _controllers
-                              .asMap()
-                              .entries
-                              .map((entry) {
-                                final rowIdx = entry.key;
-                                final rowControllers = entry.value;
-                                final hasData = rowControllers
-                                    .asMap()
-                                    .entries
-                                    .any((e) =>
-                                        e.key != 0 &&
-                                        (e.value.text.trim().isNotEmpty));
-                                if (!hasData) return null;
-                                return DataRow(
-                                  cells: List<DataCell>.generate(
-                                      _columns.length, (colIdx) {
-                                    Widget cellWidget;
-                                    if (_columns[colIdx] == 'NO.' ||
-                                        _columns[colIdx] == 'N0.' ||
-                                        _columns[colIdx] == 'NO') {
-                                      cellWidget = Text(
-                                        (rowIdx + 1).toString(),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold),
-                                      );
-                                    } else if (_columns[colIdx].toUpperCase() ==
-                                        'CONCENTRADO') {
-                                      cellWidget = TextField(
-                                        controller: _controllers[rowIdx]
-                                            [colIdx],
-                                        onChanged: (val) {},
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 6, horizontal: 4),
-                                        ),
-                                      );
-                                    } else if (_columns[colIdx].toUpperCase() ==
-                                            'EMBARQUE' &&
-                                        colIdx == 9) {
-                                      cellWidget = TextField(
-                                        controller: _controllers[rowIdx]
-                                            [colIdx],
-                                        onChanged: (val) {
-                                          final concIdx = _columns.indexWhere(
-                                              (c) =>
-                                                  c.toUpperCase() ==
-                                                  'CONCENTRADO');
-                                          if (concIdx != -1) {
-                                            setState(() {
-                                              _controllers[rowIdx][concIdx]
-                                                  .text = val;
-                                            });
-                                          }
-                                        },
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 6, horizontal: 4),
-                                        ),
-                                      );
+              return Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: DropdownButtonFormField<int>(
+                                value: _choferSeleccionado,
+                                items: [
+                                  for (int i = 0; i < choferes.length; i++)
+                                    DropdownMenuItem(
+                                      value: i,
+                                      child: Text(choferes[i]['nombre'] ?? ''),
+                                    ),
+                                ],
+                                onChanged: (val) {
+                                  setState(() {
+                                    _choferSeleccionado = val;
+                                    if (val != null) {
+                                      _rfcController.text =
+                                          choferes[val]['rfc'] ?? '';
                                     } else {
-                                      cellWidget = TextField(
-                                        controller: _controllers[rowIdx]
-                                            [colIdx],
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 6, horizontal: 4),
-                                        ),
-                                      );
+                                      _rfcController.text = '';
                                     }
-                                    return DataCell(
-                                      Container(
-                                        decoration: BoxDecoration(
-                                          border: colIdx < _columns.length - 1
-                                              ? Border(
-                                                  right: BorderSide(
-                                                      color:
-                                                          Colors.grey.shade300,
-                                                      width: 1))
-                                              : null,
-                                        ),
-                                        child: cellWidget,
-                                      ),
-                                    );
-                                  }),
-                                );
-                              })
-                              .whereType<DataRow>()
-                              .toList(),
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Chofer',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: _unidadController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Unidad',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: _destinoController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Destino',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: TextField(
+                                controller: _rfcController,
+                                readOnly: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'RFC',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+                    const SizedBox(height: 24),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                  color: Colors.grey.shade300, width: 1),
+                              right: BorderSide(
+                                  color: Colors.grey.shade300, width: 1),
+                            ),
+                          ),
+                          child: DataTable(
+                            columns: _columns.asMap().entries.map((entry) {
+                              final col = entry.value;
+                              final idx = entry.key;
+                              return DataColumn(
+                                label: Container(
+                                  decoration: BoxDecoration(
+                                    border: idx < _columns.length - 1
+                                        ? Border(
+                                            right: BorderSide(
+                                                color: Colors.grey.shade300,
+                                                width: 1))
+                                        : null,
+                                  ),
+                                  child: Text(
+                                    col,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                numeric: idx == 1, // N0. columna
+                              );
+                            }).toList(),
+                            rows: _controllers
+                                .asMap()
+                                .entries
+                                .map((entry) {
+                                  final rowIdx = entry.key;
+                                  final rowControllers = entry.value;
+                                  final hasData = rowControllers
+                                      .asMap()
+                                      .entries
+                                      .any((e) =>
+                                          e.key != 0 &&
+                                          (e.value.text.trim().isNotEmpty));
+                                  if (!hasData) return null;
+                                  return DataRow(
+                                    cells: List<DataCell>.generate(
+                                        _columns.length, (colIdx) {
+                                      Widget cellWidget;
+                                      if (_columns[colIdx] == 'NO.' ||
+                                          _columns[colIdx] == 'N0.' ||
+                                          _columns[colIdx] == 'NO') {
+                                        cellWidget = Text(
+                                          (rowIdx + 1).toString(),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
+                                        );
+                                      } else if (_columns[colIdx]
+                                              .toUpperCase() ==
+                                          'CONCENTRADO') {
+                                        cellWidget = TextField(
+                                          controller: _controllers[rowIdx]
+                                              [colIdx],
+                                          onChanged: (val) {},
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 6, horizontal: 4),
+                                          ),
+                                        );
+                                      } else if (_columns[colIdx]
+                                                  .toUpperCase() ==
+                                              'EMBARQUE' &&
+                                          colIdx == 9) {
+                                        cellWidget = TextField(
+                                          controller: _controllers[rowIdx]
+                                              [colIdx],
+                                          onChanged: (val) {
+                                            final concIdx = _columns.indexWhere(
+                                                (c) =>
+                                                    c.toUpperCase() ==
+                                                    'CONCENTRADO');
+                                            if (concIdx != -1) {
+                                              setState(() {
+                                                _controllers[rowIdx][concIdx]
+                                                    .text = val;
+                                              });
+                                            }
+                                          },
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 6, horizontal: 4),
+                                          ),
+                                        );
+                                      } else {
+                                        cellWidget = TextField(
+                                          controller: _controllers[rowIdx]
+                                              [colIdx],
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 6, horizontal: 4),
+                                          ),
+                                        );
+                                      }
+                                      return DataCell(
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            border: colIdx < _columns.length - 1
+                                                ? Border(
+                                                    right: BorderSide(
+                                                        color: Colors
+                                                            .grey.shade300,
+                                                        width: 1))
+                                                : null,
+                                          ),
+                                          child: cellWidget,
+                                        ),
+                                      );
+                                    }),
+                                  );
+                                })
+                                .whereType<DataRow>()
+                                .toList(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }

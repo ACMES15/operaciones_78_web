@@ -142,8 +142,37 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                 return false;
               }).toList();
             }
-            final incompletas = filtrado.where((c) => !_isCompleta(c)).toList();
-            final completas = filtrado.where((c) => _isCompleta(c)).toList();
+            // Solo mostrar cartas porte completas (con datos obligatorios y al menos una fila de tabla)
+            bool _esCartaCompleta(Map<String, dynamic> carta) {
+              final campos = [
+                'DESTINO',
+                'CHOFER',
+                'UNIDAD',
+                'RFC',
+                'CONCENTRADO'
+              ];
+              for (final campo in campos) {
+                if ((carta[campo]?.toString().trim() ?? '').isEmpty) {
+                  return false;
+                }
+              }
+              final tabla = carta['TABLE'];
+              if (tabla == null || tabla is! List || tabla.isEmpty)
+                return false;
+              // Al menos una fila con datos
+              final tieneFila = tabla.any((row) {
+                if (row is Map) {
+                  return row.values
+                      .any((v) => v != null && v.toString().trim().isNotEmpty);
+                }
+                return false;
+              });
+              return tieneFila;
+            }
+
+            final completas = filtrado.where(_esCartaCompleta).toList();
+            final incompletas =
+                filtrado.where((c) => !_esCartaCompleta(c)).toList();
             // Función para exportar Excel con historial actual
             Future<void> exportarHistorialExcel() async {
               if (historial.isEmpty) return;
