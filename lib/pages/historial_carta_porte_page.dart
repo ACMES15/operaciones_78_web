@@ -70,8 +70,25 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               .doc('sentHojaRutas')
               .snapshots(),
           builder: (context, snapshotHojaRuta) {
+            // Si ambos streams están esperando, mostrar cargando
             if (snapshotCartas.connectionState == ConnectionState.waiting ||
                 snapshotHojaRuta.connectionState == ConnectionState.waiting) {
+              // Si ambos streams están vacíos, mostrar historial vacío
+              final docs = snapshotCartas.data?.docs ?? [];
+              final dataHojaRuta = snapshotHojaRuta.data?.data();
+              final hojaRutaVacia = dataHojaRuta == null ||
+                  dataHojaRuta['items'] == null ||
+                  (dataHojaRuta['items'] as List).isEmpty;
+              if (docs.isEmpty && hojaRutaVacia) {
+                return Container(
+                  color: Colors.white,
+                  child: const Center(
+                    child: Text('Aún no hay historial',
+                        style: TextStyle(fontSize: 20, color: Colors.grey)),
+                  ),
+                );
+              }
+              // Si hay datos, mostrar cargando normal
               return Container(
                 color: Colors.white,
                 child: const Center(
