@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../home_page.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
@@ -110,9 +109,17 @@ class _LoginPageState extends State<LoginPage> {
                         return;
                       }
                       final data = query.docs.first.data();
-                      final passDb = (data['password'] ?? '').toString().trim();
-                      final passInput = password.trim();
-                      if (passDb != passInput) {
+                      final usuarioDb = (data['usuario'] ?? '')
+                          .toString()
+                          .trim()
+                          .toLowerCase();
+                      final usuarioInput = usuario.trim().toLowerCase();
+                      final passDb = (data['password'] ?? '')
+                          .toString()
+                          .trim()
+                          .toLowerCase();
+                      final passInput = password.trim().toLowerCase();
+                      if (usuarioDb != usuarioInput || passDb != passInput) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:
@@ -135,7 +142,6 @@ class _LoginPageState extends State<LoginPage> {
                   },
                   child: const Text('Ingresar'),
                 ),
-                // Puedes agregar aquí un flujo de recuperación de contraseña personalizado si lo deseas
               ],
             ),
           ),
