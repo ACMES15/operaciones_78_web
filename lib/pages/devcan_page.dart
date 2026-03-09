@@ -299,7 +299,7 @@ class _DevCanPageState extends State<DevCanPage> {
     }
 
     if (filasFaltantes.isNotEmpty) {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia de faltantes'),
@@ -314,6 +314,10 @@ class _DevCanPageState extends State<DevCanPage> {
         ),
       );
       await _guardarNotificacionFaltantes(filasFaltantes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notificación de faltantes enviada.')),
+      );
+      await Future.delayed(const Duration(seconds: 1));
     }
 
     // Guardar la información para entregas
@@ -332,6 +336,13 @@ class _DevCanPageState extends State<DevCanPage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Información enviada para entregas.')),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            EntregasDevCanPage(entregasRecientes: entregasRecientes),
+      ),
     );
   }
 

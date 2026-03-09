@@ -286,7 +286,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
     }
 
     if (filasFaltantes.isNotEmpty) {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia de faltantes'),
@@ -301,6 +301,10 @@ class _RecogidosPageState extends State<RecogidosPage> {
         ),
       );
       await _guardarNotificacionFaltantes(filasFaltantes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notificación de faltantes enviada.')),
+      );
+      await Future.delayed(const Duration(seconds: 1));
     }
 
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
@@ -318,6 +322,13 @@ class _RecogidosPageState extends State<RecogidosPage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Información enviada para Recogidos.')),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            EntregasRecogidosPage(entregasRecientes: entregasRecientes),
+      ),
     );
   }
 

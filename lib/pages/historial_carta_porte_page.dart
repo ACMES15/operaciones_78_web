@@ -305,22 +305,31 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                             setState(() {
                               _historial.removeAt(idx);
                             });
-                            // Guardar en Firestore y cache
+                            // Guardar en Firestore y cache con logs visuales
                             try {
                               await guardarDatosFirestoreYCache(
                                 'historial_carta_porte',
                                 'datos',
                                 {'datos': _historial},
                               );
+                              print(
+                                  'Guardado exitoso en Firestore: historial_carta_porte/datos');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Hoja eliminada y guardada en Firebase.'),
+                                    backgroundColor: Colors.green),
+                              );
                             } catch (e) {
                               print(
-                                  'Error guardando historial actualizado: $e');
+                                  'Error guardando historial actualizado en Firestore: $e');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content:
+                                        Text('Error guardando en Firebase: $e'),
+                                    backgroundColor: Colors.red),
+                              );
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Hoja eliminada.'),
-                                  backgroundColor: Colors.red),
-                            );
                           }
                         },
                       ),
