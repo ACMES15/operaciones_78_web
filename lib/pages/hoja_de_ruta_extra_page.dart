@@ -12,10 +12,15 @@ class HojaDeRutaExtraPage extends StatefulWidget {
 
   // Guardar tiendas y proveedores en Firestore y cache
   static Future<void> saveTiendasProveedoresCache() async {
+    // Convertir cada fila a Map para Firestore
+    final tiendasList =
+        tiendasCache.map((e) => {'col1': e[0], 'col2': e[1]}).toList();
+    final proveedoresList =
+        proveedoresCache.map((e) => {'col1': e[0], 'col2': e[1]}).toList();
     await guardarDatosFirestoreYCache(
-        'hoja_ruta', tiendasKey, {'items': tiendasCache});
+        'hoja_ruta', tiendasKey, {'items': tiendasList});
     await guardarDatosFirestoreYCache(
-        'hoja_ruta', proveedoresKey, {'items': proveedoresCache});
+        'hoja_ruta', proveedoresKey, {'items': proveedoresList});
   }
 
   // Cargar tiendas y proveedores de Firestore/cache
@@ -23,14 +28,16 @@ class HojaDeRutaExtraPage extends StatefulWidget {
     final tiendasData = await leerDatosConCache('hoja_ruta', tiendasKey);
     if (tiendasData != null && tiendasData['items'] != null) {
       tiendasCache = List<List<String>>.from(
-        (tiendasData['items'] as List).map((e) => List<String>.from(e)),
+        (tiendasData['items'] as List)
+            .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
       );
     }
     final proveedoresData =
         await leerDatosConCache('hoja_ruta', proveedoresKey);
     if (proveedoresData != null && proveedoresData['items'] != null) {
       proveedoresCache = List<List<String>>.from(
-        (proveedoresData['items'] as List).map((e) => List<String>.from(e)),
+        (proveedoresData['items'] as List)
+            .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
       );
     }
   }
