@@ -99,10 +99,20 @@ class _LoginPageState extends State<LoginPage> {
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
                           .where('usuario', isEqualTo: usuario)
-                          .where('password', isEqualTo: password)
                           .limit(1)
                           .get();
                       if (query.docs.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('Usuario o contraseña incorrectos.')),
+                        );
+                        return;
+                      }
+                      final data = query.docs.first.data();
+                      final passDb = (data['password'] ?? '').toString().trim();
+                      final passInput = password.trim();
+                      if (passDb != passInput) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:
