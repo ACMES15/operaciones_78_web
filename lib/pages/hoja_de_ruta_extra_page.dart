@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:math';
 import '../utils/firebase_cache_utils.dart';
 import 'hoja_de_ruta_enviadas_page.dart'; // Asegúrate de que este archivo existe y contiene HojaDeRutaEnviadasPage
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -78,6 +79,8 @@ class HojaDeRutaExtraPage extends StatefulWidget {
 class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
   final List<List<TextEditingController>> _tiendasControllers = [];
   final List<List<TextEditingController>> _proveedoresControllers = [];
+  bool _localDirtyTiendas = false;
+  bool _localDirtyProveedores = false;
 
   // Ya no usamos initState para cargar datos, todo será reactivo con StreamBuilder
 
@@ -100,6 +103,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
     setState(() {
       _tiendasControllers
           .add([TextEditingController(), TextEditingController()]);
+      _localDirtyTiendas = true;
     });
   }
 
@@ -107,6 +111,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
     setState(() {
       _proveedoresControllers
           .add([TextEditingController(), TextEditingController()]);
+      _localDirtyProveedores = true;
     });
   }
 
@@ -142,6 +147,10 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
       };
       HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
       await HojaDeRutaExtraPage.saveSentHojaRutasCache();
+
+      // Marcar que los cambios locales fueron guardados
+      _localDirtyTiendas = false;
+      _localDirtyProveedores = false;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -239,51 +248,98 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
                   setState(() {
-                    // Tiendas: reconstruir si hay diferencia de tamaño
-                    if (tiendasList.length != _tiendasControllers.length) {
-                      for (var r in _tiendasControllers) {
-                        for (var c in r) {
-                          c.dispose();
+                    // Tiendas: si no hay cambios locales, sincronizar completamente;
+                    // si hay cambios locales, hacer merge para no perder filas añadidas.
+                    if (!_localDirtyTiendas) {
+                      if (tiendasList.length != _tiendasControllers.length) {
+                        for (var r in _tiendasControllers) {
+                          for (var c in r) {
+                            c.dispose();
+                          }
+                        }
+                        _tiendasControllers.clear();
+                        _tiendasControllers.addAll(tiendasList
+                            .map((row) => [
+                                  TextEditingController(
+                                      text: row.length > 0 ? row[0] : ''),
+                                  TextEditingController(
+                                      text: row.length > 1 ? row[1] : ''),
+                                ])
+                            .toList());
+                      } else {
+                        for (var i = 0; i < tiendasList.length; i++) {
+                          _tiendasControllers[i][0].text =
+                              tiendasList[i].length > 0
+                                  ? tiendasList[i][0]
+                                  : '';
+                          _tiendasControllers[i][1].text =
+                              tiendasList[i].length > 1
+                                  ? tiendasList[i][1]
+                                  : '';
                         }
                       }
-                      _tiendasControllers.clear();
-                      _tiendasControllers.addAll(tiendasList
-                          .map((row) => [
-                                TextEditingController(
-                                    text: row.length > 0 ? row[0] : ''),
-                                TextEditingController(
-                                    text: row.length > 1 ? row[1] : ''),
-                              ])
-                          .toList());
                     } else {
-                      // mantener controladores y actualizar texto
-                      for (var i = 0; i < tiendasList.length; i++) {
+                      final minLen =
+                          min(tiendasList.length, _tiendasControllers.length);
+                      for (var i = 0; i < minLen; i++) {
                         _tiendasControllers[i][0].text =
                             tiendasList[i].length > 0 ? tiendasList[i][0] : '';
                         _tiendasControllers[i][1].text =
                             tiendasList[i].length > 1 ? tiendasList[i][1] : '';
                       }
-                    }
-
-                    // Proveedores: misma lógica
-                    if (proveedoresList.length !=
-                        _proveedoresControllers.length) {
-                      for (var r in _proveedoresControllers) {
-                        for (var c in r) {
-                          c.dispose();
+                      if (tiendasList.length > _tiendasControllers.length) {
+                        for (var i = _tiendasControllers.length;
+                            i < tiendasList.length;
+                            i++) {
+                          _tiendasControllers.add([
+                            TextEditingController(
+                                text: tiendasList[i].length > 0
+                                    ? tiendasList[i][0]
+                                    : ''),
+                            TextEditingController(
+                                text: tiendasList[i].length > 1
+                                    ? tiendasList[i][1]
+                                    : ''),
+                          ]);
                         }
                       }
-                      _proveedoresControllers.clear();
-                      _proveedoresControllers.addAll(proveedoresList
-                          .map((row) => [
-                                TextEditingController(
-                                    text: row.length > 0 ? row[0] : ''),
-                                TextEditingController(
-                                    text: row.length > 1 ? row[1] : ''),
-                              ])
-                          .toList());
+                      // Si local > remoto, conservar filas locales hasta guardar
+                    }
+
+                    // Proveedores: misma política
+                    if (!_localDirtyProveedores) {
+                      if (proveedoresList.length !=
+                          _proveedoresControllers.length) {
+                        for (var r in _proveedoresControllers) {
+                          for (var c in r) {
+                            c.dispose();
+                          }
+                        }
+                        _proveedoresControllers.clear();
+                        _proveedoresControllers.addAll(proveedoresList
+                            .map((row) => [
+                                  TextEditingController(
+                                      text: row.length > 0 ? row[0] : ''),
+                                  TextEditingController(
+                                      text: row.length > 1 ? row[1] : ''),
+                                ])
+                            .toList());
+                      } else {
+                        for (var i = 0; i < proveedoresList.length; i++) {
+                          _proveedoresControllers[i][0].text =
+                              proveedoresList[i].length > 0
+                                  ? proveedoresList[i][0]
+                                  : '';
+                          _proveedoresControllers[i][1].text =
+                              proveedoresList[i].length > 1
+                                  ? proveedoresList[i][1]
+                                  : '';
+                        }
+                      }
                     } else {
-                      for (var i = 0; i < proveedoresList.length; i++) {
+                      final minLenP = min(proveedoresList.length,
+                          _proveedoresControllers.length);
+                      for (var i = 0; i < minLenP; i++) {
                         _proveedoresControllers[i][0].text =
                             proveedoresList[i].length > 0
                                 ? proveedoresList[i][0]
@@ -292,6 +348,23 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                             proveedoresList[i].length > 1
                                 ? proveedoresList[i][1]
                                 : '';
+                      }
+                      if (proveedoresList.length >
+                          _proveedoresControllers.length) {
+                        for (var i = _proveedoresControllers.length;
+                            i < proveedoresList.length;
+                            i++) {
+                          _proveedoresControllers.add([
+                            TextEditingController(
+                                text: proveedoresList[i].length > 0
+                                    ? proveedoresList[i][0]
+                                    : ''),
+                            TextEditingController(
+                                text: proveedoresList[i].length > 1
+                                    ? proveedoresList[i][1]
+                                    : ''),
+                          ]);
+                        }
                       }
                     }
                   });
