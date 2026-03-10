@@ -115,15 +115,50 @@ class _CartaPorteEdicionCompletaPageState
   @override
   void initState() {
     super.initState();
-    _columns = List<String>.from(widget.carta['COLUMNS'] ?? []);
-    _controllers = (widget.carta['TABLE'] as List?)
-            ?.map<List<TextEditingController>>((row) {
-          return (row as List)
+    // Inicializar columnas y controladores de forma defensiva.
+    final rawColumns = widget.carta['COLUMNS'];
+    final rawTable = widget.carta['TABLE'];
+    List<String> cols = [];
+    if (rawColumns is List && rawColumns.isNotEmpty) {
+      cols = List<String>.from(rawColumns.map((c) => c.toString()));
+    }
+    List<List<TextEditingController>> controllers = [];
+    if (rawTable is List && rawTable.isNotEmpty) {
+      final first = rawTable.first;
+      if (first is Map) {
+        // Si las filas vienen como Map, deducir columnas si es necesario
+        if (cols.isEmpty) {
+          cols = List<String>.from(first.keys.map((k) => k.toString()));
+        }
+        for (final r in rawTable) {
+          final mapRow = Map<String, dynamic>.from(r as Map);
+          controllers.add(cols
+              .map((c) =>
+                  TextEditingController(text: (mapRow[c] ?? '').toString()))
+              .toList());
+        }
+      } else if (first is List) {
+        // Filas como listas
+        if (cols.isEmpty) {
+          cols = List<String>.generate(first.length, (i) => 'Col${i + 1}');
+        }
+        for (final r in rawTable) {
+          controllers.add((r as List)
               .map<TextEditingController>(
                   (cell) => TextEditingController(text: cell?.toString() ?? ''))
-              .toList();
-        }).toList() ??
-        [];
+              .toList());
+        }
+      }
+    }
+    // Si no hay columnas ni filas, crear estructura mínima para edición
+    if (cols.isEmpty) cols = ['NO.', 'ITEM'];
+    if (controllers.isEmpty) {
+      controllers = [
+        List.generate(cols.length, (_) => TextEditingController())
+      ];
+    }
+    _columns = cols;
+    _controllers = controllers;
     _unidadController =
         TextEditingController(text: widget.carta['UNIDAD'] ?? '');
     _destinoController =
@@ -179,10 +214,11 @@ class _CartaPorteEdicionCompletaPageState
         ],
       ),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+        // Leer la carta desde la colección de historial si existe un número de control.
         stream: (widget.carta['NUMERO_CONTROL'] != null &&
                 widget.carta['NUMERO_CONTROL'].toString().isNotEmpty)
             ? FirebaseFirestore.instance
-                .collection('cartas_porte')
+                .collection('historial_carta_porte')
                 .doc(widget.carta['NUMERO_CONTROL'].toString())
                 .snapshots()
             : null,

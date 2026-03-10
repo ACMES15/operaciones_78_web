@@ -23,12 +23,30 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
         builder: (context) => CartaPorteEdicionCompletaPage(
           carta: carta,
           onGuardar: (nuevaCarta) async {
-            Navigator.of(context).pop(true);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Carta porte actualizada.'),
-                  backgroundColor: Colors.green),
-            );
+            // Guardar la carta actualizada en Firestore bajo la colección
+            // `historial_carta_porte` usando NUMERO_CONTROL como id si existe.
+            try {
+              final id = (nuevaCarta['NUMERO_CONTROL'] ?? '').toString().trim();
+              final docId = id.isNotEmpty
+                  ? id
+                  : DateTime.now().millisecondsSinceEpoch.toString();
+              // Asegurar campo NUMERO_CONTROL
+              nuevaCarta['NUMERO_CONTROL'] = docId;
+              await guardarDatosFirestoreYCache(
+                  'historial_carta_porte', docId, nuevaCarta);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Carta porte actualizada.'),
+                    backgroundColor: Colors.green),
+              );
+              Navigator.of(context).pop(true);
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text('Error guardando carta: $e'),
+                    backgroundColor: Colors.red),
+              );
+            }
           },
           onImprimir: () {
             Navigator.of(context).pop(true);
