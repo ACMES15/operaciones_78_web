@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
 import '../utils/word_exporter.dart';
 import '../utils/firebase_cache_utils.dart';
+import '../utils/sheet_validator.dart';
 
 // Top-level function for PDF generation to be used with compute
 Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
@@ -394,6 +395,14 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       'rows': rowsAsMap,
       'createdAt': DateTime.now().toIso8601String(),
     };
+    // Validar antes de guardar
+    final vr = validateSheet(sheet);
+    if (!vr.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al guardar: ${vr.errors.join('; ')}')));
+      return;
+    }
+
     HojaDeRutaExtraPage.sentHojaRutas.add(sheet);
     // Guardar en Firebase y actualizar cache
     await guardarDatosFirestoreYCache('hoja_ruta', 'sentHojaRutas',

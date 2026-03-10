@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:math';
 import '../utils/firebase_cache_utils.dart';
+import '../utils/sheet_validator.dart';
 import 'hoja_de_ruta_enviadas_page.dart'; // Asegúrate de que este archivo existe y contiene HojaDeRutaEnviadasPage
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -195,6 +196,15 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
         'rows': rowsAsMap,
         'createdAt': DateTime.now().toString(),
       };
+      // Validar hoja antes de guardar
+      final vr = validateSheet(hoja);
+      if (!vr.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Error al guardar Tiendas/Proveedores: ${vr.errors.join('; ')}')));
+        return;
+      }
+
       // En lugar de añadir repetidamente, sobrescribir la entrada existente
       final idx = HojaDeRutaExtraPage.sentHojaRutas.indexWhere((s) {
         try {

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../utils/word_exporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
+import '../utils/sheet_validator.dart';
 
 class HojaDeXDPage extends StatefulWidget {
   final String? usuario;
@@ -19,6 +20,11 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
     required Map<String, String> datos,
     required String fileName,
   }) async {
+    // Validar registro
+    if (datos.isEmpty) {
+      // no guardar registros vacíos
+      return;
+    }
     // Leer historial actual
     final data = await leerDatosConCache('hoja_de_xd_historial', 'main');
     List<dynamic> list = [];
@@ -54,6 +60,14 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
           .toList(),
       'createdAt': DateTime.now().toIso8601String(),
     };
+    // Validar hoja antes de guardar
+    final vr = validateSheet(sheet);
+    if (!vr.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al guardar Hoja XD: ${vr.errors.join('; ')}')));
+      return;
+    }
+
     // Usar el usuario y la fecha como ID único (puedes ajustar esto según tu lógica)
     final docId = '${_usuario}_${DateTime.now().millisecondsSinceEpoch}';
     await guardarDatosFirestoreYCache('hojas_xd', docId, sheet);

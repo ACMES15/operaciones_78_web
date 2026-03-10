@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/firebase_cache_utils.dart';
 import '../models/hoja_de_xd_historial.dart';
@@ -8,15 +9,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class HojaDeXDHistorialPage extends StatefulWidget {
   const HojaDeXDHistorialPage({super.key});
 
+  // Local admin flag; adjust as needed or replace with real auth check.
+  static bool isAdmin = false;
+
   @override
   State<HojaDeXDHistorialPage> createState() => _HojaDeXDHistorialPageState();
 }
 
 class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
-  /// Guarda el historial completo en Firestore y cache
-  /// (Esta función puede ser llamada desde otras páginas al agregar registros)
-  // ignore: unused_element
-  Future<void> _guardarHistorial() async {
+  List<HojaDeXDHistorial> historial = [];
+  String filtro = '';
+
+  Future<void> _saveHistorialToFirestore() async {
     final data = {
       'historial': historial.map((e) => e.toJson()).toList(),
     };
@@ -26,7 +30,6 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   Future<void> _exportarExcel() async {
     final excel = Excel.createExcel();
     final sheet = excel['HistorialXD'];
-    // Encabezados
     final headers = ['Usuario', 'Fecha', 'Archivo', ..._getAllKeys()];
     sheet.appendRow(headers);
     for (final h in historial) {
@@ -48,18 +51,10 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
 
   List<String> _getAllKeys() {
     final keys = <String>{};
-    for (final h in historial) {
-      keys.addAll(h.datos.keys);
-    }
-    final list = keys.toList();
-    list.sort();
+    for (final h in historial) keys.addAll(h.datos.keys);
+    final list = keys.toList()..sort();
     return list;
   }
-
-  List<HojaDeXDHistorial> historial = [];
-  String filtro = '';
-
-  // Ya no se usa initState ni _cargarHistorial, todo será reactivo con StreamBuilder
 
   @override
   Widget build(BuildContext context) {
@@ -69,37 +64,30 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
           .doc('main')
           .snapshots(),
       builder: (context, snapshot) {
-        List<HojaDeXDHistorial> historial = [];
+        List<HojaDeXDHistorial> lista = [];
         final data = snapshot.data?.data();
         if (snapshot.hasData && data != null && data['historial'] != null) {
           final List<dynamic> list = data['historial'];
-          historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
+          lista = list
+              .map((e) =>
+                  HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
         }
-        // Mantener copia en el estado para que otras funciones (exportar) la usen
-        this.historial = historial;
+        historial = lista;
         final filtroLower = filtro.toLowerCase();
         final historialFiltrado = filtro.isEmpty
             ? historial
             : historial.where((h) {
                 return h.usuario.toLowerCase().contains(filtroLower) ||
-                    h.datos['CONTENEDOR O TARIMA']
-                            ?.toLowerCase()
-                            .contains(filtroLower) ==
-                        true ||
-                    h.datos['DESTINO']?.toLowerCase().contains(filtroLower) ==
-                        true ||
-                    h.datos['SKU']?.toLowerCase().contains(filtroLower) ==
-                        true ||
-                    h.datos['FECHA']?.toLowerCase().contains(filtroLower) ==
-                        true ||
-                    h.datos['TU']?.toLowerCase().contains(filtroLower) == true;
+                    h.datos.values
+                        .any((v) => v.toLowerCase().contains(filtroLower));
               }).toList();
+
         return Scaffold(
           appBar: AppBar(
-            backgroundColor: const Color(0xFF2D6A4F),
-            elevation: 0,
-            toolbarHeight: 0,
-          ),
+              backgroundColor: const Color(0xFF2D6A4F),
+              elevation: 0,
+              toolbarHeight: 0),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -110,21 +98,17 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
                     const Icon(Icons.assignment,
                         color: Color(0xFF2D6A4F), size: 32),
                     const SizedBox(width: 10),
-                    const Text(
-                      'Historial Hoja de XD',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 26,
-                        color: Color(0xFF2D6A4F),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    Spacer(),
+                    const Text('Historial Hoja de XD',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            color: Color(0xFF2D6A4F),
+                            letterSpacing: 0.5)),
+                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.table_view),
-                      tooltip: 'Exportar a Excel',
-                      onPressed: _exportarExcel,
-                    ),
+                        icon: const Icon(Icons.table_view),
+                        tooltip: 'Exportar a Excel',
+                        onPressed: _exportarExcel),
                   ],
                 ),
               ),
@@ -132,10 +116,9 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
                 padding: const EdgeInsets.all(12.0),
                 child: TextField(
                   decoration: const InputDecoration(
-                    labelText:
-                        'Buscar por usuario, contenedor, TU, destino, SKU, fecha',
-                    prefixIcon: Icon(Icons.search),
-                  ),
+                      labelText:
+                          'Buscar por usuario, contenedor, TU, destino, SKU, fecha',
+                      prefixIcon: Icon(Icons.search)),
                   onChanged: (v) => setState(() => filtro = v.trim()),
                 ),
               ),
@@ -150,7 +133,107 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
                       child: ListTile(
                         title: Text('Usuario: ${h.usuario}'),
                         subtitle: Text('Fecha: ${h.fecha}'),
-                        trailing: Text(h.fileName),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(h.fileName),
+                            const SizedBox(width: 8),
+                            if (HojaDeXDHistorialPage.isAdmin)
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                tooltip: 'Eliminar registro',
+                                onPressed: () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Eliminar registro'),
+                                      content: const Text(
+                                          '¿Estás seguro de eliminar este registro del historial? Esta acción no se puede deshacer.'),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: const Text('Cancelar')),
+                                        ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.red),
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: const Text('Eliminar')),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirm != true) return;
+
+                                  try {
+                                    final removed = historial
+                                        .where((x) =>
+                                            x.fecha == h.fecha &&
+                                            x.usuario == h.usuario &&
+                                            x.fileName == h.fileName)
+                                        .toList();
+                                    historial.removeWhere((x) =>
+                                        x.fecha == h.fecha &&
+                                        x.usuario == h.usuario &&
+                                        x.fileName == h.fileName);
+                                    setState(() {});
+
+                                    bool undone = false;
+                                    late final Timer commitTimer;
+                                    commitTimer = Timer(
+                                        const Duration(seconds: 5), () async {
+                                      if (undone) return;
+                                      try {
+                                        await _saveHistorialToFirestore();
+                                        try {
+                                          await invalidateCache(
+                                              'hoja_de_xd_historial', 'main');
+                                        } catch (_) {}
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(SnackBar(
+                                                content: Text(
+                                                    'Error eliminando: $e')));
+                                      }
+                                    });
+
+                                    ScaffoldMessenger.of(context)
+                                        .showSnackBar(SnackBar(
+                                      content: const Text('Registro eliminado'),
+                                      action: SnackBarAction(
+                                          label: 'Deshacer',
+                                          onPressed: () async {
+                                            undone = true;
+                                            if (commitTimer.isActive)
+                                              commitTimer.cancel();
+                                            try {
+                                              historial.addAll(removed);
+                                              setState(() {});
+                                              await _saveHistorialToFirestore();
+                                              try {
+                                                await invalidateCache(
+                                                    'hoja_de_xd_historial',
+                                                    'main');
+                                              } catch (_) {}
+                                            } catch (e) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(SnackBar(
+                                                      content: Text(
+                                                          'Error deshaciendo: $e')));
+                                            }
+                                          }),
+                                    ));
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                            content:
+                                                Text('Error eliminando: $e')));
+                                  }
+                                },
+                              ),
+                          ],
+                        ),
                         onTap: () {
                           showDialog(
                             context: context,
@@ -171,9 +254,65 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
                               ),
                               actions: [
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Cerrar'),
-                                ),
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cerrar')),
+                                if (HojaDeXDHistorialPage.isAdmin)
+                                  ElevatedButton.icon(
+                                      icon: const Icon(Icons.delete),
+                                      label: const Text('Eliminar'),
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red),
+                                      onPressed: () async {
+                                        Navigator.of(context).pop();
+                                        final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                                    title: const Text(
+                                                        'Eliminar registro'),
+                                                    content: const Text(
+                                                        '¿Eliminar este registro del historial?'),
+                                                    actions: [
+                                                      TextButton(
+                                                          onPressed: () =>
+                                                              Navigator.of(ctx)
+                                                                  .pop(false),
+                                                          child: const Text(
+                                                              'Cancelar')),
+                                                      ElevatedButton(
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .red),
+                                                          onPressed: () =>
+                                                              Navigator.of(ctx)
+                                                                  .pop(true),
+                                                          child: const Text(
+                                                              'Eliminar'))
+                                                    ]));
+                                        if (confirm != true) return;
+                                        try {
+                                          historial.removeWhere((x) =>
+                                              x.fecha == h.fecha &&
+                                              x.usuario == h.usuario &&
+                                              x.fileName == h.fileName);
+                                          await _saveHistorialToFirestore();
+                                          try {
+                                            await invalidateCache(
+                                                'hoja_de_xd_historial', 'main');
+                                          } catch (_) {}
+                                          if (mounted) setState(() {});
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                                  content: Text(
+                                                      'Registro eliminado')));
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(SnackBar(
+                                                  content: Text(
+                                                      'Error eliminando: $e')));
+                                        }
+                                      }),
                               ],
                             ),
                           );
