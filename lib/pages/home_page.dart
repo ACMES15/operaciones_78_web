@@ -66,7 +66,7 @@ class _HomePageState extends State<HomePage> {
         UserControlPage(),
         UserPermissionsPage(),
         HojaDeRutaPage(),
-        Builder(builder: (context) => HojaDeXDPage()),
+        Builder(builder: (context) => HojaDeXDPage(usuario: widget.usuario)),
         HojaDeXDHistorialPage(),
         CartaPorteTable(),
         HistorialCartaPortePage(),
@@ -171,6 +171,7 @@ class _HomePageState extends State<HomePage> {
     return [];
   }
 
+  // ignore: unused_element
   Future<List<Map<String, dynamic>>> _getNotificaciones() async {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('notificaciones_password') ?? '[]';
@@ -255,7 +256,7 @@ class _HomePageState extends State<HomePage> {
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(
                             minHeight: 0,
-                            maxHeight: 900,
+                            maxHeight: 1500,
                           ),
                           child: NavigationRail(
                             selectedIndex: selectedMenuIndex,
@@ -604,7 +605,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   } else if (pagina == 'Hoja de XD') {
-                    return HojaDeXDPage();
+                    return HojaDeXDPage(usuario: widget.usuario);
                   } else if (pagina == 'Carta Porte') {
                     return const CartaPorteTable();
                   } else if (pagina == 'Historial Carta Porte') {

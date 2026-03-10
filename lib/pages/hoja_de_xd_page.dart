@@ -5,7 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class HojaDeXDPage extends StatefulWidget {
-  const HojaDeXDPage({super.key});
+  final String? usuario;
+  const HojaDeXDPage({this.usuario, super.key});
 
   @override
   State<HojaDeXDPage> createState() => _HojaDeXDPageState();
@@ -35,7 +36,9 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
     });
   }
 
+  // ignore: unused_field
   bool _cargandoXD = false;
+  // ignore: unused_field
   String? _ultimoDocIdXD;
   // Controla si se descargó el Word para cada fila
   final Set<int> _filasExportadas = {};
@@ -85,11 +88,11 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final modalRoute = ModalRoute.of(context);
-    String nuevoUsuario;
-    if (modalRoute != null && modalRoute.settings.arguments is String) {
+    String nuevoUsuario = widget.usuario ?? 'Usuario';
+    if ((widget.usuario == null) &&
+        modalRoute != null &&
+        modalRoute.settings.arguments is String) {
       nuevoUsuario = modalRoute.settings.arguments as String;
-    } else {
-      nuevoUsuario = 'Usuario';
     }
     if (_usuario != nuevoUsuario) {
       _usuario = nuevoUsuario;
