@@ -198,9 +198,11 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
             print(
                 'Historial fusionado total: \\n' + historial.length.toString());
 
-            final completas = filtrado.where(_esCartaCompleta).toList();
+            // Mostrar todos los registros filtrados (incluye incompletos)
+            final completas =
+                filtrado; // temporalmente mostrar todo para depuración
 
-            print('Cartas porte completas (mostradas): \\n' +
+            print('Cartas porte mostradas (incluye incompletas): \n' +
                 completas.length.toString());
 
             // Función para exportar Excel con historial actual
@@ -288,6 +290,9 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                         ),
                       )
                     else ...[
+                      // Mostrar todos los registros (para diagnóstico). Si quieres volver
+                      // a filtrar sólo completos, reemplaza `completas` por
+                      // `filtrado.where(_esCartaCompleta).toList()`.
                       ...completas.map((carta) {
                         bool verDetalles = false;
                         return StatefulBuilder(
