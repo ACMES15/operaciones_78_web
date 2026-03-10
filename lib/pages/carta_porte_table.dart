@@ -1035,12 +1035,33 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                           }
                                                         }
                                                         if (embarque.isEmpty) {
-                                                          embarque = hoja[
-                                                                      'numeroControl']
-                                                                  ?.toString() ??
-                                                              hoja['remi']
-                                                                  ?.toString() ??
-                                                              '';
+                                                          final origenHoja =
+                                                              (hoja['origen'] ??
+                                                                      '')
+                                                                  .toString()
+                                                                  .toUpperCase();
+                                                          if (origenHoja ==
+                                                              'EMBARQUE') {
+                                                            // Para hojas de tipo EMBARQUE, priorizar
+                                                            // campos de manifiesto/remisión y NO
+                                                            // usar el número de control como valor
+                                                            embarque = hoja[
+                                                                        'remi']
+                                                                    ?.toString() ??
+                                                                hoja['manifiesto']
+                                                                    ?.toString() ??
+                                                                hoja['mani']
+                                                                    ?.toString() ??
+                                                                '';
+                                                          } else {
+                                                            // Comportamiento previo para otras hojas
+                                                            embarque = hoja[
+                                                                        'numeroControl']
+                                                                    ?.toString() ??
+                                                                hoja['remi']
+                                                                    ?.toString() ??
+                                                                '';
+                                                          }
                                                         }
                                                         rowCtrls[4].text =
                                                             embarque;

@@ -102949,12 +102949,19 @@ l=""
 if(p.h(q,b)!=null&&p.h(q,a)!=null&&J.fS(p.h(q,a))){k=B.l.i8(A.br(p.h(q,b),!0,t.N),new A.axa())
 if(k!==-1){s=J.V(J.V(p.h(q,a),0),k)
 l=s==null?c:J.a2(s)
-if(l==null)l=""}}if(l.length===0){s=p.h(q,"numeroControl")
+if(l==null)l=""}}if(l.length===0){s=p.h(q,"origen")
+if(J.a2(s==null?"":s).toUpperCase()==="EMBARQUE"){s=p.h(q,"remi")
+s=s==null?c:J.a2(s)
+if(s==null){s=p.h(q,"manifiesto")
+s=s==null?c:J.a2(s)}if(s==null){s=p.h(q,"mani")
+s=s==null?c:J.a2(s)
+l=s}else l=s
+if(l==null)l=""}else{s=p.h(q,"numeroControl")
 s=s==null?c:J.a2(s)
 if(s==null){s=p.h(q,"remi")
 s=s==null?c:J.a2(s)
 l=s}else l=s
-if(l==null)l=""}a0[4].sb0(0,l)
+if(l==null)l=""}}a0[4].sb0(0,l)
 s=a0[5]
 o=p.h(q,"tipo")
 o=o==null?c:J.a2(o)
