@@ -5,6 +5,15 @@ import 'pages/user_control_page.dart';
 import 'pages/user_permissions_page.dart';
 import 'pages/login_page.dart';
 import 'pages/hoja_de_xd_page.dart';
+import 'pages/hoja_de_ruta_page.dart';
+import 'pages/hoja_de_xd_historial_page.dart';
+import 'pages/carta_porte_table.dart';
+import 'pages/historial_carta_porte_page.dart';
+import 'pages/plantilla_ejecutiva_page.dart';
+import 'pages/devcan_page.dart';
+import 'pages/historial_entregas_devcan_page.dart';
+import 'pages/recogidos/recogidos_page.dart';
+import 'pages/recogidos/historial_entregas_recogidos_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -21,30 +30,43 @@ class _HomePageState extends State<HomePage> {
   int get _notificacionesNoLeidas => _notificaciones.length;
   int _selectedIndex = 0;
   bool _menuExpandido = false;
+  final List<String> _paginas = [
+    'Control de usuarios',
+    'Permisos de usuario',
+    'Hoja de ruta',
+    'Hoja de XD',
+    'Historial Hoja de XD',
+    'Carta Porte',
+    'Historial Carta Porte',
+    'Plantilla Ejecutiva',
+    'DevCan',
+    'Historial Entregas DevCan',
+    'Recogidos',
+    'Historial Entregas Recogidos',
+  ];
   final List<Widget> _pages = [
     UserControlPage(),
     UserPermissionsPage(),
+    HojaDeRutaPage(),
     HojaDeXDPage(),
+    HojaDeXDHistorialPage(),
+    CartaPorteTable(),
+    HistorialCartaPortePage(),
+    PlantillaEjecutivaPage(),
+    DevCanPage(),
+    HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
+    RecogidosPage(),
+    HistorialEntregasRecogidosPage(historial: const [], tipoUsuarioActual: ''),
   ];
+  // ...existing code...
+  List<int> _paginasPermitidas = [];
+  Map<String, Map<String, bool>> _permisosTipoUsuario = {};
   @override
   void initState() {
     super.initState();
     _usuario = widget.usuario;
-    // Leer tipo de usuario desde Firestore (colección 'usuarios', campo 'usuario')
-    FirebaseFirestore.instance
-        .collection('usuarios')
-        .where('usuario', isEqualTo: _usuario)
-        .limit(1)
-        .get()
-        .then((query) {
-      if (query.docs.isNotEmpty &&
-          query.docs.first.data().containsKey('tipo')) {
-        setState(() {
-          _tipoUsuario = query.docs.first['tipo'].toString();
-        });
-      }
-    });
-    // Adaptar notificaciones por nombre de usuario
+    _cargarTipoYPermisos();
+    // Notificaciones
     FirebaseFirestore.instance
         .collection('notificaciones')
         .where('usuario', isEqualTo: _usuario)
@@ -62,6 +84,47 @@ class _HomePageState extends State<HomePage> {
         });
       }
     });
+  }
+
+  Future<void> _cargarTipoYPermisos() async {
+    final usuarioDoc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc('usuarios_guardados')
+        .get();
+    if (usuarioDoc.exists && usuarioDoc.data() != null) {
+      final usuariosMap = usuarioDoc.data()!;
+      final datos = usuariosMap[_usuario];
+      if (datos != null && datos['rol'] != null) {
+        _tipoUsuario = datos['rol'].toString();
+      }
+    }
+    final permisosDoc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc('permisos_tipo_usuario')
+        .get();
+    if (permisosDoc.exists && permisosDoc.data() != null) {
+      final permisosMap = permisosDoc.data()!;
+      _permisosTipoUsuario = Map<String, Map<String, bool>>.from(
+        (permisosMap['permisos'] as Map<String, dynamic>).map(
+          (tipo, pags) => MapEntry(
+            tipo,
+            (pags as Map<String, dynamic>)
+                .map((pag, val) => MapEntry(pag, val == true)),
+          ),
+        ),
+      );
+      _paginasPermitidas = [];
+      if (_permisosTipoUsuario.containsKey(_tipoUsuario)) {
+        for (int i = 0; i < _paginas.length; i++) {
+          final nombrePagina = _paginas[i];
+          if (_permisosTipoUsuario[_tipoUsuario]?[nombrePagina] == true) {
+            _paginasPermitidas.add(i);
+          }
+        }
+      }
+      if (_paginasPermitidas.isEmpty) _paginasPermitidas = [0];
+      setState(() {});
+    }
   }
   // Si tienes notificaciones en Firebase, usa un StreamBuilder en el widget.
 
@@ -116,22 +179,13 @@ class _HomePageState extends State<HomePage> {
                           const IconThemeData(color: Colors.white70),
                       unselectedLabelTextStyle:
                           const TextStyle(color: Colors.white70),
-                      destinations: const [
-                        NavigationRailDestination(
-                          icon: Icon(Icons.people_outline),
-                          selectedIcon: Icon(Icons.people),
-                          label: Text('Usuarios'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.lock_outline),
-                          selectedIcon: Icon(Icons.lock),
-                          label: Text('Permisos'),
-                        ),
-                        NavigationRailDestination(
-                          icon: Icon(Icons.description_outlined),
-                          selectedIcon: Icon(Icons.description),
-                          label: Text('Hoja de XD'),
-                        ),
+                      destinations: [
+                        for (final idx in _paginasPermitidas)
+                          NavigationRailDestination(
+                            icon: Icon(Icons.circle),
+                            selectedIcon: Icon(Icons.check_circle),
+                            label: Text(_paginas[idx]),
+                          ),
                       ],
                     ),
                   ),
@@ -332,7 +386,11 @@ class _HomePageState extends State<HomePage> {
                     ],
                   ),
                 ),
-                Expanded(child: _pages[_selectedIndex]),
+                Expanded(
+                  child: _paginasPermitidas.isNotEmpty
+                      ? _pages[_paginasPermitidas[_selectedIndex]]
+                      : const Center(child: Text('Sin permisos')),
+                ),
               ],
             ),
           ),

@@ -174,8 +174,14 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
   }
 
   Future<void> _guardarCambios() async {
+    // Guardar usuarios como campos tipo mapa
+    final Map<String, dynamic> usuariosMap = {};
+    for (final u in usuarios) {
+      final usuarioKey = (u['usuario'] ?? '').toString().trim().toLowerCase();
+      usuariosMap[usuarioKey] = Map<String, dynamic>.from(u);
+    }
     await guardarDatosFirestoreYCache(
-        'usuarios', 'usuarios_guardados', {'items': usuarios});
+        'usuarios', 'usuarios_guardados', usuariosMap);
     setState(() {
       _tieneCambios = false;
     });

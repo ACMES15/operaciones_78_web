@@ -10,52 +10,55 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _usuarioController = TextEditingController();
+  final _passController = TextEditingController();
   final _correoController = TextEditingController();
   final _tipoController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
   Future<void> agregarUsuarioDesdeApp(
       String usuario, String password, String correo, String tipo) async {
-    final usuarioKey = usuario.trim().toLowerCase();
-    final passwordValue = password.trim();
-    final correoValue = correo.trim();
-    final tipoValue = tipo.trim();
     try {
       final docRef = FirebaseFirestore.instance
           .collection('usuarios')
           .doc('usuarios_guardados');
+
       final docSnap = await docRef.get();
-      Map<String, dynamic> data = docSnap.data() ?? {};
-      if (data.containsKey(usuarioKey)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('El usuario ya existe.')),
-        );
-        return;
+      Map<String, dynamic> usuariosMap = {};
+      if (docSnap.exists && docSnap.data() != null) {
+        usuariosMap = Map<String, dynamic>.from(docSnap.data()!);
       }
-      data[usuarioKey] = {
-        'password': passwordValue,
-        'correo': correoValue,
-        'tipo': tipoValue,
+
+      // Añadir o actualizar el usuario en el mapa
+      usuariosMap[usuario] = {
+        'password': password,
+        'correo': correo,
+        'rol': tipo,
       };
-      await docRef.set(data);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Usuario $usuarioKey agregado correctamente.')),
-      );
+
+      // Guardar el documento completo (puedes usar set con merge si prefieres)
+      await docRef.set(usuariosMap);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario registrado correctamente.')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error agregando usuario: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error registrando usuario: $e')),
+        );
+      }
     }
   }
-
-  final _formKey = GlobalKey<FormState>();
-  final _usuarioController = TextEditingController();
-  final _passController = TextEditingController();
-  // ...existing code...
 
   @override
   void dispose() {
     _usuarioController.dispose();
     _passController.dispose();
+    _correoController.dispose();
+    _tipoController.dispose();
     super.dispose();
   }
 
@@ -195,7 +198,7 @@ class _LoginPageState extends State<LoginPage> {
                     }
                     final usuarioInput = usuario.trim().toLowerCase();
                     final passInput = password.trim().toLowerCase();
-                    final entry = usuariosMap!.entries.firstWhere(
+                    final entry = usuariosMap.entries.firstWhere(
                       (e) => (e.key.trim().toLowerCase() == usuarioInput),
                       orElse: () => const MapEntry('', null),
                     );
