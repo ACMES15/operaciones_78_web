@@ -10,9 +10,47 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  final _correoController = TextEditingController();
+  final _tipoController = TextEditingController();
+
+  Future<void> agregarUsuarioDesdeApp(
+      String usuario, String password, String correo, String tipo) async {
+    final usuarioKey = usuario.trim().toLowerCase();
+    final passwordValue = password.trim();
+    final correoValue = correo.trim();
+    final tipoValue = tipo.trim();
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc('usuarios_guardados');
+      final docSnap = await docRef.get();
+      Map<String, dynamic> data = docSnap.data() ?? {};
+      if (data.containsKey(usuarioKey)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('El usuario ya existe.')),
+        );
+        return;
+      }
+      data[usuarioKey] = {
+        'password': passwordValue,
+        'correo': correoValue,
+        'tipo': tipoValue,
+      };
+      await docRef.set(data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Usuario $usuarioKey agregado correctamente.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error agregando usuario: $e')),
+      );
+    }
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _usuarioController = TextEditingController();
   final _passController = TextEditingController();
+  // ...existing code...
 
   @override
   void dispose() {
@@ -91,6 +129,27 @@ class _LoginPageState extends State<LoginPage> {
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Ingrese su contraseña' : null,
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _correoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Correo',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: (v) =>
+                      v == null || v.isEmpty ? 'Ingrese el correo' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _tipoController,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                  validator: (v) => v == null || v.isEmpty
+                      ? 'Ingrese el tipo de usuario'
+                      : null,
+                ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -100,7 +159,9 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   onPressed: () async {
                     if (!_formKey.currentState!.validate()) return;
-                    // Leer usuarios desde el documento 'usuarios_guardados' en la colección 'usuarios'
+                    final usuario = _usuarioController.text.trim();
+                    final password = _passController.text.trim();
+                    // Intentar login normal
                     Map<String, dynamic>? usuariosMap;
                     try {
                       final docSnap = await FirebaseFirestore.instance
@@ -132,11 +193,8 @@ class _LoginPageState extends State<LoginPage> {
                       );
                       return;
                     }
-                    final usuario = _usuarioController.text.trim();
-                    final password = _passController.text.trim();
                     final usuarioInput = usuario.trim().toLowerCase();
                     final passInput = password.trim().toLowerCase();
-                    // Buscar usuario en el mapa
                     final entry = usuariosMap!.entries.firstWhere(
                       (e) => (e.key.trim().toLowerCase() == usuarioInput),
                       orElse: () => const MapEntry('', null),
@@ -189,6 +247,34 @@ class _LoginPageState extends State<LoginPage> {
                     );
                   },
                   child: const Text('Ingresar'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () async {
+                    // Agregar usuario desde la app
+                    final usuario = _usuarioController.text.trim();
+                    final password = _passController.text.trim();
+                    final correo = _correoController.text.trim();
+                    final tipo = _tipoController.text.trim();
+                    if (usuario.isEmpty ||
+                        password.isEmpty ||
+                        correo.isEmpty ||
+                        tipo.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Todos los campos son requeridos para registrar.')),
+                      );
+                      return;
+                    }
+                    await agregarUsuarioDesdeApp(
+                        usuario, password, correo, tipo);
+                  },
+                  child: const Text('Registrar usuario'),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
