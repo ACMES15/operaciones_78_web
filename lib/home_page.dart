@@ -98,6 +98,13 @@ class _HomePageState extends State<HomePage> {
         _tipoUsuario = datos['rol'].toString();
       }
     }
+    // Si es SUPERADMIN, darle acceso a todas las páginas sin depender
+    // del documento de permisos (comparación case-insensitive).
+    if (_tipoUsuario.toLowerCase() == 'superadmin') {
+      _paginasPermitidas = List<int>.generate(_paginas.length, (i) => i);
+      setState(() {});
+      return;
+    }
     final permisosDoc = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc('permisos_tipo_usuario')
@@ -124,6 +131,12 @@ class _HomePageState extends State<HomePage> {
       }
       if (_paginasPermitidas.isEmpty) _paginasPermitidas = [0];
       setState(() {});
+    } else {
+      // Si no existe documento de permisos, dar acceso mínimo (Control de usuarios)
+      if (_paginasPermitidas.isEmpty) {
+        _paginasPermitidas = [0];
+        setState(() {});
+      }
     }
   }
   // Si tienes notificaciones en Firebase, usa un StreamBuilder en el widget.
