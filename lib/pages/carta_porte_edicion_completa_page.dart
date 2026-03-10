@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -111,6 +112,52 @@ class _CartaPorteEdicionCompletaPageState
   int? _choferSeleccionado;
   Stream<DocumentSnapshot<Map<String, dynamic>>>? _choferesStream;
   List<Map<String, String>> _choferes = [];
+
+  void _disposeAllControllers() {
+    for (var r in _controllers) {
+      for (var c in r) {
+        try {
+          c.dispose();
+        } catch (_) {}
+      }
+    }
+    _controllers = [];
+  }
+
+  @override
+  void dispose() {
+    _disposeAllControllers();
+    try {
+      _unidadController.dispose();
+    } catch (_) {}
+    try {
+      _destinoController.dispose();
+    } catch (_) {}
+    try {
+      _rfcController.dispose();
+    } catch (_) {}
+    super.dispose();
+  }
+
+  void _rebuildControllersFromTable(List tableData) {
+    _disposeAllControllers();
+    _controllers = [];
+    for (final r in tableData) {
+      if (r is Map) {
+        _controllers.add(_columns
+            .map((c) => TextEditingController(text: (r[c] ?? '').toString()))
+            .toList());
+      } else if (r is List) {
+        _controllers.add(List<TextEditingController>.generate(
+            _columns.length,
+            (i) => TextEditingController(
+                text: i < r.length ? (r[i]?.toString() ?? '') : '')));
+      } else {
+        _controllers.add(
+            List.generate(_columns.length, (_) => TextEditingController()));
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -272,14 +319,54 @@ class _CartaPorteEdicionCompletaPageState
               _fechaActual = cartaData['FECHA'] ?? '';
               _columns = List<String>.from(cartaData['COLUMNS'] ?? []);
               final tableData = (cartaData['TABLE'] as List?) ?? [];
-              if (tableData.length == _controllers.length) {
-                for (int i = 0; i < tableData.length; i++) {
-                  final row = tableData[i] as List;
-                  for (int j = 0;
-                      j < row.length && j < _controllers[i].length;
-                      j++) {
-                    _controllers[i][j].text = row[j]?.toString() ?? '';
+              // Reconstruir controladores sólo si la estructura cambió.
+              if (tableData.isNotEmpty) {
+                bool needRebuild = false;
+                if (_controllers.length != tableData.length) {
+                  needRebuild = true;
+                } else {
+                  final first = tableData.first;
+                  if (first is Map) {
+                    final newCols =
+                        List<String>.from(first.keys.map((k) => k.toString()));
+                    if (!listEquals(newCols, _columns)) needRebuild = true;
+                  } else if (first is List) {
+                    if (_columns.length != first.length) needRebuild = true;
                   }
+                }
+                if (needRebuild) {
+                  _rebuildControllersFromTable(tableData);
+                } else {
+                  // Actualizar valores en controladores existentes sin reconstruir
+                  for (int r = 0; r < tableData.length; r++) {
+                    final row = tableData[r];
+                    if (row is Map) {
+                      for (int c = 0; c < _columns.length; c++) {
+                        final key = _columns[c];
+                        final val = row[key];
+                        final controller = _controllers[r][c];
+                        if (controller.text != (val?.toString() ?? '')) {
+                          controller.text = val?.toString() ?? '';
+                        }
+                      }
+                    } else if (row is List) {
+                      for (int c = 0; c < _columns.length; c++) {
+                        final val = c < row.length ? row[c] : '';
+                        final controller = _controllers[r][c];
+                        if (controller.text != (val?.toString() ?? '')) {
+                          controller.text = val?.toString() ?? '';
+                        }
+                      }
+                    }
+                  }
+                }
+              } else {
+                // Ensure at least one row of controllers exists
+                if (_controllers.isEmpty) {
+                  _controllers = [
+                    List.generate(
+                        _columns.length, (_) => TextEditingController())
+                  ];
                 }
               }
               return Padding(
@@ -407,13 +494,6 @@ class _CartaPorteEdicionCompletaPageState
                                 .map((entry) {
                                   final rowIdx = entry.key;
                                   final rowControllers = entry.value;
-                                  final hasData = rowControllers
-                                      .asMap()
-                                      .entries
-                                      .any((e) =>
-                                          e.key != 0 &&
-                                          (e.value.text.trim().isNotEmpty));
-                                  if (!hasData) return null;
                                   return DataRow(
                                     cells: List<DataCell>.generate(
                                         _columns.length, (colIdx) {
@@ -430,8 +510,7 @@ class _CartaPorteEdicionCompletaPageState
                                               .toUpperCase() ==
                                           'CONCENTRADO') {
                                         cellWidget = TextField(
-                                          controller: _controllers[rowIdx]
-                                              [colIdx],
+                                          controller: rowControllers[colIdx],
                                           onChanged: (val) {},
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
@@ -446,8 +525,7 @@ class _CartaPorteEdicionCompletaPageState
                                               'EMBARQUE' &&
                                           colIdx == 9) {
                                         cellWidget = TextField(
-                                          controller: _controllers[rowIdx]
-                                              [colIdx],
+                                          controller: rowControllers[colIdx],
                                           onChanged: (val) {
                                             final concIdx = _columns.indexWhere(
                                                 (c) =>
@@ -455,8 +533,8 @@ class _CartaPorteEdicionCompletaPageState
                                                     'CONCENTRADO');
                                             if (concIdx != -1) {
                                               setState(() {
-                                                _controllers[rowIdx][concIdx]
-                                                    .text = val;
+                                                rowControllers[concIdx].text =
+                                                    val;
                                               });
                                             }
                                           },
@@ -470,8 +548,7 @@ class _CartaPorteEdicionCompletaPageState
                                         );
                                       } else {
                                         cellWidget = TextField(
-                                          controller: _controllers[rowIdx]
-                                              [colIdx],
+                                          controller: rowControllers[colIdx],
                                           decoration: const InputDecoration(
                                             border: InputBorder.none,
                                             isDense: true,
