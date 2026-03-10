@@ -1,5 +1,4 @@
 import 'carta_porte_edicion_completa_page.dart';
-import 'carta_porte_table.dart' as table_historial;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../utils/exportar_excel.dart';
@@ -17,16 +16,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   // Filtros (no usado)
   final TextEditingController _busquedaController = TextEditingController();
   bool _esAdmin = true; // Cambia esto según tu lógica de permisos
-
-  bool _isCompleta(Map<String, dynamic> carta) {
-    final campos = ['DESTINO', 'CHOFER', 'UNIDAD', 'RFC', 'CONCENTRADO'];
-    for (final campo in campos) {
-      if ((carta[campo]?.toString().trim() ?? '').isEmpty) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   void _editarCarta(Map<String, dynamic> carta) {
     Navigator.of(context).push<bool>(
@@ -62,7 +51,10 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('cartas_porte').snapshots(),
+      // Leer la colección donde se guardan las cartas en `CartaPorteTable`
+      stream: FirebaseFirestore.instance
+          .collection('historial_carta_porte')
+          .snapshots(),
       builder: (context, snapshotCartas) {
         return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
           stream: FirebaseFirestore.instance
@@ -108,9 +100,24 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               return Center(
                   child: Text('Error cargando historial de carta porte'));
             }
-            // Cartas porte
+            // Cartas porte: soportar tanto documentos individuales en la colección
+            // como el documento legacy 'historial_carta_porte/datos' que contiene una lista.
             final docs = snapshotCartas.data?.docs ?? [];
-            final cartasPorte = docs.map((doc) => doc.data()).toList();
+            final List<Map<String, dynamic>> cartasPorte = [];
+            for (final d in docs) {
+              try {
+                if (d.id == 'datos' && d.data().containsKey('datos')) {
+                  final legacy = d.data()['datos'] as List;
+                  for (final item in legacy) {
+                    cartasPorte.add(Map<String, dynamic>.from(item));
+                  }
+                } else {
+                  cartasPorte.add(Map<String, dynamic>.from(d.data()));
+                }
+              } catch (_) {
+                // ignore malformed doc
+              }
+            }
             // Hojas de ruta enviadas
             List<Map<String, dynamic>> hojasRuta = [];
             final dataHojaRuta = snapshotHojaRuta.data?.data();
