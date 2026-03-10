@@ -13,102 +13,126 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
 
   Future<void> _printSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
-    final pdf = pw.Document();
-    final headers = sheet['headers'] != null
-        ? List<String>.from(sheet['headers'])
-        : (sheet['rows'].isNotEmpty
-            ? (sheet['rows'][0] as List)
-                .asMap()
-                .keys
-                .map((i) => 'Col${i + 1}')
-                .toList()
-            : []);
-    final data = List<List<String>>.from(
-        sheet['rows'].map<List<String>>((r) => List<String>.from(r)));
+    try {
+      final pdf = pw.Document();
+      final rawRows =
+          (sheet['rows'] is List) ? List.from(sheet['rows']) : <dynamic>[];
+      final headers = sheet['headers'] != null
+          ? List<String>.from(sheet['headers'])
+          : (rawRows.isNotEmpty
+              ? (rawRows[0] is List
+                  ? List.generate(
+                      (rawRows[0] as List).length, (i) => 'Col${i + 1}')
+                  : (rawRows[0] is Map
+                      ? (rawRows[0] as Map)
+                          .keys
+                          .map((k) => k.toString())
+                          .toList()
+                      : []))
+              : []);
 
-    final pageFormat = PdfPageFormat.letter;
-    pdf.addPage(pw.MultiPage(
-        pageFormat: pageFormat,
-        build: (context) {
-          return <pw.Widget>[
-            pw.Text('Liverpool GDL 78 - Hoja de ruta',
-                style:
-                    pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 6),
-            pw.Text('Origen: ${sheet['origen']}    Fecha: ${sheet['fecha']}'),
-            pw.SizedBox(height: 12),
-            if (data.isNotEmpty)
-              pw.Table.fromTextArray(
-                headers: headers,
-                data: data,
-                headerStyle:
-                    pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
-                cellStyle: pw.TextStyle(fontSize: 8),
-                headerDecoration:
-                    const pw.BoxDecoration(color: PdfColors.grey300),
-                cellAlignment: pw.Alignment.centerLeft,
-                columnWidths: {
-                  for (var i = 0; i < data[0].length; i++)
-                    i: const pw.FlexColumnWidth(1)
-                },
-              ),
-          ];
-        }));
-
-    // En web: abrir PDF en nueva pestaña (el usuario puede imprimir desde el navegador)
-    if (kIsWeb) {
-      // Para evitar bloqueos de popup: abrir una pestaña vacía primero (user gesture),
-      // luego cargar el PDF una vez generado.
-      final newWindow = html.window.open('', '_blank');
-      final bytes = await pdf.save();
-      final blob = html.Blob([bytes], 'application/pdf');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      try {
-        newWindow.location.href = url;
-      } catch (_) {
-        // fallback: crear un <a> con download y disparar click para forzar descarga
-        try {
-          final anchor = html.document.createElement('a') as html.AnchorElement;
-          anchor.href = url;
-          anchor.download = 'hoja_de_ruta.pdf';
-          anchor.style.display = 'none';
-          html.document.body!.append(anchor);
-          anchor.click();
-          anchor.remove();
-        } catch (e) {
-          html.window.open(url, '_blank');
+      final data = <List<String>>[];
+      for (final r in rawRows) {
+        if (r is List) {
+          data.add(r.map((c) => c.toString()).toList());
+        } else if (r is Map) {
+          data.add((r as Map).values.map((v) => v.toString()).toList());
+        } else {
+          data.add([r.toString()]);
         }
       }
-      // revoke after un poco de tiempo
-      Future.delayed(const Duration(seconds: 5), () {
-        try {
-          html.Url.revokeObjectUrl(url);
-        } catch (_) {}
-      });
-      return;
-    }
 
-    // En plataformas desktop/mesa: permitir al usuario elegir impresora y enviar directamente
-    try {
-      final printer = await Printing.pickPrinter(context: context);
-      if (printer != null) {
-        await Printing.directPrintPdf(
-          printer: printer,
-          onLayout: (PdfPageFormat format) async => pdf.save(),
-        );
+      final pageFormat = PdfPageFormat.letter;
+      pdf.addPage(pw.MultiPage(
+          pageFormat: pageFormat,
+          build: (context) {
+            return <pw.Widget>[
+              pw.Text('Liverpool GDL 78 - Hoja de ruta',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 6),
+              pw.Text('Origen: ${sheet['origen']}    Fecha: ${sheet['fecha']}'),
+              pw.SizedBox(height: 12),
+              if (data.isNotEmpty)
+                pw.Table.fromTextArray(
+                  headers: headers,
+                  data: data,
+                  headerStyle:
+                      pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9),
+                  cellStyle: pw.TextStyle(fontSize: 8),
+                  headerDecoration:
+                      const pw.BoxDecoration(color: PdfColors.grey300),
+                  cellAlignment: pw.Alignment.centerLeft,
+                  columnWidths: {
+                    for (var i = 0; i < data[0].length; i++)
+                      i: const pw.FlexColumnWidth(1)
+                  },
+                ),
+            ];
+          }));
+
+      // En web: abrir PDF en nueva pestaña (el usuario puede imprimir desde el navegador)
+      if (kIsWeb) {
+        // Para evitar bloqueos de popup: abrir una pestaña vacía primero (user gesture),
+        // luego cargar el PDF una vez generado.
+        final newWindow = html.window.open('', '_blank');
+        final bytes = await pdf.save();
+        final blob = html.Blob([bytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        try {
+          newWindow.location.href = url;
+        } catch (_) {
+          // fallback: crear un <a> con download y disparar click para forzar descarga
+          try {
+            final anchor =
+                html.document.createElement('a') as html.AnchorElement;
+            anchor.href = url;
+            anchor.download = 'hoja_de_ruta.pdf';
+            anchor.style.display = 'none';
+            html.document.body!.append(anchor);
+            anchor.click();
+            anchor.remove();
+          } catch (e) {
+            html.window.open(url, '_blank');
+          }
+        }
+        // revoke after un poco de tiempo
+        Future.delayed(const Duration(seconds: 5), () {
+          try {
+            html.Url.revokeObjectUrl(url);
+          } catch (_) {}
+        });
         return;
       }
-    } catch (e) {
-      // ignore and fallback to layoutPdf
-    }
 
-    // Fallback: abrir diálogo de impresión con tamaño carta
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      usePrinterSettings: true,
-      name: 'Hoja de ruta',
-      format: pageFormat,
-    );
+      // En plataformas desktop/mesa: permitir al usuario elegir impresora y enviar directamente
+      try {
+        final printer = await Printing.pickPrinter(context: context);
+        if (printer != null) {
+          await Printing.directPrintPdf(
+            printer: printer,
+            onLayout: (PdfPageFormat format) async => pdf.save(),
+          );
+          return;
+        }
+      } catch (e) {
+        // ignore and fallback to layoutPdf
+      }
+
+      // Fallback: abrir diálogo de impresión con tamaño carta
+      await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save(),
+        usePrinterSettings: true,
+        name: 'Hoja de ruta',
+        format: pageFormat,
+      );
+    } catch (e, st) {
+      // Mostrar error al usuario para ayudar debugging
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al generar/imprimir PDF: $e')),
+      );
+      debugPrint('Error _printSheet: $e\n$st');
+    }
   }
 
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
@@ -467,8 +491,17 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                                         children: [
                                           IconButton(
                                               icon: const Icon(Icons.print),
-                                              onPressed: () =>
-                                                  _printSheet(context, sheet)),
+                                              onPressed: () async {
+                                                try {
+                                                  await _printSheet(
+                                                      context, sheet);
+                                                } catch (e) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(SnackBar(
+                                                          content: Text(
+                                                              'Error al imprimir: $e')));
+                                                }
+                                              }),
                                           IconButton(
                                               icon:
                                                   const Icon(Icons.visibility),
