@@ -15,6 +15,13 @@ class _LoginPageState extends State<LoginPage> {
   final _passController = TextEditingController();
 
   @override
+  void dispose() {
+    _usuarioController.dispose();
+    _passController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF2D6A4F),
@@ -92,104 +99,152 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () async {
-                    // DEBUG: Mostrar todos los usuarios leídos de Firestore
+                    if (!_formKey.currentState!.validate()) return;
+                    // Leer usuarios desde el documento 'usuarios_guardados' en la colección 'usuarios'
+                    Map<String, dynamic>? usuariosMap;
                     try {
-                      final debugQuery = await FirebaseFirestore.instance
+                      final docSnap = await FirebaseFirestore.instance
                           .collection('usuarios')
+                          .doc('usuarios_guardados')
                           .get();
-                      print('DEBUG Firestore usuarios:');
-                      for (var doc in debugQuery.docs) {
-                        if (!doc.data().containsKey('usuario')) {
-                          print(
-                              'ADVERTENCIA: Documento sin campo "usuario". ID: ' +
-                                  doc.id);
-                          continue;
-                        }
-                        print('usuario: "' +
-                            (doc['usuario'] ?? '').toString() +
-                            '", password: "' +
-                            (doc['password'] ?? '').toString() +
-                            '"');
+                      if (!docSnap.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'No existe el documento usuarios_guardados en Firestore.')),
+                        );
+                        return;
+                      }
+                      usuariosMap = docSnap.data();
+                      if (usuariosMap == null || usuariosMap.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'El documento usuarios_guardados está vacío.')),
+                        );
+                        return;
                       }
                     } catch (e) {
-                      print('DEBUG Error leyendo usuarios Firestore: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Error leyendo usuarios_guardados: $e')),
+                      );
+                      return;
                     }
-                    if (!_formKey.currentState!.validate()) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
                     final usuarioInput = usuario.trim().toLowerCase();
                     final passInput = password.trim().toLowerCase();
-                    try {
-                      final query = await FirebaseFirestore.instance
-                          .collection('usuarios')
-                          .get();
-                      // Buscar usuario ignorando mayúsculas y espacios
-                      final docs = query.docs.where((doc) {
-                        if (!doc.data().containsKey('usuario')) {
-                          print(
-                              'ADVERTENCIA: Documento sin campo "usuario". ID: ' +
-                                  doc.id);
-                          return false;
-                        }
-                        final dbUser = (doc['usuario'] ?? '')
-                            .toString()
-                            .trim()
-                            .toLowerCase();
-                        return dbUser == usuarioInput;
-                      }).toList();
-                      if (docs.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Usuario no registrado. Verifica el campo "usuario" en Firestore.')),
-                        );
-                        return;
-                      }
-                      final data = docs.first.data();
-                      final passDb = (data['password'] ?? '')
-                          .toString()
-                          .trim()
-                          .toLowerCase();
-                      // Si es la primera vez, la contraseña es igual al usuario
-                      if (passDb == usuarioInput && passInput == usuarioInput) {
-                        final changed = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                CambiarPasswordPage(usuario: usuarioInput),
-                          ),
-                        );
-                        if (changed == true) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Contraseña cambiada. Ingresa con tu nueva contraseña.'),
-                            ),
-                          );
-                        }
-                        return;
-                      }
-                      // Si ya cambió la contraseña, validar normalmente
-                      if (passDb == passInput) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => HomePage(usuario: usuario),
-                          ),
-                        );
-                        return;
-                      }
+                    // Buscar usuario en el mapa
+                    final entry = usuariosMap!.entries.firstWhere(
+                      (e) => (e.key.trim().toLowerCase() == usuarioInput),
+                      orElse: () => const MapEntry('', null),
+                    );
+                    if (entry.key.isEmpty || entry.value == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Usuario o contraseña incorrectos.')),
+                            content: Text(
+                                'Usuario no registrado en usuarios_guardados.')),
+                      );
+                      return;
+                    }
+                    final datos = entry.value as Map<String, dynamic>?;
+                    final passDb = (datos?['password'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase();
+                    // Si es la primera vez, la contraseña es igual al usuario
+                    if (passDb == usuarioInput && passInput == usuarioInput) {
+                      final changed = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              CambiarPasswordPage(usuario: usuarioInput),
+                        ),
+                      );
+                      if (changed == true) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Contraseña cambiada. Ingresa con tu nueva contraseña.'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    // Si ya cambió la contraseña, validar normalmente
+                    if (passDb == passInput) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => HomePage(usuario: usuario),
+                        ),
+                      );
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Usuario o contraseña incorrectos.')),
+                    );
+                  },
+                  child: const Text('Ingresar'),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () async {
+                    // Buscar admins en usuarios_guardados
+                    try {
+                      final docSnap = await FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .doc('usuarios_guardados')
+                          .get();
+                      if (!docSnap.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'No existe el documento usuarios_guardados en Firestore.')),
+                        );
+                        return;
+                      }
+                      final usuariosMap = docSnap.data();
+                      if (usuariosMap == null || usuariosMap.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'El documento usuarios_guardados está vacío.')),
+                        );
+                        return;
+                      }
+                      // Buscar admins
+                      final admins = usuariosMap.entries.where((e) {
+                        final datos = e.value as Map<String, dynamic>?;
+                        return (datos?['rol'] ?? '').toString().toLowerCase() ==
+                            'admin';
+                      }).toList();
+                      if (admins.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('No hay usuarios admin registrados.')),
+                        );
+                        return;
+                      }
+                      // Aquí podrías enviar email o notificación real
+                      String listaAdmins = admins.map((e) => e.key).join(', ');
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(
+                                'Se notificó a los administradores: $listaAdmins para restablecer tu contraseña.')),
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
+                        SnackBar(
+                            content: Text('Error notificando a admins: $e')),
                       );
                     }
                   },
-                  child: const Text('Ingresar'),
+                  child: const Text('¿Olvidaste tu contraseña?'),
                 ),
               ],
             ),
