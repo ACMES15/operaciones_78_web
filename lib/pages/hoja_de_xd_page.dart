@@ -140,6 +140,14 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
         _addRow();
       }
     }
+    // Asegurar que la columna NOMBRE contenga el usuario firmado
+    if (_usuario.isNotEmpty && _controllers.isNotEmpty) {
+      for (var row in _controllers) {
+        try {
+          row[1].text = _usuario;
+        } catch (_) {}
+      }
+    }
     setState(() {
       _cargandoXD = false;
     });

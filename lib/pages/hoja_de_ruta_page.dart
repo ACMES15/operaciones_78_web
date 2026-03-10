@@ -185,7 +185,8 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   final TextEditingController _cajaController = TextEditingController();
   String _fechaEnvio = '';
   String _origen = 'Liv. Galerias GDL 78';
-  int _numeroControl = 1;
+  // campo antiguo no usado
+  // int _numeroControl = 1;
   String? _numeroControlActual;
   final List<String> _opciones = [
     'Transf.',
@@ -426,8 +427,21 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   }
 
   // Muestra diálogo con la tabla
-  void _showHojaRutaDialog(BuildContext context) {
-    showDialog(
+  Future<void> _showHojaRutaDialog(BuildContext context) async {
+    // Antes de mostrar el diálogo, asegurarnos de tener la última lista de hojas enviadas
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .doc('sentHojaRutas')
+          .get();
+      if (doc.exists && doc.data() != null && doc.data()!['items'] != null) {
+        HojaDeRutaExtraPage.sentHojaRutas = List<Map<String, dynamic>>.from(
+            (doc.data()!['items'] as List)
+                .map((e) => Map<String, dynamic>.from(e)));
+      }
+    } catch (_) {}
+
+    await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) {

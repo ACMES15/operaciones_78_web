@@ -15,6 +15,7 @@ class HojaDeXDHistorialPage extends StatefulWidget {
 class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   /// Guarda el historial completo en Firestore y cache
   /// (Esta función puede ser llamada desde otras páginas al agregar registros)
+  // ignore: unused_element
   Future<void> _guardarHistorial() async {
     final data = {
       'historial': historial.map((e) => e.toJson()).toList(),
@@ -50,7 +51,9 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
     for (final h in historial) {
       keys.addAll(h.datos.keys);
     }
-    return keys.toList();
+    final list = keys.toList();
+    list.sort();
+    return list;
   }
 
   List<HojaDeXDHistorial> historial = [];

@@ -4,12 +4,15 @@ import '../utils/firebase_cache_utils.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
+import 'package:flutter/foundation.dart';
+import 'package:universal_html/html.dart' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HojaDeRutaEnviadasPage extends StatelessWidget {
   const HojaDeRutaEnviadasPage({super.key});
 
-  Future<void> _printSheet(Map<String, dynamic> sheet) async {
+  Future<void> _printSheet(
+      BuildContext context, Map<String, dynamic> sheet) async {
     final pdf = pw.Document();
     final headers = sheet['headers'] != null
         ? List<String>.from(sheet['headers'])
@@ -23,8 +26,9 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
     final data = List<List<String>>.from(
         sheet['rows'].map<List<String>>((r) => List<String>.from(r)));
 
+    final pageFormat = PdfPageFormat.letter;
     pdf.addPage(pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: pageFormat,
         build: (context) {
           return <pw.Widget>[
             pw.Text('Liverpool GDL 78 - Hoja de ruta',
@@ -51,8 +55,43 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
           ];
         }));
 
+    // En web: abrir PDF en nueva pestaña (el usuario puede imprimir desde el navegador)
+    if (kIsWeb) {
+      final bytes = await pdf.save();
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      // Abrir en nueva pestaña
+      html.window.open(url, '_blank');
+      // revoke after un poco de tiempo para evitar cerrar la pestaña
+      Future.delayed(const Duration(seconds: 2), () {
+        try {
+          html.Url.revokeObjectUrl(url);
+        } catch (_) {}
+      });
+      return;
+    }
+
+    // En plataformas desktop/mesa: permitir al usuario elegir impresora y enviar directamente
+    try {
+      final printer = await Printing.pickPrinter(context: context);
+      if (printer != null) {
+        await Printing.directPrintPdf(
+          printer: printer,
+          onLayout: (PdfPageFormat format) async => pdf.save(),
+        );
+        return;
+      }
+    } catch (e) {
+      // ignore and fallback to layoutPdf
+    }
+
+    // Fallback: abrir diálogo de impresión con tamaño carta
     await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save());
+      onLayout: (PdfPageFormat format) async => pdf.save(),
+      usePrinterSettings: true,
+      name: 'Hoja de ruta',
+      format: pageFormat,
+    );
   }
 
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
@@ -305,7 +344,7 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                         label: const Text('Imprimir'),
                         onPressed: () async {
                           Navigator.of(context).pop();
-                          await _printSheet(sheet);
+                          await _printSheet(context, sheet);
                         },
                       ),
                       const SizedBox(width: 8),
@@ -412,7 +451,7 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
                                           IconButton(
                                               icon: const Icon(Icons.print),
                                               onPressed: () =>
-                                                  _printSheet(sheet)),
+                                                  _printSheet(context, sheet)),
                                           IconButton(
                                               icon:
                                                   const Icon(Icons.visibility),
