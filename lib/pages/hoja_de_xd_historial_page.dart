@@ -75,6 +75,8 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
           final List<dynamic> list = data['historial'];
           historial = list.map((e) => HojaDeXDHistorial.fromJson(e)).toList();
         }
+        // Mantener copia en el estado para que otras funciones (exportar) la usen
+        this.historial = historial;
         final filtroLower = filtro.toLowerCase();
         final historialFiltrado = filtro.isEmpty
             ? historial
