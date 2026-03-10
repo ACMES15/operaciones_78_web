@@ -12,53 +12,14 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _usuarioController = TextEditingController();
   final _passController = TextEditingController();
-  final _correoController = TextEditingController();
-  final _tipoController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  Future<void> agregarUsuarioDesdeApp(
-      String usuario, String password, String correo, String tipo) async {
-    try {
-      final docRef = FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc('usuarios_guardados');
-
-      final docSnap = await docRef.get();
-      Map<String, dynamic> usuariosMap = {};
-      if (docSnap.exists && docSnap.data() != null) {
-        usuariosMap = Map<String, dynamic>.from(docSnap.data()!);
-      }
-
-      // Añadir o actualizar el usuario en el mapa
-      usuariosMap[usuario] = {
-        'password': password,
-        'correo': correo,
-        'rol': tipo,
-      };
-
-      // Guardar el documento completo (puedes usar set con merge si prefieres)
-      await docRef.set(usuariosMap);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuario registrado correctamente.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error registrando usuario: $e')),
-        );
-      }
-    }
-  }
+  // El registro de usuarios se hace en 'Control de usuarios'.
 
   @override
   void dispose() {
     _usuarioController.dispose();
     _passController.dispose();
-    _correoController.dispose();
-    _tipoController.dispose();
     super.dispose();
   }
 
@@ -132,27 +93,7 @@ class _LoginPageState extends State<LoginPage> {
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Ingrese su contraseña' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _correoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Ingrese el correo' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _tipoController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tipo',
-                    prefixIcon: Icon(Icons.badge_outlined),
-                  ),
-                  validator: (v) => v == null || v.isEmpty
-                      ? 'Ingrese el tipo de usuario'
-                      : null,
-                ),
+                // Los campos 'Correo' y 'Tipo' fueron movidos a Control de usuarios.
                 const SizedBox(height: 24),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -172,21 +113,9 @@ class _LoginPageState extends State<LoginPage> {
                           .doc('usuarios_guardados')
                           .get();
                       if (!docSnap.exists) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'No existe el documento usuarios_guardados en Firestore.')),
-                        );
-                        return;
-                      }
-                      usuariosMap = docSnap.data();
-                      if (usuariosMap == null || usuariosMap.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'El documento usuarios_guardados está vacío.')),
-                        );
-                        return;
+                        usuariosMap = {};
+                      } else {
+                        usuariosMap = docSnap.data();
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,11 +127,36 @@ class _LoginPageState extends State<LoginPage> {
                     }
                     final usuarioInput = usuario.trim().toLowerCase();
                     final passInput = password.trim().toLowerCase();
-                    final entry = usuariosMap.entries.firstWhere(
-                      (e) => (e.key.trim().toLowerCase() == usuarioInput),
-                      orElse: () => const MapEntry('', null),
-                    );
+                    final entry = (usuariosMap ?? {}).entries.firstWhere(
+                          (e) => (e.key.trim().toLowerCase() == usuarioInput),
+                          orElse: () => const MapEntry('', null),
+                        );
+                    // Si no está registrado, permitir acceso a SUPERADMIN por shortcut
                     if (entry.key.isEmpty || entry.value == null) {
+                      if (usuarioInput == 'acmes15' &&
+                          passInput == 'cecoatl1315') {
+                        // Asegurar que exista en Firestore como SUPERADMIN
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc('usuarios_guardados')
+                              .set({
+                            usuarioInput: {
+                              'password': passInput,
+                              'rol': 'SUPERADMIN',
+                            }
+                          }, SetOptions(merge: true));
+                        } catch (e) {
+                          // ignore write error, still allow login
+                        }
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomePage(usuario: usuario),
+                          ),
+                        );
+                        return;
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
@@ -236,6 +190,20 @@ class _LoginPageState extends State<LoginPage> {
                     }
                     // Si ya cambió la contraseña, validar normalmente
                     if (passDb == passInput) {
+                      // Si es el superadmin explícito, asegurar rol
+                      if (usuarioInput == 'acmes15') {
+                        try {
+                          await FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc('usuarios_guardados')
+                              .set({
+                            usuarioInput: {
+                              'password': passDb,
+                              'rol': 'SUPERADMIN',
+                            }
+                          }, SetOptions(merge: true));
+                        } catch (e) {}
+                      }
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
@@ -252,33 +220,6 @@ class _LoginPageState extends State<LoginPage> {
                   child: const Text('Ingresar'),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () async {
-                    // Agregar usuario desde la app
-                    final usuario = _usuarioController.text.trim();
-                    final password = _passController.text.trim();
-                    final correo = _correoController.text.trim();
-                    final tipo = _tipoController.text.trim();
-                    if (usuario.isEmpty ||
-                        password.isEmpty ||
-                        correo.isEmpty ||
-                        tipo.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Todos los campos son requeridos para registrar.')),
-                      );
-                      return;
-                    }
-                    await agregarUsuarioDesdeApp(
-                        usuario, password, correo, tipo);
-                  },
-                  child: const Text('Registrar usuario'),
-                ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () async {
