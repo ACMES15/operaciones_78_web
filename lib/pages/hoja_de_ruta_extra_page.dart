@@ -26,20 +26,70 @@ class HojaDeRutaExtraPage extends StatefulWidget {
 
   // Cargar tiendas y proveedores de Firestore/cache
   static Future<void> loadTiendasProveedoresCache() async {
-    final tiendasData = await leerDatosConCache('hoja_ruta', tiendasKey);
-    if (tiendasData != null && tiendasData['items'] != null) {
-      tiendasCache = List<List<String>>.from(
-        (tiendasData['items'] as List)
-            .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
-      );
+    // Intentar siempre obtener la versión más reciente desde Firestore
+    // y usar el cache local sólo como fallback si falla la lectura remota.
+    try {
+      final tiendasDoc = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .doc(tiendasKey)
+          .get();
+      if (tiendasDoc.exists &&
+          tiendasDoc.data() != null &&
+          tiendasDoc.data()!['items'] is List) {
+        final list = tiendasDoc.data()!['items'] as List;
+        tiendasCache = List<List<String>>.from(
+          list.map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+        );
+      } else {
+        final tiendasData = await leerDatosConCache('hoja_ruta', tiendasKey);
+        if (tiendasData != null && tiendasData['items'] != null) {
+          tiendasCache = List<List<String>>.from(
+            (tiendasData['items'] as List)
+                .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+          );
+        }
+      }
+    } catch (e) {
+      final tiendasData = await leerDatosConCache('hoja_ruta', tiendasKey);
+      if (tiendasData != null && tiendasData['items'] != null) {
+        tiendasCache = List<List<String>>.from(
+          (tiendasData['items'] as List)
+              .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+        );
+      }
     }
-    final proveedoresData =
-        await leerDatosConCache('hoja_ruta', proveedoresKey);
-    if (proveedoresData != null && proveedoresData['items'] != null) {
-      proveedoresCache = List<List<String>>.from(
-        (proveedoresData['items'] as List)
-            .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
-      );
+
+    try {
+      final provDoc = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .doc(proveedoresKey)
+          .get();
+      if (provDoc.exists &&
+          provDoc.data() != null &&
+          provDoc.data()!['items'] is List) {
+        final list = provDoc.data()!['items'] as List;
+        proveedoresCache = List<List<String>>.from(
+          list.map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+        );
+      } else {
+        final proveedoresData =
+            await leerDatosConCache('hoja_ruta', proveedoresKey);
+        if (proveedoresData != null && proveedoresData['items'] != null) {
+          proveedoresCache = List<List<String>>.from(
+            (proveedoresData['items'] as List)
+                .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+          );
+        }
+      }
+    } catch (e) {
+      final proveedoresData =
+          await leerDatosConCache('hoja_ruta', proveedoresKey);
+      if (proveedoresData != null && proveedoresData['items'] != null) {
+        proveedoresCache = List<List<String>>.from(
+          (proveedoresData['items'] as List)
+              .map((e) => [e['col1'] ?? '', e['col2'] ?? '']),
+        );
+      }
     }
   }
 
@@ -145,8 +195,29 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
         'rows': rowsAsMap,
         'createdAt': DateTime.now().toString(),
       };
-      HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
+      // En lugar de añadir repetidamente, sobrescribir la entrada existente
+      final idx = HojaDeRutaExtraPage.sentHojaRutas.indexWhere((s) {
+        try {
+          final origen = s['origen']?.toString();
+          final num = s['numeroControl']?.toString();
+          return origen == 'Tiendas/Proveedores' || num == 'Hoja de Ruta Extra';
+        } catch (_) {
+          return false;
+        }
+      });
+      if (idx != -1) {
+        HojaDeRutaExtraPage.sentHojaRutas[idx] = hoja;
+      } else {
+        HojaDeRutaExtraPage.sentHojaRutas.add(hoja);
+      }
       await HojaDeRutaExtraPage.saveSentHojaRutasCache();
+
+      // Invalidar cache local para forzar re-lectura desde Firestore
+      try {
+        await invalidateCache('hoja_ruta', HojaDeRutaExtraPage.tiendasKey);
+        await invalidateCache('hoja_ruta', HojaDeRutaExtraPage.proveedoresKey);
+        await invalidateCache('hoja_ruta', 'sentHojaRutas');
+      } catch (_) {}
 
       // Marcar que los cambios locales fueron guardados
       _localDirtyTiendas = false;

@@ -29,3 +29,20 @@ Future<Map<String, dynamic>?> leerDatosConCache(
   }
   return null;
 }
+
+/// Elimina una entrada concreta del cache local (SharedPreferences).
+Future<void> invalidateCache(String coleccion, String docId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final realKey = '${coleccion}_$docId';
+  if (prefs.containsKey(realKey)) await prefs.remove(realKey);
+}
+
+/// Elimina todas las entradas del cache que pertenezcan a una colección.
+Future<void> invalidateCollectionCache(String coleccion) async {
+  final prefs = await SharedPreferences.getInstance();
+  final keys =
+      prefs.getKeys().where((k) => k.startsWith('${coleccion}_')).toList();
+  for (final k in keys) {
+    await prefs.remove(k);
+  }
+}
