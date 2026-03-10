@@ -44,6 +44,34 @@ class _HomePageState extends State<HomePage> {
     'Recogidos',
     'Historial Entregas Recogidos',
   ];
+  final List<IconData> _paginaIconos = [
+    Icons.admin_panel_settings_outlined,
+    Icons.security,
+    Icons.map_outlined,
+    Icons.description_outlined,
+    Icons.history,
+    Icons.note_alt_outlined,
+    Icons.history_toggle_off,
+    Icons.article_outlined,
+    Icons.developer_mode,
+    Icons.history_edu,
+    Icons.shopping_bag_outlined,
+    Icons.list_alt,
+  ];
+  final List<String> _paginaTooltips = [
+    'Control de usuarios',
+    'Permisos de usuario',
+    'Hoja de ruta',
+    'Hoja de XD',
+    'Historial Hoja de XD',
+    'Carta Porte',
+    'Historial Carta Porte',
+    'Plantilla Ejecutiva',
+    'DevCan',
+    'Historial Entregas DevCan',
+    'Recogidos',
+    'Historial Entregas Recogidos',
+  ];
   final List<Widget> _pages = [
     UserControlPage(),
     UserPermissionsPage(),
@@ -195,8 +223,14 @@ class _HomePageState extends State<HomePage> {
                       destinations: [
                         for (final idx in _paginasPermitidas)
                           NavigationRailDestination(
-                            icon: Icon(Icons.circle),
-                            selectedIcon: Icon(Icons.check_circle),
+                            icon: Tooltip(
+                              message: _paginaTooltips[idx],
+                              child: Icon(_paginaIconos[idx]),
+                            ),
+                            selectedIcon: Tooltip(
+                              message: _paginaTooltips[idx],
+                              child: Icon(_paginaIconos[idx]),
+                            ),
                             label: Text(_paginas[idx]),
                           ),
                       ],

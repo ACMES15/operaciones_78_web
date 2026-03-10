@@ -200,8 +200,29 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
       builder: (context, snapshot) {
         List<Map<String, dynamic>> usuariosStream = [];
         final data = snapshot.data?.data();
-        if (snapshot.hasData && data != null && data['items'] != null) {
-          usuariosStream = List<Map<String, dynamic>>.from(data['items']);
+        if (snapshot.hasData && data != null) {
+          if (data['items'] != null) {
+            // formato antiguo: { items: [ {...}, ... ] }
+            usuariosStream = List<Map<String, dynamic>>.from(data['items']);
+          } else {
+            // nuevo formato: mapa de usuarios { 'usuario': { ... }, ... }
+            for (final entry in data.entries) {
+              final key = entry.key;
+              final val = entry.value;
+              if (val is Map<String, dynamic>) {
+                final mapVal = Map<String, dynamic>.from(val);
+                if (mapVal['usuario'] == null ||
+                    mapVal['usuario'].toString().isEmpty) {
+                  mapVal['usuario'] = key;
+                }
+                // Normalizar campo 'rol' -> 'tipo' si aplica
+                if (mapVal.containsKey('rol') && !mapVal.containsKey('tipo')) {
+                  mapVal['tipo'] = mapVal['rol'];
+                }
+                usuariosStream.add(mapVal);
+              }
+            }
+          }
         }
         // Filtrar usuarios según búsqueda
         final usuariosFiltrados = _busqueda.isEmpty
