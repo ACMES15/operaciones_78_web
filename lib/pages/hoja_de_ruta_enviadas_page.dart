@@ -57,13 +57,30 @@ class HojaDeRutaEnviadasPage extends StatelessWidget {
 
     // En web: abrir PDF en nueva pestaña (el usuario puede imprimir desde el navegador)
     if (kIsWeb) {
+      // Para evitar bloqueos de popup: abrir una pestaña vacía primero (user gesture),
+      // luego cargar el PDF una vez generado.
+      final newWindow = html.window.open('', '_blank');
       final bytes = await pdf.save();
       final blob = html.Blob([bytes], 'application/pdf');
       final url = html.Url.createObjectUrlFromBlob(blob);
-      // Abrir en nueva pestaña
-      html.window.open(url, '_blank');
-      // revoke after un poco de tiempo para evitar cerrar la pestaña
-      Future.delayed(const Duration(seconds: 2), () {
+      try {
+        newWindow.location.href = url;
+      } catch (_) {
+        // fallback: crear un <a> con download y disparar click para forzar descarga
+        try {
+          final anchor = html.document.createElement('a') as html.AnchorElement;
+          anchor.href = url;
+          anchor.download = 'hoja_de_ruta.pdf';
+          anchor.style.display = 'none';
+          html.document.body!.append(anchor);
+          anchor.click();
+          anchor.remove();
+        } catch (e) {
+          html.window.open(url, '_blank');
+        }
+      }
+      // revoke after un poco de tiempo
+      Future.delayed(const Duration(seconds: 5), () {
         try {
           html.Url.revokeObjectUrl(url);
         } catch (_) {}

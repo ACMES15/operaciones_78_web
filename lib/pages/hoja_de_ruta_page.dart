@@ -7,7 +7,6 @@ import 'package:pdf/pdf.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
 import '../utils/word_exporter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
 
 // Top-level function for PDF generation to be used with compute
@@ -212,6 +211,10 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
     _fechaEnvio =
         '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
 
+    // Cargar cachés de tiendas/proveedores para autocompletar nombres
+    HojaDeRutaExtraPage.loadTiendasProveedoresCache();
+    HojaDeRutaExtraPage.loadSentHojaRutasCache();
+
     // Inicializar 5 filas
     _controllers = List.generate(
       5,
@@ -250,11 +253,25 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
     final noAlmCtrl = _controllers[rowIdx][_idxNoAlm];
     final nombreAlmCtrl = _controllers[rowIdx][_idxNombreAlm];
     noAlmCtrl.addListener(() {
-      final num = noAlmCtrl.text.trim();
-      if (num.isEmpty) return;
-      final match = HojaDeRutaExtraPage.tiendasCache
-          .firstWhere((r) => r.isNotEmpty && r[0] == num, orElse: () => []);
-      if (match.isNotEmpty && match.length > 1) {
+      final input = noAlmCtrl.text.trim();
+      if (input.isEmpty) return;
+      final inputLower = input.toLowerCase();
+      List<String>? match;
+      for (final r in HojaDeRutaExtraPage.tiendasCache) {
+        if (r.isEmpty) continue;
+        final key = r[0].toString().trim();
+        final name = r.length > 1 ? r[1].toString().trim() : '';
+        if (key == input || key == input.replaceFirst(RegExp(r"^0+"), '')) {
+          match = [key, name];
+          break;
+        }
+        // allow searching by name fragment
+        if (name.toLowerCase().contains(inputLower)) {
+          match = [key, name];
+          break;
+        }
+      }
+      if (match != null && match.length > 1) {
         if (nombreAlmCtrl.text != match[1]) nombreAlmCtrl.text = match[1];
       }
     });
@@ -262,11 +279,24 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
     final noProvCtrl = _controllers[rowIdx][_idxNoProveedor];
     final nombreProvCtrl = _controllers[rowIdx][_idxNombreProveedor];
     noProvCtrl.addListener(() {
-      final num = noProvCtrl.text.trim();
-      if (num.isEmpty) return;
-      final match = HojaDeRutaExtraPage.proveedoresCache
-          .firstWhere((r) => r.isNotEmpty && r[0] == num, orElse: () => []);
-      if (match.isNotEmpty && match.length > 1) {
+      final input = noProvCtrl.text.trim();
+      if (input.isEmpty) return;
+      final inputLower = input.toLowerCase();
+      List<String>? match;
+      for (final r in HojaDeRutaExtraPage.proveedoresCache) {
+        if (r.isEmpty) continue;
+        final key = r[0].toString().trim();
+        final name = r.length > 1 ? r[1].toString().trim() : '';
+        if (key == input || key == input.replaceFirst(RegExp(r"^0+"), '')) {
+          match = [key, name];
+          break;
+        }
+        if (name.toLowerCase().contains(inputLower)) {
+          match = [key, name];
+          break;
+        }
+      }
+      if (match != null && match.length > 1) {
         if (nombreProvCtrl.text != match[1]) nombreProvCtrl.text = match[1];
       }
     });
@@ -430,15 +460,9 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   Future<void> _showHojaRutaDialog(BuildContext context) async {
     // Antes de mostrar el diálogo, asegurarnos de tener la última lista de hojas enviadas
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('hoja_ruta')
-          .doc('sentHojaRutas')
-          .get();
-      if (doc.exists && doc.data() != null && doc.data()!['items'] != null) {
-        HojaDeRutaExtraPage.sentHojaRutas = List<Map<String, dynamic>>.from(
-            (doc.data()!['items'] as List)
-                .map((e) => Map<String, dynamic>.from(e)));
-      }
+      // Recargar cachés y sent hojas para asegurarnos de usar datos recientes
+      await HojaDeRutaExtraPage.loadTiendasProveedoresCache();
+      await HojaDeRutaExtraPage.loadSentHojaRutasCache();
     } catch (_) {}
 
     await showDialog(

@@ -72,20 +72,21 @@ class _HomePageState extends State<HomePage> {
     'Recogidos',
     'Historial Entregas Recogidos',
   ];
-  final List<Widget> _pages = [
-    UserControlPage(),
-    UserPermissionsPage(),
-    HojaDeRutaPage(),
-    HojaDeXDPage(),
-    HojaDeXDHistorialPage(),
-    CartaPorteTable(),
-    HistorialCartaPortePage(),
-    PlantillaEjecutivaPage(),
-    DevCanPage(),
-    HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
-    RecogidosPage(),
-    HistorialEntregasRecogidosPage(historial: const [], tipoUsuarioActual: ''),
-  ];
+  List<Widget> get _pages => [
+        UserControlPage(),
+        UserPermissionsPage(),
+        HojaDeRutaPage(),
+        HojaDeXDPage(usuario: widget.usuario),
+        HojaDeXDHistorialPage(),
+        CartaPorteTable(),
+        HistorialCartaPortePage(),
+        PlantillaEjecutivaPage(),
+        DevCanPage(),
+        HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
+        RecogidosPage(),
+        HistorialEntregasRecogidosPage(
+            historial: const [], tipoUsuarioActual: ''),
+      ];
   // ...existing code...
   List<int> _paginasPermitidas = [];
   Map<String, Map<String, bool>> _permisosTipoUsuario = {};
