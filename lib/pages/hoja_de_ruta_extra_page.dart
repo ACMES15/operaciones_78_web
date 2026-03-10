@@ -235,25 +235,67 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                     ? List<List<String>>.from((proveedoresData['items'] as List)
                         .map((e) => [e['col1'] ?? '', e['col2'] ?? '']))
                     : <List<String>>[];
-                // Controladores para edición local
-                final List<List<TextEditingController>> tiendasControllers =
-                    tiendasList
-                        .map((row) => [
-                              TextEditingController(
-                                  text: row.length > 0 ? row[0] : ''),
-                              TextEditingController(
-                                  text: row.length > 1 ? row[1] : ''),
-                            ])
-                        .toList();
-                final List<List<TextEditingController>> proveedoresControllers =
-                    proveedoresList
-                        .map((row) => [
-                              TextEditingController(
-                                  text: row.length > 0 ? row[0] : ''),
-                              TextEditingController(
-                                  text: row.length > 1 ? row[1] : ''),
-                            ])
-                        .toList();
+                // Sincronizar los controladores de estado con los datos del snapshot.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  setState(() {
+                    // Tiendas: reconstruir si hay diferencia de tamaño
+                    if (tiendasList.length != _tiendasControllers.length) {
+                      for (var r in _tiendasControllers) {
+                        for (var c in r) {
+                          c.dispose();
+                        }
+                      }
+                      _tiendasControllers.clear();
+                      _tiendasControllers.addAll(tiendasList
+                          .map((row) => [
+                                TextEditingController(
+                                    text: row.length > 0 ? row[0] : ''),
+                                TextEditingController(
+                                    text: row.length > 1 ? row[1] : ''),
+                              ])
+                          .toList());
+                    } else {
+                      // mantener controladores y actualizar texto
+                      for (var i = 0; i < tiendasList.length; i++) {
+                        _tiendasControllers[i][0].text =
+                            tiendasList[i].length > 0 ? tiendasList[i][0] : '';
+                        _tiendasControllers[i][1].text =
+                            tiendasList[i].length > 1 ? tiendasList[i][1] : '';
+                      }
+                    }
+
+                    // Proveedores: misma lógica
+                    if (proveedoresList.length !=
+                        _proveedoresControllers.length) {
+                      for (var r in _proveedoresControllers) {
+                        for (var c in r) {
+                          c.dispose();
+                        }
+                      }
+                      _proveedoresControllers.clear();
+                      _proveedoresControllers.addAll(proveedoresList
+                          .map((row) => [
+                                TextEditingController(
+                                    text: row.length > 0 ? row[0] : ''),
+                                TextEditingController(
+                                    text: row.length > 1 ? row[1] : ''),
+                              ])
+                          .toList());
+                    } else {
+                      for (var i = 0; i < proveedoresList.length; i++) {
+                        _proveedoresControllers[i][0].text =
+                            proveedoresList[i].length > 0
+                                ? proveedoresList[i][0]
+                                : '';
+                        _proveedoresControllers[i][1].text =
+                            proveedoresList[i].length > 1
+                                ? proveedoresList[i][1]
+                                : '';
+                      }
+                    }
+                  });
+                });
                 return Column(
                   children: [
                     Expanded(
@@ -293,10 +335,10 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                                     const SizedBox(height: 8),
                                     Expanded(
                                       child: ListView.builder(
-                                        itemCount: tiendasControllers.length,
+                                        itemCount: _tiendasControllers.length,
                                         itemBuilder: (context, idx) {
                                           return _buildRow(
-                                              tiendasControllers[idx],
+                                              _tiendasControllers[idx],
                                               'No. Tienda',
                                               'Nombre Tienda');
                                         },
@@ -351,10 +393,10 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                                     Expanded(
                                       child: ListView.builder(
                                         itemCount:
-                                            proveedoresControllers.length,
+                                            _proveedoresControllers.length,
                                         itemBuilder: (context, idx) {
                                           return _buildRow(
-                                              proveedoresControllers[idx],
+                                              _proveedoresControllers[idx],
                                               'No. Proveedor',
                                               'Nombre Proveedor');
                                         },
