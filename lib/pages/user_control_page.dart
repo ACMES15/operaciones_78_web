@@ -86,10 +86,19 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
   }
 
-  Future<void> _editarTipo(int index) async {
+  Future<void> _editarTipoPorUsuario(String usuarioKey) async {
+    final index = usuarios.indexWhere((e) =>
+        (e['usuario'] ?? '').toString().trim().toLowerCase() ==
+        usuarioKey.toString().trim().toLowerCase());
+    if (index == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario no encontrado.')),
+      );
+      return;
+    }
     if (usuarios[index]['usuario'] == 'acmes15') {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se puede editar el usuario maestro.')),
+        const SnackBar(content: Text('No se puede editar el usuario maestro.')),
       );
       return;
     }
@@ -107,10 +116,20 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
   }
 
-  Future<void> _eliminarUsuario(int index) async {
+  Future<void> _eliminarUsuarioPorUsuario(String usuarioKey) async {
+    final index = usuarios.indexWhere((e) =>
+        (e['usuario'] ?? '').toString().trim().toLowerCase() ==
+        usuarioKey.toString().trim().toLowerCase());
+    if (index == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Usuario no encontrado.')),
+      );
+      return;
+    }
     if (usuarios[index]['usuario'] == 'acmes15') {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se puede eliminar el usuario maestro.')),
+        const SnackBar(
+            content: Text('No se puede eliminar el usuario maestro.')),
       );
       return;
     }
@@ -121,7 +140,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     await _guardarCambios();
   }
 
-  Future<void> _restablecerPassword(int index) async {
+  Future<void> _restablecerPasswordPorUsuario(String usuarioKey) async {
     final nueva = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -148,6 +167,15 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
       },
     );
     if (nueva != null && nueva.isNotEmpty) {
+      final index = usuarios.indexWhere((e) =>
+          (e['usuario'] ?? '').toString().trim().toLowerCase() ==
+          usuarioKey.toString().trim().toLowerCase());
+      if (index == -1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuario no encontrado.')),
+        );
+        return;
+      }
       setState(() {
         usuarios[index]['password'] = nueva;
         _tieneCambios = true;
@@ -224,10 +252,14 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
             }
           }
         }
+        // Sincronizar la lista local con la del snapshot (normalizada como copia)
+        usuarios =
+            usuariosStream.map((e) => Map<String, dynamic>.from(e)).toList();
+
         // Filtrar usuarios según búsqueda
         final usuariosFiltrados = _busqueda.isEmpty
-            ? usuariosStream
-            : usuariosStream.where((u) {
+            ? usuarios
+            : usuarios.where((u) {
                 final nombre = (u['nombre'] ?? '').toString().toLowerCase();
                 final usuario = (u['usuario'] ?? '').toString().toLowerCase();
                 final correo = (u['correo'] ?? '').toString().toLowerCase();
@@ -369,7 +401,9 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
                                                           size: 18),
                                                       tooltip: 'Editar tipo',
                                                       onPressed: () =>
-                                                          _editarTipo(i),
+                                                          _editarTipoPorUsuario(
+                                                              u['usuario'] ??
+                                                                  ''),
                                                     ),
                                                 ],
                                               )),
@@ -393,8 +427,9 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
                                                                 .delete_outline),
                                                             tooltip: 'Eliminar',
                                                             onPressed: () =>
-                                                                _eliminarUsuario(
-                                                                    i),
+                                                                _eliminarUsuarioPorUsuario(
+                                                                    u['usuario'] ??
+                                                                        ''),
                                                           ),
                                                           IconButton(
                                                             icon: const Icon(
@@ -403,8 +438,9 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
                                                             tooltip:
                                                                 'Restablecer contraseña',
                                                             onPressed: () =>
-                                                                _restablecerPassword(
-                                                                    i),
+                                                                _restablecerPasswordPorUsuario(
+                                                                    u['usuario'] ??
+                                                                        ''),
                                                           ),
                                                         ]
                                                       : []),
