@@ -61,7 +61,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     super.initState();
     _fechaActual = DateTime.now().toString().substring(0, 10);
     _cargarChoferes();
-    // Inicializa controladores y focusNodes según sea necesario
+    // Inicializa controladores para las filas iniciales
+    _controllers = List.generate(_numFilas,
+        (_) => List.generate(_columns.length, (_) => TextEditingController()));
   }
 
   Future<void> _cargarChoferes() async {
@@ -709,6 +711,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   onPressed: () {
                     setState(() {
                       _numFilas++;
+                      _controllers.add(List.generate(
+                          _columns.length, (_) => TextEditingController()));
                     });
                   },
                 ),
