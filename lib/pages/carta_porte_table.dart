@@ -617,15 +617,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                   : null,
                                             ),
                                             child: _columns[colIdx]
-                                                            .toUpperCase()
-                                                            .replaceAll('.', '')
-                                                            .trim() ==
-                                                        'NO' ||
-                                                    _columns[colIdx]
-                                                            .toUpperCase()
-                                                            .replaceAll('.', '')
-                                                            .trim() ==
-                                                        'NO'
+                                                        .toUpperCase()
+                                                        .replaceAll('.', '')
+                                                        .trim() ==
+                                                    'NO'
                                                 ? Text(
                                                     (rowIdx + 1).toString(),
                                                     style: const TextStyle(
@@ -636,6 +631,15 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                             Color(0xFF2D6A4F)),
                                                   )
                                                 : TextFormField(
+                                                    controller: _controllers
+                                                                    .length >
+                                                                rowIdx &&
+                                                            _controllers[rowIdx]
+                                                                    .length >
+                                                                colIdx
+                                                        ? _controllers[rowIdx]
+                                                            [colIdx]
+                                                        : null,
                                                     textAlign: TextAlign.center,
                                                     decoration:
                                                         const InputDecoration(
