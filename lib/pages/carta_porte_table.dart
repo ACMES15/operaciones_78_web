@@ -132,12 +132,65 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   void _escucharChoferesRealtime() {
-    // Aquí podrías cargar choferes desde Firestore si lo deseas
-    // Por ahora, ejemplo estático:
-    _choferes = [
-      {'nombre': 'Juan Pérez', 'rfc': 'JUAP800101XXX'},
-      {'nombre': 'Ana López', 'rfc': 'ANAL900202YYY'},
-    ];
+    // Inicial vacío, el usuario puede agregar choferes
+    _choferes = [];
+  }
+
+  Future<void> _mostrarDialogoChofer(BuildContext context) async {
+    final nombreController = TextEditingController();
+    final rfcController = TextEditingController();
+    final telController = TextEditingController();
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Agregar Chofer'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(labelText: 'Nombre'),
+              ),
+              TextField(
+                controller: rfcController,
+                decoration: const InputDecoration(labelText: 'RFC'),
+              ),
+              TextField(
+                controller: telController,
+                decoration: const InputDecoration(labelText: 'Teléfono'),
+                keyboardType: TextInputType.phone,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nombreController.text.isNotEmpty &&
+                    rfcController.text.isNotEmpty &&
+                    telController.text.isNotEmpty) {
+                  Navigator.of(context).pop({
+                    'nombre': nombreController.text,
+                    'rfc': rfcController.text,
+                    'telefono': telController.text,
+                  });
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null) {
+      setState(() {
+        _choferes.add(result);
+      });
+    }
   }
 
   Future<void> _exportarExcel() async {
@@ -227,7 +280,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       }
     }
     final siguiente = maxNum + 1;
-    final nuevoNum = '0078-CP-[31m${siguiente.toString().padLeft(3, '0')}[0m';
+    final nuevoNum = '0078-CP-${siguiente.toString().padLeft(3, '0')}';
     return nuevoNum;
   }
 
@@ -342,7 +395,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                         foregroundColor: Colors.white,
                       ),
                       onPressed: () {
-                        // Aquí podrías mostrar un diálogo para editar choferes
+                        _mostrarDialogoChofer(context);
                       },
                     ),
                   ],
@@ -420,14 +473,28 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                 style: TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(width: 8),
                             SizedBox(
-                              width: 160,
+                              width: 200,
                               child: DropdownButtonFormField<int>(
                                 value: _choferSeleccionado,
                                 items: [
                                   for (int i = 0; i < _choferes.length; i++)
                                     DropdownMenuItem(
                                       value: i,
-                                      child: Text(_choferes[i]['nombre'] ?? ''),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(_choferes[i]['nombre'] ?? '',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          Text(_choferes[i]['rfc'] ?? '',
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                          Text(_choferes[i]['telefono'] ?? '',
+                                              style: const TextStyle(
+                                                  fontSize: 12)),
+                                        ],
+                                      ),
                                     ),
                                 ],
                                 onChanged: (val) {
@@ -540,12 +607,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 14, horizontal: 8),
                                     decoration: const BoxDecoration(
-                                        color: Colors.white),
+                                        color: Color(0xFF2D6A4F)),
                                     child: Text(
                                       _columns[i],
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D6A4F),
+                                          color: Colors.white,
                                           fontSize: 16,
                                           letterSpacing: 1.1),
                                       maxLines: 1,
