@@ -73,24 +73,19 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     'EMBARQUE',
     'CONCENTRADO',
   ];
-
-  // Ancho fijo para cada columna (debe tener la misma longitud que _columns)
   final List<double> colWidths = [
-    80, // ESCANEO
-    50, // NO.
-    60, // TIPO
-    50, // SYS
-    120, // EMBARQUE (primero)
-    300, // DESCRIPCIÓN / COMENTARIOS
-    80, // NO. BULTO
-    130, // DESTINO
-    120, // CONTENEDOR
-    120, // EMBARQUE (segundo)
-    120, // CONCENTRADO
+    80,
+    50,
+    60,
+    50,
+    120,
+    300,
+    80,
+    130,
+    120,
+    120,
+    120
   ];
-
-  // Margin usado en varios paddings de la UI
-  final double horizontalMargin = 24.0;
   List<List<TextEditingController>> _controllers = [];
   final List<List<FocusNode>> _focusNodes = [];
   String? _numeroControlActual;
@@ -420,9 +415,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           builder: (context, constraints) {
             return SingleChildScrollView(
               child: Padding(
-                padding: EdgeInsets.symmetric(
-                    vertical: 16.0,
-                    horizontal: constraints.maxWidth > 900 ? 60 : 12),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 16.0, horizontal: 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -436,7 +430,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                             backgroundColor: Color(0xFF2D6A4F),
                             foregroundColor: Colors.white,
                           ),
-                          onPressed: _guardarCartaPorteEnHistorial,
+                          onPressed: () {
+                            // TODO: lógica de guardado
+                          },
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
@@ -450,6 +446,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                             setState(() {
                               _controllers.add(List.generate(_columns.length,
                                   (_) => TextEditingController()));
+                              _focusNodes.add(List.generate(
+                                  _columns.length, (_) => FocusNode()));
                             });
                           },
                         ),
@@ -468,21 +466,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                  content: Text(
-                                      'Número de control generado: $nuevoNum'),
-                                  backgroundColor: Colors.blue),
+                                content: Text(
+                                    'Número de control generado: $nuevoNum'),
+                                backgroundColor: Colors.blue,
+                              ),
                             );
                           },
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.file_download),
-                          label: const Text('Exportar a Excel'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color(0xFF2D6A4F),
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: _exportarExcel,
                         ),
                         const Spacer(),
                         ElevatedButton.icon(
@@ -492,7 +481,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                             backgroundColor: Color(0xFF2D6A4F),
                             foregroundColor: Colors.white,
                           ),
-                          onPressed: _mostrarDialogoChoferes,
+                          onPressed: () {
+                            // TODO: mostrar diálogo de choferes
+                          },
                         ),
                       ],
                     ),
@@ -505,11 +496,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              '78 GALERIAS GDL',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 18),
-                            ),
+                            const Text('78 GALERIAS GDL',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 18)),
                             const SizedBox(height: 16),
                             Row(
                               children: [
@@ -675,14 +664,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Tabla de carta porte SIEMPRE visible y más grande
+                    // Tabla de carta porte
                     Container(
-                      constraints: BoxConstraints(
-                        minHeight: 400,
-                        maxHeight: constraints.maxHeight > 600
-                            ? constraints.maxHeight * 0.7
-                            : 400,
-                      ),
+                      constraints: const BoxConstraints(minHeight: 400),
                       color: Colors.white,
                       child: Scrollbar(
                         thumbVisibility: true,
@@ -703,16 +687,14 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 14, horizontal: 8),
                                         decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                        ),
+                                            color: Colors.white),
                                         child: Text(
                                           _columns[i],
                                           style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF2D6A4F),
-                                            fontSize: 16,
-                                            letterSpacing: 1.1,
-                                          ),
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2D6A4F),
+                                              fontSize: 16,
+                                              letterSpacing: 1.1),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -741,450 +723,41 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                               bottom: BorderSide(
                                                   width: 0.7,
                                                   color: Colors.grey.shade400),
-                                              right: BorderSide(
+                                              right: const BorderSide(
                                                   width: 1,
-                                                  color:
-                                                      const Color(0xFFB7B7B7)),
+                                                  color: Color(0xFFB7B7B7)),
                                             ),
                                           ),
                                           child: colIdx == 1
-                                              ? Text(
-                                                  (rowIdx + 1).toString(),
+                                              ? Text((rowIdx + 1).toString(),
                                                   style: const TextStyle(
                                                       fontSize: 15,
                                                       fontWeight:
-                                                          FontWeight.bold),
-                                                )
-                                              : colIdx == 0
-                                                  ? TextField(
-                                                      controller:
-                                                          _controllers[rowIdx]
-                                                              [colIdx],
-                                                      focusNode: _focusNodes
-                                                                  .length >
-                                                              rowIdx
-                                                          ? _focusNodes[rowIdx]
-                                                              [colIdx]
-                                                          : null,
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        isDense: true,
-                                                        contentPadding:
-                                                            EdgeInsets
-                                                                .symmetric(
-                                                                    vertical: 8,
-                                                                    horizontal:
-                                                                        4),
-                                                      ),
-                                                      style: const TextStyle(
-                                                          fontSize: 15),
-                                                      onSubmitted:
-                                                          (value) async {
-                                                        // Proceso de escaneo automático
-                                                        // 1. Buscar en historial de hoja de XD
-                                                        final dataXD =
-                                                            await leerDatosConCache(
-                                                                'hoja_de_xd_historial',
-                                                                'main');
-                                                        List<HojaDeXDHistorial>
-                                                            historialXD = [];
-                                                        if (dataXD != null &&
-                                                            dataXD['historial'] !=
-                                                                null) {
-                                                          final List<dynamic>
-                                                              list = dataXD[
-                                                                  'historial'];
-                                                          historialXD = list
-                                                              .map((e) =>
-                                                                  HojaDeXDHistorial
-                                                                      .fromJson(
-                                                                          e))
-                                                              .toList();
-                                                        }
-                                                        final historialFiltrado =
-                                                            historialXD
-                                                                .where((h) =>
-                                                                    (h.datos['CONTENEDOR O TARIMA']
-                                                                            ?.trim() ??
-                                                                        '') ==
-                                                                    value
-                                                                        .trim())
-                                                                .toList();
-                                                        HojaDeXDHistorial?
-                                                            xdReciente;
-                                                        if (historialFiltrado
-                                                            .isNotEmpty) {
-                                                          historialFiltrado
-                                                              .sort((a, b) => b
-                                                                  .fecha
-                                                                  .compareTo(
-                                                                      a.fecha));
-                                                          xdReciente =
-                                                              historialFiltrado
-                                                                  .first;
-                                                        }
-                                                        // 2. Buscar en hoja de ruta enviada (sentHojaRutas) y tomar la más reciente
-                                                        final hojaList =
-                                                            HojaDeRutaExtraPage
-                                                                .sentHojaRutas
-                                                                .where((h) =>
-                                                                    h['caja']
-                                                                        .toString()
-                                                                        .trim() ==
-                                                                    value
-                                                                        .trim())
-                                                                .toList();
-                                                        Map<String, dynamic>
-                                                            hoja = {};
-                                                        if (hojaList
-                                                            .isNotEmpty) {
-                                                          hojaList.sort((a, b) {
-                                                            final fa = DateTime.tryParse(
-                                                                    a['createdAt']
-                                                                            ?.toString() ??
-                                                                        '') ??
-                                                                DateTime
-                                                                    .fromMillisecondsSinceEpoch(
-                                                                        0);
-                                                            final fb = DateTime.tryParse(
-                                                                    b['createdAt']
-                                                                            ?.toString() ??
-                                                                        '') ??
-                                                                DateTime
-                                                                    .fromMillisecondsSinceEpoch(
-                                                                        0);
-                                                            return fb
-                                                                .compareTo(fa);
-                                                          });
-                                                          hoja = hojaList.first;
-                                                        }
-                                                        // Lógica para llenar columnas según reglas
-                                                        setState(() {
-                                                          if (xdReciente !=
-                                                              null) {
-                                                            // Si hoja XD encontrada
-                                                            // SYS
-                                                            final tu =
-                                                                xdReciente.datos[
-                                                                        'TU'] ??
-                                                                    '';
-                                                            _controllers[rowIdx]
-                                                                        [3]
-                                                                    .text =
-                                                                tu.isNotEmpty
-                                                                    ? 'MAN.'
-                                                                    : 'XD';
-                                                            // EMBARQUE 1
-                                                            _controllers[rowIdx]
-                                                                        [4]
-                                                                    .text =
-                                                                tu.toString();
-                                                            // DESCRIPCIÓN
-                                                            _controllers[rowIdx]
-                                                                    [5]
-                                                                .text = xdReciente
-                                                                        .datos[
-                                                                    'MANIFIESTO'] ??
-                                                                '';
-                                                            // NO. BULTO
-                                                            _controllers[rowIdx]
-                                                                    [6]
-                                                                .text = xdReciente
-                                                                        .datos[
-                                                                    'CANTIDAD DE LPS'] ??
-                                                                '';
-                                                            // CONTENEDOR
-                                                            _controllers[rowIdx]
-                                                                    [8]
-                                                                .text = value;
-                                                            // EMBARQUE 2 (editable si no hay tu)
-                                                            // No se llena automáticamente
-                                                            // CONCENTRADO
-                                                            _controllers[rowIdx]
-                                                                    [10]
-                                                                .text = tu
-                                                                    .toString()
-                                                                    .isNotEmpty
-                                                                ? tu.toString()
-                                                                : _controllers[
-                                                                        rowIdx][9]
-                                                                    .text;
-                                                          } else if (hoja
-                                                              .isNotEmpty) {
-                                                            // Si hoja de ruta enviada encontrada
-                                                            // SYS
-                                                            _controllers[rowIdx]
-                                                                    [3]
-                                                                .text = hoja[
-                                                                        'tipo']
-                                                                    ?.toString() ??
-                                                                '';
-                                                            // EMBARQUE 1
-                                                            String embarque =
-                                                                '';
-                                                            if (hoja['headers'] !=
-                                                                    null &&
-                                                                hoja['rows'] !=
-                                                                    null &&
-                                                                hoja['rows']
-                                                                    .isNotEmpty) {
-                                                              final headers = List<
-                                                                      String>.from(
-                                                                  hoja[
-                                                                      'headers']);
-                                                              int idxManiRemi = headers.indexWhere((h) =>
-                                                                  h
-                                                                      .toLowerCase()
-                                                                      .contains(
-                                                                          'manifiesto') ||
-                                                                  h
-                                                                      .toLowerCase()
-                                                                      .contains(
-                                                                          'remision'));
-                                                              if (idxManiRemi !=
-                                                                  -1) {
-                                                                embarque = hoja['rows'][0]
-                                                                            [
-                                                                            idxManiRemi]
-                                                                        ?.toString() ??
-                                                                    '';
-                                                              }
-                                                            }
-                                                            _controllers[rowIdx]
-                                                                        [4]
-                                                                    .text =
-                                                                embarque;
-                                                            // DESCRIPCIÓN
-                                                            _controllers[rowIdx]
-                                                                    [5]
-                                                                .text = hoja[
-                                                                        'tipo']
-                                                                    ?.toString() ??
-                                                                '';
-                                                            // NO. BULTO (sumatoria de bultos)
-                                                            int bultos = 0;
-                                                            if (hoja['rows'] !=
-                                                                null) {
-                                                              int idxBulto = 6;
-                                                              if (hoja[
-                                                                      'headers'] !=
-                                                                  null) {
-                                                                final headers =
-                                                                    List<String>.from(
-                                                                        hoja[
-                                                                            'headers']);
-                                                                idxBulto = headers
-                                                                    .indexWhere((h) => h
-                                                                        .toLowerCase()
-                                                                        .contains(
-                                                                            'bulto'));
-                                                                if (idxBulto ==
-                                                                    -1)
-                                                                  idxBulto = 6;
-                                                              }
-                                                              for (final r
-                                                                  in hoja[
-                                                                      'rows']) {
-                                                                if (r is List &&
-                                                                    r.length >
-                                                                        idxBulto) {
-                                                                  final val = int
-                                                                      .tryParse(
-                                                                          r[idxBulto]
-                                                                              .toString());
-                                                                  if (val !=
-                                                                      null)
-                                                                    bultos +=
-                                                                        val;
-                                                                }
-                                                              }
-                                                            }
-                                                            _controllers[rowIdx]
-                                                                    [6]
-                                                                .text = bultos >
-                                                                    0
-                                                                ? bultos
-                                                                    .toString()
-                                                                : '';
-                                                            // DESTINO
-                                                            String destino = '';
-                                                            if (hoja['headers'] !=
-                                                                    null &&
-                                                                hoja['rows'] !=
-                                                                    null &&
-                                                                hoja['rows']
-                                                                    .isNotEmpty) {
-                                                              final headers = List<
-                                                                      String>.from(
-                                                                  hoja[
-                                                                      'headers']);
-                                                              int idxDestino = headers
-                                                                  .indexWhere((h) => h
-                                                                      .toLowerCase()
-                                                                      .contains(
-                                                                          'destino'));
-                                                              if (idxDestino !=
-                                                                  -1) {
-                                                                destino = hoja['rows'][0]
-                                                                            [
-                                                                            idxDestino]
-                                                                        ?.toString() ??
-                                                                    '';
-                                                              }
-                                                            }
-                                                            _controllers[rowIdx]
-                                                                    [7]
-                                                                .text = destino;
-                                                            // CONTENEDOR
-                                                            _controllers[rowIdx]
-                                                                    [8]
-                                                                .text = value;
-                                                            // EMBARQUE 2 (editable)
-                                                            // No se llena automáticamente
-                                                            // CONCENTRADO
-                                                            _controllers[rowIdx]
-                                                                    [10]
-                                                                .text = embarque
-                                                                    .isNotEmpty
-                                                                ? embarque
-                                                                : _controllers[
-                                                                        rowIdx][9]
-                                                                    .text;
-                                                          } else {
-                                                            // Si no se encuentra nada, limpiar campos relevantes
-                                                            for (int i = 2;
-                                                                i <
-                                                                    _columns
-                                                                        .length;
-                                                                i++) {
-                                                              if (i == 9)
-                                                                continue; // EMBARQUE 2 editable
-                                                              _controllers[
-                                                                      rowIdx][i]
-                                                                  .text = '';
-                                                            }
-                                                          }
-                                                          // Si es la penúltima fila, agregar una nueva automáticamente
-                                                          if (rowIdx ==
-                                                              _controllers
-                                                                      .length -
-                                                                  2) {
-                                                            _controllers.add(
-                                                                List.generate(
-                                                                    _columns
-                                                                        .length,
-                                                                    (_) =>
-                                                                        TextEditingController()));
-                                                            _focusNodes.add(
-                                                                List.generate(
-                                                                    _columns
-                                                                        .length,
-                                                                    (_) =>
-                                                                        FocusNode()));
-                                                          }
-                                                          // Mover el foco hacia abajo (siguiente fila, columna 0)
-                                                          if (_focusNodes
-                                                                  .length >
-                                                              rowIdx + 1) {
-                                                            FocusScope.of(
-                                                                    context)
-                                                                .requestFocus(
-                                                                    _focusNodes[
-                                                                        rowIdx +
-                                                                            1][0]);
-                                                          }
-                                                        });
-                                                      },
-                                                    )
-                                                  : colIdx == 9
-                                                      ? TextField(
-                                                          controller:
-                                                              _controllers[
-                                                                      rowIdx]
-                                                                  [colIdx],
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            border: InputBorder
-                                                                .none,
-                                                            isDense: true,
-                                                            contentPadding:
-                                                                EdgeInsets
-                                                                    .symmetric(
-                                                                        vertical:
-                                                                            8,
-                                                                        horizontal:
-                                                                            4),
-                                                          ),
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize: 15),
-                                                          onChanged: (value) {
-                                                            // ...existing code...
-                                                          },
-                                                        )
-                                                      : colIdx == 10
-                                                          ? AbsorbPointer(
-                                                              child: TextField(
-                                                                controller:
-                                                                    _controllers[
-                                                                            rowIdx]
-                                                                        [
-                                                                        colIdx],
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .center,
-                                                                decoration:
-                                                                    const InputDecoration(
-                                                                  border:
-                                                                      InputBorder
-                                                                          .none,
-                                                                  isDense: true,
-                                                                  contentPadding:
-                                                                      EdgeInsets.symmetric(
-                                                                          vertical:
-                                                                              8,
-                                                                          horizontal:
-                                                                              4),
-                                                                ),
-                                                                style: const TextStyle(
-                                                                    fontSize:
-                                                                        15,
-                                                                    color: Colors
-                                                                        .grey),
-                                                              ),
-                                                            )
-                                                          : TextField(
-                                                              controller:
-                                                                  _controllers[
-                                                                          rowIdx]
-                                                                      [colIdx],
-                                                              textAlign:
-                                                                  TextAlign
-                                                                      .center,
-                                                              decoration:
-                                                                  const InputDecoration(
-                                                                border:
-                                                                    InputBorder
-                                                                        .none,
-                                                                isDense: true,
-                                                                contentPadding:
-                                                                    EdgeInsets.symmetric(
-                                                                        vertical:
-                                                                            8,
-                                                                        horizontal:
-                                                                            4),
-                                                              ),
-                                                              style:
-                                                                  const TextStyle(
-                                                                      fontSize:
-                                                                          15),
-                                                            ),
+                                                          FontWeight.bold))
+                                              : TextField(
+                                                  controller: rowIdx <
+                                                          _controllers.length
+                                                      ? _controllers[rowIdx]
+                                                          [colIdx]
+                                                      : null,
+                                                  focusNode: rowIdx <
+                                                          _focusNodes.length
+                                                      ? _focusNodes[rowIdx]
+                                                          [colIdx]
+                                                      : null,
+                                                  textAlign: TextAlign.center,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    border: InputBorder.none,
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                            horizontal: 4),
+                                                  ),
+                                                  style: const TextStyle(
+                                                      fontSize: 15),
+                                                ),
                                         ),
                                     ],
                                   ),
