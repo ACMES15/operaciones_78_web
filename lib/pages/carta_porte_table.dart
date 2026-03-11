@@ -150,22 +150,37 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _imprimirHoja() async {
-    // Construir los datos de la tabla para impresión
+    // Imprimir solo filas con datos reales
     final columns = _columns;
-    final table = List.generate(_numFilas, (rowIdx) {
-      return List.generate(columns.length, (colIdx) {
-        // Si es la columna NO., mostrar el conteo
+    final table = <List<String>>[];
+    for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
+      final row = <String>[];
+      bool tieneDato = false;
+      for (int colIdx = 0; colIdx < columns.length; colIdx++) {
+        String valor;
         if (columns[colIdx].toUpperCase().replaceAll('.', '').trim() == 'NO') {
-          return (rowIdx + 1).toString();
+          valor = (rowIdx + 1).toString();
+        } else if (_controllers[rowIdx].length > colIdx) {
+          valor = _controllers[rowIdx][colIdx].text;
+        } else {
+          valor = '';
         }
-        // Si hay controladores, mostrar el texto, si no, vacío
-        if (_controllers.length > rowIdx &&
-            _controllers[rowIdx].length > colIdx) {
-          return _controllers[rowIdx][colIdx].text;
+        if (valor.trim().isNotEmpty &&
+            columns[colIdx].toUpperCase().replaceAll('.', '').trim() != 'NO') {
+          tieneDato = true;
         }
-        return '';
-      });
-    });
+        row.add(valor);
+      }
+      if (tieneDato) {
+        table.add(row);
+      }
+    }
+    if (table.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para imprimir.')),
+      );
+      return;
+    }
     CartaPortePrinter.printCartaPorte(
       chofer:
           _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
@@ -658,7 +673,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   icon: const Icon(Icons.confirmation_number),
                   label: const Text('Número de Control'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF1B4332)),
+                      backgroundColor: Color.fromARGB(255, 242, 244, 243)),
                   onPressed: _generarNumeroControl,
                 ),
                 const SizedBox(width: 10),
@@ -666,7 +681,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   icon: const Icon(Icons.save),
                   label: const Text('Guardar'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF40916C)),
+                      backgroundColor: Color.fromARGB(255, 246, 248, 247)),
                   onPressed: _guardarCartaPorte,
                 ),
               ],
@@ -690,7 +705,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   icon: const Icon(Icons.add),
                   label: const Text('Agregar fila'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2D6A4F)),
+                      backgroundColor: Color.fromARGB(255, 243, 245, 244)),
                   onPressed: () {
                     setState(() {
                       _numFilas++;
