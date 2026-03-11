@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../utils/firebase_cache_utils.dart';
 import '../utils/exportar_excel.dart';
+import 'carta_porte_printer.dart';
 import 'hoja_de_ruta_extra_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' as math;
@@ -14,6 +15,7 @@ class CartaPorteTable extends StatefulWidget {
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
+  int _numFilas = 5;
   // Campos ejecutivos principales
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _rfcController = TextEditingController();
@@ -145,6 +147,35 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     await exportarExcel(
         cartas: [carta],
         fileName: 'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx');
+  }
+
+  Future<void> _imprimirHoja() async {
+    // Construir los datos de la tabla para impresión
+    final columns = _columns;
+    final table = List.generate(_numFilas, (rowIdx) {
+      return List.generate(columns.length, (colIdx) {
+        // Si es la columna NO., mostrar el conteo
+        if (columns[colIdx].toUpperCase().replaceAll('.', '').trim() == 'NO') {
+          return (rowIdx + 1).toString();
+        }
+        // Si hay controladores, mostrar el texto, si no, vacío
+        if (_controllers.length > rowIdx &&
+            _controllers[rowIdx].length > colIdx) {
+          return _controllers[rowIdx][colIdx].text;
+        }
+        return '';
+      });
+    });
+    CartaPortePrinter.printCartaPorte(
+      chofer:
+          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
+      unidad: _unidadController.text,
+      destino: _destinoController.text,
+      rfc: _rfcController.text,
+      fecha: _fechaActual,
+      columns: columns,
+      table: table,
+    );
   }
 
   Future<void> _mostrarDialogoChoferes() async {
@@ -316,6 +347,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             onPressed: _exportarExcel,
           ),
           IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Imprimir hoja',
+            color: Colors.white,
+            onPressed: _imprimirHoja,
+          ),
+          IconButton(
             icon: const Icon(Icons.people),
             tooltip: 'Choferes',
             color: Colors.white,
@@ -458,7 +495,19 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             // Tabla ejecutiva
             Expanded(
               child: Container(
-                color: Colors.white,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFB),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                ),
+                padding: const EdgeInsets.all(12),
                 child: Scrollbar(
                   thumbVisibility: true,
                   child: SingleChildScrollView(
@@ -471,6 +520,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           Material(
                             elevation: 2,
                             color: const Color(0xFF2D6A4F),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                            ),
                             child: Row(
                               children: [
                                 for (int i = 0; i < _columns.length; i++)
@@ -480,8 +533,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                         : colWidths[i],
                                     alignment: Alignment.center,
                                     padding: const EdgeInsets.symmetric(
-                                        vertical: 14, horizontal: 8),
+                                        vertical: 16, horizontal: 10),
                                     decoration: BoxDecoration(
+                                      color: Colors.transparent,
                                       border: i == _columns.length - 1
                                           ? null
                                           : const Border(
@@ -503,44 +557,89 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                               ],
                             ),
                           ),
-                          // Filas vacías para ejemplo
+                          // Filas ejecutivas
                           Expanded(
                             child: ListView.builder(
-                              itemCount: 5,
+                              itemCount: _numFilas,
                               itemBuilder: (context, rowIdx) {
-                                return Row(
-                                  children: [
-                                    for (int colIdx = 0;
-                                        colIdx < _columns.length;
-                                        colIdx++)
-                                      Container(
-                                        width: colWidths[colIdx],
-                                        alignment: Alignment.center,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 8),
-                                        decoration: BoxDecoration(
-                                            // Sin borde
+                                return MouseRegion(
+                                  cursor: SystemMouseCursors.text,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: rowIdx % 2 == 0
+                                          ? const Color(0xFFF1F3F6)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: const Color(0xFFE0E0E0),
+                                          width: 0.5),
+                                    ),
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        for (int colIdx = 0;
+                                            colIdx < _columns.length;
+                                            colIdx++)
+                                          Container(
+                                            width: colWidths[colIdx],
+                                            alignment: Alignment.center,
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: colIdx <
+                                                      _columns.length - 1
+                                                  ? const Border(
+                                                      right: BorderSide(
+                                                          color:
+                                                              Color(0xFFE0E0E0),
+                                                          width: 1))
+                                                  : null,
                                             ),
-                                        child: TextFormField(
-                                          textAlign: TextAlign.center,
-                                          decoration: const InputDecoration(
-                                            isDense: true,
-                                            contentPadding: EdgeInsets.symmetric(
-                                                // border eliminado para evitar duplicidad
-                                                // border eliminado para evitar duplicidad
-                                                // border eliminado para evitar duplicidad
-                                                // border eliminado para evitar duplicidad
-                                                vertical: 8,
-                                                horizontal: 4),
-                                            fillColor: Colors.white,
-                                            filled: true,
+                                            child: _columns[colIdx]
+                                                            .toUpperCase()
+                                                            .replaceAll('.', '')
+                                                            .trim() ==
+                                                        'NO' ||
+                                                    _columns[colIdx]
+                                                            .toUpperCase()
+                                                            .replaceAll('.', '')
+                                                            .trim() ==
+                                                        'NO'
+                                                ? Text(
+                                                    (rowIdx + 1).toString(),
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 15,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  )
+                                                : TextFormField(
+                                                    textAlign: TextAlign.center,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                              horizontal: 4),
+                                                      fillColor: Colors.white,
+                                                      filled: true,
+                                                      border: InputBorder.none,
+                                                    ),
+                                                    style: const TextStyle(
+                                                        fontSize: 15,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
                                           ),
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF2D6A4F)),
-                                        ),
-                                      ),
-                                  ],
+                                      ],
+                                    ),
+                                  ),
                                 );
                               },
                             ),
@@ -583,6 +682,23 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       color: Color(0xFF1B4332)),
                 ),
               ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar fila'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2D6A4F)),
+                  onPressed: () {
+                    setState(() {
+                      _numFilas++;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
           ],
         ),
