@@ -22,6 +22,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   final TextEditingController _unidadController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
   List<Map<String, dynamic>> _choferes = [];
+  List<String> _choferesSeleccionados = [];
   int? _choferSeleccionado;
   String? _numeroControlActual;
   late String _fechaActual;
@@ -37,17 +38,56 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     'CONTENEDOR',
     'EMBARQUE',
     'CONCENTRADO',
-    // Agrega más columnas si es necesario
   ];
   List<List<TextEditingController>> _controllers = [];
   List<List<FocusNode>> _focusNodes = [];
-  List<double> colWidths = [120, 60, 120, 120];
+  List<double> colWidths = [
+    120,
+    60,
+    120,
+    120,
+    120,
+    180,
+    120,
+    120,
+    120,
+    120,
+    120
+  ];
 
   @override
   void initState() {
     super.initState();
     _fechaActual = DateTime.now().toString().substring(0, 10);
+    _cargarChoferes();
     // Inicializa controladores y focusNodes según sea necesario
+  }
+
+  Future<void> _cargarChoferes() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('choferes').get();
+    setState(() {
+      _choferes = snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                'nombre': doc['nombre'],
+                'rfc': doc['rfc'],
+                'telefono': doc['telefono'],
+              })
+          .toList();
+    });
+  }
+
+  void _actualizarRFC() {
+    if (_choferesSeleccionados.isNotEmpty) {
+      final rfcList = _choferes
+          .where((c) => _choferesSeleccionados.contains(c['nombre']))
+          .map((c) => c['rfc'])
+          .toList();
+      _rfcController.text = rfcList.join(', ');
+    } else {
+      _rfcController.text = '';
+    }
   }
 
   Future<void> _guardarCartaPorte() async {
@@ -120,6 +160,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            bool camposLlenos = nombreController.text.trim().isNotEmpty &&
+                rfcController.text.trim().isNotEmpty &&
+                telController.text.trim().isNotEmpty;
             return AlertDialog(
               title: const Text('Gestionar Choferes'),
               content: SizedBox(
@@ -173,16 +216,19 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           controller: nombreController,
                           decoration:
                               const InputDecoration(labelText: 'Nombre'),
+                          onChanged: (_) => setStateDialog(() {}),
                         ),
                         TextField(
                           controller: rfcController,
                           decoration: const InputDecoration(labelText: 'RFC'),
+                          onChanged: (_) => setStateDialog(() {}),
                         ),
                         TextField(
                           controller: telController,
                           decoration:
                               const InputDecoration(labelText: 'Teléfono'),
                           keyboardType: TextInputType.phone,
+                          onChanged: (_) => setStateDialog(() {}),
                         ),
                       ],
                     );
@@ -195,41 +241,43 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   child: const Text('Cerrar'),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
-                    final nombre = nombreController.text.trim();
-                    final rfc = rfcController.text.trim();
-                    final tel = telController.text.trim();
-                    if (nombre.isEmpty || rfc.isEmpty || tel.isEmpty) return;
-                    if (editIndex != null) {
-                      // Editar chofer
-                      final snapshot = await FirebaseFirestore.instance
-                          .collection('choferes')
-                          .get();
-                      final docId = snapshot.docs[editIndex!].id;
-                      await FirebaseFirestore.instance
-                          .collection('choferes')
-                          .doc(docId)
-                          .update({
-                        'nombre': nombre,
-                        'rfc': rfc,
-                        'telefono': tel,
-                      });
-                    } else {
-                      // Agregar nuevo chofer
-                      await FirebaseFirestore.instance
-                          .collection('choferes')
-                          .add({
-                        'nombre': nombre,
-                        'rfc': rfc,
-                        'telefono': tel,
-                      });
-                    }
-                    nombreController.clear();
-                    rfcController.clear();
-                    telController.clear();
-                    editIndex = null;
-                    setStateDialog(() {});
-                  },
+                  onPressed: camposLlenos
+                      ? () async {
+                          final nombre = nombreController.text.trim();
+                          final rfc = rfcController.text.trim();
+                          final tel = telController.text.trim();
+                          if (editIndex != null) {
+                            // Editar chofer
+                            final snapshot = await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .get();
+                            final docId = snapshot.docs[editIndex!].id;
+                            await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .doc(docId)
+                                .update({
+                              'nombre': nombre,
+                              'rfc': rfc,
+                              'telefono': tel,
+                            });
+                          } else {
+                            // Agregar nuevo chofer
+                            await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .add({
+                              'nombre': nombre,
+                              'rfc': rfc,
+                              'telefono': tel,
+                            });
+                          }
+                          nombreController.clear();
+                          rfcController.clear();
+                          telController.clear();
+                          editIndex = null;
+                          setStateDialog(() {});
+                          _cargarChoferes();
+                        }
+                      : null,
                   child: Text(editIndex != null ? 'Actualizar' : 'Agregar'),
                 ),
               ],
@@ -323,6 +371,50 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                         fillColor: Colors.white,
                         filled: true,
                       ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 220,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: _choferesSeleccionados.isNotEmpty
+                                    ? _choferesSeleccionados.first
+                                    : null,
+                                items: _choferes
+                                    .map((c) => DropdownMenuItem<String>(
+                                          value: c['nombre'],
+                                          child: Text(c['nombre']),
+                                        ))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _choferesSeleccionados =
+                                        value != null ? [value] : [];
+                                    _actualizarRFC();
+                                  });
+                                },
+                                decoration: const InputDecoration(
+                                  labelText: 'Chofer',
+                                  border: OutlineInputBorder(),
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              icon:
+                                  const Icon(Icons.people, color: Colors.white),
+                              tooltip: 'Gestionar Choferes',
+                              onPressed: _mostrarDialogoChoferes,
+                            ),
+                          ],
+                        ),
+                        // Para selección múltiple, puedes usar un MultiSelectDialog o similar
+                      ],
                     ),
                   ),
                   SizedBox(
