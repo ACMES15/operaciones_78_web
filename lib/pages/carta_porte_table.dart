@@ -145,6 +145,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
 
   Future<void> _initControllers() async {
     await Future.delayed(const Duration(milliseconds: 600));
+    // Siempre mantener al menos 5 filas visibles
     _controllers = List.generate(
       5,
       (_) => List.generate(_columns.length, (_) => TextEditingController()),
@@ -352,29 +353,66 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           content: Text('Carta porte guardada correctamente'),
           backgroundColor: Colors.green),
     );
+    // Limpiar todos los campos y dejar lista la carta porte para nuevos datos
+    setState(() {
+      _numeroControlActual = null;
+      _choferController.clear();
+      _rfcController.clear();
+      _unidadController.clear();
+      _destinoController.clear();
+      _controllers = List.generate(
+          5,
+          (_) =>
+              List.generate(_columns.length, (_) => TextEditingController()));
+      _focusNodes.clear();
+      _focusNodes.addAll(List.generate(
+          5, (_) => List.generate(_columns.length, (_) => FocusNode())));
+    });
   }
 
   Future<String> _generarNumeroDeControl() async {
-    // Genera un número de control único usando timestamp; si ya existe en historial añade sufijo
-    final nuevo = DateTime.now().millisecondsSinceEpoch.toString();
-    try {
-      final lista = await CartaPorteHistorialManager.loadAll();
-      final exists = lista.any((c) => c['NUMERO_CONTROL'] == nuevo);
-      if (exists) {
-        return '${nuevo}_${DateTime.now().microsecondsSinceEpoch}';
+    // Formato: 0078-CP-XXX (con ceros a la izquierda)
+    final lista = await CartaPorteHistorialManager.loadAll();
+    final RegExp exp = RegExp(r'^0078-CP-(\d{3})$');
+    int maxNum = 0;
+    for (final carta in lista) {
+      final numCtrl = carta['NUMERO_CONTROL']?.toString() ?? '';
+      final match = exp.firstMatch(numCtrl);
+      if (match != null) {
+        final num = int.tryParse(match.group(1) ?? '0') ?? 0;
+        if (num > maxNum) maxNum = num;
       }
-    } catch (_) {}
-    return nuevo;
+    }
+    final siguiente = maxNum + 1;
+    final nuevoNum = '0078-CP-${siguiente.toString().padLeft(3, '0')}';
+    return nuevoNum;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ajuste visual: tabla más grande y siempre visible
+    // Ajuste visual: título y fondo
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('HOJA DE RUTA - ENVÍO MERCANCÍA'),
-        backgroundColor: Color(0xFF2D6A4F),
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
+        title: Row(
+          children: [
+            const Icon(Icons.local_shipping, color: Color(0xFF2D6A4F)),
+            const SizedBox(width: 10),
+            const Text(
+              'Carta Porte',
+              style: TextStyle(
+                color: Color(0xFF2D6A4F),
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: false,
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -465,13 +503,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('ORIGEN',
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 2),
-                          const Text('78'),
-                          const SizedBox(height: 2),
-                          const Text('78 GALERIAS GDL'),
-                          const SizedBox(height: 10),
+                          const Text(
+                            '78 GALERIAS GDL',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                          const SizedBox(height: 16),
                           Row(
                             children: [
                               const Text('DESTINO:',
@@ -677,7 +714,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                               ),
                               // Filas
                               for (int rowIdx = 0;
-                                  rowIdx < _controllers.length;
+                                  rowIdx <
+                                      (_controllers.length < 5
+                                          ? 5
+                                          : _controllers.length);
                                   rowIdx++)
                                 Row(
                                   children: [
@@ -731,7 +771,314 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                     style: const TextStyle(
                                                         fontSize: 15),
                                                     onSubmitted: (value) async {
-                                                      // ...existing code...
+                                                      // Proceso de escaneo automático
+                                                      // 1. Buscar en historial de hoja de XD
+                                                      final dataXD =
+                                                          await leerDatosConCache(
+                                                              'hoja_de_xd_historial',
+                                                              'main');
+                                                      List<HojaDeXDHistorial>
+                                                          historialXD = [];
+                                                      if (dataXD != null &&
+                                                          dataXD['historial'] !=
+                                                              null) {
+                                                        final List<dynamic>
+                                                            list =
+                                                            dataXD['historial'];
+                                                        historialXD = list
+                                                            .map((e) =>
+                                                                HojaDeXDHistorial
+                                                                    .fromJson(
+                                                                        e))
+                                                            .toList();
+                                                      }
+                                                      final historialFiltrado =
+                                                          historialXD
+                                                              .where((h) =>
+                                                                  (h.datos['CONTENEDOR O TARIMA']
+                                                                          ?.trim() ??
+                                                                      '') ==
+                                                                  value.trim())
+                                                              .toList();
+                                                      HojaDeXDHistorial?
+                                                          xdReciente;
+                                                      if (historialFiltrado
+                                                          .isNotEmpty) {
+                                                        historialFiltrado.sort(
+                                                            (a, b) => b.fecha
+                                                                .compareTo(
+                                                                    a.fecha));
+                                                        xdReciente =
+                                                            historialFiltrado
+                                                                .first;
+                                                      }
+                                                      // 2. Buscar en hoja de ruta enviada (sentHojaRutas) y tomar la más reciente
+                                                      final hojaList =
+                                                          HojaDeRutaExtraPage
+                                                              .sentHojaRutas
+                                                              .where((h) =>
+                                                                  h['caja']
+                                                                      ?.toString()
+                                                                      ?.trim() ==
+                                                                  value.trim())
+                                                              .toList();
+                                                      Map<String, dynamic>
+                                                          hoja = {};
+                                                      if (hojaList.isNotEmpty) {
+                                                        hojaList.sort((a, b) {
+                                                          final fa = DateTime.tryParse(
+                                                                  a['createdAt']
+                                                                          ?.toString() ??
+                                                                      '') ??
+                                                              DateTime
+                                                                  .fromMillisecondsSinceEpoch(
+                                                                      0);
+                                                          final fb = DateTime.tryParse(
+                                                                  b['createdAt']
+                                                                          ?.toString() ??
+                                                                      '') ??
+                                                              DateTime
+                                                                  .fromMillisecondsSinceEpoch(
+                                                                      0);
+                                                          return fb
+                                                              .compareTo(fa);
+                                                        });
+                                                        hoja = hojaList.first;
+                                                      }
+                                                      // Lógica para llenar columnas según reglas
+                                                      setState(() {
+                                                        if (xdReciente !=
+                                                            null) {
+                                                          // Si hoja XD encontrada
+                                                          // SYS
+                                                          final tu =
+                                                              xdReciente.datos[
+                                                                      'TU'] ??
+                                                                  '';
+                                                          _controllers[rowIdx]
+                                                                      [3]
+                                                                  .text =
+                                                              tu.isNotEmpty
+                                                                  ? 'MAN.'
+                                                                  : 'XD';
+                                                          // EMBARQUE 1
+                                                          _controllers[rowIdx]
+                                                                      [4]
+                                                                  .text =
+                                                              tu.toString();
+                                                          // DESCRIPCIÓN
+                                                          _controllers[rowIdx]
+                                                                  [5]
+                                                              .text = xdReciente
+                                                                      .datos[
+                                                                  'MANIFIESTO'] ??
+                                                              '';
+                                                          // NO. BULTO
+                                                          _controllers[rowIdx]
+                                                                  [6]
+                                                              .text = xdReciente
+                                                                      .datos[
+                                                                  'CANTIDAD DE LPS'] ??
+                                                              '';
+                                                          // CONTENEDOR
+                                                          _controllers[rowIdx]
+                                                                  [8]
+                                                              .text = value;
+                                                          // EMBARQUE 2 (editable si no hay tu)
+                                                          // No se llena automáticamente
+                                                          // CONCENTRADO
+                                                          _controllers[rowIdx]
+                                                                  [10]
+                                                              .text = tu
+                                                                  .toString()
+                                                                  .isNotEmpty
+                                                              ? tu.toString()
+                                                              : _controllers[
+                                                                      rowIdx][9]
+                                                                  .text;
+                                                        } else if (hoja
+                                                            .isNotEmpty) {
+                                                          // Si hoja de ruta enviada encontrada
+                                                          // SYS
+                                                          _controllers[rowIdx]
+                                                                  [3]
+                                                              .text = hoja[
+                                                                      'tipo']
+                                                                  ?.toString() ??
+                                                              '';
+                                                          // EMBARQUE 1
+                                                          String embarque = '';
+                                                          if (hoja['headers'] !=
+                                                                  null &&
+                                                              hoja['rows'] !=
+                                                                  null &&
+                                                              hoja['rows']
+                                                                  .isNotEmpty) {
+                                                            final headers = List<
+                                                                    String>.from(
+                                                                hoja[
+                                                                    'headers']);
+                                                            int idxManiRemi = headers.indexWhere((h) =>
+                                                                h
+                                                                    .toLowerCase()
+                                                                    .contains(
+                                                                        'manifiesto') ||
+                                                                h
+                                                                    .toLowerCase()
+                                                                    .contains(
+                                                                        'remision'));
+                                                            if (idxManiRemi !=
+                                                                -1) {
+                                                              embarque = hoja['rows']
+                                                                              [
+                                                                              0]
+                                                                          [
+                                                                          idxManiRemi]
+                                                                      ?.toString() ??
+                                                                  '';
+                                                            }
+                                                          }
+                                                          _controllers[rowIdx]
+                                                                  [4]
+                                                              .text = embarque;
+                                                          // DESCRIPCIÓN
+                                                          _controllers[rowIdx]
+                                                                  [5]
+                                                              .text = hoja[
+                                                                      'tipo']
+                                                                  ?.toString() ??
+                                                              '';
+                                                          // NO. BULTO (sumatoria de bultos)
+                                                          int bultos = 0;
+                                                          if (hoja['rows'] !=
+                                                              null) {
+                                                            int idxBulto = 6;
+                                                            if (hoja[
+                                                                    'headers'] !=
+                                                                null) {
+                                                              final headers = List<
+                                                                      String>.from(
+                                                                  hoja[
+                                                                      'headers']);
+                                                              idxBulto = headers
+                                                                  .indexWhere((h) => h
+                                                                      .toLowerCase()
+                                                                      .contains(
+                                                                          'bulto'));
+                                                              if (idxBulto ==
+                                                                  -1)
+                                                                idxBulto = 6;
+                                                            }
+                                                            for (final r
+                                                                in hoja[
+                                                                    'rows']) {
+                                                              if (r is List &&
+                                                                  r.length >
+                                                                      idxBulto) {
+                                                                final val = int
+                                                                    .tryParse(r[
+                                                                            idxBulto]
+                                                                        .toString());
+                                                                if (val != null)
+                                                                  bultos += val;
+                                                              }
+                                                            }
+                                                          }
+                                                          _controllers[rowIdx]
+                                                                  [6]
+                                                              .text = bultos >
+                                                                  0
+                                                              ? bultos
+                                                                  .toString()
+                                                              : '';
+                                                          // DESTINO
+                                                          String destino = '';
+                                                          if (hoja['headers'] !=
+                                                                  null &&
+                                                              hoja['rows'] !=
+                                                                  null &&
+                                                              hoja['rows']
+                                                                  .isNotEmpty) {
+                                                            final headers = List<
+                                                                    String>.from(
+                                                                hoja[
+                                                                    'headers']);
+                                                            int idxDestino = headers
+                                                                .indexWhere((h) => h
+                                                                    .toLowerCase()
+                                                                    .contains(
+                                                                        'destino'));
+                                                            if (idxDestino !=
+                                                                -1) {
+                                                              destino = hoja['rows']
+                                                                              [
+                                                                              0]
+                                                                          [
+                                                                          idxDestino]
+                                                                      ?.toString() ??
+                                                                  '';
+                                                            }
+                                                          }
+                                                          _controllers[rowIdx]
+                                                                  [7]
+                                                              .text = destino;
+                                                          // CONTENEDOR
+                                                          _controllers[rowIdx]
+                                                                  [8]
+                                                              .text = value;
+                                                          // EMBARQUE 2 (editable)
+                                                          // No se llena automáticamente
+                                                          // CONCENTRADO
+                                                          _controllers[rowIdx]
+                                                                  [10]
+                                                              .text = embarque
+                                                                  .isNotEmpty
+                                                              ? embarque
+                                                              : _controllers[
+                                                                      rowIdx][9]
+                                                                  .text;
+                                                        } else {
+                                                          // Si no se encuentra nada, limpiar campos relevantes
+                                                          for (int i = 2;
+                                                              i <
+                                                                  _columns
+                                                                      .length;
+                                                              i++) {
+                                                            if (i == 9)
+                                                              continue; // EMBARQUE 2 editable
+                                                            _controllers[rowIdx]
+                                                                    [i]
+                                                                .text = '';
+                                                          }
+                                                        }
+                                                        // Si es la penúltima fila, agregar una nueva automáticamente
+                                                        if (rowIdx ==
+                                                            _controllers
+                                                                    .length -
+                                                                2) {
+                                                          _controllers.add(
+                                                              List.generate(
+                                                                  _columns
+                                                                      .length,
+                                                                  (_) =>
+                                                                      TextEditingController()));
+                                                          _focusNodes.add(
+                                                              List.generate(
+                                                                  _columns
+                                                                      .length,
+                                                                  (_) =>
+                                                                      FocusNode()));
+                                                        }
+                                                        // Mover el foco hacia abajo (siguiente fila, columna 0)
+                                                        if (_focusNodes.length >
+                                                            rowIdx + 1) {
+                                                          FocusScope.of(context)
+                                                              .requestFocus(
+                                                                  _focusNodes[
+                                                                      rowIdx +
+                                                                          1][0]);
+                                                        }
+                                                      });
                                                     },
                                                   )
                                                 : colIdx == 9
