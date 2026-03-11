@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../utils/firebase_cache_utils.dart';
-import 'package:excel/excel.dart' hide Border;
-import 'package:universal_html/html.dart' as html;
+import '../utils/exportar_excel.dart';
 import 'hoja_de_ruta_extra_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' as math;
@@ -129,25 +128,23 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _exportarExcel() async {
-    final excel = Excel.createExcel();
-    final sheet = excel['Carta Porte'];
-    // Escribir encabezados
-    sheet.appendRow(_columns);
-    // Escribir filas
-    for (var row in _controllers) {
-      sheet.appendRow(row.map((c) => c.text).toList());
-    }
-    final bytes = excel.encode();
-    if (bytes != null) {
-      final blob = html.Blob([bytes],
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download',
-            'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx')
-        ..click();
-      html.Url.revokeObjectUrl(url);
-    }
+    // Construir los datos de la carta actual para exportar
+    final carta = {
+      'NUMERO_CONTROL': _numeroControlActual ?? '',
+      'FECHA': _fechaActual,
+      'CHOFER':
+          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
+      'RFC': _rfcController.text,
+      'UNIDAD': _unidadController.text,
+      'DESTINO': _destinoController.text,
+      'COLUMNS': _columns,
+      'TABLE':
+          _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+    };
+    // Usar la función utilitaria para exportar
+    await exportarExcel(
+        cartas: [carta],
+        fileName: 'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx');
   }
 
   Future<void> _mostrarDialogoChoferes() async {
@@ -367,7 +364,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       decoration: const InputDecoration(
                         labelText: 'Destino',
                         isDense: true,
-                        border: OutlineInputBorder(),
+                        border: InputBorder.none,
                         fillColor: Colors.white,
                         filled: true,
                       ),
@@ -398,7 +395,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                             decoration: const InputDecoration(
                               labelText: 'Chofer',
                               isDense: true,
-                              border: OutlineInputBorder(),
+                              border: InputBorder.none,
                               fillColor: Colors.white,
                               filled: true,
                             ),
@@ -478,10 +475,20 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                               children: [
                                 for (int i = 0; i < _columns.length; i++)
                                   Container(
-                                    width: colWidths[i],
+                                    width: i == _columns.length - 1
+                                        ? colWidths[i] + 8
+                                        : colWidths[i],
                                     alignment: Alignment.center,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 14, horizontal: 8),
+                                    decoration: BoxDecoration(
+                                      border: i == _columns.length - 1
+                                          ? null
+                                          : const Border(
+                                              right: BorderSide(
+                                                  color: Color(0xFFE0E0E0),
+                                                  width: 1)),
+                                    ),
                                     child: Text(
                                       _columns[i],
                                       style: const TextStyle(
@@ -512,23 +519,19 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 8, horizontal: 8),
                                         decoration: BoxDecoration(
-                                          border: Border(
-                                            bottom: BorderSide(
-                                                width: 0.7,
-                                                color: Colors.grey.shade400),
-                                            right: const BorderSide(
-                                                width: 1,
-                                                color: Color(0xFFB7B7B7)),
-                                          ),
-                                        ),
+                                            // Sin borde
+                                            ),
                                         child: TextFormField(
                                           textAlign: TextAlign.center,
                                           decoration: const InputDecoration(
-                                            border: OutlineInputBorder(),
                                             isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    vertical: 8, horizontal: 4),
+                                            contentPadding: EdgeInsets.symmetric(
+                                                // border eliminado para evitar duplicidad
+                                                // border eliminado para evitar duplicidad
+                                                // border eliminado para evitar duplicidad
+                                                // border eliminado para evitar duplicidad
+                                                vertical: 8,
+                                                horizontal: 4),
                                             fillColor: Colors.white,
                                             filled: true,
                                           ),
