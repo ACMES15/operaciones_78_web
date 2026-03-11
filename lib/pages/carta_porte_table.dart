@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
-import '../utils/firebase_cache_utils.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
+// import 'dart:convert';
+// import '../utils/firebase_cache_utils.dart';
 import '../utils/exportar_excel.dart';
 import 'carta_porte_printer.dart';
 import 'hoja_de_ruta_extra_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:math' as math;
+// import 'dart:math' as math;
+import '../models/hoja_de_xd_historial.dart';
 
 class CartaPorteTable extends StatefulWidget {
   const CartaPorteTable({super.key});
@@ -17,14 +18,13 @@ class CartaPorteTable extends StatefulWidget {
 class _CartaPorteTableState extends State<CartaPorteTable> {
   int _numFilas = 5;
   // Campos ejecutivos principales
-  final _formKey = GlobalKey<FormState>();
+  // final _formKey = GlobalKey<FormState>();
   final TextEditingController _rfcController = TextEditingController();
   final TextEditingController _choferController = TextEditingController();
   final TextEditingController _unidadController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
   List<Map<String, dynamic>> _choferes = [];
   List<String> _choferesSeleccionados = [];
-  int? _choferSeleccionado;
   String? _numeroControlActual;
   late String _fechaActual;
   final List<String> _columns = [
@@ -56,29 +56,125 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     120
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _fechaActual = DateTime.now().toString().substring(0, 10);
-    _cargarChoferes();
-    // Inicializa controladores para las filas iniciales
-    _controllers = List.generate(_numFilas,
-        (_) => List.generate(_columns.length, (_) => TextEditingController()));
-  }
+  Future<void> _autocompletarFilaPorEscaneo(int rowIdx) async {
+    final escaneo = _controllers[rowIdx][0].text.trim();
+    if (escaneo.isEmpty) return;
 
-  Future<void> _cargarChoferes() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('choferes').get();
-    setState(() {
-      _choferes = snapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                'nombre': doc['nombre'],
-                'rfc': doc['rfc'],
-                'telefono': doc['telefono'],
-              })
+    // 1. Buscar en hoja de ruta enviadas (sentHojaRutas)
+    await HojaDeRutaExtraPage.loadSentHojaRutasCache();
+    final rutas = HojaDeRutaExtraPage.sentHojaRutas
+        .where((r) => (r['caja'] ?? '').toString().trim() == escaneo)
+        .toList();
+    rutas.sort((a, b) =>
+        (b['fecha'] ?? '').toString().compareTo((a['fecha'] ?? '').toString()));
+    if (rutas.isNotEmpty) {
+      final ruta = rutas.first;
+      _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
+      _controllers[rowIdx][3].text = 'SAP';
+      final rows = (ruta['rows'] as List?) ?? [];
+      String embarque = '';
+      for (final row in rows) {
+        if (row is Map) {
+          if ((row['No. Manifiesto'] != null &&
+              row['No. Manifiesto'].toString().isNotEmpty)) {
+            embarque = row['No. Manifiesto'].toString();
+            break;
+          } else if ((row['Rem'] != null && row['Rem'].toString().isNotEmpty)) {
+            embarque = row['Rem'].toString();
+            break;
+          }
+        } else if (row is List) {
+          final columns = (ruta['columns'] as List?) ?? [];
+          final idx = columns.indexWhere((c) =>
+              c.toString().toLowerCase().contains('manifiesto') ||
+              c.toString().toLowerCase().contains('rem'));
+          if (idx >= 0 &&
+              row.length > idx &&
+              row[idx] != null &&
+              row[idx].toString().isNotEmpty) {
+            embarque = row[idx].toString();
+            break;
+          }
+        }
+      }
+      _controllers[rowIdx][4].text = embarque;
+      _controllers[rowIdx][5].text = ruta['tipo'] ?? '';
+      int sumaBultos = 0;
+      for (final row in rows) {
+        if (row is Map && row['No. Bultos'] != null) {
+          final val = int.tryParse(row['No. Bultos'].toString());
+          if (val != null) sumaBultos += val;
+        } else if (row is List) {
+          final columns = (ruta['columns'] as List?) ?? [];
+          final idx = columns
+              .indexWhere((c) => c.toString().toLowerCase().contains('bultos'));
+          if (idx >= 0 && row.length > idx && row[idx] != null) {
+            final val = int.tryParse(row[idx].toString());
+            if (val != null) sumaBultos += val;
+          }
+        }
+      }
+      _controllers[rowIdx][6].text =
+          sumaBultos > 0 ? sumaBultos.toString() : '';
+      String destino = '';
+      for (final row in rows) {
+        if (row is Map &&
+            row['Nombre Alm. destino'] != null &&
+            row['Nombre Alm. destino'].toString().isNotEmpty) {
+          destino = row['Nombre Alm. destino'].toString();
+          break;
+        } else if (row is List) {
+          final columns = (ruta['columns'] as List?) ?? [];
+          final idx = columns.indexWhere(
+              (c) => c.toString().toLowerCase().contains('destino'));
+          if (idx >= 0 &&
+              row.length > idx &&
+              row[idx] != null &&
+              row[idx].toString().isNotEmpty) {
+            destino = row[idx].toString();
+            break;
+          }
+        }
+      }
+      _controllers[rowIdx][7].text = destino;
+      _controllers[rowIdx][8].text = escaneo;
+      final embarque1 = _controllers[rowIdx][4].text;
+      final embarque2 = _controllers[rowIdx][9].text;
+      _controllers[rowIdx][10].text =
+          embarque1.isNotEmpty ? embarque1 : embarque2;
+      setState(() {});
+      return;
+    }
+
+    // 2. Buscar en historial hoja de XD (Firestore)
+    final snap = await FirebaseFirestore.instance
+        .collection('hoja_de_xd_historial')
+        .doc('main')
+        .get();
+    final data = snap.data();
+    if (data != null && data['historial'] != null) {
+      final List<dynamic> list = data['historial'];
+      final xd = list
+          .map((e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
+          .where((h) => (h.datos['CONTENEDOR'] ?? '').trim() == escaneo)
           .toList();
-    });
+      xd.sort((a, b) => b.fecha.compareTo(a.fecha));
+      if (xd.isNotEmpty) {
+        final h = xd.first;
+        _controllers[rowIdx][2].text = 'PAQ';
+        _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
+        _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
+        _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
+        _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
+        _controllers[rowIdx][8].text = escaneo;
+        final embarque1 = _controllers[rowIdx][4].text;
+        final embarque2 = _controllers[rowIdx][9].text;
+        _controllers[rowIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
+        setState(() {});
+        return;
+      }
+    }
   }
 
   void _actualizarRFC() {
@@ -94,7 +190,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _guardarCartaPorte() async {
-    // Ejemplo de estructura de guardado
     final data = {
       'numero_control': _numeroControlActual,
       'fecha': _fechaActual,
@@ -112,7 +207,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _generarNumeroControl() async {
-    // Obtener el último número guardado en Firestore
     final snapshot = await FirebaseFirestore.instance
         .collection('cartas_porte')
         .orderBy('numero_control', descending: true)
@@ -132,7 +226,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _exportarExcel() async {
-    // Construir los datos de la carta actual para exportar
     final carta = {
       'NUMERO_CONTROL': _numeroControlActual ?? '',
       'FECHA': _fechaActual,
@@ -145,14 +238,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       'TABLE':
           _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
     };
-    // Usar la función utilitaria para exportar
     await exportarExcel(
         cartas: [carta],
         fileName: 'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx');
   }
 
   Future<void> _imprimirHoja() async {
-    // Imprimir solo filas con datos reales
     final columns = _columns;
     final table = <List<String>>[];
     for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
@@ -193,6 +284,32 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       columns: columns,
       table: table,
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fechaActual = DateTime.now().toString().substring(0, 10);
+    _cargarChoferes();
+    // Inicializa controladores para las filas iniciales
+    _controllers = List.generate(_numFilas,
+        (_) => List.generate(_columns.length, (_) => TextEditingController()));
+    _focusNodes = List.generate(
+        _numFilas, (_) => List.generate(_columns.length, (_) => FocusNode()));
+  }
+
+  Future<void> _cargarChoferes() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('choferes').get();
+    setState(() {
+      _choferes = snapshot.docs
+          .map((doc) => {
+                'nombre': doc['nombre'],
+                'rfc': doc['rfc'],
+                'telefono': doc['telefono'],
+              })
+          .toList();
+    });
   }
 
   Future<void> _mostrarDialogoChoferes() async {
@@ -640,6 +757,15 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                         ? _controllers[rowIdx]
                                                             [colIdx]
                                                         : null,
+                                                    focusNode: _focusNodes
+                                                                    .length >
+                                                                rowIdx &&
+                                                            _focusNodes[rowIdx]
+                                                                    .length >
+                                                                colIdx
+                                                        ? _focusNodes[rowIdx]
+                                                            [colIdx]
+                                                        : null,
                                                     textAlign: TextAlign.center,
                                                     decoration:
                                                         const InputDecoration(
@@ -656,6 +782,53 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                         fontSize: 15,
                                                         color:
                                                             Color(0xFF2D6A4F)),
+                                                    onFieldSubmitted:
+                                                        colIdx == 0
+                                                            ? (_) async {
+                                                                await _autocompletarFilaPorEscaneo(
+                                                                    rowIdx);
+                                                                final isPenultima =
+                                                                    rowIdx ==
+                                                                        _controllers.length -
+                                                                            2;
+                                                                if (rowIdx <
+                                                                    _controllers
+                                                                            .length -
+                                                                        1) {
+                                                                  FocusScope.of(
+                                                                          context)
+                                                                      .requestFocus(_focusNodes[
+                                                                          rowIdx +
+                                                                              1][0]);
+                                                                } else if (isPenultima) {
+                                                                  setState(() {
+                                                                    _numFilas++;
+                                                                    _controllers.add(List.generate(
+                                                                        _columns
+                                                                            .length,
+                                                                        (_) =>
+                                                                            TextEditingController()));
+                                                                    _focusNodes.add(List.generate(
+                                                                        _columns
+                                                                            .length,
+                                                                        (_) =>
+                                                                            FocusNode()));
+                                                                  });
+                                                                  Future.delayed(
+                                                                      const Duration(
+                                                                          milliseconds:
+                                                                              100),
+                                                                      () {
+                                                                    FocusScope.of(
+                                                                            context)
+                                                                        .requestFocus(_focusNodes[rowIdx +
+                                                                                1]
+                                                                            [
+                                                                            0]);
+                                                                  });
+                                                                }
+                                                              }
+                                                            : null,
                                                   ),
                                           ),
                                       ],
@@ -717,6 +890,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       _numFilas++;
                       _controllers.add(List.generate(
                           _columns.length, (_) => TextEditingController()));
+                      _focusNodes.add(
+                          List.generate(_columns.length, (_) => FocusNode()));
                     });
                   },
                 ),
