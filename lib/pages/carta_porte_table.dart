@@ -374,69 +374,78 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                     ),
                   ),
                   SizedBox(
-                    width: isMobile ? double.infinity : 220,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    width: isMobile ? double.infinity : 180,
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String>(
-                                value: _choferesSeleccionados.isNotEmpty
-                                    ? _choferesSeleccionados.first
-                                    : null,
-                                items: _choferes
-                                    .map((c) => DropdownMenuItem<String>(
-                                          value: c['nombre'],
-                                          child: Text(c['nombre']),
-                                        ))
-                                    .toList(),
-                                onChanged: (value) {
-                                  setState(() {
-                                    _choferesSeleccionados =
-                                        value != null ? [value] : [];
-                                    _actualizarRFC();
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  labelText: 'Chofer',
-                                  border: OutlineInputBorder(),
-                                  isDense: true,
-                                ),
-                              ),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _choferesSeleccionados.isNotEmpty
+                                ? _choferesSeleccionados.first
+                                : null,
+                            items: _choferes
+                                .map((c) => DropdownMenuItem<String>(
+                                      value: c['nombre'],
+                                      child: Text(c['nombre']),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _choferesSeleccionados =
+                                    value != null ? [value] : [];
+                                _actualizarRFC();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Chofer',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
                             ),
-                            IconButton(
-                              icon:
-                                  const Icon(Icons.people, color: Colors.white),
-                              tooltip: 'Gestionar Choferes',
-                              onPressed: _mostrarDialogoChoferes,
-                            ),
-                          ],
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                          ),
                         ),
-                        // Para selección múltiple, puedes usar un MultiSelectDialog o similar
+                        IconButton(
+                          icon: const Icon(Icons.people,
+                              color: Color(0xFF2D6A4F)),
+                          tooltip: 'Gestionar Choferes',
+                          onPressed: _mostrarDialogoChoferes,
+                        ),
                       ],
                     ),
                   ),
                   SizedBox(
                     width: isMobile ? double.infinity : 120,
-                    child: TextField(
+                    child: TextFormField(
                       controller: _unidadController,
+                      style: const TextStyle(
+                          color: Color(0xFF2D6A4F),
+                          fontWeight: FontWeight.bold),
                       decoration: const InputDecoration(
                         labelText: 'Unidad',
                         isDense: true,
                         border: OutlineInputBorder(),
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
                     ),
                   ),
                   SizedBox(
                     width: isMobile ? double.infinity : 150,
-                    child: TextField(
+                    child: TextFormField(
                       controller: _rfcController,
                       readOnly: true,
+                      style: const TextStyle(
+                          color: Color(0xFF2D6A4F),
+                          fontWeight: FontWeight.bold),
                       decoration: const InputDecoration(
                         labelText: 'RFC',
                         isDense: true,
                         border: OutlineInputBorder(),
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
                     ),
                   ),
@@ -512,16 +521,20 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                 color: Color(0xFFB7B7B7)),
                                           ),
                                         ),
-                                        child: TextField(
+                                        child: TextFormField(
                                           textAlign: TextAlign.center,
                                           decoration: const InputDecoration(
-                                            border: InputBorder.none,
+                                            border: OutlineInputBorder(),
                                             isDense: true,
                                             contentPadding:
                                                 EdgeInsets.symmetric(
                                                     vertical: 8, horizontal: 4),
+                                            fillColor: Colors.white,
+                                            filled: true,
                                           ),
-                                          style: const TextStyle(fontSize: 15),
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF2D6A4F)),
                                         ),
                                       ),
                                   ],
