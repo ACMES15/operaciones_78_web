@@ -5,43 +5,8 @@ import '../utils/firebase_cache_utils.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:universal_html/html.dart' as html;
 import 'hoja_de_ruta_extra_page.dart';
-
-/// Manager para historial de carta porte usando Firestore + caché
-class CartaPorteHistorialManager {
-  static const String coleccion = 'historial_carta_porte';
-
-  static Future<void> addCarta(Map<String, dynamic> carta) async {
-    final docId = carta['NUMERO_CONTROL'] ??
-        DateTime.now().millisecondsSinceEpoch.toString();
-    await guardarDatosFirestoreYCache(coleccion, docId, carta);
-  }
-
-  static Future<List<Map<String, dynamic>>> loadAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    final idsRaw = prefs.getString('${coleccion}_ids');
-    List<String> ids = [];
-    if (idsRaw != null) {
-      ids = List<String>.from(jsonDecode(idsRaw));
-    }
-    List<Map<String, dynamic>> cartas = [];
-    for (final id in ids) {
-      final data = await leerDatosConCache(coleccion, id);
-      if (data != null) cartas.add(data);
-    }
-    return cartas;
-  }
-
-  static Future<void> addCartaId(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final idsRaw = prefs.getString('${coleccion}_ids');
-    List<String> ids =
-        idsRaw != null ? List<String>.from(jsonDecode(idsRaw)) : [];
-    if (!ids.contains(id)) {
-      ids.add(id);
-      await prefs.setString('${coleccion}_ids', jsonEncode(ids));
-    }
-  }
-}
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math' as math;
 
 class CartaPorteTable extends StatefulWidget {
   const CartaPorteTable({super.key});
@@ -50,15 +15,16 @@ class CartaPorteTable extends StatefulWidget {
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
-  // --- CONTROLADORES Y ESTADO ---
+  // Campos ejecutivos principales
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _rfcController = TextEditingController();
   final TextEditingController _choferController = TextEditingController();
   final TextEditingController _unidadController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
-  List<Map<String, String>> _choferes = [];
+  List<Map<String, dynamic>> _choferes = [];
   int? _choferSeleccionado;
+  String? _numeroControlActual;
   late String _fechaActual;
-  late Future<void> _initFuture;
   final List<String> _columns = [
     'ESCANEO',
     'NO.',
@@ -66,240 +32,231 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     'SYS',
     'EMBARQUE',
     'DESCRIPCIÓN / COMENTARIOS',
-    'NO. BULTO',
+    'NO. DE BULTOS',
     'DESTINO',
     'CONTENEDOR',
     'EMBARQUE',
     'CONCENTRADO',
-  ];
-  final List<double> colWidths = [
-    80,
-    50,
-    60,
-    50,
-    120,
-    300,
-    80,
-    130,
-    120,
-    120,
-    120
+    // Agrega más columnas si es necesario
   ];
   List<List<TextEditingController>> _controllers = [];
-  final List<List<FocusNode>> _focusNodes = [];
-  String? _numeroControlActual;
+  List<List<FocusNode>> _focusNodes = [];
+  List<double> colWidths = [120, 60, 120, 120];
 
   @override
   void initState() {
     super.initState();
-    _initFuture = _initControllers();
-    final now = DateTime.now();
-    _fechaActual =
-        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-    _escucharChoferesRealtime();
+    _fechaActual = DateTime.now().toString().substring(0, 10);
+    // Inicializa controladores y focusNodes según sea necesario
   }
 
-  @override
-  void dispose() {
-    _rfcController.dispose();
-    _choferController.dispose();
-    _unidadController.dispose();
-    _destinoController.dispose();
-    for (var row in _controllers) {
-      for (var c in row) {
-        c.dispose();
-      }
-    }
-    for (var row in _focusNodes) {
-      for (var f in row) {
-        f.dispose();
-      }
-    }
-    super.dispose();
-  }
-
-  Future<void> _initControllers() async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    _controllers = List.generate(
-      5,
-      (_) => List.generate(_columns.length, (_) => TextEditingController()),
-    );
-    _focusNodes.clear();
-    _focusNodes.addAll(List.generate(
-      5,
-      (_) => List.generate(_columns.length, (_) => FocusNode()),
-    ));
-  }
-
-  void _escucharChoferesRealtime() {
-    // Inicial vacío, el usuario puede agregar choferes
-    _choferes = [];
-  }
-
-  Future<void> _mostrarDialogoChofer(BuildContext context) async {
-    final nombreController = TextEditingController();
-    final rfcController = TextEditingController();
-    final telController = TextEditingController();
-    final result = await showDialog<Map<String, String>>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Agregar Chofer'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              TextField(
-                controller: rfcController,
-                decoration: const InputDecoration(labelText: 'RFC'),
-              ),
-              TextField(
-                controller: telController,
-                decoration: const InputDecoration(labelText: 'Teléfono'),
-                keyboardType: TextInputType.phone,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (nombreController.text.isNotEmpty &&
-                    rfcController.text.isNotEmpty &&
-                    telController.text.isNotEmpty) {
-                  Navigator.of(context).pop({
-                    'nombre': nombreController.text,
-                    'rfc': rfcController.text,
-                    'telefono': telController.text,
-                  });
-                }
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        );
-      },
-    );
-    if (result != null) {
-      setState(() {
-        _choferes.add(result);
-      });
-    }
-  }
-
-  Future<void> _exportarExcel() async {
-    final excel = Excel.createExcel();
-    final sheet = excel['CartaPorte'];
-    final encabezados = [
-      'Fecha',
-      'Chofer',
-      'RFC',
-      'Unidad',
-      'Destino',
-      ..._columns
-    ];
-    sheet.appendRow(encabezados);
-    for (final rowCtrls in _controllers) {
-      final row = [
-        _fechaActual,
-        _choferController.text,
-        _rfcController.text,
-        _unidadController.text,
-        _destinoController.text,
-        ...rowCtrls.map((c) => c.text)
-      ];
-      if (rowCtrls.any((c) => c.text.trim().isNotEmpty)) {
-        sheet.appendRow(row);
-      }
-    }
-    final fileBytes = excel.encode()!;
-    final blob = html.Blob([fileBytes],
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', 'carta_porte.xlsx')
-      ..click();
-    html.Url.revokeObjectUrl(url);
-  }
-
-  Future<void> _guardarCartaPorteEnHistorial() async {
-    final rows = _controllers
-        .map((rowCtrls) => rowCtrls.map((c) => c.text).toList())
-        .toList();
-    final numero = _numeroControlActual ??
-        DateTime.now().millisecondsSinceEpoch.toString();
-    final carta = <String, dynamic>{
-      'NUMERO_CONTROL': numero,
+  Future<void> _guardarCartaPorte() async {
+    // Ejemplo de estructura de guardado
+    final data = {
+      'numero_control': _numeroControlActual,
       'fecha': _fechaActual,
       'chofer': _choferController.text,
       'rfc': _rfcController.text,
       'unidad': _unidadController.text,
       'destino': _destinoController.text,
-      'rows': rows,
+      'filas':
+          _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+      'timestamp': FieldValue.serverTimestamp(),
     };
-    await CartaPorteHistorialManager.addCarta(carta);
-    await CartaPorteHistorialManager.addCartaId(numero);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Carta porte guardada correctamente'),
-          backgroundColor: Colors.green),
-    );
-    setState(() {
-      _numeroControlActual = null;
-      _choferController.clear();
-      _rfcController.clear();
-      _unidadController.clear();
-      _destinoController.clear();
-      _controllers = List.generate(
-          5,
-          (_) =>
-              List.generate(_columns.length, (_) => TextEditingController()));
-      _focusNodes.clear();
-      _focusNodes.addAll(List.generate(
-          5, (_) => List.generate(_columns.length, (_) => FocusNode())));
-    });
+    await FirebaseFirestore.instance.collection('cartas_porte').add(data);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Carta Porte guardada')));
   }
 
-  Future<String> _generarNumeroDeControl() async {
-    final lista = await CartaPorteHistorialManager.loadAll();
-    final RegExp exp = RegExp(r'^0078-CP-(\d{3})$');
-    int maxNum = 0;
-    for (final carta in lista) {
-      final numCtrl = carta['NUMERO_CONTROL']?.toString() ?? '';
-      final match = exp.firstMatch(numCtrl);
-      if (match != null) {
-        final num = int.tryParse(match.group(1) ?? '0') ?? 0;
-        if (num > maxNum) maxNum = num;
+  Future<void> _generarNumeroControl() async {
+    // Obtener el último número guardado en Firestore
+    final snapshot = await FirebaseFirestore.instance
+        .collection('cartas_porte')
+        .orderBy('numero_control', descending: true)
+        .limit(1)
+        .get();
+    int next = 1;
+    if (snapshot.docs.isNotEmpty) {
+      final last = snapshot.docs.first['numero_control'] as String?;
+      if (last != null && last.startsWith('0078-CP-')) {
+        final numStr = last.substring(8);
+        final num = int.tryParse(numStr) ?? 0;
+        next = num + 1;
       }
     }
-    final siguiente = maxNum + 1;
-    final nuevoNum = '0078-CP-${siguiente.toString().padLeft(3, '0')}';
-    return nuevoNum;
+    _numeroControlActual = '0078-CP-${next.toString().padLeft(3, '0')}';
+    setState(() {});
+  }
+
+  Future<void> _exportarExcel() async {
+    final excel = Excel.createExcel();
+    final sheet = excel['Carta Porte'];
+    // Escribir encabezados
+    sheet.appendRow(_columns);
+    // Escribir filas
+    for (var row in _controllers) {
+      sheet.appendRow(row.map((c) => c.text).toList());
+    }
+    final bytes = excel.encode();
+    if (bytes != null) {
+      final blob = html.Blob([bytes],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download',
+            'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
+  Future<void> _mostrarDialogoChoferes() async {
+    TextEditingController nombreController = TextEditingController();
+    TextEditingController rfcController = TextEditingController();
+    TextEditingController telController = TextEditingController();
+    int? editIndex;
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Gestionar Choferes'),
+              content: SizedBox(
+                width: 350,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('choferes')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final choferes = snapshot.data?.docs ?? [];
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int i = 0; i < choferes.length; i++)
+                          ListTile(
+                            title: Text(choferes[i]['nombre'] ?? ''),
+                            subtitle: Text(
+                                '${choferes[i]['rfc'] ?? ''} | ${choferes[i]['telefono'] ?? ''}'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit,
+                                      color: Colors.blue),
+                                  onPressed: () {
+                                    nombreController.text =
+                                        choferes[i]['nombre'] ?? '';
+                                    rfcController.text =
+                                        choferes[i]['rfc'] ?? '';
+                                    telController.text =
+                                        choferes[i]['telefono'] ?? '';
+                                    editIndex = i;
+                                    setStateDialog(() {});
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
+                                  onPressed: () async {
+                                    await FirebaseFirestore.instance
+                                        .collection('choferes')
+                                        .doc(choferes[i].id)
+                                        .delete();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        const Divider(),
+                        TextField(
+                          controller: nombreController,
+                          decoration:
+                              const InputDecoration(labelText: 'Nombre'),
+                        ),
+                        TextField(
+                          controller: rfcController,
+                          decoration: const InputDecoration(labelText: 'RFC'),
+                        ),
+                        TextField(
+                          controller: telController,
+                          decoration:
+                              const InputDecoration(labelText: 'Teléfono'),
+                          keyboardType: TextInputType.phone,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final nombre = nombreController.text.trim();
+                    final rfc = rfcController.text.trim();
+                    final tel = telController.text.trim();
+                    if (nombre.isEmpty || rfc.isEmpty || tel.isEmpty) return;
+                    if (editIndex != null) {
+                      // Editar chofer
+                      final snapshot = await FirebaseFirestore.instance
+                          .collection('choferes')
+                          .get();
+                      final docId = snapshot.docs[editIndex!].id;
+                      await FirebaseFirestore.instance
+                          .collection('choferes')
+                          .doc(docId)
+                          .update({
+                        'nombre': nombre,
+                        'rfc': rfc,
+                        'telefono': tel,
+                      });
+                    } else {
+                      // Agregar nuevo chofer
+                      await FirebaseFirestore.instance
+                          .collection('choferes')
+                          .add({
+                        'nombre': nombre,
+                        'rfc': rfc,
+                        'telefono': tel,
+                      });
+                    }
+                    nombreController.clear();
+                    rfcController.clear();
+                    telController.clear();
+                    editIndex = null;
+                    setStateDialog(() {});
+                  },
+                  child: Text(editIndex != null ? 'Actualizar' : 'Agregar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 2,
+        iconTheme: const IconThemeData(color: Colors.white),
         title: Row(
           children: [
-            Icon(Icons.local_shipping, color: Color(0xFF2D6A4F), size: 32),
+            const Icon(Icons.local_shipping, color: Colors.white, size: 32),
             const SizedBox(width: 10),
             const Text(
               'Carta Porte',
               style: TextStyle(
-                color: Color(0xFF2D6A4F),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 22,
               ),
@@ -310,295 +267,113 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           IconButton(
             icon: const Icon(Icons.download),
             tooltip: 'Exportar a Excel',
+            color: Colors.white,
             onPressed: _exportarExcel,
+          ),
+          IconButton(
+            icon: const Icon(Icons.people),
+            tooltip: 'Choferes',
+            color: Colors.white,
+            onPressed: _mostrarDialogoChoferes,
           ),
         ],
       ),
-      body: FutureBuilder<void>(
-        future: _initFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Cargando carta porte...',
-                      style: TextStyle(fontSize: 16)),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Encabezado ejecutivo
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D6A4F),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
                 ],
               ),
-            );
-          }
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Botones superiores
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.save),
-                      label: const Text('Guardar'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF2D6A4F),
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: _guardarCartaPorteEnHistorial,
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.add),
-                      label: const Text('Agregar fila'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF2D6A4F),
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _controllers.add(List.generate(
-                              _columns.length, (_) => TextEditingController()));
-                          _focusNodes.add(List.generate(
-                              _columns.length, (_) => FocusNode()));
-                        });
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.confirmation_number),
-                      label: const Text('Generar número de control'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF2D6A4F),
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () async {
-                        final nuevoNum = await _generarNumeroDeControl();
-                        setState(() {
-                          _numeroControlActual = nuevoNum;
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content:
-                                Text('Número de control generado: $nuevoNum'),
-                            backgroundColor: Colors.blue,
-                          ),
-                        );
-                      },
-                    ),
-                    const Spacer(),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.person),
-                      label: const Text('Datos de Chofer'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xFF2D6A4F),
-                        foregroundColor: Colors.white,
-                      ),
-                      onPressed: () {
-                        _mostrarDialogoChofer(context);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // Encabezado superior editable
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Columna izquierda: Origen y Destino
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('78 GALERIAS GDL',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Text('DESTINO:',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 180,
-                              child: TextField(
-                                controller: _destinoController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Destino',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 8),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            if (_numeroControlActual != null)
-                              ConstrainedBox(
-                                constraints:
-                                    const BoxConstraints(maxWidth: 200),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Color(0xFFB7E4C7),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border:
-                                        Border.all(color: Color(0xFF2D6A4F)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.confirmation_number,
-                                          size: 18, color: Color(0xFF2D6A4F)),
-                                      const SizedBox(width: 6),
-                                      Flexible(
-                                        child: Text(
-                                          _numeroControlActual!,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF2D6A4F)),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            const Text('CHOFER:',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 200,
-                              child: DropdownButtonFormField<int>(
-                                value: _choferSeleccionado,
-                                items: [
-                                  for (int i = 0; i < _choferes.length; i++)
-                                    DropdownMenuItem(
-                                      value: i,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(_choferes[i]['nombre'] ?? '',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold)),
-                                          Text(_choferes[i]['rfc'] ?? '',
-                                              style: const TextStyle(
-                                                  fontSize: 12)),
-                                          Text(_choferes[i]['telefono'] ?? '',
-                                              style: const TextStyle(
-                                                  fontSize: 12)),
-                                        ],
-                                      ),
-                                    ),
-                                ],
-                                onChanged: (val) {
-                                  setState(() {
-                                    _choferSeleccionado = val;
-                                    if (val != null) {
-                                      _choferController.text =
-                                          _choferes[val]['nombre'] ?? '';
-                                      _rfcController.text =
-                                          _choferes[val]['rfc'] ?? '';
-                                    } else {
-                                      _choferController.text = '';
-                                      _rfcController.text = '';
-                                    }
-                                  });
-                                },
-                                decoration: const InputDecoration(
-                                  hintText: 'Chofer',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 8),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Text('UNIDAD:',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 120,
-                              child: TextField(
-                                controller: _unidadController,
-                                decoration: const InputDecoration(
-                                  hintText: 'Unidad',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 8),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Text('RFC:',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(width: 8),
-                            SizedBox(
-                              width: 150,
-                              child: TextField(
-                                controller: _rfcController,
-                                readOnly: true,
-                                decoration: const InputDecoration(
-                                  hintText: 'RFC',
-                                  isDense: true,
-                                  border: OutlineInputBorder(),
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Centro: Título
-                    Expanded(
-                      flex: 2,
-                      child: Center(
-                        child: Text(
-                          'HOJA DE RUTA - ENVÍO MERCANCÍA',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 20),
-                        ),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text('78 GALERIAS GDL',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                          letterSpacing: 1.1)),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 180,
+                    child: TextFormField(
+                      controller: _destinoController,
+                      style: const TextStyle(
+                          color: Color(0xFF2D6A4F),
+                          fontWeight: FontWeight.bold),
+                      decoration: const InputDecoration(
+                        labelText: 'Destino',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        fillColor: Colors.white,
+                        filled: true,
                       ),
                     ),
-                    const Spacer(),
-                    // Derecha: Fecha
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        const SizedBox(height: 2),
-                        Text(_fechaActual,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 18)),
-                      ],
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 120,
+                    child: TextField(
+                      controller: _unidadController,
+                      decoration: const InputDecoration(
+                        labelText: 'Unidad',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                // Tabla de carta porte
-                Container(
-                  constraints: const BoxConstraints(minHeight: 400),
-                  color: Colors.white,
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: colWidths.reduce((a, b) => a + b) + 40,
-                        child: Column(
-                          children: [
-                            // Encabezado
-                            Row(
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 150,
+                    child: TextField(
+                      controller: _rfcController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'RFC',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  Text(_fechaActual,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Tabla ejecutiva
+            Expanded(
+              child: Container(
+                color: Colors.white,
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width: colWidths.reduce((a, b) => a + b) + 40,
+                      child: Column(
+                        children: [
+                          // Sticky header
+                          Material(
+                            elevation: 2,
+                            color: const Color(0xFF2D6A4F),
+                            child: Row(
                               children: [
                                 for (int i = 0; i < _columns.length; i++)
                                   Container(
@@ -606,8 +381,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                     alignment: Alignment.center,
                                     padding: const EdgeInsets.symmetric(
                                         vertical: 14, horizontal: 8),
-                                    decoration: const BoxDecoration(
-                                        color: Color(0xFF2D6A4F)),
                                     child: Text(
                                       _columns[i],
                                       style: const TextStyle(
@@ -621,263 +394,91 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                   ),
                               ],
                             ),
-                            // Filas
-                            for (int rowIdx = 0;
-                                rowIdx <
-                                    (_controllers.length < 5
-                                        ? 5
-                                        : _controllers.length);
-                                rowIdx++)
-                              Row(
-                                children: [
-                                  for (int colIdx = 0;
-                                      colIdx < _columns.length;
-                                      colIdx++)
-                                    Container(
-                                      width: colWidths[colIdx],
-                                      alignment: Alignment.center,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 8, horizontal: 8),
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          bottom: BorderSide(
-                                              width: 0.7,
-                                              color: Colors.grey.shade400),
-                                          right: const BorderSide(
-                                              width: 1,
-                                              color: Color(0xFFB7B7B7)),
+                          ),
+                          // Filas vacías para ejemplo
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: 5,
+                              itemBuilder: (context, rowIdx) {
+                                return Row(
+                                  children: [
+                                    for (int colIdx = 0;
+                                        colIdx < _columns.length;
+                                        colIdx++)
+                                      Container(
+                                        width: colWidths[colIdx],
+                                        alignment: Alignment.center,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 8),
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            bottom: BorderSide(
+                                                width: 0.7,
+                                                color: Colors.grey.shade400),
+                                            right: const BorderSide(
+                                                width: 1,
+                                                color: Color(0xFFB7B7B7)),
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          textAlign: TextAlign.center,
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 4),
+                                          ),
+                                          style: const TextStyle(fontSize: 15),
                                         ),
                                       ),
-                                      child: colIdx == 1
-                                          ? Text((rowIdx + 1).toString(),
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.bold))
-                                          : colIdx == 0
-                                              ? TextField(
-                                                  controller: rowIdx <
-                                                          _controllers.length
-                                                      ? _controllers[rowIdx]
-                                                          [colIdx]
-                                                      : null,
-                                                  focusNode: rowIdx <
-                                                          _focusNodes.length
-                                                      ? _focusNodes[rowIdx]
-                                                          [colIdx]
-                                                      : null,
-                                                  textAlign: TextAlign.center,
-                                                  decoration:
-                                                      const InputDecoration(
-                                                    border: InputBorder.none,
-                                                    isDense: true,
-                                                    contentPadding:
-                                                        EdgeInsets.symmetric(
-                                                            vertical: 8,
-                                                            horizontal: 4),
-                                                  ),
-                                                  style: const TextStyle(
-                                                      fontSize: 15),
-                                                  onSubmitted: (value) async {
-                                                    // ESCANEO automático: buscar en historial XD y hoja de ruta enviada
-                                                    final dataXD =
-                                                        await leerDatosConCache(
-                                                            'hoja_de_xd_historial',
-                                                            'main');
-                                                    List<dynamic> historialXD =
-                                                        [];
-                                                    if (dataXD != null &&
-                                                        dataXD['historial'] !=
-                                                            null) {
-                                                      historialXD =
-                                                          List<dynamic>.from(
-                                                              dataXD[
-                                                                  'historial']);
-                                                    }
-                                                    Map<String, dynamic>?
-                                                        xdReciente;
-                                                    DateTime? fechaXD;
-                                                    for (final h
-                                                        in historialXD) {
-                                                      final datos = h['datos']
-                                                          as Map<String,
-                                                              dynamic>?;
-                                                      if (datos != null &&
-                                                          (datos['CONTENEDOR O TARIMA'] !=
-                                                                  null &&
-                                                              datos['CONTENEDOR O TARIMA']
-                                                                      .toString()
-                                                                      .trim() ==
-                                                                  value
-                                                                      .trim())) {
-                                                        final fecha =
-                                                            DateTime.tryParse(
-                                                                h['fecha'] ??
-                                                                    '');
-                                                        if (fechaXD == null ||
-                                                            (fecha != null &&
-                                                                fecha.isAfter(
-                                                                    fechaXD))) {
-                                                          xdReciente = h;
-                                                          fechaXD = fecha;
-                                                        }
-                                                      }
-                                                    }
-                                                    await HojaDeRutaExtraPage
-                                                        .loadSentHojaRutasCache();
-                                                    final hojaList = HojaDeRutaExtraPage
-                                                        .sentHojaRutas
-                                                        .where((h) => (h[
-                                                                    'caja'] !=
-                                                                null &&
-                                                            h['caja']
-                                                                    .toString()
-                                                                    .trim() ==
-                                                                value.trim()))
-                                                        .toList();
-                                                    Map<String, dynamic>?
-                                                        hojaReciente;
-                                                    DateTime? fechaHoja;
-                                                    for (final h in hojaList) {
-                                                      final fecha =
-                                                          DateTime.tryParse(
-                                                              h['createdAt'] ??
-                                                                  '');
-                                                      if (fechaHoja == null ||
-                                                          (fecha != null &&
-                                                              fecha.isAfter(
-                                                                  fechaHoja))) {
-                                                        hojaReciente = h;
-                                                        fechaHoja = fecha;
-                                                      }
-                                                    }
-                                                    bool usarXD = false;
-                                                    if (xdReciente != null &&
-                                                        hojaReciente != null) {
-                                                      usarXD = fechaXD !=
-                                                              null &&
-                                                          fechaHoja != null &&
-                                                          fechaXD.isAfter(
-                                                              fechaHoja);
-                                                    } else if (xdReciente !=
-                                                        null) {
-                                                      usarXD = true;
-                                                    }
-                                                    setState(() {
-                                                      if (usarXD &&
-                                                          xdReciente != null) {
-                                                        final datos =
-                                                            xdReciente['datos']
-                                                                as Map<String,
-                                                                    dynamic>?;
-                                                        _controllers[rowIdx][2]
-                                                                .text =
-                                                            datos?['TIPO'] ??
-                                                                '';
-                                                        _controllers[rowIdx][3]
-                                                                .text =
-                                                            datos?['SYS'] ?? '';
-                                                        _controllers[rowIdx][4]
-                                                                .text =
-                                                            datos?['TU'] ?? '';
-                                                        _controllers[rowIdx][5]
-                                                            .text = datos?[
-                                                                'MANIFIESTO'] ??
-                                                            '';
-                                                        _controllers[rowIdx][6]
-                                                            .text = datos?[
-                                                                'CANTIDAD DE LPS'] ??
-                                                            '';
-                                                        _controllers[rowIdx][7]
-                                                                .text =
-                                                            datos?['DESTINO'] ??
-                                                                '';
-                                                        _controllers[rowIdx][8]
-                                                            .text = value;
-                                                      } else if (hojaReciente !=
-                                                          null) {
-                                                        _controllers[rowIdx][2]
-                                                            .text = hojaReciente[
-                                                                    'tipo']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][3]
-                                                            .text = hojaReciente[
-                                                                    'tipo']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][4]
-                                                            .text = hojaReciente[
-                                                                    'manifiesto']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][5]
-                                                            .text = hojaReciente[
-                                                                    'tipo']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][6]
-                                                            .text = hojaReciente[
-                                                                    'bultos']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][7]
-                                                            .text = hojaReciente[
-                                                                    'destino']
-                                                                ?.toString() ??
-                                                            '';
-                                                        _controllers[rowIdx][8]
-                                                            .text = value;
-                                                      } else {
-                                                        for (int i = 2;
-                                                            i < _columns.length;
-                                                            i++) {
-                                                          _controllers[rowIdx]
-                                                                  [i]
-                                                              .text = '';
-                                                        }
-                                                      }
-                                                    });
-                                                  },
-                                                )
-                                              : TextField(
-                                                  controller: rowIdx <
-                                                          _controllers.length
-                                                      ? _controllers[rowIdx]
-                                                          [colIdx]
-                                                      : null,
-                                                  focusNode: rowIdx <
-                                                          _focusNodes.length
-                                                      ? _focusNodes[rowIdx]
-                                                          [colIdx]
-                                                      : null,
-                                                  textAlign: TextAlign.center,
-                                                  decoration:
-                                                      const InputDecoration(
-                                                    border: InputBorder.none,
-                                                    isDense: true,
-                                                    contentPadding:
-                                                        EdgeInsets.symmetric(
-                                                            vertical: 8,
-                                                            horizontal: 4),
-                                                  ),
-                                                  style: const TextStyle(
-                                                      fontSize: 15),
-                                                ),
-                                    ),
-                                ],
-                              ),
-                          ],
-                        ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.confirmation_number),
+                  label: const Text('Número de Control'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF1B4332)),
+                  onPressed: _generarNumeroControl,
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF40916C)),
+                  onPressed: _guardarCartaPorte,
+                ),
               ],
             ),
-          );
-        },
+            if (_numeroControlActual != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                child: Text(
+                  'Número de Control: $_numeroControlActual',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF1B4332)),
+                ),
+              ),
+            const SizedBox(height: 10),
+          ],
+        ),
       ),
     );
   }
-// ...el resto del código ya está limpio y funcional...
 }
