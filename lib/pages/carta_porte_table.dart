@@ -6,23 +6,19 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' hide Border;
 import 'package:universal_html/html.dart' as html;
 import 'hoja_de_ruta_extra_page.dart';
-// import 'hoja_de_xd_historial_page.dart';
 import '../models/hoja_de_xd_historial.dart';
 
 /// Manager para historial de carta porte usando Firestore + caché
 class CartaPorteHistorialManager {
   static const String coleccion = 'historial_carta_porte';
 
-  /// Agrega una carta al historial (Firestore + caché)
   static Future<void> addCarta(Map<String, dynamic> carta) async {
     final docId = carta['NUMERO_CONTROL'] ??
         DateTime.now().millisecondsSinceEpoch.toString();
     await guardarDatosFirestoreYCache(coleccion, docId, carta);
   }
 
-  /// Carga todas las cartas del historial (solo caché, si no hay, busca en Firestore y cachea)
   static Future<List<Map<String, dynamic>>> loadAll() async {
-    // Para mantener compatibilidad, podrías guardar una lista de IDs en caché
     final prefs = await SharedPreferences.getInstance();
     final idsRaw = prefs.getString('${coleccion}_ids');
     List<String> ids = [];
@@ -37,7 +33,6 @@ class CartaPorteHistorialManager {
     return cartas;
   }
 
-  /// Guarda el ID de la carta en la lista de historial
   static Future<void> addCartaId(String id) async {
     final prefs = await SharedPreferences.getInstance();
     final idsRaw = prefs.getString('${coleccion}_ids');
@@ -50,117 +45,85 @@ class CartaPorteHistorialManager {
   }
 }
 
-String? _numeroControlActual;
-
-// Genera el siguiente número de control único y consecutivo basado en historial
-Future<String> _generarNumeroDeControl() async {
-  // Cargar historial desde Firestore para evitar repeticiones
-  final snapshot = await FirebaseFirestore.instance
-      .collection('historial_carta_porte')
-      .orderBy('createdAt', descending: true)
-      .limit(1)
-      .get();
-  int maxNum = 0;
-  if (snapshot.docs.isNotEmpty) {
-    final last = snapshot.docs.first.data();
-    final lastNum = (last['NUMERO_CONTROL'] ?? '').toString();
-    if (lastNum.startsWith('0078-CP-')) {
-      final numStr = lastNum.replaceFirst('0078-CP-', '');
-      final num = int.tryParse(numStr);
-      if (num != null && num > maxNum) maxNum = num;
-    }
-  }
-  return '0078-CP-${(maxNum + 1).toString().padLeft(2, '0')}';
-}
-
 class CartaPorteTable extends StatefulWidget {
   const CartaPorteTable({super.key});
-
   @override
   State<CartaPorteTable> createState() => _CartaPorteTableState();
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
-  // Guardar carta porte en historial (Firestore + caché)
-  Future<void> _guardarCartaPorteEnHistorial() async {
-    try {
-      if (_numeroControlActual == null) {
-        _numeroControlActual = await _generarNumeroDeControl();
-      }
-      final Map<String, dynamic> carta = {
-        'NUMERO_CONTROL': _numeroControlActual,
-        'DESTINO': _destinoController.text.trim(),
-        'CHOFER': _choferController.text.trim(),
-        'UNIDAD': _unidadController.text.trim(),
-        'RFC': _rfcController.text.trim(),
-        'FECHA': _fechaActual,
-        'CONCENTRADO': _controllers.isNotEmpty && _controllers[0].length > 10
-            ? _controllers[0][10].text.trim()
-            : '',
-        'COLUMNS': _columns,
-        'TABLE': _controllers.map((row) {
-          final map = <String, dynamic>{};
-          for (int i = 0; i < _columns.length; i++) {
-            map[_columns[i]] = row[i].text;
-          }
-          return map;
-        }).toList(),
-        'createdAt': DateTime.now().toIso8601String(),
-      };
-      await CartaPorteHistorialManager.addCarta(carta);
-      await CartaPorteHistorialManager.addCartaId(_numeroControlActual!);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Carta porte guardada en historial. Número de control: ${_numeroControlActual ?? ''}'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      setState(() {
-        _numeroControlActual = null;
-        // Limpiar campos principales
-        _choferController.clear();
-        _unidadController.clear();
-        _destinoController.clear();
-        _rfcController.clear();
-        _choferSeleccionado = null;
-        // Limpiar tabla
-        for (var row in _controllers) {
-          for (var c in row) {
-            c.clear();
-          }
-        }
-      });
-    } on FirebaseException catch (e) {
-      String msg = 'Error de Firebase: ';
-      if (e.code == 'permission-denied') {
-        msg += 'Permisos insuficientes para guardar en Firestore.';
-      } else if (e.code == 'unavailable') {
-        msg += 'No hay conexión con el servidor de Firestore.';
-      } else {
-        msg += e.message ?? e.code;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error inesperado al guardar en historial: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   final TextEditingController _rfcController = TextEditingController();
+  final TextEditingController _choferController = TextEditingController();
+  final TextEditingController _unidadController = TextEditingController();
+  final TextEditingController _destinoController = TextEditingController();
   List<Map<String, String>> _choferes = [];
   int? _choferSeleccionado;
+  late String _fechaActual;
+  late Future<void> _initFuture;
+  final List<String> _columns = [
+    'ESCANEO',
+    'NO.',
+    'TIPO',
+    'SYS',
+    'EMBARQUE',
+    'DESCRIPCIÓN / COMENTARIOS',
+    'NO. BULTO',
+    'DESTINO',
+    'CONTENEDOR',
+    'EMBARQUE',
+    'CONCENTRADO',
+  ];
 
-  // Cargar choferes en tiempo real desde Firestore
+  // Ancho fijo para cada columna (debe tener la misma longitud que _columns)
+  final List<double> colWidths = [
+    80, // ESCANEO
+    50, // NO.
+    60, // TIPO
+    50, // SYS
+    120, // EMBARQUE (primero)
+    300, // DESCRIPCIÓN / COMENTARIOS
+    80, // NO. BULTO
+    130, // DESTINO
+    120, // CONTENEDOR
+    120, // EMBARQUE (segundo)
+    120, // CONCENTRADO
+  ];
+
+  // Margin usado en varios paddings de la UI
+  final double horizontalMargin = 24.0;
+  List<List<TextEditingController>> _controllers = [];
+  final List<List<FocusNode>> _focusNodes = [];
+  String? _numeroControlActual;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFuture = _initControllers();
+    final now = DateTime.now();
+    _fechaActual =
+        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
+    _escucharChoferesRealtime();
+  }
+
+  @override
+  void dispose() {
+    _rfcController.dispose();
+    _choferController.dispose();
+    _unidadController.dispose();
+    _destinoController.dispose();
+    for (var row in _controllers) {
+      for (var c in row) {
+        c.dispose();
+      }
+    }
+    for (var row in _focusNodes) {
+      for (var f in row) {
+        f.dispose();
+      }
+    }
+    super.dispose();
+  }
+
   void _escucharChoferesRealtime() {
     FirebaseFirestore.instance
         .collection('choferes')
@@ -180,24 +143,25 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     });
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initFuture = _initControllers();
-    final now = DateTime.now();
-    _fechaActual =
-        "${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}";
-    _escucharChoferesRealtime();
+  Future<void> _initControllers() async {
+    await Future.delayed(const Duration(milliseconds: 600));
+    _controllers = List.generate(
+      5,
+      (_) => List.generate(_columns.length, (_) => TextEditingController()),
+    );
+    _focusNodes.clear();
+    _focusNodes.addAll(List.generate(
+      5,
+      (_) => List.generate(_columns.length, (_) => FocusNode()),
+    ));
   }
 
   Future<void> _guardarChoferes() async {
-    // Guardar en Firestore y en caché local
     final Map<String, dynamic> data = {'items': _choferes};
     await guardarDatosFirestoreYCache('choferes', 'main', data);
   }
 
   void _mostrarDialogoChoferes() async {
-    // Ya no es necesario cargar choferes manualmente, se sincronizan en tiempo real
     showDialog(
       context: context,
       builder: (context) {
@@ -330,11 +294,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     );
   }
 
-  // Exportar a Excel
   Future<void> _exportarExcel() async {
     final excel = Excel.createExcel();
     final sheet = excel['CartaPorte'];
-    // Encabezados personalizados (agregar RFC después de Chofer)
     final encabezados = [
       'Fecha',
       'Chofer',
@@ -353,7 +315,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         _destinoController.text,
         ...rowCtrls.map((c) => c.text)
       ];
-      // Solo exportar filas con algún dato
       if (rowCtrls.any((c) => c.text.trim().isNotEmpty)) {
         sheet.appendRow(row);
       }
@@ -368,127 +329,57 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     html.Url.revokeObjectUrl(url);
   }
 
-  final List<String> _columns = [
-    'ESCANEO',
-    'NO.',
-    'TIPO',
-    'SYS',
-    'EMBARQUE',
-    'DESCRIPCIÓN / COMENTARIOS',
-    'NO. BULTO',
-    'DESTINO',
-    'CONTENEDOR',
-    'EMBARQUE',
-    'CONCENTRADO',
-  ];
-
-  List<List<TextEditingController>> _controllers = [];
-  final List<List<FocusNode>> _focusNodes = [];
-  late Future<void> _initFuture;
-
-  // Controladores para encabezados editables
-  final TextEditingController _choferController = TextEditingController();
-  final TextEditingController _unidadController = TextEditingController();
-  final TextEditingController _destinoController = TextEditingController();
-  late String _fechaActual;
-
-  Future<void> _initControllers() async {
-    // Simula carga y reduce filas iniciales a 5 para evitar congelamiento
-    await Future.delayed(const Duration(milliseconds: 600));
-    _controllers = List.generate(
-      5,
-      (_) => List.generate(_columns.length, (_) => TextEditingController()),
+  Future<void> _guardarCartaPorteEnHistorial() async {
+    final rows = _controllers
+        .map((rowCtrls) => rowCtrls.map((c) => c.text).toList())
+        .toList();
+    final numero = _numeroControlActual ??
+        DateTime.now().millisecondsSinceEpoch.toString();
+    final carta = <String, dynamic>{
+      'NUMERO_CONTROL': numero,
+      'fecha': _fechaActual,
+      'chofer': _choferController.text,
+      'rfc': _rfcController.text,
+      'unidad': _unidadController.text,
+      'destino': _destinoController.text,
+      'rows': rows,
+    };
+    await CartaPorteHistorialManager.addCarta(carta);
+    await CartaPorteHistorialManager.addCartaId(numero);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Carta porte guardada correctamente'),
+          backgroundColor: Colors.green),
     );
-    _focusNodes.clear();
-    _focusNodes.addAll(List.generate(
-      5,
-      (_) => List.generate(_columns.length, (_) => FocusNode()),
-    ));
   }
 
-  @override
-  void dispose() {
-    _rfcController.dispose();
-    for (var row in _controllers) {
-      for (var c in row) {
-        c.dispose();
+  Future<String> _generarNumeroDeControl() async {
+    // Genera un número de control único usando timestamp; si ya existe en historial añade sufijo
+    final nuevo = DateTime.now().millisecondsSinceEpoch.toString();
+    try {
+      final lista = await CartaPorteHistorialManager.loadAll();
+      final exists = lista.any((c) => c['NUMERO_CONTROL'] == nuevo);
+      if (exists) {
+        return '${nuevo}_${DateTime.now().microsecondsSinceEpoch}';
       }
-    }
-    for (var row in _focusNodes) {
-      for (var f in row) {
-        f.dispose();
-      }
-    }
-    _choferController.dispose();
-    _unidadController.dispose();
-    _destinoController.dispose();
-    super.dispose();
+    } catch (_) {}
+    return nuevo;
   }
 
   @override
   Widget build(BuildContext context) {
-    // Ya no es necesario cargar choferes manualmente, se sincronizan en tiempo real
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final double horizontalMargin = 24.0;
-    // Ajuste: todos los encabezados visibles en pantalla
-    final double minColWidth = 70.0;
-    final double maxColWidth = 160.0;
-    final double descColWidth = 170.0;
-    final double totalWidth = screenWidth - horizontalMargin * 2;
-    // ESCANEO y NO. fijos, DESCRIPCIÓN ancho especial, el resto proporcional
-    final List<double> colWidths = [];
-    double usedWidth = 0;
-    for (int i = 0; i < _columns.length; i++) {
-      if (i == 0 || i == 1) {
-        colWidths.add(minColWidth);
-        usedWidth += minColWidth;
-      } else if (_columns[i] == 'DESCRIPCIÓN / COMENTARIOS') {
-        colWidths.add(descColWidth);
-        usedWidth += descColWidth;
-      } else {
-        // Se reparte el resto del ancho entre las columnas restantes
-        colWidths.add(0); // Placeholder, se ajusta después
-      }
-    }
-    // Calcular ancho para las columnas restantes
-    int restantes = colWidths.where((w) => w == 0).length;
-    double restantePorCol =
-        ((totalWidth - usedWidth) / restantes).clamp(minColWidth, maxColWidth);
-    for (int i = 0; i < colWidths.length; i++) {
-      if (colWidths[i] == 0) {
-        colWidths[i] = restantePorCol;
-      }
-    }
-
-    return FutureBuilder<void>(
-      future: _initFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        // UI principal
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('HOJA DE RUTA - ENVÍO MERCANCÍA'),
+        backgroundColor: Color(0xFF2D6A4F),
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding:
+            EdgeInsets.symmetric(vertical: 8.0, horizontal: horizontalMargin),
+        child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.assignment,
-                      color: Color(0xFF2D6A4F), size: 32),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Carta Porte',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 26,
-                      color: Color(0xFF2D6A4F),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             // Botones superiores: Guardar, Agregar fila, Generar número de control, Exportar a Excel, Datos de Chofer
             Padding(
               padding:
@@ -739,7 +630,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                 ],
               ),
             ),
-            // ... (eliminar botón duplicado de exportar a Excel)
             // Tabla con encabezado sticky y filas como Row
             Padding(
               padding: EdgeInsets.symmetric(horizontal: horizontalMargin),
@@ -1258,8 +1148,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             ),
             // ... (botones inferiores eliminados, ya están arriba)
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
