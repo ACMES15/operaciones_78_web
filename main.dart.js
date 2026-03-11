@@ -102786,10 +102786,7 @@ A.axc.prototype={
 $2(a,b){return b.b.by(0,a.b)},
 $S:609}
 A.axd.prototype={
-$1(a){var s=J.P(a,"caja")
-if(s==null)s=null
-else s=B.o.au(J.a3(s))
-return s===B.o.au(this.a)},
+$1(a){return B.o.au(J.a3(J.P(a,"caja")))===B.o.au(this.a)},
 $S:12}
 A.axe.prototype={
 $2(a,b){var s,r,q="createdAt",p=J.P(a,q)

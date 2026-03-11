@@ -833,8 +833,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                                 .sentHojaRutas
                                                                 .where((h) =>
                                                                     h['caja']
-                                                                        ?.toString()
-                                                                        ?.trim() ==
+                                                                        .toString()
+                                                                        .trim() ==
                                                                     value
                                                                         .trim())
                                                                 .toList();
