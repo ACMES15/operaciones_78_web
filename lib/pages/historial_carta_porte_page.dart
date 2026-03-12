@@ -101,11 +101,19 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Historial Carta Porte'),
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        leading: const Icon(Icons.local_shipping, color: Color(0xFF2D6A4F)),
+        title: const Text(
+          'Historial Carta Porte',
+          style: TextStyle(
+            color: Color(0xFF2D6A4F),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.file_download),
+            icon: const Icon(Icons.file_download, color: Color(0xFF2D6A4F)),
             tooltip: 'Exportar a Excel',
             onPressed: () async {
               // Aquí se llamaría a exportarAExcel con los datos reales
@@ -113,6 +121,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
             },
           ),
         ],
+        iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),

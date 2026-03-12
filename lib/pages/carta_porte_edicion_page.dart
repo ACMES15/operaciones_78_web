@@ -9,6 +9,7 @@ class CartaPorteEdicionPage extends StatefulWidget {
       : super(key: key);
 
   @override
+  @override
   State<CartaPorteEdicionPage> createState() => _CartaPorteEdicionPageState();
 }
 
@@ -20,6 +21,8 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
   late TextEditingController rfcController;
   late TextEditingController unidadController;
   List<Map<String, dynamic>> filas = [];
+  List<Map<String, dynamic>> choferes = [];
+  String? choferSeleccionado;
 
   @override
   void initState() {
@@ -38,6 +41,22 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
     if (rawFilas is List) {
       filas = rawFilas.map((e) => Map<String, dynamic>.from(e)).toList();
     }
+    choferSeleccionado = widget.carta['chofer'];
+    _cargarChoferes();
+  }
+
+  Future<void> _cargarChoferes() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('choferes').get();
+    setState(() {
+      choferes = snapshot.docs.map((d) {
+        final data = d.data();
+        return {
+          'nombre': data['nombre'] ?? '',
+          'rfc': data['rfc'] ?? '',
+        };
+      }).toList();
+    });
   }
 
   @override
@@ -53,7 +72,7 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
 
   Future<void> _guardar() async {
     final data = {
-      'chofer': choferController.text,
+      'chofer': choferSeleccionado ?? '',
       'destino': destinoController.text,
       'fecha': fechaController.text,
       'numero_control': numeroControlController.text,
@@ -77,24 +96,49 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Editar Carta Porte'),
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: Colors.white,
+        elevation: 2,
+        leading: const Icon(Icons.local_shipping, color: Color(0xFF2D6A4F)),
+        title: const Text(
+          'Editar Carta Porte',
+          style: TextStyle(
+            color: Color(0xFF2D6A4F),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.save),
+            icon: const Icon(Icons.save, color: Color(0xFF2D6A4F)),
             tooltip: 'Guardar',
             onPressed: _guardar,
           ),
         ],
+        iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: choferController,
+            DropdownButtonFormField<String>(
+              value: choferSeleccionado,
               decoration: const InputDecoration(labelText: 'Chofer'),
+              items: choferes.map((c) {
+                return DropdownMenuItem<String>(
+                  value: c['nombre'],
+                  child: Text(c['nombre'] ?? ''),
+                );
+              }).toList(),
+              onChanged: (nuevo) {
+                setState(() {
+                  choferSeleccionado = nuevo;
+                  final chofer = choferes.firstWhere(
+                    (c) => c['nombre'] == nuevo,
+                    orElse: () => {'rfc': ''},
+                  );
+                  rfcController.text = chofer['rfc'] ?? '';
+                });
+              },
             ),
             TextField(
               controller: destinoController,
@@ -103,14 +147,17 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
             TextField(
               controller: fechaController,
               decoration: const InputDecoration(labelText: 'Fecha'),
+              enabled: false,
             ),
             TextField(
               controller: numeroControlController,
               decoration: const InputDecoration(labelText: 'Número de control'),
+              enabled: false,
             ),
             TextField(
               controller: rfcController,
               decoration: const InputDecoration(labelText: 'RFC'),
+              enabled: false,
             ),
             TextField(
               controller: unidadController,
