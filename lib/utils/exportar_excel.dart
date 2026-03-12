@@ -1,51 +1,52 @@
 import 'package:excel/excel.dart';
 import 'package:universal_html/html.dart' as html;
 
-/// Exporta una lista de cartas porte a Excel.
-/// Cada carta debe tener las claves: FECHA, CHOFER, RFC, UNIDAD, DESTINO, COLUMNS, TABLE
+/// Exporta una lista de cartas porte a Excel exportando todas las claves y filas anidadas.
 Future<void> exportarExcel({
   required List<Map<String, dynamic>> cartas,
   String fileName = 'cartas_porte.xlsx',
 }) async {
   final excel = Excel.createExcel();
-  final sheet = excel['CartaPorte'];
+  final sheet = excel['CartasPorte'];
   if (cartas.isEmpty) return;
-  // Determinar columnas base
-  final first = cartas.first;
-  final columns = [
-    'No. Control',
-    'Fecha',
-    'Chofer',
-    'RFC',
-    'Unidad',
-    'Destino',
-    ...List<String>.from(first['COLUMNS'] ?? [])
-  ];
-  sheet.appendRow(columns);
+
+  // Determinar todas las claves posibles (columnas)
+  final Set<String> allKeys = {};
   for (final carta in cartas) {
-    final numeroControl = carta['NUMERO_CONTROL'] ?? '';
-    final fecha = carta['FECHA'] ?? '';
-    final chofer = carta['CHOFER'] ?? '';
-    final rfc = carta['RFC'] ?? '';
-    final unidad = carta['UNIDAD'] ?? '';
-    final destino = carta['DESTINO'] ?? '';
-    final table = (carta['TABLE'] as List?) ?? [];
-    for (final row in table) {
-      // Solo exportar filas con algún dato
-      if (row is List &&
-          row.any((c) => (c?.toString().trim() ?? '').isNotEmpty)) {
-        sheet.appendRow([
-          numeroControl,
-          fecha,
-          chofer,
-          rfc,
-          unidad,
-          destino,
-          ...row.map((c) => c?.toString() ?? '')
-        ]);
+    allKeys.addAll(carta.keys);
+    if (carta['filas'] is List) {
+      for (final fila in (carta['filas'] as List)) {
+        if (fila is Map) allKeys.addAll(fila.keys.map((k) => 'fila_${k}'));
       }
     }
   }
+  final columns = allKeys.toList();
+
+  // Escribir encabezados
+  sheet.appendRow(columns);
+
+  // Escribir datos
+  for (final carta in cartas) {
+    final row = <dynamic>[];
+    for (final col in columns) {
+      if (col.startsWith('fila_')) {
+        // Buscar en filas
+        final key = col.substring(5);
+        String value = '';
+        if (carta['filas'] is List) {
+          value = (carta['filas'] as List)
+              .map((fila) => fila[key]?.toString() ?? '')
+              .where((v) => v.isNotEmpty)
+              .join(' | ');
+        }
+        row.add(value);
+      } else {
+        row.add(carta[col]?.toString() ?? '');
+      }
+    }
+    sheet.appendRow(row);
+  }
+
   final fileBytes = excel.encode()!;
   final blob = html.Blob([fileBytes],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

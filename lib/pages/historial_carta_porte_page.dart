@@ -91,10 +91,30 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
 
   final TextEditingController _busquedaController = TextEditingController();
 
-  Future<void> exportarAExcel(
-      List<Map<String, dynamic>> merged, BuildContext context) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Exportación no implementada')));
+  Future<void> exportarAExcel(BuildContext context) async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('cartas_porte').get();
+      final cartas = snapshot.docs.map((d) {
+        final data = d.data() as Map<String, dynamic>;
+        data['id'] = d.id;
+        return data;
+      }).toList();
+      if (cartas.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay datos para exportar')),
+        );
+        return;
+      }
+      await exportarExcel(cartas: cartas);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Exportación exitosa')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al exportar: $e')),
+      );
+    }
   }
 
   @override
@@ -116,8 +136,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
             icon: const Icon(Icons.file_download, color: Color(0xFF2D6A4F)),
             tooltip: 'Exportar a Excel',
             onPressed: () async {
-              // Aquí se llamaría a exportarAExcel con los datos reales
-              await exportarAExcel([], context);
+              await exportarAExcel(context);
             },
           ),
         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'carta_porte_imprimir_page.dart';
 
 class CartaPorteEdicionPage extends StatefulWidget {
   final Map<String, dynamic> carta;
@@ -111,6 +112,28 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
             icon: const Icon(Icons.save, color: Color(0xFF2D6A4F)),
             tooltip: 'Guardar',
             onPressed: _guardar,
+          ),
+          IconButton(
+            icon: const Icon(Icons.print, color: Color(0xFF2D6A4F)),
+            tooltip: 'Imprimir',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => CartaPorteImprimirPage(
+                    carta: {
+                      ...widget.carta,
+                      'chofer': choferSeleccionado ?? '',
+                      'destino': destinoController.text,
+                      'fecha': fechaController.text,
+                      'numero_control': numeroControlController.text,
+                      'rfc': rfcController.text,
+                      'unidad': unidadController.text,
+                      'filas': filas,
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ],
         iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
