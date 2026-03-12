@@ -21,10 +21,7 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   String filtro = '';
 
   Future<void> _saveHistorialToFirestore() async {
-    final data = {
-      'historial': historial.map((e) => e.toJson()).toList(),
-    };
-    await guardarDatosFirestoreYCache('hoja_de_xd_historial', 'main', data);
+    // Guardar solo como documentos individuales, no en 'main'
 
     // NUEVO: Guardar cada historial como documento individual
     for (final h in historial) {
