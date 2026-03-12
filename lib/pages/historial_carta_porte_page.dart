@@ -87,11 +87,25 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
         data['id'] = d.id;
         return Map<String, dynamic>.from(_toEncodable(data) as Map);
       }).toList();
+      // Reemplaza el caché con lo nuevo de Firestore
+      await prefs.remove(cacheKey);
       await prefs.setString(cacheKey, jsonEncode(_cartasCache));
       setState(() {
         _cargando = false;
       });
     } catch (e) {
+      // Si falla Firestore, intenta mostrar el caché
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = 'cartas_porte_cache';
+      if (prefs.containsKey(cacheKey)) {
+        final cacheData = prefs.getString(cacheKey);
+        if (cacheData != null) {
+          final decoded = (jsonDecode(cacheData) as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+          _cartasCache = decoded;
+        }
+      }
       setState(() {
         _error = true;
         _errorMsg = e.toString();
