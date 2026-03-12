@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/exportar_excel.dart';
+import 'carta_porte_edicion_page.dart';
 
 class HistorialCartaPortePage extends StatefulWidget {
   const HistorialCartaPortePage({Key? key}) : super(key: key);
@@ -168,21 +169,27 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
                           title: Text(
-                              'Manifiesto: \\${carta['MANIFIESTO'] ?? carta['manifiesto'] ?? '-'}'),
+                              'Manifiesto: \\${carta['numero_control'] ?? '-'}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                  'Destino: \\${carta['DESTINO'] ?? carta['destino'] ?? '-'}'),
-                              Text(
-                                  'Fecha: \\${carta['FECHA'] ?? carta['fecha'] ?? '-'}'),
-                              Text(
-                                  'Nombre: \\${carta['NOMBRE'] ?? carta['nombre'] ?? '-'}'),
-                              Text(
-                                  'Usuario: \\${carta['USUARIO'] ?? carta['usuario'] ?? '-'}'),
+                              Text('Destino: \\${carta['destino'] ?? '-'}'),
+                              Text('Fecha: \\${carta['fecha'] ?? '-'}'),
+                              Text('Chofer: \\${carta['chofer'] ?? '-'}'),
+                              Text('RFC: \\${carta['rfc'] ?? '-'}'),
+                              Text('Unidad: \\${carta['unidad'] ?? '-'}'),
                             ],
                           ),
-                          onTap: () => _editarCartaDialog(carta),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CartaPorteEdicionPage(
+                                  carta: carta,
+                                  docId: carta['id'],
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
