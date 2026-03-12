@@ -114,8 +114,7 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
             onPressed: _guardar,
           ),
           IconButton(
-            icon: const Icon(Icons.print,
-                color: Color.fromARGB(255, 245, 247, 246)),
+            icon: const Icon(Icons.print, color: Color(0xFF2D6A4F)),
             tooltip: 'Imprimir',
             onPressed: () {
               Navigator.of(context).push(

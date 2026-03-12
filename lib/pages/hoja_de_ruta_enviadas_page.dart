@@ -201,17 +201,23 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                                   color: Color(0xFFE0E0E0), width: 1))
                           : null,
                     ),
-                    child: TextField(
-                      controller: rowCtrls[colIdx],
-                      enabled: HojaDeRutaExtraPage.isAdmin,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding:
-                              EdgeInsets.symmetric(vertical: 6, horizontal: 4)),
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                    child: HojaDeRutaExtraPage.isAdmin
+                        ? TextField(
+                            controller: rowCtrls[colIdx],
+                            enabled: true,
+                            textAlign: TextAlign.center,
+                            decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 4)),
+                            style: const TextStyle(fontSize: 13),
+                          )
+                        : Text(
+                            rowCtrls[colIdx].text,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 13),
+                          ),
                   ),
                 );
               }),

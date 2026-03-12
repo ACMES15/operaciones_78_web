@@ -23,7 +23,7 @@ class CartaPorteImprimirPage extends StatelessWidget {
         title: const Text(
           'Imprimir Carta Porte',
           style: TextStyle(
-            color: Color.fromARGB(255, 239, 244, 242),
+            color: Color.fromARGB(255, 64, 143, 111),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -71,7 +71,7 @@ class CartaPorteImprimirPage extends StatelessWidget {
                   icon: const Icon(Icons.print),
                   label: const Text('Imprimir'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D6A4F),
+                    backgroundColor: const Color.fromARGB(255, 244, 246, 245),
                   ),
                   onPressed: () async {
                     final pdf = await buildCartaPortePdf(carta,
