@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../utils/word_exporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/sheet_validator.dart';
 
 class HojaDeXDPage extends StatefulWidget {
@@ -25,21 +27,19 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
       // no guardar registros vacíos
       return;
     }
-    // Leer historial actual
-    final data = await leerDatosConCache('hoja_de_xd_historial', 'main');
-    List<dynamic> list = [];
-    if (data != null && data['historial'] != null) {
-      list = List<dynamic>.from(data['historial']);
-    }
-    list.add({
+    // Guardar cada registro como documento individual en Firestore
+    final docId = '${fecha.toIso8601String()}_${usuario}_$fileName'
+        .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    final registro = {
       'usuario': usuario,
       'fecha': fecha.toIso8601String(),
       'datos': datos,
       'fileName': fileName,
-    });
-    await guardarDatosFirestoreYCache('hoja_de_xd_historial', 'main', {
-      'historial': list,
-    });
+    };
+    await FirebaseFirestore.instance
+        .collection('hoja_de_xd_historial')
+        .doc(docId)
+        .set(registro);
   }
 
   // ignore: unused_field
