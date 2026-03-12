@@ -31,6 +31,22 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  /// Normaliza un string: quita espacios, lo pasa a mayúsculas y elimina tildes.
+  String _normalizar(String s) {
+    final withNoSpaces = s.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final upper = withNoSpaces.toUpperCase();
+    // Elimina tildes
+    final normalized = upper
+        .replaceAll('Á', 'A')
+        .replaceAll('É', 'E')
+        .replaceAll('Í', 'I')
+        .replaceAll('Ó', 'O')
+        .replaceAll('Ú', 'U')
+        .replaceAll('Ü', 'U')
+        .replaceAll('Ñ', 'N');
+    return normalized;
+  }
+
   // int _notificacionesPendientes = 0;
   int _selectedIndex = 0;
   bool _menuExpandido = false;
@@ -136,13 +152,13 @@ class _HomePageState extends State<HomePage> {
         final tipoOriginal = usuario['tipo'] ?? '';
         String tipo = tipoOriginal;
         // Si el tipo contiene 'ADMIN' (case-insensitive), usar la clave 'ADMIN' para permisos
-        if (tipo.toUpperCase().contains('ADMIN')) {
+        if (_normalizar(tipo).contains('ADMIN')) {
           tipo = 'ADMIN';
         }
         List<int> permitidas = [];
         print(
             '[DEBUG] Tipo de usuario detectado: $tipoOriginal (usando permisos de: $tipo)');
-        if (tipo == 'SUPERADMIN') {
+        if (_normalizar(tipo) == 'SUPERADMIN') {
           permitidas = List.generate(_paginas.length, (i) => i);
         } else {
           // Leer permisos personalizados desde Firestore/cache
@@ -150,12 +166,30 @@ class _HomePageState extends State<HomePage> {
               await leerDatosConCache('usuarios', 'permisos_tipo_usuario');
           if (permisosDoc != null && permisosDoc['permisos'] != null) {
             final permisos = permisosDoc['permisos'] as Map<String, dynamic>;
-            final permisosTipo = permisos[tipo] as Map<String, dynamic>?;
+            // Buscar la clave de permisos que coincida normalizada
+            String? clavePermiso;
+            for (final k in permisos.keys) {
+              if (_normalizar(k) == _normalizar(tipo)) {
+                clavePermiso = k;
+                break;
+              }
+            }
+            final permisosTipo = clavePermiso != null
+                ? permisos[clavePermiso] as Map<String, dynamic>?
+                : null;
             print('[DEBUG] Permisos cargados para $tipo: $permisosTipo');
             if (permisosTipo != null) {
               for (int i = 0; i < _paginas.length; i++) {
                 final nombrePagina = _paginas[i];
-                if (permisosTipo[nombrePagina] == true) {
+                // Buscar la clave de página que coincida normalizada
+                String? clavePagina;
+                for (final pk in permisosTipo.keys) {
+                  if (_normalizar(pk) == _normalizar(nombrePagina)) {
+                    clavePagina = pk;
+                    break;
+                  }
+                }
+                if (clavePagina != null && permisosTipo[clavePagina] == true) {
                   permitidas.add(i);
                 }
               }
