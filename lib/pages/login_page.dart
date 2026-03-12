@@ -105,117 +105,77 @@ class _LoginPageState extends State<LoginPage> {
                     if (!_formKey.currentState!.validate()) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
-                    // Intentar login normal
-                    Map<String, dynamic>? usuariosMap;
+                    final usuarioInput = usuario.trim().toLowerCase();
+                    final passInput = password.trim().toLowerCase();
                     try {
                       final docSnap = await FirebaseFirestore.instance
                           .collection('usuarios')
                           .doc('usuarios_guardados')
                           .get();
-                      if (!docSnap.exists) {
-                        usuariosMap = {};
-                      } else {
-                        usuariosMap = docSnap.data();
-                      }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('Error leyendo usuarios_guardados: $e')),
-                      );
-                      return;
-                    }
-                    final usuarioInput = usuario.trim().toLowerCase();
-                    final passInput = password.trim().toLowerCase();
-                    final entry = (usuariosMap ?? {}).entries.firstWhere(
-                          (e) => (e.key.trim().toLowerCase() == usuarioInput),
-                          orElse: () => const MapEntry('', null),
+                      if (!docSnap.exists || docSnap.data() == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Usuario no registrado en usuarios_guardados.')),
                         );
-                    // Si no está registrado, permitir acceso a SUPERADMIN por shortcut
-                    if (entry.key.isEmpty || entry.value == null) {
-                      if (usuarioInput == 'acmes15' &&
-                          passInput == 'cecoatl1315') {
-                        // Asegurar que exista en Firestore como SUPERADMIN
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc('usuarios_guardados')
-                              .set({
-                            usuarioInput: {
-                              'password': passInput,
-                              'rol': 'SUPERADMIN',
-                            }
-                          }, SetOptions(merge: true));
-                        } catch (e) {
-                          // ignore write error, still allow login
+                        return;
+                      }
+                      final usuariosMap = docSnap.data()!;
+                      final datos =
+                          usuariosMap[usuarioInput] as Map<String, dynamic>?;
+                      if (datos == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'Usuario no registrado en usuarios_guardados.')),
+                        );
+                        return;
+                      }
+                      final passDb = (datos['password'] ?? '')
+                          .toString()
+                          .trim()
+                          .toLowerCase();
+                      // Si es la primera vez, la contraseña es igual al usuario
+                      if (passDb == usuarioInput && passInput == usuarioInput) {
+                        final changed = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                CambiarPasswordPage(usuario: usuarioInput),
+                          ),
+                        );
+                        if (changed == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Contraseña cambiada. Ingresa con tu nueva contraseña.'),
+                            ),
+                          );
                         }
+                        return;
+                      }
+                      // Si ya cambió la contraseña, validar normalmente
+                      if (passDb == passInput) {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => HomePage(usuario: usuario),
+                            builder: (context) =>
+                                HomePage(usuario: usuarioInput),
                           ),
                         );
                         return;
                       }
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text(
-                                'Usuario no registrado en usuarios_guardados.')),
+                            content: Text('Usuario o contraseña incorrectos.')),
                       );
-                      return;
-                    }
-                    final datos = entry.value as Map<String, dynamic>?;
-                    final passDb = (datos?['password'] ?? '')
-                        .toString()
-                        .trim()
-                        .toLowerCase();
-                    // Si es la primera vez, la contraseña es igual al usuario
-                    if (passDb == usuarioInput && passInput == usuarioInput) {
-                      final changed = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              CambiarPasswordPage(usuario: usuarioInput),
-                        ),
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('Error leyendo usuarios_guardados: $e')),
                       );
-                      if (changed == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Contraseña cambiada. Ingresa con tu nueva contraseña.'),
-                          ),
-                        );
-                      }
-                      return;
                     }
-                    // Si ya cambió la contraseña, validar normalmente
-                    if (passDb == passInput) {
-                      // Si es el superadmin explícito, asegurar rol
-                      if (usuarioInput == 'acmes15') {
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc('usuarios_guardados')
-                              .set({
-                            usuarioInput: {
-                              'password': passDb,
-                              'rol': 'SUPERADMIN',
-                            }
-                          }, SetOptions(merge: true));
-                        } catch (e) {}
-                      }
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => HomePage(usuario: usuario),
-                        ),
-                      );
-                      return;
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('Usuario o contraseña incorrectos.')),
-                    );
                   },
                   child: const Text('Ingresar'),
                 ),

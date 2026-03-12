@@ -1,25 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_control_page.dart';
 import 'user_permissions_page.dart';
 import 'hoja_de_ruta_page.dart';
 import 'hoja_de_xd_page.dart';
 import 'hoja_de_xd_historial_page.dart';
-import 'historial_hoja_de_xd_mobile.dart';
+import 'historial_entregas_devcan_page.dart';
 import 'historial_entregas_devcan_mobile.dart';
-import 'historial_entregas_recogidos_mobile.dart';
-import 'historial_carta_porte_mobile.dart';
-// import 'login_page.dart';
-import 'entregas_devcan_page.dart';
-import 'recogidos/entregas_recogidos_page.dart';
-import 'carta_porte_table.dart' as carta_porte_table;
 import 'historial_carta_porte_page.dart';
 import 'plantilla_ejecutiva_page.dart';
 import 'devcan_page.dart';
-import 'historial_entregas_devcan_page.dart';
 import 'recogidos/recogidos_page.dart';
 import 'recogidos/historial_entregas_recogidos_page.dart';
+import 'historial_entregas_recogidos_mobile.dart';
 import 'bienvenida_page.dart';
 import '../utils/firebase_cache_utils.dart';
 
@@ -128,8 +121,70 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _determinarTipoUsuario();
+    _determinarTipoUsuarioFirestore();
     _actualizarNotificaciones();
+  }
+
+  Future<void> _determinarTipoUsuarioFirestore() async {
+    // Leer usuario y permisos directamente de Firestore
+    final usuarioDoc = await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc('usuarios_guardados')
+        .get();
+    if (!usuarioDoc.exists || usuarioDoc.data() == null) return;
+    final usuariosMap = usuarioDoc.data()!;
+    final datos = usuariosMap[widget.usuario] as Map<String, dynamic>?;
+    if (datos == null) return;
+    final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
+    String tipo = tipoOriginal.toString();
+    if (_normalizar(tipo).contains('ADMIN')) {
+      tipo = 'ADMIN';
+    }
+    List<int> permitidas = [];
+    if (_normalizar(tipo) == 'SUPERADMIN') {
+      permitidas = List.generate(_paginas.length, (i) => i);
+    } else {
+      final permisosDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc('permisos_tipo_usuario')
+          .get();
+      if (permisosDoc.exists && permisosDoc.data() != null) {
+        final permisos =
+            permisosDoc.data()!['permisos'] as Map<String, dynamic>?;
+        if (permisos != null) {
+          String? clavePermiso;
+          for (final k in permisos.keys) {
+            if (_normalizar(k) == _normalizar(tipo)) {
+              clavePermiso = k;
+              break;
+            }
+          }
+          final permisosTipo = clavePermiso != null
+              ? permisos[clavePermiso] as Map<String, dynamic>?
+              : null;
+          if (permisosTipo != null) {
+            for (int i = 0; i < _paginas.length; i++) {
+              final nombrePagina = _paginas[i];
+              String? clavePagina;
+              for (final pk in permisosTipo.keys) {
+                if (_normalizar(pk) == _normalizar(nombrePagina)) {
+                  clavePagina = pk;
+                  break;
+                }
+              }
+              if (clavePagina != null && permisosTipo[clavePagina] == true) {
+                permitidas.add(i);
+              }
+            }
+          }
+        }
+      }
+      if (permitidas.isEmpty) permitidas = [0];
+    }
+    setState(() {
+      _tipoUsuario = tipoOriginal;
+      _paginasPermitidas = permitidas;
+    });
   }
 
   Future<void> _actualizarNotificaciones() async {
@@ -137,82 +192,6 @@ class _HomePageState extends State<HomePage> {
     // setState(() {
     //   _notificacionesPendientes = notificaciones.length;
     // });
-  }
-
-  Future<void> _determinarTipoUsuario() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('usuarios_guardados');
-    if (data != null) {
-      final decoded = jsonDecode(data);
-      List<dynamic> listaUsuarios = [];
-      if (decoded is Map<String, dynamic> && decoded['items'] is List) {
-        listaUsuarios = decoded['items'];
-      } else if (decoded is List) {
-        listaUsuarios = decoded;
-      }
-      final usuario = listaUsuarios.firstWhere(
-        (u) => u['usuario'] == widget.usuario,
-        orElse: () => null,
-      );
-      if (usuario != null) {
-        final tipoOriginal = usuario['tipo'] ?? '';
-        String tipo = tipoOriginal;
-        // Si el tipo contiene 'ADMIN' (case-insensitive), usar la clave 'ADMIN' para permisos
-        if (_normalizar(tipo).contains('ADMIN')) {
-          tipo = 'ADMIN';
-        }
-        List<int> permitidas = [];
-        print(
-            '[DEBUG] Tipo de usuario detectado: $tipoOriginal (usando permisos de: $tipo)');
-        if (_normalizar(tipo) == 'SUPERADMIN') {
-          permitidas = List.generate(_paginas.length, (i) => i);
-        } else {
-          // Leer permisos personalizados desde Firestore/cache
-          final permisosDoc =
-              await leerDatosConCache('usuarios', 'permisos_tipo_usuario');
-          if (permisosDoc != null && permisosDoc['permisos'] != null) {
-            final permisos = permisosDoc['permisos'] as Map<String, dynamic>;
-            // Buscar la clave de permisos que coincida normalizada
-            String? clavePermiso;
-            for (final k in permisos.keys) {
-              if (_normalizar(k) == _normalizar(tipo)) {
-                clavePermiso = k;
-                break;
-              }
-            }
-            final permisosTipo = clavePermiso != null
-                ? permisos[clavePermiso] as Map<String, dynamic>?
-                : null;
-            print('[DEBUG] Permisos cargados para $tipo: $permisosTipo');
-            if (permisosTipo != null) {
-              for (int i = 0; i < _paginas.length; i++) {
-                final nombrePagina = _paginas[i];
-                // Buscar la clave de página que coincida normalizada
-                String? clavePagina;
-                for (final pk in permisosTipo.keys) {
-                  if (_normalizar(pk) == _normalizar(nombrePagina)) {
-                    clavePagina = pk;
-                    break;
-                  }
-                }
-                if (clavePagina != null && permisosTipo[clavePagina] == true) {
-                  permitidas.add(i);
-                }
-              }
-            }
-          }
-          // Si no hay permisos configurados, solo Inicio
-          if (permitidas.isEmpty) permitidas = [0];
-        }
-        print('[DEBUG] Índices de páginas permitidas: $permitidas');
-        print(
-            '[DEBUG] Nombres de páginas permitidas: ${permitidas.map((i) => _paginas[i]).toList()}');
-        setState(() {
-          _tipoUsuario = tipoOriginal;
-          _paginasPermitidas = permitidas;
-        });
-      }
-    }
   }
 
   Future<List<Map<String, dynamic>>> _cargarHistorialRecogidos() async {
@@ -231,10 +210,8 @@ class _HomePageState extends State<HomePage> {
 
   // ignore: unused_element
   Future<List<Map<String, dynamic>>> _getNotificaciones() async {
-    final prefs = await SharedPreferences.getInstance();
-    final data = prefs.getString('notificaciones_password') ?? '[]';
-    final List<dynamic> lista = jsonDecode(data);
-    return lista.cast<Map<String, dynamic>>();
+    // TODO: Implementar notificaciones desde Firestore si es necesario
+    return [];
   }
 
   Future<List<Map<String, dynamic>>> _cargarHistorialDevCan() async {
@@ -430,46 +407,8 @@ class _HomePageState extends State<HomePage> {
                 // Manejo móvil simplificado y sin duplicaciones
                 if (esMovil) {
                   if (pagina == 'Historial Hoja de XD') {
-                    Future<List<dynamic>> cargarHistorialHojaXD() async {
-                      final prefs = await SharedPreferences.getInstance();
-                      final data = prefs.getString('historial_hoja_de_xd');
-                      if (data != null) {
-                        final List<dynamic> decoded = jsonDecode(data);
-                        return decoded;
-                      }
-                      return [];
-                    }
-
-                    return FutureBuilder<List<dynamic>>(
-                      future: cargarHistorialHojaXD(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData)
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        final datos = snapshot.data!;
-                        if (datos.isEmpty) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('No hay historial disponible.'),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.arrow_back),
-                                  label: const Text('Regresar al menú'),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedIndex = 0;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return HistorialHojaDeXDPageMobile(historial: datos);
-                      },
-                    );
+                    // TODO: Implementar carga de historial desde Firestore si es necesario
+                    return const Center(child: Text('No disponible.'));
                   }
 
                   if (pagina == 'Historial Entregas DevCan') {
@@ -545,123 +484,18 @@ class _HomePageState extends State<HomePage> {
                   }
 
                   if (pagina == 'Historial Carta Porte') {
-                    Future<List<dynamic>> cargarHistorialCartaPorte() async {
-                      final prefs = await SharedPreferences.getInstance();
-                      final data = prefs.getString('historial_carta_porte');
-                      if (data != null) {
-                        final List<dynamic> decoded = jsonDecode(data);
-                        return decoded;
-                      }
-                      return [];
-                    }
-
-                    return FutureBuilder<List<dynamic>>(
-                      future: cargarHistorialCartaPorte(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData)
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        final datos = snapshot.data!;
-                        if (datos.isEmpty) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('No hay historial disponible.'),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.arrow_back),
-                                  label: const Text('Regresar al menú'),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedIndex = 0;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return HistorialCartaPortePageMobile(historial: datos);
-                      },
-                    );
+                    // TODO: Implementar carga de historial desde Firestore si es necesario
+                    return const Center(child: Text('No disponible.'));
                   }
 
                   if (pagina == 'DevCan') {
                     // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasDevCanPage)
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final data = prefs.getString('entregas_devcan') ?? '[]';
-                        final List<dynamic> lista = jsonDecode(data);
-                        return lista
-                            .map<Map<String, dynamic>>(
-                                (e) => Map<String, dynamic>.from(e))
-                            .toList();
-                      }(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        final entregasRecientes = snapshot.data!;
-                        return Center(
-                          child: ElevatedButton(
-                            onPressed: entregasRecientes.isEmpty
-                                ? null
-                                : () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            EntregasDevCanPage(
-                                                entregasRecientes:
-                                                    entregasRecientes),
-                                      ),
-                                    );
-                                  },
-                            child: const Text('Ver Entregas DevCan'),
-                          ),
-                        );
-                      },
-                    );
+                    // TODO: Implementar carga de entregas desde Firestore si es necesario
+                    return const Center(child: Text('No disponible.'));
                   } else if (pagina == 'Recogidos') {
                     // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasRecogidosPage)
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final data =
-                            prefs.getString('entregas_recogidos') ?? '[]';
-                        final List<dynamic> lista = jsonDecode(data);
-                        return lista
-                            .map<Map<String, dynamic>>(
-                                (e) => Map<String, dynamic>.from(e))
-                            .toList();
-                      }(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        final entregasRecientes = snapshot.data!;
-                        return Center(
-                          child: ElevatedButton(
-                            onPressed: entregasRecientes.isEmpty
-                                ? null
-                                : () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            EntregasRecogidosPage(
-                                                entregasRecientes:
-                                                    entregasRecientes),
-                                      ),
-                                    );
-                                  },
-                            child: const Text('Ver Entregas Recogidos'),
-                          ),
-                        );
-                      },
-                    );
+                    // TODO: Implementar carga de recogidos desde Firestore si es necesario
+                    return const Center(child: Text('No disponible.'));
                   } else if (pagina == 'Hoja de XD') {
                     return HojaDeXDPage(usuario: widget.usuario);
                   } else if (pagina == 'Carta Porte') {
