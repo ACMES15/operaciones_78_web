@@ -918,13 +918,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                                         final isPenultima =
                                                                             rowIdx ==
                                                                                 _controllers.length - 2;
-                                                                        if (rowIdx <
-                                                                            _controllers.length -
-                                                                                1) {
-                                                                          FocusScope.of(context).requestFocus(_focusNodes[rowIdx + 1]
-                                                                              [
-                                                                              0]);
-                                                                        } else if (isPenultima) {
+                                                                        if (isPenultima) {
                                                                           setState(
                                                                               () {
                                                                             _numFilas++;
@@ -939,6 +933,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                                             FocusScope.of(context).requestFocus(_focusNodes[rowIdx +
                                                                                 1][0]);
                                                                           });
+                                                                        } else if (rowIdx <
+                                                                            _controllers.length -
+                                                                                1) {
+                                                                          FocusScope.of(context).requestFocus(_focusNodes[rowIdx + 1]
+                                                                              [
+                                                                              0]);
                                                                         }
                                                                       }
                                                                     : null,
