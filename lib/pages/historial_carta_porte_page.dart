@@ -253,6 +253,11 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                             final filtered = _cartasCache
                                 .where((c) => _coincideBusqueda(c, q))
                                 .toList();
+                            print('Cartas en filtered: \'${filtered.length}\'');
+                            if (filtered.isNotEmpty) {
+                              print('Ejemplo de carta en filtered:');
+                              print(filtered.first);
+                            }
                             if (filtered.isEmpty) {
                               return Center(
                                   child: Text('Aún no hay historial',
