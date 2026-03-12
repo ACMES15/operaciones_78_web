@@ -13,6 +13,10 @@ class UserPermissionsPage extends StatelessWidget {
     'JEFATURA',
     'VENTAS',
     'PREVENCION',
+    'ADMIN OMNICANAL',
+    'ADMIN ENVIOS',
+    'ADMIN',
+    'admin',
   ];
   static const List<String> paginas = [
     'Control de usuarios',
