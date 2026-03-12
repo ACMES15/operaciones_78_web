@@ -105185,18 +105185,24 @@ A.EO.prototype={
 ac(){return new A.KX(A.aI(t.S),A.a(["DESTINO","NOMBRE","CONTENEDOR O TARIMA","MANIFIESTO","TU","SKU","FECHA","CANTIDAD DE LPS","CANTIDAD DE REMISIONES","HORA DE MANIFIESTO"],t.s),A.a([],t.sY))}}
 A.KX.prototype={
 C0(a,b,c,d){return this.aq3(a,b,c,d)},
-aq3(a,b,c,d){var s=0,r=A.w(t.H),q,p,o,n,m,l
+aq3(a,b,c,d){var s=0,r=A.w(t.H),q,p,o,n,m,l,k,j,i
 var $async$C0=A.x(function(e,f){if(e===1)return A.t(f,r)
 while(true)switch(s){case 0:if(a.a===0){s=1
 break}p=b.iZ()
 o=A.f4("[^a-zA-Z0-9_-]",!0,!1)
 n=A.h7(p+"_"+d+"_"+c,o,"_")
-m=A.a9(["usuario",d,"fecha",b.iZ(),"datos",a,"fileName",c],t.N,t.K)
+m=a.h(0,"CONTENEDOR O TARIMA")
+if(m==null)m=""
+l=a.h(0,"CONTENEDOR")
+if(l==null)l=""
+k=a.h(0,"TARIMA")
+if(k==null)k=""
+j=A.a9(["usuario",d,"fecha",b.iZ(),"datos",a,"fileName",c,"CONTENEDOR O TARIMA",m,"CONTENEDOR",l,"TARIMA",k],t.N,t.K)
 p=$.aH
-l=(p==null?$.aH=$.c9():p).c0("[DEFAULT]")
-A.bz(l,$.co(),!0)
-p=A.cL(new A.bQ(l)).c9("hoja_de_xd_historial").cP(n)
-o=A.mW(m)
+i=(p==null?$.aH=$.c9():p).c0("[DEFAULT]")
+A.bz(i,$.co(),!0)
+p=A.cL(new A.bQ(i)).c9("hoja_de_xd_historial").cP(n)
+o=A.mW(j)
 o.toString
 s=3
 return A.p(p.a.fe(0,o,null),$async$C0)

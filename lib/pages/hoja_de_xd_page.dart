@@ -30,11 +30,18 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
     // Guardar cada registro como documento individual en Firestore
     final docId = '${fecha.toIso8601String()}_${usuario}_$fileName'
         .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    // Extraer campos clave para búsquedas
+    final contTarima = datos['CONTENEDOR O TARIMA'] ?? '';
+    final cont = datos['CONTENEDOR'] ?? '';
+    final tarima = datos['TARIMA'] ?? '';
     final registro = {
       'usuario': usuario,
       'fecha': fecha.toIso8601String(),
       'datos': datos,
       'fileName': fileName,
+      'CONTENEDOR O TARIMA': contTarima,
+      'CONTENEDOR': cont,
+      'TARIMA': tarima,
     };
     await FirebaseFirestore.instance
         .collection('hoja_de_xd_historial')
