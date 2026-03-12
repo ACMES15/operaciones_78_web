@@ -138,10 +138,11 @@ class _HomePageState extends State<HomePage> {
         if (tipo == 'SUPERADMIN') {
           permitidas = List.generate(_paginas.length, (i) => i);
         } else {
-          // Leer permisos personalizados
-          final permisosData = prefs.getString('permisos_tipo_usuario');
-          if (permisosData != null) {
-            final permisos = jsonDecode(permisosData) as Map<String, dynamic>;
+          // Leer permisos personalizados desde Firestore/cache
+          final permisosDoc =
+              await leerDatosConCache('usuarios', 'permisos_tipo_usuario');
+          if (permisosDoc != null && permisosDoc['permisos'] != null) {
+            final permisos = permisosDoc['permisos'] as Map<String, dynamic>;
             final permisosTipo = permisos[tipo] as Map<String, dynamic>?;
             if (permisosTipo != null) {
               for (int i = 0; i < _paginas.length; i++) {

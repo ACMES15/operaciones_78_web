@@ -106498,15 +106498,16 @@ ac(){return new A.Nw(A.a([],t.s),A.a([],t.d))}}
 A.Nw.prototype={
 an(){this.aP()
 this.BQ()},
-BQ(){var s=0,r=A.w(t.H),q=this,p,o,n
+BQ(){var s=0,r=A.w(t.H),q=this,p,o,n,m
 var $async$BQ=A.x(function(a,b){if(a===1)return A.t(b,r)
-while(true)switch(s){case 0:o=A
-n=J
+while(true)switch(s){case 0:n=A
+m=J
 s=2
 return A.o(A.jI(),$async$BQ)
-case 2:p=o.bt(n.Q(b.a,"tipos_usuario"))
-if(p!=null)q.e=A.bN(B.ch.xu(0,p,null),!0,t.N)
-else q.e=A.a(["ADMINISTRATIVO","STAFF AUXILIAR","JEFATURA","VENTAS","PREVENCION","ADMIN OMNICANAL","ADMIN ENVIOS","ADMIN"],t.s)
+case 2:o=n.bt(m.Q(b.a,"tipos_usuario"))
+if(o!=null){p=A.bN(B.ch.xu(0,o,null),!0,t.N)
+q.e=p
+if(!B.l.p(p,"ADMIN"))q.e.push("ADMIN")}else q.e=A.a(["ADMINISTRATIVO","STAFF AUXILIAR","JEFATURA","VENTAS","PREVENCION","ADMIN OMNICANAL","ADMIN ENVIOS","ADMIN"],t.s)
 q.N(new A.aLX())
 return A.u(null,r)}})
 return A.v($async$BQ,r)},

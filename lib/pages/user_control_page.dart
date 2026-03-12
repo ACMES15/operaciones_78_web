@@ -36,6 +36,9 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     final tipos = prefs.getString('tipos_usuario');
     if (tipos != null) {
       tiposUsuario = List<String>.from(jsonDecode(tipos));
+      if (!tiposUsuario.contains('ADMIN')) {
+        tiposUsuario.add('ADMIN');
+      }
     } else {
       tiposUsuario = [
         'ADMINISTRATIVO',
