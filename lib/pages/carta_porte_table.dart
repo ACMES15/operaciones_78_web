@@ -255,8 +255,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
 
     // Validar que haya al menos una fila con datos relevantes
     final filas = _controllers
-        .map((row) => row.map((c) => c.text).toList())
-        .where((fila) => fila.any((valor) => valor.trim().isNotEmpty))
+        .map((row) => Map.fromIterables(_columns, row.map((c) => c.text)))
+        .where((fila) =>
+            fila.values.any((valor) => valor.toString().trim().isNotEmpty))
         .toList();
     if (filas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
