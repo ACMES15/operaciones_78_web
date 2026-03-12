@@ -78,15 +78,26 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
         }
       }
       // Si no hay cache o se fuerza, consulta Firestore
+      print('Consultando Firestore...');
       final snap = await FirebaseFirestore.instance
           .collection('cartas_porte')
           .orderBy('numero_control', descending: true)
           .get();
+      print('Firestore documentos encontrados: \'${snap.docs.length}\'');
+      if (snap.docs.isNotEmpty) {
+        print('Ejemplo de documento Firestore:');
+        print(snap.docs.first.data());
+      }
       _cartasCache = snap.docs.map((d) {
         final data = Map<String, dynamic>.from(d.data());
         data['id'] = d.id;
         return Map<String, dynamic>.from(_toEncodable(data) as Map);
       }).toList();
+      print('Cartas mapeadas para caché: \'${_cartasCache.length}\'');
+      if (_cartasCache.isNotEmpty) {
+        print('Ejemplo de carta mapeada:');
+        print(_cartasCache.first);
+      }
       // Reemplaza el caché con lo nuevo de Firestore
       await prefs.remove(cacheKey);
       await prefs.setString(cacheKey, jsonEncode(_cartasCache));
