@@ -24,6 +24,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Estado para error de usuario/tipo
+  String? _errorUsuario;
+
   /// Normaliza un string: quita espacios, lo pasa a mayúsculas y elimina tildes.
   String _normalizar(String s) {
     final withNoSpaces = s.trim().replaceAll(RegExp(r'\s+'), ' ');
@@ -131,11 +134,29 @@ class _HomePageState extends State<HomePage> {
         .collection('usuarios')
         .doc('usuarios_guardados')
         .get();
-    if (!usuarioDoc.exists || usuarioDoc.data() == null) return;
+    if (!usuarioDoc.exists || usuarioDoc.data() == null) {
+      setState(() {
+        _errorUsuario = 'No existe el documento de usuarios en Firestore.';
+      });
+      return;
+    }
     final usuariosMap = usuarioDoc.data()!;
     final datos = usuariosMap[widget.usuario] as Map<String, dynamic>?;
-    if (datos == null) return;
+    if (datos == null) {
+      setState(() {
+        _errorUsuario =
+            'El usuario "${widget.usuario}" no existe en el sistema.';
+      });
+      return;
+    }
     final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
+    if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
+      setState(() {
+        _errorUsuario =
+            'El usuario "${widget.usuario}" no tiene un tipo asignado.';
+      });
+      return;
+    }
     String tipo = tipoOriginal.toString();
     print(
         '[DEBUG] Tipo de usuario leído desde Firestore: "$tipoOriginal" para usuario: "${widget.usuario}"');
@@ -186,6 +207,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _tipoUsuario = tipoOriginal;
       _paginasPermitidas = permitidas;
+      _errorUsuario = null;
     });
   }
 
@@ -232,6 +254,36 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_errorUsuario != null) {
+      return Scaffold(
+        body: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _errorUsuario!,
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     // Método para detectar si es celular (no tablet)
     bool esCelular(BuildContext context) {
       final ancho = MediaQuery.of(context).size.width;
