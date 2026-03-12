@@ -63,8 +63,9 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
       if (!forzarFirestore && prefs.containsKey(cacheKey)) {
         final cacheData = prefs.getString(cacheKey);
         if (cacheData != null) {
-          final decoded =
-              List<Map<String, dynamic>>.from(jsonDecode(cacheData));
+          final decoded = (jsonDecode(cacheData) as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
           _cartasCache = decoded;
           setState(() {
             _cargando = false;
