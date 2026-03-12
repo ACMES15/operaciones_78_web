@@ -373,9 +373,9 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                         ),
                                         // Si tienes un campo tipo lista (por ejemplo, remisiones, filas, etc.) en mayúsculas, cámbialo aquí
                                         if (verDetalles &&
-                                            carta['FILAS'] != null &&
-                                            carta['FILAS'] is List &&
-                                            (carta['FILAS'] as List).isNotEmpty)
+                                            carta['filas'] != null &&
+                                            carta['filas'] is List &&
+                                            (carta['filas'] as List).isNotEmpty)
                                           Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -387,7 +387,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                   child: Builder(
                                                       builder: (context) {
                                                     final table =
-                                                        carta['FILAS'] as List;
+                                                        carta['filas'] as List;
                                                     if (table.isEmpty)
                                                       return const SizedBox();
                                                     final firstRow =
