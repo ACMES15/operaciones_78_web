@@ -133,9 +133,15 @@ class _HomePageState extends State<HomePage> {
         orElse: () => null,
       );
       if (usuario != null) {
-        final tipo = usuario['tipo'] ?? '';
+        final tipoOriginal = usuario['tipo'] ?? '';
+        String tipo = tipoOriginal;
+        // Si el tipo contiene 'ADMIN' (case-insensitive), usar la clave 'ADMIN' para permisos
+        if (tipo.toUpperCase().contains('ADMIN')) {
+          tipo = 'ADMIN';
+        }
         List<int> permitidas = [];
-        print('[DEBUG] Tipo de usuario detectado: $tipo');
+        print(
+            '[DEBUG] Tipo de usuario detectado: $tipoOriginal (usando permisos de: $tipo)');
         if (tipo == 'SUPERADMIN') {
           permitidas = List.generate(_paginas.length, (i) => i);
         } else {
@@ -162,7 +168,7 @@ class _HomePageState extends State<HomePage> {
         print(
             '[DEBUG] Nombres de páginas permitidas: ${permitidas.map((i) => _paginas[i]).toList()}');
         setState(() {
-          _tipoUsuario = tipo;
+          _tipoUsuario = tipoOriginal;
           _paginasPermitidas = permitidas;
         });
       }
