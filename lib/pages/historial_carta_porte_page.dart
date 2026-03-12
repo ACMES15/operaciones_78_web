@@ -368,9 +368,9 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                               ]),
                                         ),
                                         if (verDetalles &&
-                                            carta['TABLE'] != null &&
-                                            carta['TABLE'] is List &&
-                                            (carta['TABLE'] as List).isNotEmpty)
+                                            carta['filas'] != null &&
+                                            carta['filas'] is List &&
+                                            (carta['filas'] as List).isNotEmpty)
                                           Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -382,7 +382,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                   child: Builder(
                                                       builder: (context) {
                                                     final table =
-                                                        carta['TABLE'] as List;
+                                                        carta['filas'] as List;
                                                     if (table.isEmpty)
                                                       return const SizedBox();
                                                     final firstRow =
@@ -394,18 +394,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                               label: Text(k
                                                                   .toString())))
                                                           .toList();
-                                                    } else if (firstRow
-                                                            is List &&
-                                                        carta['COLUMNS']
-                                                            is List) {
-                                                      columns = (carta[
-                                                                  'COLUMNS']
-                                                              as List)
-                                                          .map<DataColumn>(
-                                                              (k) => DataColumn(
-                                                                  label: Text(k
-                                                                      .toString())))
-                                                          .toList();
                                                     } else {
                                                       columns = [];
                                                     }
@@ -414,14 +402,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                       if (row is Map)
                                                         return DataRow(
                                                             cells: row.values
-                                                                .map((v) =>
-                                                                    DataCell(Text(
-                                                                        v?.toString() ??
-                                                                            '')))
-                                                                .toList());
-                                                      if (row is List)
-                                                        return DataRow(
-                                                            cells: row
                                                                 .map((v) =>
                                                                     DataCell(Text(
                                                                         v?.toString() ??
