@@ -106506,7 +106506,7 @@ s=2
 return A.o(A.jI(),$async$BQ)
 case 2:p=o.bt(n.Q(b.a,"tipos_usuario"))
 if(p!=null)q.e=A.bN(B.ch.xu(0,p,null),!0,t.N)
-else q.e=A.a(["ADMINISTRATIVO","STAFF AUXILIAR","JEFATURA","VENTAS","PREVENCION","ADMIN OMNICANAL","ADMIN ENVIOS"],t.s)
+else q.e=A.a(["ADMINISTRATIVO","STAFF AUXILIAR","JEFATURA","VENTAS","PREVENCION","ADMIN OMNICANAL","ADMIN ENVIOS","ADMIN"],t.s)
 q.N(new A.aLX())
 return A.u(null,r)}})
 return A.v($async$BQ,r)},

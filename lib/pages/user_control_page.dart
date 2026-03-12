@@ -45,6 +45,7 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
         'PREVENCION',
         'ADMIN OMNICANAL',
         'ADMIN ENVIOS',
+        'ADMIN',
       ];
     }
     setState(() {});
