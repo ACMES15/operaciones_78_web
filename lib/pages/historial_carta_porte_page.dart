@@ -16,6 +16,29 @@ class HistorialCartaPortePage extends StatefulWidget {
 }
 
 class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
+  // Limpia recursivamente los datos no serializables (ej. Timestamp, FieldValue)
+  dynamic _toEncodable(dynamic value) {
+    if (value == null) return null;
+    if (value is Map) {
+      return value.map((k, v) => MapEntry(k, _toEncodable(v)));
+    }
+    if (value is List) {
+      return value.map(_toEncodable).toList();
+    }
+    if (value is DateTime) {
+      return value.toIso8601String();
+    }
+    if (value.runtimeType.toString() == 'Timestamp') {
+      // Firestore Timestamp
+      return value.toDate().toIso8601String();
+    }
+    if (value.runtimeType.toString().contains('FieldValue')) {
+      // No serializar FieldValue
+      return null;
+    }
+    return value;
+  }
+
   final TextEditingController _busquedaController = TextEditingController();
   // bool _esAdmin = false; // Eliminado porque no se usa
   List<Map<String, dynamic>> _cartasCache = [];
@@ -57,7 +80,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
       _cartasCache = snap.docs.map((d) {
         final data = d.data();
         data['id'] = d.id;
-        return data;
+        return _toEncodable(data) as Map<String, dynamic>;
       }).toList();
       await prefs.setString(cacheKey, jsonEncode(_cartasCache));
       setState(() {
