@@ -158,7 +158,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       }
 
       // 2. Buscar en Firestore: hoja_de_xd_historial
-      // Nueva consulta: obtener todos los documentos de la colección
+      // 1. Buscar por 'CONTENEDOR O TARIMA'
       final xdSnap = await FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
           .where('CONTENEDOR O TARIMA', isEqualTo: escaneo)
@@ -166,13 +166,27 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           .limit(1)
           .get();
       print('Consulta hoja_de_xd_historial: ${xdSnap.docs.length} documentos');
-      final xd = xdSnap.docs
+      List<HojaDeXDHistorial> xd = xdSnap.docs
           .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-          .where((h) =>
-              ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
-                  (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo))
+          .where(
+              (h) => (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo)
           .toList();
-      print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
+      print(
+          'Coincidencias en hoja_de_xd_historial (CONTENEDOR O TARIMA): ${xd.length}');
+      if (xd.isEmpty) {
+        // 2. Si no hay resultados, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs
+        final allDocs = await FirebaseFirestore.instance
+            .collection('hoja_de_xd_historial')
+            .orderBy('fecha', descending: true)
+            .get();
+        xd = allDocs.docs
+            .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
+            .where((h) => ((h.datos['CONTENEDOR'] ?? '').trim() == escaneo ||
+                (h.datos['TARIMA'] ?? '').trim() == escaneo))
+            .toList();
+        print(
+            'Coincidencias en hoja_de_xd_historial (CONTENEDOR/TARIMA): ${xd.length}');
+      }
       xd.sort((a, b) => b.fecha.compareTo(a.fecha));
       if (xd.isNotEmpty) {
         final h = xd.first;
