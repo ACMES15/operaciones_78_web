@@ -104032,35 +104032,35 @@ s.a=!1
 return new A.ig(new A.aCQ(s,this.a,r),null)},
 $S:636}
 A.aCQ.prototype={
-$2(a,b){var s,r,q,p,o,n=null,m="numero_control",l="filas",k=this.c,j=J.T(k),i=j.h(k,"destino"),h=t.p
-i=A.a([A.Y("Destino: "+A.m(i==null?"-":i),n,n,n,n,n,n)],h)
-s=j.h(k,m)
+$2(a,b){var s,r,q,p,o,n=null,m="MANIFIESTO",l="fileName",k="FILAS",j=this.c,i=J.T(j),h=i.h(j,"DESTINO"),g=t.p
+h=A.a([A.Y("Destino: "+A.m(h==null?"-":h),n,n,n,n,n,n)],g)
+s=i.h(j,m)
 if(J.a0(s==null?"":s).length!==0){s=A.df(8)
 r=A.CD(B.ak,1)
-q=j.h(k,m)
-i.push(new A.aV(B.UK,A.bJ(n,A.b_(A.a([B.WJ,B.r_,A.Y(q==null?"":q,n,n,n,B.aRj,n,n)],h),B.S,B.I,B.b7,n),B.U,n,n,new A.bD(B.SV,n,r,s,n,n,B.al),n,n,n,B.v2,n,n,n),n))}i=A.b_(i,B.S,B.I,B.N,n)
-s=j.h(k,"chofer")
-s=A.Y("Chofer: "+A.m(s==null?"-":s),n,n,n,n,n,n)
-r=j.h(k,"unidad")
-r=A.Y("Unidad: "+A.m(r==null?"-":r),n,n,n,n,n,n)
-q=j.h(k,"rfc")
-q=A.Y("RFC: "+A.m(q==null?"-":q),n,n,n,n,n,n)
-p=j.h(k,"concentrado")
-s=A.a([s,r,q,A.Y("Concentrado: "+A.m(p==null?"-":p),n,n,n,n,n,n)],h)
-if(j.h(k,"fecha")!=null)s.push(A.Y("Fecha: "+A.m(j.h(k,"fecha")),n,n,n,n,n,n))
+q=i.h(j,m)
+h.push(new A.aV(B.UK,A.bJ(n,A.b_(A.a([B.WJ,B.r_,A.Y(q==null?"":q,n,n,n,B.aRj,n,n)],g),B.S,B.I,B.b7,n),B.U,n,n,new A.bD(B.SV,n,r,s,n,n,B.al),n,n,n,B.v2,n,n,n),n))}h=A.b_(h,B.S,B.I,B.N,n)
+s=i.h(j,"NOMBRE")
+s=A.Y("Nombre: "+A.m(s==null?"-":s),n,n,n,n,n,n)
+r=i.h(j,"usuario")
+r=A.Y("Usuario: "+A.m(r==null?"-":r),n,n,n,n,n,n)
+q=i.h(j,"DESTINO")
+q=A.Y("Destino: "+A.m(q==null?"-":q),n,n,n,n,n,n)
+p=i.h(j,"FECHA")
+s=A.a([s,r,q,A.Y("Fecha: "+A.m(p==null?"-":p),n,n,n,n,n,n)],g)
+if(i.h(j,l)!=null)s.push(A.Y("Archivo: "+A.m(i.h(j,l)),n,n,n,n,n,n))
 s=A.bs(s,B.aJ,B.I,B.N)
-r=A.dc(n,B.vJ,n,n,new A.aCN(this.b,k),n,n)
+r=A.dc(n,B.vJ,n,n,new A.aCN(this.b,j),n,n)
 q=this.a
 p=q.a
 o=A.nP(p?B.Wl:B.vF,B.q0,n,n)
 p=p?"Ocultar detalles":"Ver detalles"
-h=A.a([A.un(!1,n,n,n,!0,n,n,!0,!1,n,n,n,!1,n,n,n,s,n,i,A.b_(A.a([r,A.dc(n,o,n,n,new A.aCO(q,b),n,p)],h),B.S,B.I,B.b7,n),n)],h)
-i=!1
-if(q.a)if(j.h(k,l)!=null){i=t.j
-j=i.b(j.h(k,l))&&J.hw(i.a(j.h(k,l)))}else j=i
-else j=i
-if(j)h.push(new A.aV(B.US,A.hm(new A.fd(new A.aCP(k),n),n,B.bq),n))
-return A.fB(A.bs(h,B.S,B.I,B.N),B.SI,n,n,n)},
+g=A.a([A.un(!1,n,n,n,!0,n,n,!0,!1,n,n,n,!1,n,n,n,s,n,h,A.b_(A.a([r,A.dc(n,o,n,n,new A.aCO(q,b),n,p)],g),B.S,B.I,B.b7,n),n)],g)
+h=!1
+if(q.a)if(i.h(j,k)!=null){h=t.j
+i=h.b(i.h(j,k))&&J.hw(h.a(i.h(j,k)))}else i=h
+else i=h
+if(i)g.push(new A.aV(B.US,A.hm(new A.fd(new A.aCP(j),n),n,B.bq),n))
+return A.fB(A.bs(g,B.S,B.I,B.N),B.SI,n,n,n)},
 $S:637}
 A.aCN.prototype={
 $0(){return this.a.Ab(this.b)},
@@ -104073,7 +104073,7 @@ $0(){var s=this.a
 return s.a=!s.a},
 $S:0}
 A.aCP.prototype={
-$1(a){var s,r,q=null,p=t.j.a(J.M(this.a,"filas")),o=J.T(p)
+$1(a){var s,r,q=null,p=t.j.a(J.M(this.a,"FILAS")),o=J.T(p)
 if(o.gU(p))return B.aMP
 s=o.gL(p)
 r=t.f.b(s)?J.by(J.lV(s),new A.aCK(),t.ij).eG(0):A.a([],t.UR)

@@ -280,9 +280,8 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                           title: Row(
                                             children: [
                                               Text(
-                                                  'Destino: ${carta['destino'] ?? '-'}'),
-                                              if ((carta['numero_control'] ??
-                                                      '')
+                                                  'Destino: ${carta['DESTINO'] ?? '-'}'),
+                                              if ((carta['MANIFIESTO'] ?? '')
                                                   .toString()
                                                   .isNotEmpty)
                                                 Padding(
@@ -317,7 +316,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                         const SizedBox(
                                                             width: 4),
                                                         Text(
-                                                          carta['numero_control'] ??
+                                                          carta['MANIFIESTO'] ??
                                                               '',
                                                           style: const TextStyle(
                                                               fontWeight:
@@ -338,16 +337,16 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                    'Chofer: ${carta['chofer'] ?? '-'}'),
+                                                    'Nombre: ${carta['NOMBRE'] ?? '-'}'),
                                                 Text(
-                                                    'Unidad: ${carta['unidad'] ?? '-'}'),
+                                                    'Usuario: ${carta['usuario'] ?? '-'}'),
                                                 Text(
-                                                    'RFC: ${carta['rfc'] ?? '-'}'),
+                                                    'Destino: ${carta['DESTINO'] ?? '-'}'),
                                                 Text(
-                                                    'Concentrado: ${carta['concentrado'] ?? '-'}'),
-                                                if (carta['fecha'] != null)
+                                                    'Fecha: ${carta['FECHA'] ?? '-'}'),
+                                                if (carta['fileName'] != null)
                                                   Text(
-                                                      'Fecha: ${carta['fecha']}')
+                                                      'Archivo: ${carta['fileName']}')
                                               ]),
                                           trailing: Row(
                                               mainAxisSize: MainAxisSize.min,
@@ -372,10 +371,11 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                             !verDetalles))
                                               ]),
                                         ),
+                                        // Si tienes un campo tipo lista (por ejemplo, remisiones, filas, etc.) en mayúsculas, cámbialo aquí
                                         if (verDetalles &&
-                                            carta['filas'] != null &&
-                                            carta['filas'] is List &&
-                                            (carta['filas'] as List).isNotEmpty)
+                                            carta['FILAS'] != null &&
+                                            carta['FILAS'] is List &&
+                                            (carta['FILAS'] as List).isNotEmpty)
                                           Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
@@ -387,7 +387,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                   child: Builder(
                                                       builder: (context) {
                                                     final table =
-                                                        carta['filas'] as List;
+                                                        carta['FILAS'] as List;
                                                     if (table.isEmpty)
                                                       return const SizedBox();
                                                     final firstRow =
