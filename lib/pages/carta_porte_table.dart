@@ -67,8 +67,11 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         .orderBy('fecha', descending: true)
         .limit(1)
         .get();
+    print(
+        'Consulta hoja_ruta para $escaneo: ${hojaRutaSnap.docs.length} resultados');
     if (hojaRutaSnap.docs.isNotEmpty) {
       final ruta = hojaRutaSnap.docs.first.data();
+      print('Datos hoja_ruta encontrados: $ruta');
       _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
       _controllers[rowIdx][3].text = 'SAP';
       final rows = (ruta['rows'] as List?) ?? [];
@@ -152,15 +155,19 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         .doc('main')
         .get();
     final data = snap.data();
+    print(
+        'Consulta hoja_de_xd_historial: ${data != null && data['historial'] != null ? (data['historial'] as List).length : 0} registros en historial');
     if (data != null && data['historial'] != null) {
       final List<dynamic> list = data['historial'];
       final xd = list
           .map((e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
           .where((h) => (h.datos['CONTENEDOR'] ?? '').trim() == escaneo)
           .toList();
+      print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
       xd.sort((a, b) => b.fecha.compareTo(a.fecha));
       if (xd.isNotEmpty) {
         final h = xd.first;
+        print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
         _controllers[rowIdx][2].text = 'PAQ';
         _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
         _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
@@ -175,6 +182,14 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         return;
       }
     }
+
+    // Si no encontró nada en ninguna fuente
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content:
+              Text('No se encontró información para "$escaneo" en Firestore.')),
+    );
+    print('No se encontró información para "$escaneo" en ninguna fuente.');
   }
 
   void _actualizarRFC() {
