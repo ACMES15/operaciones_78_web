@@ -23,7 +23,7 @@ class CartaPorteImprimirPage extends StatelessWidget {
         title: const Text(
           'Imprimir Carta Porte',
           style: TextStyle(
-            color: Color(0xFF2D6A4F),
+            color: Color.fromARGB(255, 239, 244, 242),
             fontWeight: FontWeight.bold,
           ),
         ),
