@@ -135,6 +135,7 @@ class _HomePageState extends State<HomePage> {
       if (usuario != null) {
         final tipo = usuario['tipo'] ?? '';
         List<int> permitidas = [];
+        print('[DEBUG] Tipo de usuario detectado: $tipo');
         if (tipo == 'SUPERADMIN') {
           permitidas = List.generate(_paginas.length, (i) => i);
         } else {
@@ -144,6 +145,7 @@ class _HomePageState extends State<HomePage> {
           if (permisosDoc != null && permisosDoc['permisos'] != null) {
             final permisos = permisosDoc['permisos'] as Map<String, dynamic>;
             final permisosTipo = permisos[tipo] as Map<String, dynamic>?;
+            print('[DEBUG] Permisos cargados para $tipo: $permisosTipo');
             if (permisosTipo != null) {
               for (int i = 0; i < _paginas.length; i++) {
                 final nombrePagina = _paginas[i];
@@ -156,6 +158,9 @@ class _HomePageState extends State<HomePage> {
           // Si no hay permisos configurados, solo Inicio
           if (permitidas.isEmpty) permitidas = [0];
         }
+        print('[DEBUG] Índices de páginas permitidas: $permitidas');
+        print(
+            '[DEBUG] Nombres de páginas permitidas: ${permitidas.map((i) => _paginas[i]).toList()}');
         setState(() {
           _tipoUsuario = tipo;
           _paginasPermitidas = permitidas;
