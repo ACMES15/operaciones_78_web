@@ -294,6 +294,14 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _imprimirHoja() async {
+    print('--- IMPRIMIR HOJA ---');
+    print(
+        'Chofer: ${_choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : ''}');
+    print('Unidad: ${_unidadController.text}');
+    print('Destino: ${_destinoController.text}');
+    print('RFC: ${_rfcController.text}');
+    print('Fecha: $_fechaActual');
+    print('Columns: $_columns');
     final columns = _columns;
     final table = <List<String>>[];
     for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
@@ -317,6 +325,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       if (tieneDato) {
         table.add(row);
       }
+    }
+    print('Tabla a imprimir:');
+    for (final fila in table) {
+      print(fila);
     }
     if (table.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -11,6 +11,17 @@ class CartaPortePrinter {
     required List<String> columns,
     required List<List<String>> table,
   }) {
+    print('--- printCartaPorte ---');
+    print('Chofer: $chofer');
+    print('Unidad: $unidad');
+    print('Destino: $destino');
+    print('RFC: $rfc');
+    print('Fecha: $fecha');
+    print('Columns: $columns');
+    print('Table:');
+    for (final fila in table) {
+      print(fila);
+    }
     final buffer = StringBuffer();
     buffer.writeln('<html><head><title>Carta Porte</title>');
     buffer.writeln('<style>');
