@@ -6,15 +6,15 @@ import 'hoja_de_ruta_page.dart';
 import 'hoja_de_xd_page.dart';
 import 'hoja_de_xd_historial_page.dart';
 import 'historial_entregas_devcan_page.dart';
-import 'historial_entregas_devcan_mobile.dart';
 import 'historial_carta_porte_page.dart';
 import 'plantilla_ejecutiva_page.dart';
 import 'devcan_page.dart';
 import 'recogidos/recogidos_page.dart';
 import 'recogidos/historial_entregas_recogidos_page.dart';
-import 'historial_entregas_recogidos_mobile.dart';
 import 'bienvenida_page.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'historial_entregas_recogidos_mobile.dart';
+import 'historial_entregas_devcan_mobile.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -137,6 +137,8 @@ class _HomePageState extends State<HomePage> {
     if (datos == null) return;
     final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
     String tipo = tipoOriginal.toString();
+    print(
+        '[DEBUG] Tipo de usuario leído desde Firestore: "$tipoOriginal" para usuario: "${widget.usuario}"');
     if (_normalizar(tipo).contains('ADMIN')) {
       tipo = 'ADMIN';
     }
