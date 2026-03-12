@@ -60,6 +60,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     try {
       print('Iniciando autocompletarFilaPorEscaneo para fila $rowIdx');
       final escaneo = _controllers[rowIdx][0].text.trim();
+      print('Valor de escaneo: "$escaneo"');
       if (escaneo.isEmpty) return;
 
       // 1. Buscar en Firestore: hoja_ruta
@@ -71,9 +72,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           .get();
       print(
           'Consulta hoja_ruta para $escaneo: ${hojaRutaSnap.docs.length} resultados');
+      for (var doc in hojaRutaSnap.docs) {
+        print('Documento hoja_ruta encontrado: ${doc.data()}');
+        print('Comparando caja: "${doc.data()['caja']}" == "$escaneo"');
+      }
       if (hojaRutaSnap.docs.isNotEmpty) {
         final ruta = hojaRutaSnap.docs.first.data();
-        print('Datos hoja_ruta encontrados: $ruta');
+        print('Datos hoja_ruta usados: $ruta');
         _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
         _controllers[rowIdx][3].text = 'SAP';
         final rows = (ruta['rows'] as List?) ?? [];
@@ -162,6 +167,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           'Consulta hoja_de_xd_historial: ${data != null && data['historial'] != null ? (data['historial'] as List).length : 0} registros en historial');
       if (data != null && data['historial'] != null) {
         final List<dynamic> list = data['historial'];
+        for (var e in list) {
+          final cont = (e['CONTENEDOR'] ?? '').toString();
+          print('Comparando CONTENEDOR: "$cont" == "$escaneo"');
+        }
         final xd = list
             .map(
                 (e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
