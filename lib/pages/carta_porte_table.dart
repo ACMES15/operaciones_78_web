@@ -85,9 +85,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         String embarque = '';
         for (final row in rows) {
           if (row is Map) {
-            if ((row['No. Manifiesto'] != null &&
-                row['No. Manifiesto'].toString().isNotEmpty)) {
-              embarque = row['No. Manifiesto'].toString();
+            if ((row['No. Manifiesto o Remisión'] != null &&
+                row['No. Manifiesto o Remisión'].toString().isNotEmpty)) {
+              embarque = row['No. Manifiesto o Remisión'].toString();
               break;
             } else if ((row['Rem'] != null &&
                 row['Rem'].toString().isNotEmpty)) {
@@ -130,14 +130,14 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         String destino = '';
         for (final row in rows) {
           if (row is Map &&
-              row['Nombre Alm. destino'] != null &&
-              row['Nombre Alm. destino'].toString().isNotEmpty) {
-            destino = row['Nombre Alm. destino'].toString();
+              row['No. Alm.'] != null &&
+              row['No. Alm.'].toString().isNotEmpty) {
+            destino = row['No. Alm.'].toString();
             break;
           } else if (row is List) {
             final columns = (ruta['columns'] as List?) ?? [];
-            final idx = columns.indexWhere(
-                (c) => c.toString().toLowerCase().contains('destino'));
+            final idx = columns
+                .indexWhere((c) => c.toString().toLowerCase().contains('alm'));
             if (idx >= 0 &&
                 row.length > idx &&
                 row[idx] != null &&
@@ -158,42 +158,34 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       }
 
       // 2. Buscar en Firestore: hoja_de_xd_historial
-      final snap = await FirebaseFirestore.instance
+      // Nueva consulta: obtener todos los documentos de la colección
+      final xdSnap = await FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
-          .doc('main')
           .get();
-      final data = snap.data();
-      print(
-          'Consulta hoja_de_xd_historial: ${data != null && data['historial'] != null ? (data['historial'] as List).length : 0} registros en historial');
-      if (data != null && data['historial'] != null) {
-        final List<dynamic> list = data['historial'];
-        for (var e in list) {
-          final cont = (e['CONTENEDOR'] ?? '').toString();
-          print('Comparando CONTENEDOR: "$cont" == "$escaneo"');
-        }
-        final xd = list
-            .map(
-                (e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
-            .where((h) => (h.datos['CONTENEDOR'] ?? '').trim() == escaneo)
-            .toList();
-        print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
-        xd.sort((a, b) => b.fecha.compareTo(a.fecha));
-        if (xd.isNotEmpty) {
-          final h = xd.first;
-          print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
-          _controllers[rowIdx][2].text = 'PAQ';
-          _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
-          _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
-          _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
-          _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
-          _controllers[rowIdx][8].text = escaneo;
-          final embarque1 = _controllers[rowIdx][4].text;
-          final embarque2 = _controllers[rowIdx][9].text;
-          _controllers[rowIdx][10].text =
-              embarque1.isNotEmpty ? embarque1 : embarque2;
-          setState(() {});
-          return;
-        }
+      print('Consulta hoja_de_xd_historial: ${xdSnap.docs.length} documentos');
+      final xd = xdSnap.docs
+          .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
+          .where((h) =>
+              ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
+                  (h.datos['TARIMA'] ?? '').trim() == escaneo))
+          .toList();
+      print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
+      xd.sort((a, b) => b.fecha.compareTo(a.fecha));
+      if (xd.isNotEmpty) {
+        final h = xd.first;
+        print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
+        _controllers[rowIdx][2].text = 'PAQ';
+        _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
+        _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
+        _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
+        _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
+        _controllers[rowIdx][8].text = escaneo;
+        final embarque1 = _controllers[rowIdx][4].text;
+        final embarque2 = _controllers[rowIdx][9].text;
+        _controllers[rowIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
+        setState(() {});
+        return;
       }
 
       // Si no encontró nada en ninguna fuente
