@@ -275,8 +275,8 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                           title: Row(
                                             children: [
                                               Text(
-                                                  'Destino: ${carta['DESTINO'] ?? '-'}'),
-                                              if ((carta['NUMERO_CONTROL'] ??
+                                                  'Destino: ${carta['destino'] ?? '-'}'),
+                                              if ((carta['numero_control'] ??
                                                       '')
                                                   .toString()
                                                   .isNotEmpty)
@@ -312,7 +312,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                         const SizedBox(
                                                             width: 4),
                                                         Text(
-                                                          carta['NUMERO_CONTROL'] ??
+                                                          carta['numero_control'] ??
                                                               '',
                                                           style: const TextStyle(
                                                               fontWeight:

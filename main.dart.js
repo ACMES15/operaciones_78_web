@@ -104031,7 +104031,7 @@ s.a=!1
 return new A.ig(new A.aCT(s,this.a,r),null)},
 $S:636}
 A.aCT.prototype={
-$2(a,b){var s,r,q,p,o,n=null,m="NUMERO_CONTROL",l="TABLE",k=this.c,j=J.T(k),i=j.h(k,"DESTINO"),h=t.p
+$2(a,b){var s,r,q,p,o,n=null,m="numero_control",l="TABLE",k=this.c,j=J.T(k),i=j.h(k,"destino"),h=t.p
 i=A.a([A.Y("Destino: "+A.m(i==null?"-":i),n,n,n,n,n,n)],h)
 s=j.h(k,m)
 if(J.a_(s==null?"":s).length!==0){s=A.df(8)
