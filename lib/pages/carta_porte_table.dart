@@ -254,6 +254,22 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     await FirebaseFirestore.instance.collection('cartas_porte').add(data);
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Carta Porte guardada')));
+    // Limpiar campos y filas
+    setState(() {
+      _numeroControlActual = null;
+      _choferController.clear();
+      _rfcController.clear();
+      _unidadController.clear();
+      _destinoController.clear();
+      _choferesSeleccionados.clear();
+      _numFilas = 5;
+      _controllers = List.generate(
+          _numFilas,
+          (_) =>
+              List.generate(_columns.length, (_) => TextEditingController()));
+      _focusNodes = List.generate(
+          _numFilas, (_) => List.generate(_columns.length, (_) => FocusNode()));
+    });
   }
 
   Future<void> _generarNumeroControl() async {
