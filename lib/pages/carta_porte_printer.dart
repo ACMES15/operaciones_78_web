@@ -1,73 +1,68 @@
 import 'package:flutter/material.dart';
 import 'dart:html' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
-class CartaPortePrinter {
-  static void printCartaPorte({
-    required String chofer,
-    required String unidad,
-    required String destino,
-    required String rfc,
-    required String fecha,
-    required List<String> columns,
-    required List<List<String>> table,
-  }) {
-    print('--- printCartaPorte ---');
-    print('Chofer: $chofer');
-    print('Unidad: $unidad');
-    print('Destino: $destino');
-    print('RFC: $rfc');
-    print('Fecha: $fecha');
-    print('Columns: $columns');
-    print('Table:');
-    for (final fila in table) {
-      print(fila);
-    }
-    final buffer = StringBuffer();
-    buffer.writeln('<html><head><title>Carta Porte</title>');
-    buffer.writeln('<style>');
-    buffer.writeln('body { font-family: Arial, sans-serif; margin: 40px; }');
-    buffer.writeln('h1 { color: #2D6A4F; text-align: center; }');
-    buffer.writeln(
-        'table { border-collapse: collapse; width: 100%; margin-top: 24px; }');
-    buffer.writeln(
-        'th, td { border: 1px solid #888; padding: 6px 10px; font-size: 14px; }');
-    buffer.writeln('th { background: #B7E4C7; color: #2D6A4F; }');
-    buffer.writeln('.datos { margin: 18px 0; font-size: 16px; }');
-    buffer.writeln(
-        '.firma { margin-top: 48px; text-align: center; font-size: 16px; }');
-    buffer.writeln('</style></head><body>');
-    buffer.writeln('<h1>Liv. Galerias 0078</h1>');
-    buffer.writeln('<div class="datos">');
-    buffer.writeln('<b>Fecha:</b> $fecha<br>');
-    buffer.writeln('<b>Chofer:</b> $chofer<br>');
-    buffer.writeln('<b>RFC:</b> $rfc<br>');
-    buffer.writeln('<b>Unidad:</b> $unidad<br>');
-    buffer.writeln('<b>Destino:</b> $destino<br>');
-    buffer.writeln('</div>');
-    buffer.writeln('<table>');
-    buffer.writeln('<tr>');
-    for (final col in columns) {
-      buffer.writeln('<th>${col.replaceAll("\n", " ")}</th>');
-    }
-    buffer.writeln('</tr>');
-    for (final row in table) {
-      buffer.writeln('<tr>');
-      for (final cell in row) {
-        buffer.writeln('<td>${cell.replaceAll("\n", " ")}</td>');
-      }
-      buffer.writeln('</tr>');
-    }
-    buffer.writeln('</table>');
-    buffer.writeln('<div class="firma">');
-    buffer.writeln('<br><br><b>Nombre del Chofer:</b> $chofer<br>');
-    buffer.writeln(
-        '<div style="margin: 24px 0 8px 0; border-bottom: 1px solid #222; width: 300px; margin-left: auto; margin-right: auto;"></div>');
-    buffer.writeln('<span>Firma</span>');
-    buffer.writeln('</div>');
-    buffer.writeln('</body></html>');
-    final win = html.window.open('', 'Carta Porte') as html.Window;
-    win.document!.documentElement!.setInnerHtml(buffer.toString(),
-        treeSanitizer: html.NodeTreeSanitizer.trusted);
-    win.print();
-  }
+Future<void> descargarCartaPortePDF({
+  required String chofer,
+  required String unidad,
+  required String destino,
+  required String rfc,
+  required String fecha,
+  required List<String> columns,
+  required List<List<String>> table,
+}) async {
+  final pdf = pw.Document();
+  pdf.addPage(
+    pw.Page(
+      build: (pw.Context context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Center(
+              child: pw.Text('Liv. Galerias 0078',
+                  style: pw.TextStyle(
+                      fontSize: 24,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green800)),
+            ),
+            pw.SizedBox(height: 16),
+            pw.Text('Fecha: $fecha'),
+            pw.Text('Chofer: $chofer'),
+            pw.Text('RFC: $rfc'),
+            pw.Text('Unidad: $unidad'),
+            pw.Text('Destino: $destino'),
+            pw.SizedBox(height: 16),
+            pw.Table.fromTextArray(
+              headers: columns,
+              data: table,
+              headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold, color: PdfColors.green800),
+              cellStyle: pw.TextStyle(fontSize: 12),
+              border: pw.TableBorder.all(color: PdfColors.grey),
+              headerDecoration: pw.BoxDecoration(color: PdfColors.green100),
+            ),
+            pw.SizedBox(height: 32),
+            pw.Text('Nombre del Chofer:', style: pw.TextStyle(fontSize: 16)),
+            pw.SizedBox(height: 8),
+            pw.Text(chofer,
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 24),
+            pw.Container(
+              height: 40,
+              decoration: pw.BoxDecoration(
+                  border: pw.Border(
+                      bottom: pw.BorderSide(width: 2, color: PdfColors.black))),
+            ),
+            pw.Center(
+                child: pw.Text('Firma', style: pw.TextStyle(fontSize: 16))),
+          ],
+        );
+      },
+    ),
+  );
+  final bytes = await pdf.save();
+  await Printing.layoutPdf(onLayout: (_) => bytes);
 }

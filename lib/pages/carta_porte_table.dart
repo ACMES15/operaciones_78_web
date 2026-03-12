@@ -336,7 +336,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       );
       return;
     }
-    CartaPortePrinter.printCartaPorte(
+    await descargarCartaPortePDF(
       chofer:
           _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
       unidad: _unidadController.text,
