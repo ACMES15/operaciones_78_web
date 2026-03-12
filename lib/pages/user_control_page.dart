@@ -209,14 +209,27 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
   }
 
   Future<void> _guardarCambios() async {
-    // Guardar usuarios como campos tipo mapa
+    // Guardar usuarios como mapa (para login) y como lista bajo 'items' (para HomePage)
     final Map<String, dynamic> usuariosMap = {};
+    final List<Map<String, dynamic>> usuariosList = [];
     for (final u in usuarios) {
       final usuarioKey = (u['usuario'] ?? '').toString().trim().toLowerCase();
-      usuariosMap[usuarioKey] = Map<String, dynamic>.from(u);
+      // Normalizar tipo
+      String tipo = (u['tipo'] ?? '').toString();
+      if (tipo.trim().isEmpty && u['rol'] != null) {
+        tipo = u['rol'].toString();
+      }
+      // Si contiene ADMIN, normalizar a 'ADMIN' para permisos
+      final tipoNorm = tipo.toUpperCase().contains('ADMIN') ? 'ADMIN' : tipo;
+      final userMap = Map<String, dynamic>.from(u);
+      userMap['tipo'] = tipoNorm;
+      usuariosMap[usuarioKey] = Map<String, dynamic>.from(userMap);
+      usuariosList.add(Map<String, dynamic>.from(userMap));
     }
+    // Guardar ambos formatos
+    final datosFinal = {...usuariosMap, 'items': usuariosList};
     await guardarDatosFirestoreYCache(
-        'usuarios', 'usuarios_guardados', usuariosMap);
+        'usuarios', 'usuarios_guardados', datosFinal);
     setState(() {
       _tieneCambios = false;
     });
