@@ -240,36 +240,69 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _guardarCartaPorte() async {
+    // Validación de campos obligatorios
+    if (_numeroControlActual == null ||
+        _choferesSeleccionados.isEmpty ||
+        _unidadController.text.trim().isEmpty ||
+        _destinoController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Por favor, completa todos los campos obligatorios.')),
+      );
+      return;
+    }
+
+    // Validar que haya al menos una fila con datos relevantes
+    final filas = _controllers
+        .map((row) => row.map((c) => c.text).toList())
+        .where((fila) => fila.any((valor) => valor.trim().isNotEmpty))
+        .toList();
+    if (filas.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agrega al menos una fila con datos.')),
+      );
+      return;
+    }
+
     final data = {
       'numero_control': _numeroControlActual,
       'fecha': _fechaActual,
-      'chofer': _choferController.text,
+      'chofer':
+          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
       'rfc': _rfcController.text,
       'unidad': _unidadController.text,
       'destino': _destinoController.text,
-      'filas':
-          _controllers.map((row) => row.map((c) => c.text).toList()).toList(),
+      'filas': filas,
       'timestamp': FieldValue.serverTimestamp(),
     };
-    await FirebaseFirestore.instance.collection('cartas_porte').add(data);
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Carta Porte guardada')));
-    // Limpiar campos y filas
-    setState(() {
-      _numeroControlActual = null;
-      _choferController.clear();
-      _rfcController.clear();
-      _unidadController.clear();
-      _destinoController.clear();
-      _choferesSeleccionados.clear();
-      _numFilas = 5;
-      _controllers = List.generate(
-          _numFilas,
-          (_) =>
-              List.generate(_columns.length, (_) => TextEditingController()));
-      _focusNodes = List.generate(
-          _numFilas, (_) => List.generate(_columns.length, (_) => FocusNode()));
-    });
+
+    try {
+      await FirebaseFirestore.instance.collection('cartas_porte').add(data);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Carta Porte guardada exitosamente.')),
+      );
+      // Limpiar campos y filas
+      setState(() {
+        _numeroControlActual = null;
+        _choferController.clear();
+        _rfcController.clear();
+        _unidadController.clear();
+        _destinoController.clear();
+        _choferesSeleccionados.clear();
+        _numFilas = 5;
+        _controllers = List.generate(
+            _numFilas,
+            (_) =>
+                List.generate(_columns.length, (_) => TextEditingController()));
+        _focusNodes = List.generate(_numFilas,
+            (_) => List.generate(_columns.length, (_) => FocusNode()));
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al guardar: $e')),
+      );
+    }
   }
 
   Future<void> _generarNumeroControl() async {
