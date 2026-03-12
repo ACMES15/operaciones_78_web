@@ -109,8 +109,10 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     }
     final tipo = await showDialog<String>(
       context: context,
-      builder: (context) =>
-          DialogEditarTipo(tipoActual: usuarios[index]['tipo']),
+      builder: (context) => DialogEditarTipo(
+        tipoActual: usuarios[index]['tipo'],
+        tiposUsuario: tiposUsuario,
+      ),
     );
     if (tipo != null) {
       setState(() {

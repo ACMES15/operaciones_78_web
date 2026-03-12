@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 class DialogEditarTipo extends StatefulWidget {
   final String tipoActual;
-  const DialogEditarTipo({required this.tipoActual, super.key});
+  final List<String> tiposUsuario;
+  const DialogEditarTipo(
+      {required this.tipoActual, required this.tiposUsuario, super.key});
   @override
   State<DialogEditarTipo> createState() => _DialogEditarTipoState();
 }
@@ -21,19 +23,10 @@ class _DialogEditarTipoState extends State<DialogEditarTipo> {
       title: const Text('Editar tipo de usuario'),
       content: DropdownButtonFormField<String>(
         value: tipo,
-        items: const [
-          DropdownMenuItem(
-              value: 'ADMINISTRATIVO', child: Text('ADMINISTRATIVO')),
-          DropdownMenuItem(
-              value: 'STAFF AUXILIAR', child: Text('STAFF AUXILIAR')),
-          DropdownMenuItem(value: 'JEFATURA', child: Text('JEFATURA')),
-          DropdownMenuItem(value: 'VENTAS', child: Text('VENTAS')),
-          DropdownMenuItem(value: 'PREVENCION', child: Text('PREVENCION')),
-          DropdownMenuItem(
-              value: 'ADMIN OMNICANAL', child: Text('ADMIN OMNICANAL')),
-          DropdownMenuItem(value: 'ADMIN ENVIOS', child: Text('ADMIN ENVIOS')),
-        ],
-        onChanged: (v) => setState(() => tipo = v ?? 'ADMINISTRATIVO'),
+        items: widget.tiposUsuario
+            .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+            .toList(),
+        onChanged: (v) => setState(() => tipo = v ?? widget.tiposUsuario.first),
       ),
       actions: [
         TextButton(
