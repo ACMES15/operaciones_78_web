@@ -36,6 +36,10 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
       // No serializar FieldValue
       return null;
     }
+    // Manejo genérico para tipos desconocidos (como minifield:oG)
+    if (value.runtimeType.toString().startsWith('minifield:')) {
+      return value.toString();
+    }
     return value;
   }
 
