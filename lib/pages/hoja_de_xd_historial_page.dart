@@ -68,19 +68,16 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
-          .doc('main')
           .snapshots(),
       builder: (context, snapshot) {
         List<HojaDeXDHistorial> lista = [];
-        final data = snapshot.data?.data();
-        if (snapshot.hasData && data != null && data['historial'] != null) {
-          final List<dynamic> list = data['historial'];
-          lista = list
-              .map((e) =>
-                  HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
+        if (snapshot.hasData && snapshot.data != null) {
+          final docs = snapshot.data!.docs;
+          lista = docs
+              .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
               .toList();
         }
         historial = lista;
