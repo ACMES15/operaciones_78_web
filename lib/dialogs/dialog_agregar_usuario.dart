@@ -16,6 +16,12 @@ class _DialogAgregarUsuarioState extends State<DialogAgregarUsuario> {
   bool activo = true;
 
   @override
+  void initState() {
+    super.initState();
+    tipo = widget.tiposUsuario.isNotEmpty ? widget.tiposUsuario.first : '';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Agregar usuario'),
@@ -45,9 +51,7 @@ class _DialogAgregarUsuarioState extends State<DialogAgregarUsuario> {
                 onChanged: (v) => correo = v,
               ),
               DropdownButtonFormField<String>(
-                value: tipo.isEmpty && widget.tiposUsuario.isNotEmpty
-                    ? widget.tiposUsuario.first
-                    : tipo,
+                value: tipo,
                 decoration: const InputDecoration(labelText: 'Tipo'),
                 items: widget.tiposUsuario
                     .map((t) => DropdownMenuItem(value: t, child: Text(t)))
