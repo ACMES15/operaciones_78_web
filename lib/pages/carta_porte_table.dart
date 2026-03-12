@@ -57,122 +57,92 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   ];
 
   Future<void> _autocompletarFilaPorEscaneo(int rowIdx) async {
-    final escaneo = _controllers[rowIdx][0].text.trim();
-    if (escaneo.isEmpty) return;
+    try {
+      print('Iniciando autocompletarFilaPorEscaneo para fila $rowIdx');
+      final escaneo = _controllers[rowIdx][0].text.trim();
+      if (escaneo.isEmpty) return;
 
-    // 1. Buscar en Firestore: hoja_ruta
-    final hojaRutaSnap = await FirebaseFirestore.instance
-        .collection('hoja_ruta')
-        .where('caja', isEqualTo: escaneo)
-        .orderBy('fecha', descending: true)
-        .limit(1)
-        .get();
-    print(
-        'Consulta hoja_ruta para $escaneo: ${hojaRutaSnap.docs.length} resultados');
-    if (hojaRutaSnap.docs.isNotEmpty) {
-      final ruta = hojaRutaSnap.docs.first.data();
-      print('Datos hoja_ruta encontrados: $ruta');
-      _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
-      _controllers[rowIdx][3].text = 'SAP';
-      final rows = (ruta['rows'] as List?) ?? [];
-      String embarque = '';
-      for (final row in rows) {
-        if (row is Map) {
-          if ((row['No. Manifiesto'] != null &&
-              row['No. Manifiesto'].toString().isNotEmpty)) {
-            embarque = row['No. Manifiesto'].toString();
-            break;
-          } else if ((row['Rem'] != null && row['Rem'].toString().isNotEmpty)) {
-            embarque = row['Rem'].toString();
-            break;
-          }
-        } else if (row is List) {
-          final columns = (ruta['columns'] as List?) ?? [];
-          final idx = columns.indexWhere((c) =>
-              c.toString().toLowerCase().contains('manifiesto') ||
-              c.toString().toLowerCase().contains('rem'));
-          if (idx >= 0 &&
-              row.length > idx &&
-              row[idx] != null &&
-              row[idx].toString().isNotEmpty) {
-            embarque = row[idx].toString();
-            break;
+      // 1. Buscar en Firestore: hoja_ruta
+      final hojaRutaSnap = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .where('caja', isEqualTo: escaneo)
+          .orderBy('fecha', descending: true)
+          .limit(1)
+          .get();
+      print(
+          'Consulta hoja_ruta para $escaneo: ${hojaRutaSnap.docs.length} resultados');
+      if (hojaRutaSnap.docs.isNotEmpty) {
+        final ruta = hojaRutaSnap.docs.first.data();
+        print('Datos hoja_ruta encontrados: $ruta');
+        _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
+        _controllers[rowIdx][3].text = 'SAP';
+        final rows = (ruta['rows'] as List?) ?? [];
+        String embarque = '';
+        for (final row in rows) {
+          if (row is Map) {
+            if ((row['No. Manifiesto'] != null &&
+                row['No. Manifiesto'].toString().isNotEmpty)) {
+              embarque = row['No. Manifiesto'].toString();
+              break;
+            } else if ((row['Rem'] != null &&
+                row['Rem'].toString().isNotEmpty)) {
+              embarque = row['Rem'].toString();
+              break;
+            }
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns.indexWhere((c) =>
+                c.toString().toLowerCase().contains('manifiesto') ||
+                c.toString().toLowerCase().contains('rem'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              embarque = row[idx].toString();
+              break;
+            }
           }
         }
-      }
-      _controllers[rowIdx][4].text = embarque;
-      _controllers[rowIdx][5].text = ruta['tipo'] ?? '';
-      int sumaBultos = 0;
-      for (final row in rows) {
-        if (row is Map && row['No. Bultos'] != null) {
-          final val = int.tryParse(row['No. Bultos'].toString());
-          if (val != null) sumaBultos += val;
-        } else if (row is List) {
-          final columns = (ruta['columns'] as List?) ?? [];
-          final idx = columns
-              .indexWhere((c) => c.toString().toLowerCase().contains('bultos'));
-          if (idx >= 0 && row.length > idx && row[idx] != null) {
-            final val = int.tryParse(row[idx].toString());
+        _controllers[rowIdx][4].text = embarque;
+        _controllers[rowIdx][5].text = ruta['tipo'] ?? '';
+        int sumaBultos = 0;
+        for (final row in rows) {
+          if (row is Map && row['No. Bultos'] != null) {
+            final val = int.tryParse(row['No. Bultos'].toString());
             if (val != null) sumaBultos += val;
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns.indexWhere(
+                (c) => c.toString().toLowerCase().contains('bultos'));
+            if (idx >= 0 && row.length > idx && row[idx] != null) {
+              final val = int.tryParse(row[idx].toString());
+              if (val != null) sumaBultos += val;
+            }
           }
         }
-      }
-      _controllers[rowIdx][6].text =
-          sumaBultos > 0 ? sumaBultos.toString() : '';
-      String destino = '';
-      for (final row in rows) {
-        if (row is Map &&
-            row['Nombre Alm. destino'] != null &&
-            row['Nombre Alm. destino'].toString().isNotEmpty) {
-          destino = row['Nombre Alm. destino'].toString();
-          break;
-        } else if (row is List) {
-          final columns = (ruta['columns'] as List?) ?? [];
-          final idx = columns.indexWhere(
-              (c) => c.toString().toLowerCase().contains('destino'));
-          if (idx >= 0 &&
-              row.length > idx &&
-              row[idx] != null &&
-              row[idx].toString().isNotEmpty) {
-            destino = row[idx].toString();
+        _controllers[rowIdx][6].text =
+            sumaBultos > 0 ? sumaBultos.toString() : '';
+        String destino = '';
+        for (final row in rows) {
+          if (row is Map &&
+              row['Nombre Alm. destino'] != null &&
+              row['Nombre Alm. destino'].toString().isNotEmpty) {
+            destino = row['Nombre Alm. destino'].toString();
             break;
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns.indexWhere(
+                (c) => c.toString().toLowerCase().contains('destino'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              destino = row[idx].toString();
+              break;
+            }
           }
         }
-      }
-      _controllers[rowIdx][7].text = destino;
-      _controllers[rowIdx][8].text = escaneo;
-      final embarque1 = _controllers[rowIdx][4].text;
-      final embarque2 = _controllers[rowIdx][9].text;
-      _controllers[rowIdx][10].text =
-          embarque1.isNotEmpty ? embarque1 : embarque2;
-      setState(() {});
-      return;
-    }
-
-    // 2. Buscar en Firestore: hoja_de_xd_historial
-    final snap = await FirebaseFirestore.instance
-        .collection('hoja_de_xd_historial')
-        .doc('main')
-        .get();
-    final data = snap.data();
-    print(
-        'Consulta hoja_de_xd_historial: ${data != null && data['historial'] != null ? (data['historial'] as List).length : 0} registros en historial');
-    if (data != null && data['historial'] != null) {
-      final List<dynamic> list = data['historial'];
-      final xd = list
-          .map((e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
-          .where((h) => (h.datos['CONTENEDOR'] ?? '').trim() == escaneo)
-          .toList();
-      print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
-      xd.sort((a, b) => b.fecha.compareTo(a.fecha));
-      if (xd.isNotEmpty) {
-        final h = xd.first;
-        print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
-        _controllers[rowIdx][2].text = 'PAQ';
-        _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
-        _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
-        _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
-        _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
+        _controllers[rowIdx][7].text = destino;
         _controllers[rowIdx][8].text = escaneo;
         final embarque1 = _controllers[rowIdx][4].text;
         final embarque2 = _controllers[rowIdx][9].text;
@@ -181,15 +151,55 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         setState(() {});
         return;
       }
-    }
 
-    // Si no encontró nada en ninguna fuente
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content:
-              Text('No se encontró información para "$escaneo" en Firestore.')),
-    );
-    print('No se encontró información para "$escaneo" en ninguna fuente.');
+      // 2. Buscar en Firestore: hoja_de_xd_historial
+      final snap = await FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .doc('main')
+          .get();
+      final data = snap.data();
+      print(
+          'Consulta hoja_de_xd_historial: ${data != null && data['historial'] != null ? (data['historial'] as List).length : 0} registros en historial');
+      if (data != null && data['historial'] != null) {
+        final List<dynamic> list = data['historial'];
+        final xd = list
+            .map(
+                (e) => HojaDeXDHistorial.fromJson(Map<String, dynamic>.from(e)))
+            .where((h) => (h.datos['CONTENEDOR'] ?? '').trim() == escaneo)
+            .toList();
+        print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
+        xd.sort((a, b) => b.fecha.compareTo(a.fecha));
+        if (xd.isNotEmpty) {
+          final h = xd.first;
+          print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
+          _controllers[rowIdx][2].text = 'PAQ';
+          _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
+          _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
+          _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
+          _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
+          _controllers[rowIdx][8].text = escaneo;
+          final embarque1 = _controllers[rowIdx][4].text;
+          final embarque2 = _controllers[rowIdx][9].text;
+          _controllers[rowIdx][10].text =
+              embarque1.isNotEmpty ? embarque1 : embarque2;
+          setState(() {});
+          return;
+        }
+      }
+
+      // Si no encontró nada en ninguna fuente
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'No se encontró información para "$escaneo" en Firestore.')),
+      );
+      print('No se encontró información para "$escaneo" en ninguna fuente.');
+    } catch (e, stack) {
+      print('ERROR en autocompletarFilaPorEscaneo: $e\n$stack');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error inesperado: $e')),
+      );
+    }
   }
 
   void _actualizarRFC() {
