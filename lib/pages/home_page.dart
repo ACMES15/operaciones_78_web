@@ -143,8 +143,14 @@ class _HomePageState extends State<HomePage> {
     final prefs = await SharedPreferences.getInstance();
     final data = prefs.getString('usuarios_guardados');
     if (data != null) {
-      final List<dynamic> decoded = jsonDecode(data);
-      final usuario = decoded.firstWhere(
+      final decoded = jsonDecode(data);
+      List<dynamic> listaUsuarios = [];
+      if (decoded is Map<String, dynamic> && decoded['items'] is List) {
+        listaUsuarios = decoded['items'];
+      } else if (decoded is List) {
+        listaUsuarios = decoded;
+      }
+      final usuario = listaUsuarios.firstWhere(
         (u) => u['usuario'] == widget.usuario,
         orElse: () => null,
       );
