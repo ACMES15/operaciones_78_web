@@ -1,26 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/exportar_excel.dart';
 
-class HistorialCartaPortePage extends StatelessWidget {
-  // Simulación de datos para la estructura visual
-  final List<Map<String, dynamic>> cartasDemo = const [
-    {
-      'MANIFIESTO': '969696',
-      'DESTINO': '168',
-      'FECHA': '2026-03-11',
-      'NOMBRE': 'acmes15',
-      'USUARIO': 'acmes15',
-    },
-    {
-      'MANIFIESTO': '123456',
-      'DESTINO': '200',
-      'FECHA': '2026-03-10',
-      'NOMBRE': 'usuario2',
-      'USUARIO': 'usuario2',
-    },
-  ];
+class HistorialCartaPortePage extends StatefulWidget {
+  const HistorialCartaPortePage({Key? key}) : super(key: key);
 
-  HistorialCartaPortePage({Key? key}) : super(key: key);
+  @override
+  State<HistorialCartaPortePage> createState() =>
+      _HistorialCartaPortePageState();
+}
+
+class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
+  Future<void> _editarCartaDialog(Map<String, dynamic> carta) async {
+    final manifiestoController = TextEditingController(
+        text: carta['MANIFIESTO'] ?? carta['manifiesto'] ?? '');
+    final destinoController =
+        TextEditingController(text: carta['DESTINO'] ?? carta['destino'] ?? '');
+    final fechaController =
+        TextEditingController(text: carta['FECHA'] ?? carta['fecha'] ?? '');
+    final nombreController =
+        TextEditingController(text: carta['NOMBRE'] ?? carta['nombre'] ?? '');
+    final usuarioController =
+        TextEditingController(text: carta['USUARIO'] ?? carta['usuario'] ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Editar Carta Porte'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: manifiestoController,
+                  decoration: const InputDecoration(labelText: 'Manifiesto'),
+                ),
+                TextField(
+                  controller: destinoController,
+                  decoration: const InputDecoration(labelText: 'Destino'),
+                ),
+                TextField(
+                  controller: fechaController,
+                  decoration: const InputDecoration(labelText: 'Fecha'),
+                ),
+                TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(labelText: 'Nombre'),
+                ),
+                TextField(
+                  controller: usuarioController,
+                  decoration: const InputDecoration(labelText: 'Usuario'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final docId = carta['id'];
+                if (docId != null) {
+                  await FirebaseFirestore.instance
+                      .collection('cartas_porte')
+                      .doc(docId)
+                      .update({
+                    'MANIFIESTO': manifiestoController.text,
+                    'DESTINO': destinoController.text,
+                    'FECHA': fechaController.text,
+                    'NOMBRE': nombreController.text,
+                    'USUARIO': usuarioController.text,
+                  });
+                }
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Carta porte actualizada')),
+                );
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   final TextEditingController _busquedaController = TextEditingController();
 
@@ -60,30 +126,66 @@ class HistorialCartaPortePage extends StatelessWidget {
                 isDense: true,
               ),
               onChanged: (_) {
-                // No hace nada aún, solo estructura visual
+                setState(() {});
               },
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: ListView.builder(
-                itemCount: cartasDemo.length,
-                itemBuilder: (context, idx) {
-                  final carta = cartasDemo[idx];
-                  return Card(
-                    color: const Color(0xFFF5F6FA),
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      title: Text('Manifiesto: ${carta['MANIFIESTO']}'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Destino: ${carta['DESTINO']}'),
-                          Text('Fecha: ${carta['FECHA']}'),
-                          Text('Nombre: ${carta['NOMBRE']}'),
-                          Text('Usuario: ${carta['USUARIO']}'),
-                        ],
-                      ),
-                    ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('cartas_porte')
+                    .orderBy('numero_control', descending: true)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: \\${snapshot.error}'));
+                  }
+                  final docs = snapshot.data?.docs ?? [];
+                  final busqueda =
+                      _busquedaController.text.trim().toLowerCase();
+                  final cartas = docs.map((d) {
+                    final data = d.data() as Map<String, dynamic>;
+                    data['id'] = d.id;
+                    return data;
+                  }).where((carta) {
+                    if (busqueda.isEmpty) return true;
+                    return carta.values.any((v) =>
+                        v != null &&
+                        v.toString().toLowerCase().contains(busqueda));
+                  }).toList();
+                  if (cartas.isEmpty) {
+                    return const Center(child: Text('No hay cartas porte'));
+                  }
+                  return ListView.builder(
+                    itemCount: cartas.length,
+                    itemBuilder: (context, idx) {
+                      final carta = cartas[idx];
+                      return Card(
+                        color: const Color(0xFFF5F6FA),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: ListTile(
+                          title: Text(
+                              'Manifiesto: \\${carta['MANIFIESTO'] ?? carta['manifiesto'] ?? '-'}'),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                  'Destino: \\${carta['DESTINO'] ?? carta['destino'] ?? '-'}'),
+                              Text(
+                                  'Fecha: \\${carta['FECHA'] ?? carta['fecha'] ?? '-'}'),
+                              Text(
+                                  'Nombre: \\${carta['NOMBRE'] ?? carta['nombre'] ?? '-'}'),
+                              Text(
+                                  'Usuario: \\${carta['USUARIO'] ?? carta['usuario'] ?? '-'}'),
+                            ],
+                          ),
+                          onTap: () => _editarCartaDialog(carta),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
