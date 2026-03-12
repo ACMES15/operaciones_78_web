@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // import '../utils/firebase_cache_utils.dart';
 import '../utils/exportar_excel.dart';
 import 'carta_porte_printer.dart';
-import 'hoja_de_ruta_extra_page.dart';
+// import 'hoja_de_ruta_extra_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'dart:math' as math;
 import '../models/hoja_de_xd_historial.dart';
@@ -60,15 +60,15 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     final escaneo = _controllers[rowIdx][0].text.trim();
     if (escaneo.isEmpty) return;
 
-    // 1. Buscar en hoja de ruta enviadas (sentHojaRutas)
-    await HojaDeRutaExtraPage.loadSentHojaRutasCache();
-    final rutas = HojaDeRutaExtraPage.sentHojaRutas
-        .where((r) => (r['caja'] ?? '').toString().trim() == escaneo)
-        .toList();
-    rutas.sort((a, b) =>
-        (b['fecha'] ?? '').toString().compareTo((a['fecha'] ?? '').toString()));
-    if (rutas.isNotEmpty) {
-      final ruta = rutas.first;
+    // 1. Buscar en Firestore: hoja_ruta
+    final hojaRutaSnap = await FirebaseFirestore.instance
+        .collection('hoja_ruta')
+        .where('caja', isEqualTo: escaneo)
+        .orderBy('fecha', descending: true)
+        .limit(1)
+        .get();
+    if (hojaRutaSnap.docs.isNotEmpty) {
+      final ruta = hojaRutaSnap.docs.first.data();
       _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
       _controllers[rowIdx][3].text = 'SAP';
       final rows = (ruta['rows'] as List?) ?? [];
@@ -146,7 +146,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       return;
     }
 
-    // 2. Buscar en historial hoja de XD (Firestore)
+    // 2. Buscar en Firestore: hoja_de_xd_historial
     final snap = await FirebaseFirestore.instance
         .collection('hoja_de_xd_historial')
         .doc('main')
