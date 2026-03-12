@@ -78,7 +78,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
           .orderBy('numero_control', descending: true)
           .get();
       _cartasCache = snap.docs.map((d) {
-        final data = d.data();
+        final data = Map<String, dynamic>.from(d.data());
         data['id'] = d.id;
         return _toEncodable(data) as Map<String, dynamic>;
       }).toList();
