@@ -193,7 +193,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         final h = xd.first;
         print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
         _controllers[rowIdx][2].text = 'PAQ';
-        _controllers[rowIdx][3].text = h.datos['TU'] ?? '';
+        // Lógica SYS según TU
+        final tu = (h.datos['TU'] ?? '').trim();
+        if (tu.isNotEmpty) {
+          _controllers[rowIdx][3].text = 'MAN';
+        } else {
+          _controllers[rowIdx][3].text = 'XD';
+        }
         _controllers[rowIdx][5].text = h.datos['MANIFIESTO'] ?? '';
         _controllers[rowIdx][6].text = h.datos['CANTIDAD DE LPS'] ?? '';
         _controllers[rowIdx][7].text = h.datos['DESTINO'] ?? '';
@@ -777,103 +783,154 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                           width: 1))
                                                   : null,
                                             ),
-                                            child: _columns[colIdx]
-                                                        .toUpperCase()
-                                                        .replaceAll('.', '')
-                                                        .trim() ==
-                                                    'NO'
-                                                ? Text(
-                                                    (rowIdx + 1).toString(),
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 15,
-                                                        color:
-                                                            Color(0xFF2D6A4F)),
-                                                  )
-                                                : TextFormField(
-                                                    controller: _controllers
-                                                                    .length >
-                                                                rowIdx &&
-                                                            _controllers[rowIdx]
-                                                                    .length >
-                                                                colIdx
-                                                        ? _controllers[rowIdx]
-                                                            [colIdx]
-                                                        : null,
-                                                    focusNode: _focusNodes
-                                                                    .length >
-                                                                rowIdx &&
-                                                            _focusNodes[rowIdx]
-                                                                    .length >
-                                                                colIdx
-                                                        ? _focusNodes[rowIdx]
-                                                            [colIdx]
-                                                        : null,
-                                                    textAlign: TextAlign.center,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      isDense: true,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                              horizontal: 4),
-                                                      fillColor: Colors.white,
-                                                      filled: true,
-                                                      border: InputBorder.none,
-                                                    ),
-                                                    style: const TextStyle(
-                                                        fontSize: 15,
-                                                        color:
-                                                            Color(0xFF2D6A4F)),
-                                                    onFieldSubmitted:
-                                                        colIdx == 0
-                                                            ? (_) async {
-                                                                await _autocompletarFilaPorEscaneo(
-                                                                    rowIdx);
-                                                                final isPenultima =
-                                                                    rowIdx ==
-                                                                        _controllers.length -
-                                                                            2;
-                                                                if (rowIdx <
-                                                                    _controllers
-                                                                            .length -
-                                                                        1) {
-                                                                  FocusScope.of(
-                                                                          context)
-                                                                      .requestFocus(_focusNodes[
-                                                                          rowIdx +
-                                                                              1][0]);
-                                                                } else if (isPenultima) {
-                                                                  setState(() {
-                                                                    _numFilas++;
-                                                                    _controllers.add(List.generate(
-                                                                        _columns
-                                                                            .length,
-                                                                        (_) =>
-                                                                            TextEditingController()));
-                                                                    _focusNodes.add(List.generate(
-                                                                        _columns
-                                                                            .length,
-                                                                        (_) =>
-                                                                            FocusNode()));
-                                                                  });
-                                                                  Future.delayed(
-                                                                      const Duration(
-                                                                          milliseconds:
-                                                                              100),
-                                                                      () {
-                                                                    FocusScope.of(
-                                                                            context)
-                                                                        .requestFocus(_focusNodes[rowIdx +
-                                                                                1]
-                                                                            [
-                                                                            0]);
-                                                                  });
-                                                                }
-                                                              }
-                                                            : null,
-                                                  ),
+                                            child:
+                                                _columns[colIdx]
+                                                            .toUpperCase()
+                                                            .replaceAll('.', '')
+                                                            .trim() ==
+                                                        'NO'
+                                                    ? Text(
+                                                        (rowIdx + 1).toString(),
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 15,
+                                                            color: Color(
+                                                                0xFF2D6A4F)),
+                                                      )
+                                                    : _columns[colIdx]
+                                                                .toUpperCase()
+                                                                .replaceAll(
+                                                                    '.', '')
+                                                                .trim() ==
+                                                            'CONCENTRADO'
+                                                        ? TextFormField(
+                                                            controller:
+                                                                _controllers[
+                                                                        rowIdx]
+                                                                    [colIdx],
+                                                            readOnly: true,
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                              isDense: true,
+                                                              contentPadding:
+                                                                  EdgeInsets.symmetric(
+                                                                      vertical:
+                                                                          8,
+                                                                      horizontal:
+                                                                          4),
+                                                              fillColor:
+                                                                  Colors.white,
+                                                              filled: true,
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                            ),
+                                                            style: const TextStyle(
+                                                                fontSize: 15,
+                                                                color: Color(
+                                                                    0xFF2D6A4F)),
+                                                          )
+                                                        : TextFormField(
+                                                            controller: _controllers
+                                                                            .length >
+                                                                        rowIdx &&
+                                                                    _controllers[rowIdx]
+                                                                            .length >
+                                                                        colIdx
+                                                                ? _controllers[
+                                                                        rowIdx]
+                                                                    [colIdx]
+                                                                : null,
+                                                            focusNode: _focusNodes
+                                                                            .length >
+                                                                        rowIdx &&
+                                                                    _focusNodes[rowIdx]
+                                                                            .length >
+                                                                        colIdx
+                                                                ? _focusNodes[
+                                                                        rowIdx]
+                                                                    [colIdx]
+                                                                : null,
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                              isDense: true,
+                                                              contentPadding:
+                                                                  EdgeInsets.symmetric(
+                                                                      vertical:
+                                                                          8,
+                                                                      horizontal:
+                                                                          4),
+                                                              fillColor:
+                                                                  Colors.white,
+                                                              filled: true,
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                            ),
+                                                            style: const TextStyle(
+                                                                fontSize: 15,
+                                                                color: Color(
+                                                                    0xFF2D6A4F)),
+                                                            onChanged: colIdx ==
+                                                                        4 ||
+                                                                    colIdx == 9
+                                                                ? (value) {
+                                                                    // Actualizar concentrado automáticamente
+                                                                    final embarque1 =
+                                                                        _controllers[rowIdx][4]
+                                                                            .text;
+                                                                    final embarque2 =
+                                                                        _controllers[rowIdx][9]
+                                                                            .text;
+                                                                    _controllers[rowIdx]
+                                                                            [10]
+                                                                        .text = embarque1
+                                                                            .isNotEmpty
+                                                                        ? embarque1
+                                                                        : embarque2;
+                                                                    // Forzar actualización visual
+                                                                    setState(
+                                                                        () {});
+                                                                  }
+                                                                : null,
+                                                            onFieldSubmitted:
+                                                                colIdx == 0
+                                                                    ? (_) async {
+                                                                        await _autocompletarFilaPorEscaneo(
+                                                                            rowIdx);
+                                                                        final isPenultima =
+                                                                            rowIdx ==
+                                                                                _controllers.length - 2;
+                                                                        if (rowIdx <
+                                                                            _controllers.length -
+                                                                                1) {
+                                                                          FocusScope.of(context).requestFocus(_focusNodes[rowIdx + 1]
+                                                                              [
+                                                                              0]);
+                                                                        } else if (isPenultima) {
+                                                                          setState(
+                                                                              () {
+                                                                            _numFilas++;
+                                                                            _controllers.add(List.generate(_columns.length,
+                                                                                (_) => TextEditingController()));
+                                                                            _focusNodes.add(List.generate(_columns.length,
+                                                                                (_) => FocusNode()));
+                                                                          });
+                                                                          Future.delayed(
+                                                                              const Duration(milliseconds: 100),
+                                                                              () {
+                                                                            FocusScope.of(context).requestFocus(_focusNodes[rowIdx +
+                                                                                1][0]);
+                                                                          });
+                                                                        }
+                                                                      }
+                                                                    : null,
+                                                          ),
                                           ),
                                       ],
                                     ),
