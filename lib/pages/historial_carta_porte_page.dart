@@ -80,7 +80,7 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
       _cartasCache = snap.docs.map((d) {
         final data = Map<String, dynamic>.from(d.data());
         data['id'] = d.id;
-        return _toEncodable(data) as Map<String, dynamic>;
+        return Map<String, dynamic>.from(_toEncodable(data) as Map);
       }).toList();
       await prefs.setString(cacheKey, jsonEncode(_cartasCache));
       setState(() {
