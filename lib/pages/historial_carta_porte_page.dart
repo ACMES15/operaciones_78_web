@@ -192,12 +192,14 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     itemCount: cartas.length,
                     itemBuilder: (context, idx) {
                       final carta = cartas[idx];
-                      final isPendiente =
-                          (carta['chofer']?.toString()?.toUpperCase() ?? '') ==
-                              'PENDIENTE';
+                      final choferStr = (carta['chofer'] ?? '')
+                          .toString()
+                          .trim()
+                          .toUpperCase();
+                      final isPendiente = choferStr == 'PENDIENTE';
                       return Card(
                         color: isPendiente
-                            ? const Color(0xFFFFE082)
+                            ? Colors.orange.shade200
                             : const Color(0xFFF5F6FA),
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
