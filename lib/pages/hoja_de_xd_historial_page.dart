@@ -25,6 +25,16 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
       'historial': historial.map((e) => e.toJson()).toList(),
     };
     await guardarDatosFirestoreYCache('hoja_de_xd_historial', 'main', data);
+
+    // NUEVO: Guardar cada historial como documento individual
+    for (final h in historial) {
+      final docId = '${h.fecha.toIso8601String()}_${h.usuario}_${h.fileName}'
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      await FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .doc(docId)
+          .set(h.toJson());
+    }
   }
 
   Future<void> _exportarExcel() async {

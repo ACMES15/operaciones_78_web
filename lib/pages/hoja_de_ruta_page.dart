@@ -9,6 +9,7 @@ import 'dart:typed_data';
 import '../utils/word_exporter.dart';
 import '../utils/firebase_cache_utils.dart';
 import '../utils/sheet_validator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // Top-level function for PDF generation to be used with compute
 Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
@@ -404,9 +405,34 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
     }
 
     HojaDeRutaExtraPage.sentHojaRutas.add(sheet);
-    // Guardar en Firebase y actualizar cache
+    // Guardar en Firebase y actualizar cache (legacy)
     await guardarDatosFirestoreYCache('hoja_ruta', 'sentHojaRutas',
         {'items': HojaDeRutaExtraPage.sentHojaRutas});
+
+    // NUEVO: Guardar hoja individual como documento en hoja_ruta
+    // Usamos numeroControl como ID único (si no existe, generamos uno seguro)
+    String docId = (sheet['numeroControl'] ??
+            DateTime.now().millisecondsSinceEpoch.toString())
+        .toString();
+    // Serializar todos los valores a tipos compatibles con Firestore
+    final Map<String, dynamic> serializableSheet = {};
+    sheet.forEach((key, value) {
+      if (value is DateTime) {
+        serializableSheet[key] = value.toIso8601String();
+      } else if (value is List) {
+        serializableSheet[key] = value
+            .map((e) => e is Map ? Map<String, dynamic>.from(e) : e.toString())
+            .toList();
+      } else if (value is Map) {
+        serializableSheet[key] = Map<String, dynamic>.from(value);
+      } else {
+        serializableSheet[key] = value?.toString() ?? '';
+      }
+    });
+    await FirebaseFirestore.instance
+        .collection('hoja_ruta')
+        .doc(docId)
+        .set(serializableSheet);
 
     // Generar Word con los datos principales
     final destino = _controllers.isNotEmpty
