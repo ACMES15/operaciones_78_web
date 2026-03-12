@@ -192,20 +192,36 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     itemCount: cartas.length,
                     itemBuilder: (context, idx) {
                       final carta = cartas[idx];
+                      final isPendiente =
+                          (carta['chofer']?.toString()?.toUpperCase() ?? '') ==
+                              'PENDIENTE';
                       return Card(
-                        color: const Color(0xFFF5F6FA),
+                        color: isPendiente
+                            ? const Color(0xFFFFE082)
+                            : const Color(0xFFF5F6FA),
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
                           title: Text(
-                              'Manifiesto: \\${carta['numero_control'] ?? '-'}'),
+                              'Manifiesto: ${carta['numero_control'] ?? '-'}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Destino: \\${carta['destino'] ?? '-'}'),
-                              Text('Fecha: \\${carta['fecha'] ?? '-'}'),
-                              Text('Chofer: \\${carta['chofer'] ?? '-'}'),
-                              Text('RFC: \\${carta['rfc'] ?? '-'}'),
-                              Text('Unidad: \\${carta['unidad'] ?? '-'}'),
+                              Text('Destino: ${carta['destino'] ?? '-'}'),
+                              Text('Fecha: ${carta['fecha'] ?? '-'}'),
+                              Text('Chofer: ${carta['chofer'] ?? '-'}'),
+                              Text('RFC: ${carta['rfc'] ?? '-'}'),
+                              Text('Unidad: ${carta['unidad'] ?? '-'}'),
+                              if (isPendiente)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Falta editar parámetros',
+                                    style: TextStyle(
+                                      color: Colors.orange[800],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
                           onTap: () async {
