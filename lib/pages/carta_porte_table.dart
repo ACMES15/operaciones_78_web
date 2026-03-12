@@ -161,13 +161,16 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       // Nueva consulta: obtener todos los documentos de la colección
       final xdSnap = await FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
+          .where('CONTENEDOR O TARIMA', isEqualTo: escaneo)
+          .orderBy('fecha', descending: true)
+          .limit(1)
           .get();
       print('Consulta hoja_de_xd_historial: ${xdSnap.docs.length} documentos');
       final xd = xdSnap.docs
           .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
           .where((h) =>
               ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
-                  (h.datos['TARIMA'] ?? '').trim() == escaneo))
+                  (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo))
           .toList();
       print('Coincidencias en hoja_de_xd_historial: ${xd.length}');
       xd.sort((a, b) => b.fecha.compareTo(a.fecha));
