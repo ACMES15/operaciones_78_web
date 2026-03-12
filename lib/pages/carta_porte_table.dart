@@ -181,8 +181,9 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             .get();
         xd = allDocs.docs
             .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-            .where((h) => ((h.datos['CONTENEDOR'] ?? '').trim() == escaneo ||
-                (h.datos['TARIMA'] ?? '').trim() == escaneo))
+            .where((h) =>
+                ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
+                    (h.datos['TARIMA'] ?? '').trim() == escaneo))
             .toList();
         print(
             'Coincidencias en hoja_de_xd_historial (CONTENEDOR/TARIMA): ${xd.length}');

@@ -102677,7 +102677,7 @@ s.toString
 return A.aQE(s)},
 $S:136}
 A.ax7.prototype={
-$1(a){var s=a.c,r=s.h(0,"CONTENEDOR"),q=this.a
+$1(a){var s=a.c,r=s.h(0,"CONTENEDOR O TARIMA"),q=this.a
 if(B.o.an(r==null?"":r)!==q){s=s.h(0,"TARIMA")
 s=B.o.an(s==null?"":s)===q}else s=!0
 return s},
