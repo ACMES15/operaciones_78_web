@@ -333,16 +333,16 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                    'Chofer: ${carta['CHOFER'] ?? '-'}'),
+                                                    'Chofer: ${carta['chofer'] ?? '-'}'),
                                                 Text(
-                                                    'Unidad: ${carta['UNIDAD'] ?? '-'}'),
+                                                    'Unidad: ${carta['unidad'] ?? '-'}'),
                                                 Text(
-                                                    'RFC: ${carta['RFC'] ?? '-'}'),
+                                                    'RFC: ${carta['rfc'] ?? '-'}'),
                                                 Text(
-                                                    'Concentrado: ${carta['CONCENTRADO'] ?? '-'}'),
-                                                if (carta['FECHA'] != null)
+                                                    'Concentrado: ${carta['concentrado'] ?? '-'}'),
+                                                if (carta['fecha'] != null)
                                                   Text(
-                                                      'Fecha: ${carta['FECHA']}')
+                                                      'Fecha: ${carta['fecha']}')
                                               ]),
                                           trailing: Row(
                                               mainAxisSize: MainAxisSize.min,
