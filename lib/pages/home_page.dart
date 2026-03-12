@@ -73,6 +73,34 @@ class _HomePageState extends State<HomePage> {
     'Recogidos',
   ];
   List<int> _paginasPermitidas = [];
+  // ...existing code...
+
+  Future<List<Map<String, dynamic>>> _cargarHistorialRecogidos() async {
+    final datos =
+        await leerDatosConCache('historial_entregas', 'recogidos_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> items = datos['items'];
+      return items
+          .cast<Map<String, dynamic>>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> _cargarHistorialDevCan() async {
+    final datos =
+        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+    if (datos != null && datos['items'] != null) {
+      final List<dynamic> items = datos['items'];
+      return items
+          .cast<Map<String, dynamic>>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return [];
+  }
+
   List<Widget> get _pages => [
         BienvenidaPage(usuario: widget.usuario, tipoUsuario: _tipoUsuario),
         UserControlPage(),
@@ -125,30 +153,22 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _determinarTipoUsuarioFirestore();
-    _actualizarNotificaciones();
   }
 
   Future<void> _determinarTipoUsuarioFirestore() async {
     // Leer usuario y permisos directamente de Firestore
     final usuarioDoc = await FirebaseFirestore.instance
         .collection('usuarios')
-        .doc('usuarios_guardados')
+        .doc(widget.usuario)
         .get();
     if (!usuarioDoc.exists || usuarioDoc.data() == null) {
-      setState(() {
-        _errorUsuario = 'No existe el documento de usuarios en Firestore.';
-      });
-      return;
-    }
-    final usuariosMap = usuarioDoc.data()!;
-    final datos = usuariosMap[widget.usuario] as Map<String, dynamic>?;
-    if (datos == null) {
       setState(() {
         _errorUsuario =
             'El usuario "${widget.usuario}" no existe en el sistema.';
       });
       return;
     }
+    final datos = usuarioDoc.data()!;
     final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
     if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
       setState(() {
@@ -209,47 +229,6 @@ class _HomePageState extends State<HomePage> {
       _paginasPermitidas = permitidas;
       _errorUsuario = null;
     });
-  }
-
-  Future<void> _actualizarNotificaciones() async {
-    // final notificaciones = await _getNotificaciones();
-    // setState(() {
-    //   _notificacionesPendientes = notificaciones.length;
-    // });
-  }
-
-  Future<List<Map<String, dynamic>>> _cargarHistorialRecogidos() async {
-    // Intenta leer de cache, si no existe, lee de Firestore y cachea
-    final datos =
-        await leerDatosConCache('historial_entregas', 'recogidos_firmadas');
-    if (datos != null && datos['items'] != null) {
-      final List<dynamic> items = datos['items'];
-      return items
-          .cast<Map<String, dynamic>>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-    }
-    return [];
-  }
-
-  // ignore: unused_element
-  Future<List<Map<String, dynamic>>> _getNotificaciones() async {
-    // TODO: Implementar notificaciones desde Firestore si es necesario
-    return [];
-  }
-
-  Future<List<Map<String, dynamic>>> _cargarHistorialDevCan() async {
-    // Intenta leer de cache, si no existe, lee de Firestore y cachea
-    final datos =
-        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
-    if (datos != null && datos['items'] != null) {
-      final List<dynamic> items = datos['items'];
-      return items
-          .cast<Map<String, dynamic>>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-    }
-    return [];
   }
 
   @override

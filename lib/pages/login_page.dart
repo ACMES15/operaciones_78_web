@@ -110,27 +110,16 @@ class _LoginPageState extends State<LoginPage> {
                     try {
                       final docSnap = await FirebaseFirestore.instance
                           .collection('usuarios')
-                          .doc('usuarios_guardados')
+                          .doc(usuarioInput)
                           .get();
                       if (!docSnap.exists || docSnap.data() == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text(
-                                  'Usuario no registrado en usuarios_guardados.')),
+                              content: Text('Usuario no registrado.')),
                         );
                         return;
                       }
-                      final usuariosMap = docSnap.data()!;
-                      final datos =
-                          usuariosMap[usuarioInput] as Map<String, dynamic>?;
-                      if (datos == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'Usuario no registrado en usuarios_guardados.')),
-                        );
-                        return;
-                      }
+                      final datos = docSnap.data()!;
                       final passDb = (datos['password'] ?? '')
                           .toString()
                           .trim()
@@ -171,9 +160,7 @@ class _LoginPageState extends State<LoginPage> {
                       );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('Error leyendo usuarios_guardados: $e')),
+                        SnackBar(content: Text('Error leyendo usuario: $e')),
                       );
                     }
                   },
@@ -183,36 +170,13 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () async {
-                    // Buscar admins en usuarios_guardados
+                    // Buscar admins en la colección usuarios
                     try {
-                      final docSnap = await FirebaseFirestore.instance
+                      final query = await FirebaseFirestore.instance
                           .collection('usuarios')
-                          .doc('usuarios_guardados')
+                          .where('rol', isEqualTo: 'ADMIN')
                           .get();
-                      if (!docSnap.exists) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'No existe el documento usuarios_guardados en Firestore.')),
-                        );
-                        return;
-                      }
-                      final usuariosMap = docSnap.data();
-                      if (usuariosMap == null || usuariosMap.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text(
-                                  'El documento usuarios_guardados está vacío.')),
-                        );
-                        return;
-                      }
-                      // Buscar admins
-                      final admins = usuariosMap.entries.where((e) {
-                        final datos = e.value as Map<String, dynamic>?;
-                        return (datos?['rol'] ?? '').toString().toLowerCase() ==
-                            'admin';
-                      }).toList();
-                      if (admins.isEmpty) {
+                      if (query.docs.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                               content:
@@ -221,7 +185,8 @@ class _LoginPageState extends State<LoginPage> {
                         return;
                       }
                       // Aquí podrías enviar email o notificación real
-                      String listaAdmins = admins.map((e) => e.key).join(', ');
+                      String listaAdmins =
+                          query.docs.map((e) => e.id).join(', ');
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                             content: Text(
