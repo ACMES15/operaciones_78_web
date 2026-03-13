@@ -265,8 +265,11 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Loader mientras se obtiene el tipo de usuario
+    // Loader mientras se obtiene el tipo de usuario o permisos
     final cargandoTipoUsuario = _tipoUsuario.isEmpty;
+    final cargandoPermisos = _paginasPermitidas.isEmpty &&
+        !cargandoTipoUsuario &&
+        _errorUsuario == null;
     // Método para detectar si es celular (no tablet)
     bool esCelular(BuildContext context) {
       final ancho = MediaQuery.of(context).size.width;
@@ -301,6 +304,71 @@ class _HomePageState extends State<HomePage> {
 
     final pagina = _paginas[paginasPermitidas[selectedMenuIndex]];
 
+    if (cargandoTipoUsuario || cargandoPermisos) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF2D6A4F),
+          title: Row(
+            children: [
+              const Icon(Icons.account_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Text('Cargando datos de usuario...',
+                  style: TextStyle(color: Colors.white)),
+            ],
+          ),
+          elevation: 0,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Si el usuario no tiene tipo o no tiene permisos definidos
+    if (_tipoUsuario.isEmpty || _paginasPermitidas.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF2D6A4F),
+          title: const Text('Acceso restringido'),
+        ),
+        body: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                const SizedBox(height: 16),
+                Text(
+                  _tipoUsuario.isEmpty
+                      ? 'Tu usuario no tiene un tipo asignado en Firestore.'
+                      : 'No tienes permisos asignados para acceder a ninguna página.',
+                  style: const TextStyle(
+                    color: Colors.red,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF2D6A4F),
@@ -308,19 +376,8 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Icon(Icons.account_circle, color: Colors.white),
             const SizedBox(width: 12),
-            cargandoTipoUsuario
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : Text(
-                    'Tipo de usuario: $_tipoUsuario',
-                    style: const TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+            Text('Tipo de usuario: $_tipoUsuario',
+                style: const TextStyle(color: Colors.white, fontSize: 18)),
           ],
         ),
         elevation: 0,

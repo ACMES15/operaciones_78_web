@@ -197,7 +197,18 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
       if (tipo.trim().isEmpty && u['rol'] != null) {
         tipo = u['rol'].toString();
       }
-      final tipoNorm = tipo.toUpperCase().contains('ADMIN') ? 'ADMIN' : tipo;
+      // Normalizar tipo: mayúsculas, sin tildes, sin espacios extra
+      tipo = tipo
+          .trim()
+          .toUpperCase()
+          .replaceAll('Á', 'A')
+          .replaceAll('É', 'E')
+          .replaceAll('Í', 'I')
+          .replaceAll('Ó', 'O')
+          .replaceAll('Ú', 'U')
+          .replaceAll('Ü', 'U')
+          .replaceAll('Ñ', 'N');
+      final tipoNorm = tipo.contains('ADMIN') ? 'ADMIN' : tipo;
       final userMap = Map<String, dynamic>.from(u);
       userMap['tipo'] = tipoNorm;
       await FirebaseFirestore.instance
