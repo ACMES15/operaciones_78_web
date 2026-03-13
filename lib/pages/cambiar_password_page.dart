@@ -21,31 +21,9 @@ class _CambiarPasswordPageState extends State<CambiarPasswordPage> {
     try {
       final usuario = widget.usuario.trim().toLowerCase();
       final newPass = _newPassController.text.trim();
-      final docRef = FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc('usuarios_guardados');
-      final doc = await docRef.get();
-      if (doc.exists && doc.data() != null) {
-        final data = Map<String, dynamic>.from(doc.data()!);
-        if (data['items'] != null) {
-          // formato antiguo
-          final items = List<Map<String, dynamic>>.from(data['items']);
-          final idx = items.indexWhere((e) =>
-              (e['usuario'] ?? '').toString().trim().toLowerCase() == usuario);
-          if (idx != -1) {
-            items[idx]['password'] = newPass;
-            await docRef.set({'items': items}, SetOptions(merge: true));
-          }
-        } else {
-          // nuevo formato mapa
-          final key = usuario;
-          if (data.containsKey(key)) {
-            final entry = Map<String, dynamic>.from(data[key]);
-            entry['password'] = newPass;
-            await docRef.set({key: entry}, SetOptions(merge: true));
-          }
-        }
-      }
+      final docRef =
+          FirebaseFirestore.instance.collection('usuarios').doc(usuario);
+      await docRef.set({'password': newPass}, SetOptions(merge: true));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
