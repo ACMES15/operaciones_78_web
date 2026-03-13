@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'agregar_tipo_usuario_widget.dart';
 
 // Define the StatefulWidget for this State class
 class UserControlPageBody extends StatefulWidget {
@@ -13,6 +14,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
   // Estado
   String _busqueda = '';
   List<String> tiposUsuario = [];
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _permisosKey = GlobalKey();
   List<Map<String, dynamic>> usuarios = [];
 
   Map<String, Map<String, bool>> permisosPorTipo = {};
@@ -33,18 +36,26 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     'Historial Entregas Recogidos',
   ];
 
-  void initState() {
-    super.initState();
-    _cargarUsuarios();
-    _cargarPermisosTipoUsuario();
-  }
-
+// --- Widget para agregar un nuevo tipo de usuario ---
   Future<void> _cargarUsuarios() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('usuarios').get();
+    final nuevosUsuarios =
+        snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+    // Unificar tipos de usuario de usuarios y permisos
+    final tiposUsuariosDeUsuarios = nuevosUsuarios
+        .map((u) => (u['tipo'] ?? '').toString())
+        .where((t) => t.isNotEmpty)
+        .toSet();
+    final tiposUsuariosDePermisos = permisosPorTipo.keys.toSet();
+    final todosLosTipos = {
+      ...tiposUsuariosDeUsuarios,
+      ...tiposUsuariosDePermisos
+    }.toList()
+      ..sort();
     setState(() {
-      usuarios =
-          snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+      usuarios = nuevosUsuarios;
+      tiposUsuario = todosLosTipos;
     });
   }
 
@@ -111,16 +122,32 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
         .get();
     if (doc.exists) {
       final data = doc.data() as Map<String, dynamic>;
+      final nuevosPermisos =
+          data.map((k, v) => MapEntry(k, Map<String, bool>.from(v)));
+      // Unificar tipos de usuario de usuarios y permisos
+      final tiposUsuariosDeUsuarios = usuarios
+          .map((u) => (u['tipo'] ?? '').toString())
+          .where((t) => t.isNotEmpty)
+          .toSet();
+      final tiposUsuariosDePermisos = nuevosPermisos.keys.toSet();
+      final todosLosTipos = {
+        ...tiposUsuariosDeUsuarios,
+        ...tiposUsuariosDePermisos
+      }.toList()
+        ..sort();
       setState(() {
-        permisosPorTipo =
-            data.map((k, v) => MapEntry(k, Map<String, bool>.from(v)));
-        tiposUsuario = permisosPorTipo.keys.toList();
+        permisosPorTipo = nuevosPermisos;
+        tiposUsuario = todosLosTipos;
         _cargandoPermisos = false;
       });
     } else {
+      final tiposUsuariosDeUsuarios = usuarios
+          .map((u) => (u['tipo'] ?? '').toString())
+          .where((t) => t.isNotEmpty)
+          .toSet();
       setState(() {
         permisosPorTipo = {};
-        tiposUsuario = [];
+        tiposUsuario = tiposUsuariosDeUsuarios.toList()..sort();
         _cargandoPermisos = false;
       });
     }
@@ -137,12 +164,29 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
 
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Gestión de usuarios',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Gestión de usuarios',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.arrow_downward),
+                label: const Text('Ir a permisos'),
+                onPressed: () {
+                  Scrollable.ensureVisible(
+                    _permisosKey.currentContext!,
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                  );
+                },
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Card(
             elevation: 2,
@@ -216,10 +260,24 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
           const SizedBox(height: 24),
           const Divider(thickness: 2),
           const SizedBox(height: 12),
-          const Text('Permisos por tipo de usuario',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(
+            children: [
+              const Text('Permisos por tipo de usuario',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 16),
+              AgregarTipoUsuarioWidget(onAgregar: (nuevoTipo) {
+                if (nuevoTipo.isNotEmpty && !tiposUsuario.contains(nuevoTipo)) {
+                  setState(() {
+                    tiposUsuario.add(nuevoTipo);
+                    permisosPorTipo[nuevoTipo] = {};
+                  });
+                }
+              }),
+            ],
+          ),
           const SizedBox(height: 8),
           Card(
+            key: _permisosKey,
             elevation: 2,
             child: Padding(
               padding: const EdgeInsets.all(12),
@@ -230,6 +288,11 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       ),
     );
   }
+  // --- Permisos por tipo de usuario ---
+
+// --- Widget para agregar un nuevo tipo de usuario ---
+
+// Declaración movida al final del archivo
 
   void _agregarUsuario() {
     final nombreController = TextEditingController();

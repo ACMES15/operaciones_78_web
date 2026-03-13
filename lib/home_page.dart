@@ -32,7 +32,6 @@ class _HomePageState extends State<HomePage> {
   bool _menuExpandido = false;
   final List<String> _paginas = [
     'Control de usuarios',
-    'Permisos de usuario',
     'Hoja de ruta',
     'Hoja de XD',
     'Historial Hoja de XD',
@@ -46,7 +45,6 @@ class _HomePageState extends State<HomePage> {
   ];
   final List<IconData> _paginaIconos = [
     Icons.admin_panel_settings_outlined,
-    Icons.security,
     Icons.map_outlined,
     Icons.description_outlined,
     Icons.history,
@@ -60,7 +58,6 @@ class _HomePageState extends State<HomePage> {
   ];
   final List<String> _paginaTooltips = [
     'Control de usuarios',
-    'Permisos de usuario',
     'Hoja de ruta',
     'Hoja de XD',
     'Historial Hoja de XD',
