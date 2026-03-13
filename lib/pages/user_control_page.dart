@@ -20,21 +20,23 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
 
   Map<String, Map<String, bool>> permisosPorTipo = {};
   bool _cargandoPermisos = true;
-  final List<String> paginasDisponibles = [
-    'Inicio',
-    'Control de usuarios',
-    // 'Permisos de usuario',
-    'Hoja de ruta',
-    'Hoja de XD',
-    'Historial Hoja de XD',
-    'Carta Porte',
-    'Historial Carta Porte',
-    'Plantilla Ejecutiva',
-    'DevCan',
-    'Historial Entregas DevCan',
-    'Recogidos',
-    'Historial Entregas Recogidos',
-  ];
+  // Las páginas disponibles se obtendrán dinámicamente desde HomePage
+  List<String> get paginasDisponibles {
+    // Debe coincidir con el menú de HomePage
+    return [
+      'Control de usuarios',
+      'Hoja de ruta',
+      'Hoja de XD',
+      'Historial Hoja de XD',
+      'Carta Porte',
+      'Historial Carta Porte',
+      'Plantilla Ejecutiva',
+      'DevCan',
+      'Historial Entregas DevCan',
+      'Recogidos',
+      'Historial Entregas Recogidos',
+    ];
+  }
 
 // --- Widget para agregar un nuevo tipo de usuario ---
   Future<void> _cargarUsuarios() async {
@@ -187,94 +189,11 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Buscar por usuario, nombre o tipo',
-                      prefixIcon: Icon(Icons.search),
-                    ),
-                    onChanged: (value) => setState(() => _busqueda = value),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _agregarUsuario,
-                        child: const Text('Agregar usuario'),
-                      ),
-                      const SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: _agregarMasivo,
-                        child: const Text('Carga masiva'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    constraints: const BoxConstraints(maxHeight: 320),
-                    child: _usuariosFiltrados.isEmpty
-                        ? const Center(child: Text('No hay usuarios'))
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: _usuariosFiltrados.length,
-                            itemBuilder: (ctx, i) {
-                              final u = _usuariosFiltrados[i];
-                              return ListTile(
-                                leading: const Icon(Icons.person_outline),
-                                title: Text(u['nombre'] ?? u['id'] ?? ''),
-                                subtitle: Text(
-                                    'Usuario: ${u['id'] ?? ''}\nCorreo: ${u['correo'] ?? ''}\nTipo: ${u['tipo'] ?? ''}'),
-                                isThreeLine: true,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit),
-                                      tooltip: 'Editar tipo',
-                                      onPressed: () =>
-                                          _editarTipoPorUsuario(u['id']),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete),
-                                      tooltip: 'Eliminar usuario',
-                                      onPressed: () =>
-                                          _eliminarUsuarioPorUsuario(u['id']),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 24),
           const Divider(thickness: 2),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Permisos por tipo de usuario',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(width: 16),
-              AgregarTipoUsuarioWidget(onAgregar: (nuevoTipo) {
-                if (nuevoTipo.isNotEmpty && !tiposUsuario.contains(nuevoTipo)) {
-                  setState(() {
-                    tiposUsuario.add(nuevoTipo);
-                    permisosPorTipo[nuevoTipo] = {};
-                  });
-                }
-              }),
-            ],
-          ),
+          const Text('Permisos por tipo de usuario',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Card(
             key: _permisosKey,
@@ -416,49 +335,49 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     if (tiposUsuario.isEmpty) {
       return const Text('No hay tipos de usuario definidos.');
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...tiposUsuario.map((tipo) => Card(
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(tipo,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        ElevatedButton(
-                          onPressed: _guardarPermisosTipoUsuario,
-                          child: const Text('Guardar'),
-                        ),
-                      ],
-                    ),
-                    Wrap(
-                      spacing: 8,
-                      children: paginasDisponibles.map((pagina) {
-                        final checked = permisosPorTipo[tipo]?[pagina] ?? false;
-                        return FilterChip(
-                          label: Text(pagina),
-                          selected: checked,
-                          onSelected: (val) {
-                            setState(() {
-                              permisosPorTipo[tipo] ??= {};
-                              permisosPorTipo[tipo]![pagina] = val;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
+    if (_cargandoPermisos) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (tiposUsuario.isEmpty) {
+      return const Text('No hay tipos de usuario definidos.');
+    }
+    if (paginasDisponibles.isEmpty) {
+      return const Text('No hay páginas disponibles.');
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columns: [
+          const DataColumn(label: Text('Página')),
+          ...tiposUsuario.map((tipo) => DataColumn(label: Text(tipo))),
+          const DataColumn(label: Text('Guardar')),
+        ],
+        rows: paginasDisponibles.map((pagina) {
+          return DataRow(
+            cells: [
+              DataCell(Text(pagina)),
+              ...tiposUsuario.map((tipo) {
+                final checked = permisosPorTipo[tipo]?[pagina] ?? false;
+                return DataCell(Checkbox(
+                  value: checked,
+                  onChanged: (val) {
+                    setState(() {
+                      permisosPorTipo[tipo] ??= {};
+                      permisosPorTipo[tipo]![pagina] = val ?? false;
+                    });
+                  },
+                ));
+              }),
+              DataCell(
+                ElevatedButton(
+                  onPressed: _guardarPermisosTipoUsuario,
+                  child: const Text('Guardar'),
                 ),
               ),
-            )),
-      ],
+            ],
+          );
+        }).toList(),
+      ),
     );
   }
 }
