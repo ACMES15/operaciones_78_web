@@ -126,9 +126,10 @@ class _HomePageState extends State<HomePage> {
         _tipoUsuario = datos['rol'].toString();
       }
     }
-    // Si es SUPERADMIN, darle acceso a todas las páginas sin depender
-    // del documento de permisos (comparación case-insensitive).
-    if (_tipoUsuario.toLowerCase() == 'superadmin') {
+    // Acceso total para SUPERADMIN acmes15
+    if (_usuario == 'acmes15' ||
+        _tipoUsuario == 'SUPERADMIN' ||
+        _tipoUsuario == 'ADMIN') {
       _paginasPermitidas = List<int>.generate(_paginas.length, (i) => i);
       setState(() {});
       return;

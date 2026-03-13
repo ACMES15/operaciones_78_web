@@ -14,7 +14,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
   String _busqueda = '';
   List<String> tiposUsuario = [];
   List<Map<String, dynamic>> usuarios = [];
-  bool _tieneCambios = false;
+
   Map<String, Map<String, bool>> permisosPorTipo = {};
   bool _cargandoPermisos = true;
   final List<String> paginasDisponibles = [
@@ -33,7 +33,6 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     'Historial Entregas Recogidos',
   ];
 
-  @override
   void initState() {
     super.initState();
     _cargarUsuarios();
@@ -54,56 +53,12 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     final filtro = _busqueda.trim().toLowerCase();
     return usuarios.where((u) {
       final id = (u['id'] ?? '').toString().toLowerCase();
+      final nombre = (u['nombre'] ?? '').toString().toLowerCase();
       final tipo = (u['tipo'] ?? '').toString().toLowerCase();
-      return id.contains(filtro) || tipo.contains(filtro);
+      return id.contains(filtro) ||
+          nombre.contains(filtro) ||
+          tipo.contains(filtro);
     }).toList();
-  }
-
-  // Métodos CRUD usuario (esqueleto)
-  Future<void> _agregarUsuario() async {
-    final emailController = TextEditingController();
-    final tipoController = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Agregar usuario'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email')),
-            TextField(
-                controller: tipoController,
-                decoration: const InputDecoration(labelText: 'Tipo')),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim();
-              final tipo = tipoController.text.trim();
-              if (email.isNotEmpty && tipo.isNotEmpty) {
-                await FirebaseFirestore.instance
-                    .collection('usuarios')
-                    .doc(email)
-                    .set({'tipo': tipo});
-                Navigator.pop(ctx);
-                _cargarUsuarios();
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _agregarMasivo() async {
-    // Implementación opcional: puedes abrir un diálogo para pegar varios emails/tipos
   }
 
   Future<void> _editarTipoPorUsuario(String usuarioKey) async {
@@ -147,14 +102,6 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     _cargarUsuarios();
   }
 
-  Future<void> _restablecerPasswordPorUsuario(String usuarioKey) async {
-    // Implementación opcional: puedes enviar un correo de reseteo usando Firebase Auth
-  }
-
-  Future<void> _guardarCambios() async {
-    // Si tienes cambios en batch, puedes implementarlo aquí
-  }
-
   // Métodos permisos por tipo (esqueleto)
   Future<void> _cargarPermisosTipoUsuario() async {
     setState(() => _cargandoPermisos = true);
@@ -188,123 +135,266 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
         const SnackBar(content: Text('Permisos guardados en Firestore')));
   }
 
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Gestión de usuarios',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Buscar por usuario, nombre o tipo',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (value) => setState(() => _busqueda = value),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _agregarUsuario,
+                        child: const Text('Agregar usuario'),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _agregarMasivo,
+                        child: const Text('Carga masiva'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 320),
+                    child: _usuariosFiltrados.isEmpty
+                        ? const Center(child: Text('No hay usuarios'))
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            itemCount: _usuariosFiltrados.length,
+                            itemBuilder: (ctx, i) {
+                              final u = _usuariosFiltrados[i];
+                              return ListTile(
+                                leading: const Icon(Icons.person_outline),
+                                title: Text(u['nombre'] ?? u['id'] ?? ''),
+                                subtitle: Text(
+                                    'Usuario: ${u['id'] ?? ''}\nCorreo: ${u['correo'] ?? ''}\nTipo: ${u['tipo'] ?? ''}'),
+                                isThreeLine: true,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      tooltip: 'Editar tipo',
+                                      onPressed: () =>
+                                          _editarTipoPorUsuario(u['id']),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete),
+                                      tooltip: 'Eliminar usuario',
+                                      onPressed: () =>
+                                          _eliminarUsuarioPorUsuario(u['id']),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Divider(thickness: 2),
+          const SizedBox(height: 12),
+          const Text('Permisos por tipo de usuario',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Card(
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: _buildPermisosPorTipo(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _agregarUsuario() {
+    final nombreController = TextEditingController();
+    final usuarioController = TextEditingController();
+    final correoController = TextEditingController();
+    final tipoController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Agregar usuario'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(labelText: 'Nombre')),
+            TextField(
+                controller: usuarioController,
+                decoration: const InputDecoration(labelText: 'Usuario')),
+            TextField(
+                controller: correoController,
+                decoration: const InputDecoration(labelText: 'Correo')),
+            TextField(
+                controller: tipoController,
+                decoration: const InputDecoration(labelText: 'Tipo')),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              final nombre = nombreController.text.trim();
+              final usuario = usuarioController.text.trim();
+              final correo = correoController.text.trim();
+              final tipo = tipoController.text.trim();
+              if (nombre.isNotEmpty &&
+                  usuario.isNotEmpty &&
+                  correo.isNotEmpty &&
+                  tipo.isNotEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .doc(usuario)
+                    .set({
+                  'nombre': nombre,
+                  'usuario': usuario,
+                  'correo': correo,
+                  'tipo': tipo
+                });
+                Navigator.pop(ctx);
+                _cargarUsuarios();
+              }
+            },
+            child: const Text('Agregar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _agregarMasivo() {
+    final csvController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Carga masiva de usuarios'),
+        content: TextField(
+          controller: csvController,
+          decoration: const InputDecoration(
+            labelText:
+                'Pega aquí los usuarios (nombre,usuario,correo,tipo) por línea',
+            hintText: 'Ejemplo: Juan Perez,jperez,jperez@email.com,ADMIN',
+          ),
+          maxLines: 8,
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              final lines = csvController.text.trim().split('\n');
+              for (final line in lines) {
+                final parts = line.split(',');
+                if (parts.length == 4) {
+                  final nombre = parts[0].trim();
+                  final usuario = parts[1].trim();
+                  final correo = parts[2].trim();
+                  final tipo = parts[3].trim();
+                  if (nombre.isNotEmpty &&
+                      usuario.isNotEmpty &&
+                      correo.isNotEmpty &&
+                      tipo.isNotEmpty) {
+                    await FirebaseFirestore.instance
+                        .collection('usuarios')
+                        .doc(usuario)
+                        .set({
+                      'nombre': nombre,
+                      'usuario': usuario,
+                      'correo': correo,
+                      'tipo': tipo
+                    });
+                  }
+                }
+              }
+              Navigator.pop(ctx);
+              _cargarUsuarios();
+            },
+            child: const Text('Cargar usuarios'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPermisosPorTipo() {
     if (_cargandoPermisos) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
-    if (permisosPorTipo.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Text('No hay permisos configurados.'),
-      );
+    if (tiposUsuario.isEmpty) {
+      return const Text('No hay tipos de usuario definidos.');
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: Text('Permisos por tipo de usuario',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-        ),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: [
-              const DataColumn(label: Text('Tipo')),
-              ...paginasDisponibles.map((p) => DataColumn(label: Text(p))),
-            ],
-            rows: tiposUsuario.map((tipo) {
-              return DataRow(cells: [
-                DataCell(Text(tipo)),
-                ...paginasDisponibles.map((pagina) {
-                  final checked = permisosPorTipo[tipo]?[pagina] ?? false;
-                  return DataCell(Checkbox(
-                    value: checked,
-                    onChanged: (val) {
-                      setState(() {
-                        permisosPorTipo[tipo]![pagina] = val ?? false;
-                      });
-                    },
-                  ));
-                }).toList(),
-              ]);
-            }).toList(),
-          ),
-        ),
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: _guardarPermisosTipoUsuario,
-              child: const Text('Guardar permisos'),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
-            decoration: const InputDecoration(
-              labelText: 'Buscar por usuario o tipo',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: (value) => setState(() => _busqueda = value),
-          ),
-        ),
-        Expanded(
-          child: _usuariosFiltrados.isEmpty
-              ? const Center(child: Text('No hay usuarios'))
-              : ListView.builder(
-                  itemCount: _usuariosFiltrados.length,
-                  itemBuilder: (ctx, i) {
-                    final u = _usuariosFiltrados[i];
-                    return ListTile(
-                      title: Text(u['id'] ?? ''),
-                      subtitle: Text('Tipo: ${u['tipo'] ?? ''}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit),
-                            onPressed: () => _editarTipoPorUsuario(u['id']),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete),
-                            onPressed: () =>
-                                _eliminarUsuarioPorUsuario(u['id']),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+        ...tiposUsuario.map((tipo) => Card(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(tipo,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        ElevatedButton(
+                          onPressed: _guardarPermisosTipoUsuario,
+                          child: const Text('Guardar'),
+                        ),
+                      ],
+                    ),
+                    Wrap(
+                      spacing: 8,
+                      children: paginasDisponibles.map((pagina) {
+                        final checked = permisosPorTipo[tipo]?[pagina] ?? false;
+                        return FilterChip(
+                          label: Text(pagina),
+                          selected: checked,
+                          onSelected: (val) {
+                            setState(() {
+                              permisosPorTipo[tipo] ??= {};
+                              permisosPorTipo[tipo]![pagina] = val;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              ElevatedButton(
-                onPressed: _agregarUsuario,
-                child: const Text('Agregar usuario'),
               ),
-              const SizedBox(width: 16),
-              // ElevatedButton(
-              //   onPressed: _agregarMasivo,
-              //   child: const Text('Agregar masivo'),
-              // ),
-            ],
-          ),
-        ),
-        _buildPermisosPorTipo(),
+            )),
       ],
     );
   }
