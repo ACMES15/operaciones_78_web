@@ -185,7 +185,12 @@ class _HomePageState extends State<HomePage> {
     }
     List<int> permitidas = [];
     final tipoNorm = _normalizar(tipo);
-    if (tipoNorm == 'SUPERADMIN' || tipoNorm == 'ADMIN') {
+    if (tipoNorm == 'SUPERADMIN' ||
+        tipoNorm == 'ADMIN' ||
+        tipoNorm == 'ADMINISTRATIVO' ||
+        tipoNorm == 'ADMIN OMNICANAL' ||
+        tipoNorm == 'ADMIN ENVIOS' ||
+        tipoNorm == 'admin') {
       permitidas = List.generate(_paginas.length, (i) => i);
     } else {
       // Leer permisos_tipo_usuario para saber qué páginas mostrar
