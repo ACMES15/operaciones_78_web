@@ -1,8 +1,7 @@
 // --- HOME PAGE CON MENÚ LATERAL ---
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'pages/user_control_page.dart';
-import 'pages/user_permissions_page.dart';
+// import 'pages/user_control_page.dart';
 import 'pages/login_page.dart';
 import 'pages/hoja_de_xd_page.dart';
 import 'pages/hoja_de_ruta_page.dart';
@@ -14,6 +13,7 @@ import 'pages/devcan_page.dart';
 import 'pages/historial_entregas_devcan_page.dart';
 import 'pages/recogidos/recogidos_page.dart';
 import 'pages/recogidos/historial_entregas_recogidos_page.dart';
+import 'pages/user_control_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -73,8 +73,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Entregas Recogidos',
   ];
   List<Widget> get _pages => [
-        UserControlPage(),
-        UserPermissionsPage(),
+        UserControlPageBody(),
         HojaDeRutaPage(),
         HojaDeXDPage(usuario: widget.usuario),
         HojaDeXDHistorialPage(),

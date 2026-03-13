@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_control_page.dart';
-import 'user_permissions_page.dart';
+// import 'user_permissions_page.dart';
 import 'hoja_de_ruta_page.dart';
 import 'hoja_de_xd_page.dart';
 import 'hoja_de_xd_historial_page.dart';
@@ -50,7 +50,7 @@ class _HomePageState extends State<HomePage> {
   List<String> _paginas = [
     'Inicio',
     'Control de usuarios',
-    'Permisos de usuario',
+    // 'Permisos de usuario',
     'Hoja de ruta',
     'Hoja de XD',
     'Historial Hoja de XD',
@@ -103,8 +103,8 @@ class _HomePageState extends State<HomePage> {
 
   List<Widget> get _pages => [
         BienvenidaPage(usuario: widget.usuario, tipoUsuario: _tipoUsuario),
-        UserControlPage(),
-        UserPermissionsPage(),
+        UserControlPageBody(),
+        // UserPermissionsPage(),
         HojaDeRutaPage(),
         Builder(builder: (context) => HojaDeXDPage(usuario: widget.usuario)),
         HojaDeXDHistorialPage(),

@@ -1,454 +1,311 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../utils/firebase_cache_utils.dart';
-import 'dart:convert';
-import '../dialogs/dialog_agregar_usuario.dart';
-import '../dialogs/dialog_agregar_masivo.dart';
-import '../dialogs/dialog_editar_tipo.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class UserControlPage extends StatelessWidget {
-  const UserControlPage({super.key});
+// Define the StatefulWidget for this State class
+class UserControlPageBody extends StatefulWidget {
+  const UserControlPageBody({Key? key}) : super(key: key);
+
   @override
-  Widget build(BuildContext context) {
-    return const _UserControlPageBody();
-  }
+  _UserControlPageBodyState createState() => _UserControlPageBodyState();
 }
 
-class _UserControlPageBody extends StatefulWidget {
-  // ...existing code...
-  const _UserControlPageBody();
-  @override
-  State<_UserControlPageBody> createState() => _UserControlPageBodyState();
-}
-
-class _UserControlPageBodyState extends State<_UserControlPageBody> {
+class _UserControlPageBodyState extends State<UserControlPageBody> {
+  // Estado
   String _busqueda = '';
   List<String> tiposUsuario = [];
   List<Map<String, dynamic>> usuarios = [];
   bool _tieneCambios = false;
+  Map<String, Map<String, bool>> permisosPorTipo = {};
+  bool _cargandoPermisos = true;
+  final List<String> paginasDisponibles = [
+    'Inicio',
+    'Control de usuarios',
+    // 'Permisos de usuario',
+    'Hoja de ruta',
+    'Hoja de XD',
+    'Historial Hoja de XD',
+    'Carta Porte',
+    'Historial Carta Porte',
+    'Plantilla Ejecutiva',
+    'DevCan',
+    'Historial Entregas DevCan',
+    'Recogidos',
+    'Historial Entregas Recogidos',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _cargarTiposUsuario();
+    _cargarUsuarios();
+    _cargarPermisosTipoUsuario();
   }
 
-  Future<void> _cargarTiposUsuario() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tipos = prefs.getString('tipos_usuario');
-    if (tipos != null) {
-      tiposUsuario = List<String>.from(jsonDecode(tipos));
-      if (!tiposUsuario.contains('ADMIN')) {
-        tiposUsuario.add('ADMIN');
-      }
-    } else {
-      tiposUsuario = [
-        'ADMINISTRATIVO',
-        'STAFF AUXILIAR',
-        'JEFATURA',
-        'VENTAS',
-        'PREVENCION',
-        'ADMIN OMNICANAL',
-        'ADMIN ENVIOS',
-        'ADMIN',
-        'admin'
-      ];
-    }
-    setState(() {});
+  Future<void> _cargarUsuarios() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('usuarios').get();
+    setState(() {
+      usuarios =
+          snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+    });
   }
 
+  List<Map<String, dynamic>> get _usuariosFiltrados {
+    if (_busqueda.trim().isEmpty) return usuarios;
+    final filtro = _busqueda.trim().toLowerCase();
+    return usuarios.where((u) {
+      final id = (u['id'] ?? '').toString().toLowerCase();
+      final tipo = (u['tipo'] ?? '').toString().toLowerCase();
+      return id.contains(filtro) || tipo.contains(filtro);
+    }).toList();
+  }
+
+  // Métodos CRUD usuario (esqueleto)
   Future<void> _agregarUsuario() async {
-    final nuevoUsuario = await showDialog<Map<String, dynamic>>(
+    final emailController = TextEditingController();
+    final tipoController = TextEditingController();
+    await showDialog(
       context: context,
-      builder: (context) => DialogAgregarUsuario(tiposUsuario: tiposUsuario),
+      builder: (ctx) => AlertDialog(
+        title: const Text('Agregar usuario'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email')),
+            TextField(
+                controller: tipoController,
+                decoration: const InputDecoration(labelText: 'Tipo')),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              final tipo = tipoController.text.trim();
+              if (email.isNotEmpty && tipo.isNotEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .doc(email)
+                    .set({'tipo': tipo});
+                Navigator.pop(ctx);
+                _cargarUsuarios();
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
     );
-    if (nuevoUsuario != null) {
-      setState(() {
-        usuarios.add(nuevoUsuario);
-        _tieneCambios = true;
-      });
-    }
   }
 
   Future<void> _agregarMasivo() async {
-    final nuevosUsuarios = await showDialog<List<Map<String, dynamic>>>(
-      context: context,
-      builder: (context) => const DialogAgregarMasivo(),
-    );
-    if (nuevosUsuarios != null && nuevosUsuarios.isNotEmpty) {
-      setState(() {
-        usuarios.addAll(nuevosUsuarios);
-        _tieneCambios = true;
-      });
-    }
+    // Implementación opcional: puedes abrir un diálogo para pegar varios emails/tipos
   }
 
   Future<void> _editarTipoPorUsuario(String usuarioKey) async {
-    final index = usuarios.indexWhere((e) =>
-        (e['usuario'] ?? '').toString().trim().toLowerCase() ==
-        usuarioKey.toString().trim().toLowerCase());
-    if (index == -1) return;
-    final nuevoTipo = await showDialog<String>(
+    final usuario = usuarios.firstWhere((u) => u['id'] == usuarioKey);
+    final tipoController = TextEditingController(text: usuario['tipo'] ?? '');
+    await showDialog(
       context: context,
-      builder: (context) => DialogEditarTipo(
-        tipoActual: usuarios[index]['tipo'] ?? '',
-        tiposUsuario: tiposUsuario,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar tipo de usuario'),
+        content: TextField(
+            controller: tipoController,
+            decoration: const InputDecoration(labelText: 'Tipo')),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              final tipo = tipoController.text.trim();
+              if (tipo.isNotEmpty) {
+                await FirebaseFirestore.instance
+                    .collection('usuarios')
+                    .doc(usuarioKey)
+                    .update({'tipo': tipo});
+                Navigator.pop(ctx);
+                _cargarUsuarios();
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
       ),
     );
-    if (nuevoTipo != null && nuevoTipo.isNotEmpty) {
-      setState(() {
-        usuarios[index]['tipo'] = nuevoTipo;
-        _tieneCambios = true;
-      });
-    }
   }
 
   Future<void> _eliminarUsuarioPorUsuario(String usuarioKey) async {
-    final index = usuarios.indexWhere((e) =>
-        (e['usuario'] ?? '').toString().trim().toLowerCase() ==
-        usuarioKey.toString().trim().toLowerCase());
-    if (index == -1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no encontrado.')),
-      );
-      return;
-    }
-    if (usuarios[index]['usuario'] == 'acmes15') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No se puede eliminar el usuario maestro.')),
-      );
-      return;
-    }
-    setState(() {
-      usuarios.removeAt(index);
-      _tieneCambios = true;
-    });
-    await _guardarCambios();
+    await FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(usuarioKey)
+        .delete();
+    _cargarUsuarios();
   }
 
   Future<void> _restablecerPasswordPorUsuario(String usuarioKey) async {
-    final nueva = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        String nuevaPass = '';
-        return AlertDialog(
-          title: const Text('Restablecer contraseña'),
-          content: TextField(
-            autofocus: true,
-            obscureText: true,
-            decoration: const InputDecoration(labelText: 'Nueva contraseña'),
-            onChanged: (v) => nuevaPass = v,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, nuevaPass),
-              child: const Text('Guardar'),
-            ),
-          ],
-        );
-      },
-    );
-    if (nueva != null && nueva.isNotEmpty) {
-      final index = usuarios.indexWhere((e) =>
-          (e['usuario'] ?? '').toString().trim().toLowerCase() ==
-          usuarioKey.toString().trim().toLowerCase());
-      if (index == -1) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Usuario no encontrado.')),
-        );
-        return;
-      }
-      setState(() {
-        usuarios[index]['password'] = nueva;
-        _tieneCambios = true;
-      });
-      // Notificar al usuario que su contraseña fue restablecida
-      // Guardar notificación en Firestore/cache
-      final datos = await leerDatosConCache('notificaciones', 'password');
-      List<dynamic> lista = datos != null && datos['items'] != null
-          ? List<dynamic>.from(datos['items'])
-          : [];
-      lista.add({
-        'usuario': usuarios[index]['usuario'],
-        'fecha': DateTime.now().toIso8601String(),
-        'mensaje': 'Tu contraseña ha sido restablecida por el administrador',
-      });
-      await guardarDatosFirestoreYCache(
-          'notificaciones', 'password', {'items': lista});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Contraseña restablecida. Se notificó al usuario.')),
-      );
-      await _guardarCambios();
-    }
+    // Implementación opcional: puedes enviar un correo de reseteo usando Firebase Auth
   }
 
   Future<void> _guardarCambios() async {
-    // Guardar cada usuario como documento independiente en la colección 'usuarios'
-    for (final u in usuarios) {
-      final usuarioKey = (u['usuario'] ?? '').toString().trim().toLowerCase();
-      String tipo = (u['tipo'] ?? '').toString();
-      if (tipo.trim().isEmpty && u['rol'] != null) {
-        tipo = u['rol'].toString();
-      }
-      // Normalizar tipo: mayúsculas, sin tildes, sin espacios extra
-      tipo = tipo
-          .trim()
-          .toUpperCase()
-          .replaceAll('Á', 'A')
-          .replaceAll('É', 'E')
-          .replaceAll('Í', 'I')
-          .replaceAll('Ó', 'O')
-          .replaceAll('Ú', 'U')
-          .replaceAll('Ü', 'U')
-          .replaceAll('Ñ', 'N');
-      final tipoNorm = tipo.contains('ADMIN') ? 'ADMIN' : tipo;
-      final userMap = Map<String, dynamic>.from(u);
-      userMap['tipo'] = tipoNorm;
-      await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(usuarioKey)
-          .set(userMap);
+    // Si tienes cambios en batch, puedes implementarlo aquí
+  }
+
+  // Métodos permisos por tipo (esqueleto)
+  Future<void> _cargarPermisosTipoUsuario() async {
+    setState(() => _cargandoPermisos = true);
+    final doc = await FirebaseFirestore.instance
+        .collection('permisos_tipo_usuario')
+        .doc('permisos')
+        .get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      setState(() {
+        permisosPorTipo =
+            data.map((k, v) => MapEntry(k, Map<String, bool>.from(v)));
+        tiposUsuario = permisosPorTipo.keys.toList();
+        _cargandoPermisos = false;
+      });
+    } else {
+      setState(() {
+        permisosPorTipo = {};
+        tiposUsuario = [];
+        _cargandoPermisos = false;
+      });
     }
-    setState(() {
-      _tieneCambios = false;
-    });
+  }
+
+  Future<void> _guardarPermisosTipoUsuario() async {
+    await FirebaseFirestore.instance
+        .collection('permisos_tipo_usuario')
+        .doc('permisos')
+        .set(permisosPorTipo);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Cambios guardados correctamente.')),
+        const SnackBar(content: Text('Permisos guardados en Firestore')));
+  }
+
+  Widget _buildPermisosPorTipo() {
+    if (_cargandoPermisos) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: CircularProgressIndicator(),
+      );
+    }
+    if (permisosPorTipo.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No hay permisos configurados.'),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text('Permisos por tipo de usuario',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: [
+              const DataColumn(label: Text('Tipo')),
+              ...paginasDisponibles.map((p) => DataColumn(label: Text(p))),
+            ],
+            rows: tiposUsuario.map((tipo) {
+              return DataRow(cells: [
+                DataCell(Text(tipo)),
+                ...paginasDisponibles.map((pagina) {
+                  final checked = permisosPorTipo[tipo]?[pagina] ?? false;
+                  return DataCell(Checkbox(
+                    value: checked,
+                    onChanged: (val) {
+                      setState(() {
+                        permisosPorTipo[tipo]![pagina] = val ?? false;
+                      });
+                    },
+                  ));
+                }).toList(),
+              ]);
+            }).toList(),
+          ),
+        ),
+        Row(
+          children: [
+            ElevatedButton(
+              onPressed: _guardarPermisosTipoUsuario,
+              child: const Text('Guardar permisos'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('usuarios').snapshots(),
-      builder: (context, snapshot) {
-        List<Map<String, dynamic>> usuariosStream = [];
-        if (snapshot.hasData && snapshot.data != null) {
-          for (final doc in snapshot.data!.docs) {
-            if (doc.id == 'permisos_tipo_usuario' || doc.id == 'tipos_usuario')
-              continue;
-            final data = doc.data();
-            final usuario = Map<String, dynamic>.from(data);
-            usuario['usuario'] = doc.id;
-            usuariosStream.add(usuario);
-          }
-        }
-        usuarios =
-            usuariosStream.map((e) => Map<String, dynamic>.from(e)).toList();
-
-        final usuariosFiltrados = _busqueda.isEmpty
-            ? usuarios
-            : usuarios.where((u) {
-                final nombre = (u['nombre'] ?? '').toString().toLowerCase();
-                final usuario = (u['usuario'] ?? '').toString().toLowerCase();
-                final correo = (u['correo'] ?? '').toString().toLowerCase();
-                final query = _busqueda.toLowerCase();
-                return nombre.contains(query) ||
-                    usuario.contains(query) ||
-                    correo.contains(query);
-              }).toList();
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            return Container(
-              color: const Color(0xFFF6F7FB),
-              width: constraints.maxWidth,
-              height: constraints.maxHeight,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.admin_panel_settings_outlined,
-                                color: Color(0xFF2D6A4F)),
-                            const SizedBox(width: 10),
-                            Text('Control de usuarios',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold)),
-                            const Spacer(),
-                            SizedBox(
-                              width: 260,
-                              child: TextField(
-                                decoration: InputDecoration(
-                                  prefixIcon: const Icon(Icons.search),
-                                  hintText: 'Buscar usuario, nombre o correo',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 0, horizontal: 12),
-                                ),
-                                onChanged: (v) {
-                                  setState(() {
-                                    _busqueda = v;
-                                  });
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.save),
-                              label: const Text('Guardar cambios'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _tieneCambios
-                                    ? const Color(0xFF2D6A4F)
-                                    : Colors.grey.shade400,
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: _tieneCambios ? _guardarCambios : null,
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.person_add_alt_1),
-                              label: const Text('Agregar usuario'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2D6A4F),
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: _agregarUsuario,
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.group_add_outlined),
-                              label: const Text('Carga masiva'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF40916C),
-                                foregroundColor: Colors.white,
-                              ),
-                              onPressed: _agregarMasivo,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 18),
-                        Expanded(
-                          child: usuariosFiltrados.isEmpty
-                              ? Center(
-                                  child: Text('No hay usuarios registrados.',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge),
-                                )
-                              : Scrollbar(
-                                  thumbVisibility: true,
-                                  child: SingleChildScrollView(
-                                    scrollDirection: Axis.vertical,
-                                    child: SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                            minWidth:
-                                                constraints.maxWidth - 120),
-                                        child: DataTable(
-                                          columnSpacing: 32,
-                                          headingRowColor:
-                                              MaterialStateProperty.all(
-                                                  const Color(0xFFE9F5EE)),
-                                          columns: const [
-                                            DataColumn(label: Text('Nombre')),
-                                            DataColumn(label: Text('Usuario')),
-                                            DataColumn(label: Text('Correo')),
-                                            DataColumn(label: Text('Tipo')),
-                                            DataColumn(label: Text('Activo')),
-                                            DataColumn(label: Text('Opciones')),
-                                          ],
-                                          rows: List.generate(
-                                              usuariosFiltrados.length, (i) {
-                                            final u = usuariosFiltrados[i];
-                                            final esMaestro =
-                                                u['usuario'] == 'acmes15';
-                                            return DataRow(cells: [
-                                              DataCell(Text(u['nombre'] ?? '')),
-                                              DataCell(
-                                                  Text(u['usuario'] ?? '')),
-                                              DataCell(Text(u['correo'] ?? '')),
-                                              DataCell(Row(
-                                                children: [
-                                                  Text(u['tipo'] ?? ''),
-                                                  if (!esMaestro)
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                          Icons.edit,
-                                                          size: 18),
-                                                      tooltip: 'Editar tipo',
-                                                      onPressed: () =>
-                                                          _editarTipoPorUsuario(
-                                                              u['usuario'] ??
-                                                                  ''),
-                                                    ),
-                                                ],
-                                              )),
-                                              DataCell(Checkbox(
-                                                value: u['activo'] ?? false,
-                                                onChanged: esMaestro
-                                                    ? null
-                                                    : (val) {
-                                                        setState(() {
-                                                          u['activo'] = val;
-                                                          _tieneCambios = true;
-                                                        });
-                                                      },
-                                              )),
-                                              DataCell(Row(
-                                                children: [
-                                                  ...(!esMaestro
-                                                      ? [
-                                                          IconButton(
-                                                            icon: const Icon(Icons
-                                                                .delete_outline),
-                                                            tooltip: 'Eliminar',
-                                                            onPressed: () =>
-                                                                _eliminarUsuarioPorUsuario(
-                                                                    u['usuario'] ??
-                                                                        ''),
-                                                          ),
-                                                          IconButton(
-                                                            icon: const Icon(
-                                                                Icons.password,
-                                                                size: 18),
-                                                            tooltip:
-                                                                'Restablecer contraseña',
-                                                            onPressed: () =>
-                                                                _restablecerPasswordPorUsuario(
-                                                                    u['usuario'] ??
-                                                                        ''),
-                                                          ),
-                                                        ]
-                                                      : []),
-                                                ],
-                                              )),
-                                            ]);
-                                          }),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: TextField(
+            decoration: const InputDecoration(
+              labelText: 'Buscar por usuario o tipo',
+              prefixIcon: Icon(Icons.search),
+            ),
+            onChanged: (value) => setState(() => _busqueda = value),
+          ),
+        ),
+        Expanded(
+          child: _usuariosFiltrados.isEmpty
+              ? const Center(child: Text('No hay usuarios'))
+              : ListView.builder(
+                  itemCount: _usuariosFiltrados.length,
+                  itemBuilder: (ctx, i) {
+                    final u = _usuariosFiltrados[i];
+                    return ListTile(
+                      title: Text(u['id'] ?? ''),
+                      subtitle: Text('Tipo: ${u['tipo'] ?? ''}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _editarTipoPorUsuario(u['id']),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () =>
+                                _eliminarUsuarioPorUsuario(u['id']),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              ElevatedButton(
+                onPressed: _agregarUsuario,
+                child: const Text('Agregar usuario'),
               ),
-            );
-          },
-        );
-      },
+              const SizedBox(width: 16),
+              // ElevatedButton(
+              //   onPressed: _agregarMasivo,
+              //   child: const Text('Agregar masivo'),
+              // ),
+            ],
+          ),
+        ),
+        _buildPermisosPorTipo(),
+      ],
     );
   }
 }
