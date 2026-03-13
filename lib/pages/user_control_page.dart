@@ -221,7 +221,8 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
         List<Map<String, dynamic>> usuariosStream = [];
         if (snapshot.hasData && snapshot.data != null) {
           for (final doc in snapshot.data!.docs) {
-            if (doc.id == 'permisos_tipo_usuario') continue;
+            if (doc.id == 'permisos_tipo_usuario' || doc.id == 'tipos_usuario')
+              continue;
             final data = doc.data();
             final usuario = Map<String, dynamic>.from(data);
             usuario['usuario'] = doc.id;

@@ -187,6 +187,7 @@ class _HomePageState extends State<HomePage> {
     if (_normalizar(tipo) == 'SUPERADMIN') {
       permitidas = List.generate(_paginas.length, (i) => i);
     } else {
+      // Leer permisos_tipo_usuario para saber qué páginas mostrar
       final permisosDoc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc('permisos_tipo_usuario')
@@ -263,6 +264,9 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
+
+    // Loader mientras se obtiene el tipo de usuario
+    final cargandoTipoUsuario = _tipoUsuario.isEmpty;
     // Método para detectar si es celular (no tablet)
     bool esCelular(BuildContext context) {
       final ancho = MediaQuery.of(context).size.width;
@@ -298,6 +302,29 @@ class _HomePageState extends State<HomePage> {
     final pagina = _paginas[paginasPermitidas[selectedMenuIndex]];
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        title: Row(
+          children: [
+            const Icon(Icons.account_circle, color: Colors.white),
+            const SizedBox(width: 12),
+            cargandoTipoUsuario
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : Text(
+                    'Tipo de usuario: $_tipoUsuario',
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+          ],
+        ),
+        elevation: 0,
+      ),
       body: Row(
         children: [
           AnimatedContainer(
