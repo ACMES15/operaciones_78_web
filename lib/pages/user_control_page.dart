@@ -215,43 +215,22 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc('usuarios_guardados')
-          .snapshots(),
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('usuarios').snapshots(),
       builder: (context, snapshot) {
         List<Map<String, dynamic>> usuariosStream = [];
-        final data = snapshot.data?.data();
-        if (snapshot.hasData && data != null) {
-          if (data['items'] != null) {
-            // formato antiguo: { items: [ {...}, ... ] }
-            usuariosStream = List<Map<String, dynamic>>.from(data['items']);
-          } else {
-            // nuevo formato: mapa de usuarios { 'usuario': { ... }, ... }
-            for (final entry in data.entries) {
-              final key = entry.key;
-              final val = entry.value;
-              if (val is Map<String, dynamic>) {
-                final mapVal = Map<String, dynamic>.from(val);
-                if (mapVal['usuario'] == null ||
-                    mapVal['usuario'].toString().isEmpty) {
-                  mapVal['usuario'] = key;
-                }
-                // Normalizar campo 'rol' -> 'tipo' si aplica
-                if (mapVal.containsKey('rol') && !mapVal.containsKey('tipo')) {
-                  mapVal['tipo'] = mapVal['rol'];
-                }
-                usuariosStream.add(mapVal);
-              }
-            }
+        if (snapshot.hasData && snapshot.data != null) {
+          for (final doc in snapshot.data!.docs) {
+            if (doc.id == 'permisos_tipo_usuario') continue;
+            final data = doc.data();
+            final usuario = Map<String, dynamic>.from(data);
+            usuario['usuario'] = doc.id;
+            usuariosStream.add(usuario);
           }
         }
-        // Sincronizar la lista local con la del snapshot (normalizada como copia)
         usuarios =
             usuariosStream.map((e) => Map<String, dynamic>.from(e)).toList();
 
-        // Filtrar usuarios según búsqueda
         final usuariosFiltrados = _busqueda.isEmpty
             ? usuarios
             : usuarios.where((u) {
