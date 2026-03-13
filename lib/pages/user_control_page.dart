@@ -25,6 +25,9 @@ class _UserControlPageBody extends StatefulWidget {
 class _UserControlPageBodyState extends State<_UserControlPageBody> {
   String _busqueda = '';
   List<String> tiposUsuario = [];
+  List<Map<String, dynamic>> usuarios = [];
+  bool _tieneCambios = false;
+
   @override
   void initState() {
     super.initState();
@@ -55,39 +58,29 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     setState(() {});
   }
 
-  List<Map<String, dynamic>> usuarios = [];
-  bool _tieneCambios = false;
-
-  // ...existing code...
-
-  // Ya no se usa _cargarUsuarios, los usuarios se obtienen en tiempo real
-
   Future<void> _agregarUsuario() async {
-    final nuevo = await showDialog<Map<String, dynamic>>(
+    final nuevoUsuario = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => DialogAgregarUsuario(tiposUsuario: tiposUsuario),
     );
-    if (nuevo != null) {
-      nuevo['password'] = nuevo['usuario'];
+    if (nuevoUsuario != null) {
       setState(() {
-        usuarios.add(nuevo);
+        usuarios.add(nuevoUsuario);
         _tieneCambios = true;
       });
-      await _guardarCambios();
     }
   }
 
   Future<void> _agregarMasivo() async {
-    final nuevos = await showDialog<List<Map<String, dynamic>>>(
+    final nuevosUsuarios = await showDialog<List<Map<String, dynamic>>>(
       context: context,
       builder: (context) => const DialogAgregarMasivo(),
     );
-    if (nuevos != null && nuevos.isNotEmpty) {
+    if (nuevosUsuarios != null && nuevosUsuarios.isNotEmpty) {
       setState(() {
-        usuarios.addAll(nuevos);
+        usuarios.addAll(nuevosUsuarios);
         _tieneCambios = true;
       });
-      await _guardarCambios();
     }
   }
 
@@ -95,31 +88,19 @@ class _UserControlPageBodyState extends State<_UserControlPageBody> {
     final index = usuarios.indexWhere((e) =>
         (e['usuario'] ?? '').toString().trim().toLowerCase() ==
         usuarioKey.toString().trim().toLowerCase());
-    if (index == -1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario no encontrado.')),
-      );
-      return;
-    }
-    if (usuarios[index]['usuario'] == 'acmes15') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se puede editar el usuario maestro.')),
-      );
-      return;
-    }
-    final tipo = await showDialog<String>(
+    if (index == -1) return;
+    final nuevoTipo = await showDialog<String>(
       context: context,
       builder: (context) => DialogEditarTipo(
-        tipoActual: usuarios[index]['tipo'],
+        tipoActual: usuarios[index]['tipo'] ?? '',
         tiposUsuario: tiposUsuario,
       ),
     );
-    if (tipo != null) {
+    if (nuevoTipo != null && nuevoTipo.isNotEmpty) {
       setState(() {
-        usuarios[index]['tipo'] = tipo;
+        usuarios[index]['tipo'] = nuevoTipo;
         _tieneCambios = true;
       });
-      await _guardarCambios();
     }
   }
 
