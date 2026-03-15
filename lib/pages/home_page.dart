@@ -124,11 +124,11 @@ class _HomePageState extends State<HomePage> {
           builder: (context) => FutureBuilder<List<Map<String, dynamic>>>(
             future: _cargarHistorialDevCan(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
+              if (!snapshot.hasData || snapshot.data == null) {
                 return const Center(child: CircularProgressIndicator());
               }
               return HistorialEntregasDevCanPage(
-                historial: snapshot.data!,
+                historial: snapshot.data ?? <Map<String, dynamic>>[],
                 tipoUsuarioActual: _tipoUsuario,
               );
             },
@@ -139,11 +139,11 @@ class _HomePageState extends State<HomePage> {
           builder: (context) => FutureBuilder<List<Map<String, dynamic>>>(
             future: _cargarHistorialRecogidos(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
+              if (!snapshot.hasData || snapshot.data == null) {
                 return const Center(child: CircularProgressIndicator());
               }
               return HistorialEntregasRecogidosPage(
-                historial: snapshot.data!,
+                historial: snapshot.data ?? <Map<String, dynamic>>[],
                 tipoUsuarioActual: _tipoUsuario,
               );
             },
@@ -659,7 +659,7 @@ class _HomePageState extends State<HomePage> {
                               child: CircularProgressIndicator());
                         }
                         return HistorialEntregasDevCanPage(
-                          historial: snapshot.data!,
+                          historial: snapshot.data ?? <Map<String, dynamic>>[],
                           tipoUsuarioActual: _tipoUsuario,
                         );
                       },
