@@ -13,6 +13,17 @@ class UserControlPageBody extends StatefulWidget {
 class _UserControlPageBodyState extends State<UserControlPageBody> {
   // Estado
   String _busqueda = '';
+  // Tipos de usuario predefinidos
+  final List<String> tiposUsuarioFijos = [
+    'ADMIN',
+    'ADMIN ENVIOS',
+    'ADMIN OMNICANAL',
+    'STAFF XD',
+    'STAFF ENVIOS',
+    'JEFATURA',
+    'PREVENCION',
+    'VENTAS',
+  ];
   List<String> tiposUsuario = [];
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _permisosKey = GlobalKey();
@@ -76,26 +87,54 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
 
   Future<void> _editarTipoPorUsuario(String usuarioKey) async {
     final usuario = usuarios.firstWhere((u) => u['id'] == usuarioKey);
-    final tipoController = TextEditingController(text: usuario['tipo'] ?? '');
+    String tipoSeleccionado = usuario['tipo'] ?? tiposUsuarioFijos.first;
+    bool activo = usuario['activo'] ?? true;
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Editar tipo de usuario'),
-        content: TextField(
-            controller: tipoController,
-            decoration: const InputDecoration(labelText: 'Tipo')),
+        title: const Text('Editar usuario'),
+        content: StatefulBuilder(
+          builder: (context, setStateDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: tipoSeleccionado,
+                items: tiposUsuarioFijos
+                    .map((tipo) => DropdownMenuItem(
+                          value: tipo,
+                          child: Text(tipo),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setStateDialog(() => tipoSeleccionado = val);
+                },
+                decoration: const InputDecoration(labelText: 'Tipo de usuario'),
+              ),
+              Row(
+                children: [
+                  Checkbox(
+                    value: activo,
+                    onChanged: (val) {
+                      if (val != null) setStateDialog(() => activo = val);
+                    },
+                  ),
+                  const Text('Activo')
+                ],
+              ),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar')),
           ElevatedButton(
             onPressed: () async {
-              final tipo = tipoController.text.trim();
-              if (tipo.isNotEmpty) {
+              if (tipoSeleccionado.isNotEmpty) {
                 await FirebaseFirestore.instance
                     .collection('usuarios')
                     .doc(usuarioKey)
-                    .update({'tipo': tipo});
+                    .update({'tipo': tipoSeleccionado, 'activo': activo});
                 Navigator.pop(ctx);
                 _cargarUsuarios();
               }
@@ -189,7 +228,69 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                icon: const Icon(Icons.person_add),
+                label: const Text('Agregar usuario'),
+                onPressed: _agregarUsuario,
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.upload_file),
+                label: const Text('Carga masiva'),
+                onPressed: _agregarMasivo,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Nombre')),
+                DataColumn(label: Text('Usuario')),
+                DataColumn(label: Text('Correo')),
+                DataColumn(label: Text('Tipo de usuario')),
+                DataColumn(label: Text('Activo')),
+                DataColumn(label: Text('Acciones')),
+              ],
+              rows: _usuariosFiltrados.map((u) {
+                return DataRow(cells: [
+                  DataCell(Text(u['nombre'] ?? '')),
+                  DataCell(Text(u['usuario'] ?? '')),
+                  DataCell(Text(u['correo'] ?? '')),
+                  DataCell(Text(u['tipo'] ?? '')),
+                  DataCell(Checkbox(
+                    value: u['activo'] ?? true,
+                    onChanged: (val) async {
+                      await FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .doc(u['id'])
+                          .update({'activo': val ?? true});
+                      _cargarUsuarios();
+                    },
+                  )),
+                  DataCell(Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Editar',
+                        onPressed: () => _editarTipoPorUsuario(u['id']),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        tooltip: 'Eliminar',
+                        onPressed: () => _eliminarUsuarioPorUsuario(u['id']),
+                      ),
+                    ],
+                  )),
+                ]);
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 32),
           const Divider(thickness: 2),
           const SizedBox(height: 12),
           const Text('Permisos por tipo de usuario',
@@ -217,27 +318,51 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     final nombreController = TextEditingController();
     final usuarioController = TextEditingController();
     final correoController = TextEditingController();
-    final tipoController = TextEditingController();
+    String tipoSeleccionado = tiposUsuarioFijos.first;
+    bool activo = true;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Agregar usuario'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: nombreController,
-                decoration: const InputDecoration(labelText: 'Nombre')),
-            TextField(
-                controller: usuarioController,
-                decoration: const InputDecoration(labelText: 'Usuario')),
-            TextField(
-                controller: correoController,
-                decoration: const InputDecoration(labelText: 'Correo')),
-            TextField(
-                controller: tipoController,
-                decoration: const InputDecoration(labelText: 'Tipo')),
-          ],
+        content: StatefulBuilder(
+          builder: (context, setStateDialog) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(labelText: 'Nombre')),
+              TextField(
+                  controller: usuarioController,
+                  decoration: const InputDecoration(labelText: 'Usuario')),
+              TextField(
+                  controller: correoController,
+                  decoration: const InputDecoration(labelText: 'Correo')),
+              DropdownButtonFormField<String>(
+                value: tipoSeleccionado,
+                items: tiposUsuarioFijos
+                    .map((tipo) => DropdownMenuItem(
+                          value: tipo,
+                          child: Text(tipo),
+                        ))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setStateDialog(() => tipoSeleccionado = val);
+                },
+                decoration: const InputDecoration(labelText: 'Tipo de usuario'),
+              ),
+              Row(
+                children: [
+                  Checkbox(
+                    value: activo,
+                    onChanged: (val) {
+                      if (val != null) setStateDialog(() => activo = val);
+                    },
+                  ),
+                  const Text('Activo')
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -248,7 +373,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
               final nombre = nombreController.text.trim();
               final usuario = usuarioController.text.trim();
               final correo = correoController.text.trim();
-              final tipo = tipoController.text.trim();
+              final tipo = tipoSeleccionado;
               if (nombre.isNotEmpty &&
                   usuario.isNotEmpty &&
                   correo.isNotEmpty &&
@@ -260,7 +385,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                   'nombre': nombre,
                   'usuario': usuario,
                   'correo': correo,
-                  'tipo': tipo
+                  'tipo': tipo,
+                  'activo': activo
                 });
                 Navigator.pop(ctx);
                 _cargarUsuarios();
@@ -283,8 +409,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
           controller: csvController,
           decoration: const InputDecoration(
             labelText:
-                'Pega aquí los usuarios (nombre,usuario,correo,tipo) por línea',
-            hintText: 'Ejemplo: Juan Perez,jperez,jperez@email.com,ADMIN',
+                'Pega aquí los usuarios (nombre,usuario,correo,tipo,activo) por línea',
+            hintText: 'Ejemplo: Juan Perez,jperez,jperez@email.com,ADMIN,true',
           ),
           maxLines: 8,
         ),
@@ -297,11 +423,14 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
               final lines = csvController.text.trim().split('\n');
               for (final line in lines) {
                 final parts = line.split(',');
-                if (parts.length == 4) {
+                if (parts.length >= 4) {
                   final nombre = parts[0].trim();
                   final usuario = parts[1].trim();
                   final correo = parts[2].trim();
                   final tipo = parts[3].trim();
+                  final activo = parts.length > 4
+                      ? (parts[4].trim().toLowerCase() == 'true')
+                      : true;
                   if (nombre.isNotEmpty &&
                       usuario.isNotEmpty &&
                       correo.isNotEmpty &&
@@ -313,7 +442,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                       'nombre': nombre,
                       'usuario': usuario,
                       'correo': correo,
-                      'tipo': tipo
+                      'tipo': tipo,
+                      'activo': activo
                     });
                   }
                 }
@@ -335,28 +465,24 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     if (tiposUsuario.isEmpty) {
       return const Text('No hay tipos de usuario definidos.');
     }
-    if (_cargandoPermisos) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (tiposUsuario.isEmpty) {
-      return const Text('No hay tipos de usuario definidos.');
-    }
     if (paginasDisponibles.isEmpty) {
       return const Text('No hay páginas disponibles.');
     }
+    // Usar solo los tipos fijos para la tabla de permisos
+    List<String> tiposParaPermisos = tiposUsuarioFijos;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: DataTable(
         columns: [
           const DataColumn(label: Text('Página')),
-          ...tiposUsuario.map((tipo) => DataColumn(label: Text(tipo))),
+          ...tiposParaPermisos.map((tipo) => DataColumn(label: Text(tipo))),
           const DataColumn(label: Text('Guardar')),
         ],
         rows: paginasDisponibles.map((pagina) {
           return DataRow(
             cells: [
               DataCell(Text(pagina)),
-              ...tiposUsuario.map((tipo) {
+              ...tiposParaPermisos.map((tipo) {
                 final checked = permisosPorTipo[tipo]?[pagina] ?? false;
                 return DataCell(Checkbox(
                   value: checked,
