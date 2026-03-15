@@ -102,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   onPressed: () async {
-                    if (!_formKey.currentState!.validate()) return;
+                    if (!(_formKey.currentState?.validate() ?? false)) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
                     final usuarioInput = usuario.trim().toLowerCase();

@@ -179,7 +179,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
             final fila = List<String>.generate(
               _headers.length,
               (i) => i < row.length && row[i] != null
-                  ? row[i]!.value.toString()
+                  ? row[i]?.value?.toString() ?? ''
                   : '',
             );
             datos.add(fila);

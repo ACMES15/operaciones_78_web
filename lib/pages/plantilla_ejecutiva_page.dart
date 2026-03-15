@@ -24,11 +24,12 @@ class _PlantillaEjecutivaBody extends StatefulWidget {
   const _PlantillaEjecutivaBody({Key? key}) : super(key: key);
 
   @override
-  State<_PlantillaEjecutivaBody> createState() => _PlantillaEjecutivaBodyState();
+  State<_PlantillaEjecutivaBody> createState() =>
+      _PlantillaEjecutivaBodyState();
 }
 
 class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
-  static const String _storageKey = 'plantilla_ejecutiva_datos';
+  // static const String _storageKey = 'plantilla_ejecutiva_datos';
   static const List<String> columnas = [
     'ID',
     'SECCION',
@@ -108,7 +109,8 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
   }
 
   // Procesamiento directo para web
-  List<List<String>> _procesarExcelDirecto(Uint8List bytes, List<String> columnas) {
+  List<List<String>> _procesarExcelDirecto(
+      Uint8List bytes, List<String> columnas) {
     final excel = Excel.decodeBytes(bytes);
     final List<List<String>> datos = [];
     for (final table in excel.tables.keys) {
@@ -118,7 +120,9 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
         final row = sheet.row(rowIndex);
         final fila = List<String>.generate(
           columnas.length,
-          (i) => i < row.length && row[i] != null ? row[i]!.value.toString() : '',
+          (i) => i < row.length && row[i] != null
+              ? row[i]?.value?.toString() ?? ''
+              : '',
         );
         datos.add(fila);
       }
@@ -130,7 +134,10 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('plantilla_ejecutiva').doc('datos').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('plantilla_ejecutiva')
+          .doc('datos')
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -141,7 +148,8 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
         final data = snapshot.data?.data();
         datos = [];
         if (data != null && data['datos'] != null) {
-          datos = List<List<String>>.from((data['datos'] as List).map((fila) => List<String>.from(fila)));
+          datos = List<List<String>>.from(
+              (data['datos'] as List).map((fila) => List<String>.from(fila)));
         }
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
@@ -150,10 +158,12 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.assignment, color: Color(0xFF2D6A4F), size: 32),
+                  const Icon(Icons.assignment,
+                      color: Color(0xFF2D6A4F), size: 32),
                   const SizedBox(width: 12),
                   const Text('Plantilla Ejecutiva',
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   _botonImportarHtmlWeb(),
                   const SizedBox(width: 12),
@@ -161,7 +171,8 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
                     onPressed: datos.isEmpty ? null : _guardarDatosFirebase,
                     icon: const Icon(Icons.save),
                     label: const Text('Guardar'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
                   ),
                 ],
               ),
@@ -179,8 +190,8 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
                           columns: columnas
                               .map((col) => DataColumn(
                                   label: Text(col,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold))))
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold))))
                               .toList(),
                           rows: datos.isEmpty
                               ? []

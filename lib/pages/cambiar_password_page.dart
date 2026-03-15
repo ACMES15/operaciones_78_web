@@ -16,7 +16,7 @@ class _CambiarPasswordPageState extends State<CambiarPasswordPage> {
   bool _loading = false;
 
   Future<void> _cambiarPassword() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _loading = true);
     try {
       final usuario = widget.usuario.trim().toLowerCase();

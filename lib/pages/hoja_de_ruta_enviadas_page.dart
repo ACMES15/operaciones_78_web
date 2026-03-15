@@ -34,7 +34,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
         if (r is List) {
           data.add(r.map((c) => c.toString()).toList());
         } else if (r is Map) {
-          data.add((r as Map).values.map((v) => v.toString()).toList());
+          data.add((r).values.map((v) => v.toString()).toList());
         } else {
           data.add([r.toString()]);
         }
@@ -84,9 +84,11 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             anchor.href = url;
             anchor.download = 'hoja_de_ruta.pdf';
             anchor.style.display = 'none';
-            html.document.body!.append(anchor);
-            anchor.click();
-            anchor.remove();
+            if (html.document.body != null) {
+              html.document.body!.append(anchor);
+              anchor.click();
+              anchor.remove();
+            }
           } catch (e) {
             html.window.open(url, '_blank');
           }

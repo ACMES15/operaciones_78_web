@@ -72,8 +72,10 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
           .snapshots(),
       builder: (context, snapshot) {
         List<HojaDeXDHistorial> lista = [];
-        if (snapshot.hasData && snapshot.data != null) {
-          final docs = snapshot.data!.docs;
+        if (snapshot.hasData &&
+            snapshot.data != null &&
+            snapshot.data?.docs != null) {
+          final docs = snapshot.data?.docs ?? [];
           lista = docs
               .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
               .toList();

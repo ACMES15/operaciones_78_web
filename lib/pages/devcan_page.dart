@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class DevCanPage extends StatefulWidget {
@@ -52,7 +51,7 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   DateTime? _ultimaFechaEntrega;
-  List<Map<String, dynamic>> _entregasRecientes = [];
+  // List<Map<String, dynamic>> _entregasRecientes = [];
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
   String _scanSeccion = '';
@@ -188,7 +187,7 @@ class _DevCanPageState extends State<DevCanPage> {
             final fila = List<String>.generate(
               _headers.length,
               (i) => i < row.length && row[i] != null
-                  ? row[i]!.value.toString()
+                  ? row[i]?.value?.toString() ?? ''
                   : '',
             );
             datos.add(fila);
@@ -331,7 +330,7 @@ class _DevCanPageState extends State<DevCanPage> {
     await guardarDatosFirestoreYCache(
         'entregas', 'devcan', {'items': entregasRecientes});
     setState(() {
-      _entregasRecientes = entregasRecientes;
+      // _entregasRecientes = entregasRecientes;
       _ultimaFechaEntrega = DateTime.now();
     });
     ScaffoldMessenger.of(context).showSnackBar(

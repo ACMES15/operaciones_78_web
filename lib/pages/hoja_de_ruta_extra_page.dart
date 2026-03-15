@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'dart:math';
 import '../utils/firebase_cache_utils.dart';
 import '../utils/sheet_validator.dart';
-import 'hoja_de_ruta_enviadas_page.dart'; // Asegúrate de que este archivo existe y contiene HojaDeRutaEnviadasPage
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HojaDeRutaExtraPage extends StatefulWidget {
@@ -185,7 +184,8 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                 'col1': r[0].text.trim(),
                 'col2': r[1].text.trim(),
               })
-          .where((m) => m['col1']!.isNotEmpty || m['col2']!.isNotEmpty)
+          .where((m) =>
+              (m['col1'] ?? '').isNotEmpty || (m['col2'] ?? '').isNotEmpty)
           .toList();
       final Map<String, dynamic> hoja = {
         'origen': 'Tiendas/Proveedores',

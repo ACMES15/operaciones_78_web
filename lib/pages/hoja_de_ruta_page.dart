@@ -714,7 +714,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                 child: Row(children: [
                                   Icon(Icons.print, size: 16),
                                   SizedBox(width: 6),
-                                  Text(_selectedPrinter!.name)
+                                  Text(_selectedPrinter?.name ?? 'Sin nombre')
                                 ]),
                               )
                             else
