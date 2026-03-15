@@ -8,6 +8,7 @@ import 'hoja_de_xd_historial_page.dart';
 import 'historial_entregas_devcan_page.dart';
 import 'historial_carta_porte_page.dart';
 import 'plantilla_ejecutiva_page.dart';
+import 'carta_porte_table.dart';
 import 'devcan_page.dart';
 import 'recogidos/recogidos_page.dart';
 import 'recogidos/historial_entregas_recogidos_page.dart';
@@ -15,6 +16,7 @@ import 'bienvenida_page.dart';
 import '../utils/firebase_cache_utils.dart';
 import 'historial_entregas_recogidos_mobile.dart';
 import 'historial_entregas_devcan_mobile.dart';
+import 'login_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -112,13 +114,7 @@ class _HomePageState extends State<HomePage> {
         HojaDeRutaPage(),
         Builder(builder: (context) => HojaDeXDPage(usuario: widget.usuario)),
         HojaDeXDHistorialPage(),
-        Builder(
-          builder: (context) {
-            // CartaPorteTable no está garantizado en la librería importada;
-            // mostrar un placeholder para evitar errores de compilación.
-            return const Center(child: Text('Carta Porte no disponible'));
-          },
-        ),
+        CartaPorteTable(),
         HistorialCartaPortePage(),
         PlantillaEjecutivaPage(),
         DevCanPage(),
@@ -418,12 +414,30 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Icon(Icons.account_circle, color: Colors.white),
             const SizedBox(width: 12),
-            Text('Tipo de usuario: $_tipoUsuario',
-                style: const TextStyle(color: Colors.white, fontSize: 18)),
+            Text('Usuario: ${widget.usuario}',
+                style: const TextStyle(color: Colors.white, fontSize: 16)),
+            const SizedBox(width: 16),
+            Text('Tipo: $_tipoUsuario',
+                style: const TextStyle(color: Colors.white, fontSize: 16)),
+            const SizedBox(width: 16),
+            _FechaHoraWidget(),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              tooltip: 'Cerrar sesión',
+              onPressed: () {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginPage()),
+                  (route) => false,
+                );
+              },
+            ),
           ],
         ),
         elevation: 0,
       ),
+
+      // Widget para mostrar la fecha y hora actual en el AppBar
       body: Row(
         children: [
           AnimatedContainer(
@@ -692,6 +706,42 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// Widget para mostrar la fecha y hora actual en el AppBar
+class _FechaHoraWidget extends StatefulWidget {
+  @override
+  State<_FechaHoraWidget> createState() => _FechaHoraWidgetState();
+}
+
+class _FechaHoraWidgetState extends State<_FechaHoraWidget> {
+  late DateTime _now;
+  late final ticker = Stream<DateTime>.periodic(
+      const Duration(seconds: 1), (_) => DateTime.now());
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    ticker.listen((date) {
+      if (mounted) setState(() => _now = date);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fecha =
+        '${_now.day.toString().padLeft(2, '0')}/${_now.month.toString().padLeft(2, '0')}/${_now.year}';
+    final hora =
+        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}:${_now.second.toString().padLeft(2, '0')}';
+    return Row(
+      children: [
+        const Icon(Icons.access_time, color: Colors.white, size: 18),
+        const SizedBox(width: 4),
+        Text('$fecha $hora',
+            style: const TextStyle(color: Colors.white, fontSize: 14)),
+      ],
     );
   }
 }
