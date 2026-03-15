@@ -171,8 +171,62 @@ class _HomePageState extends State<HomePage> {
       }
       final datos = usuarioDoc.data()!;
       print('[DEBUG] Datos usuario Firestore: $datos');
-      // ...el resto del código igual...
-      // (El código relevante ya está dentro del try-catch, no se necesita esta sección fuera)
+      // Extraer tipo de usuario (tipo o rol)
+      final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
+      if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
+        setState(() {
+          _errorUsuario =
+              'El usuario "${widget.usuario}" no tiene un tipo asignado.';
+        });
+        return;
+      }
+      String tipo = tipoOriginal.toString();
+      print(
+          '[DEBUG] Tipo de usuario leído desde Firestore: "$tipoOriginal" para usuario: "${widget.usuario}"');
+      if (_normalizar(tipo).contains('ADMIN')) {
+        tipo = 'ADMIN';
+      }
+      List<int> permitidas = [];
+      final tipoNorm = _normalizar(tipo);
+      if (tipoNorm == 'SUPERADMIN' ||
+          tipoNorm == 'ADMIN' ||
+          tipoNorm == 'ADMINISTRATIVO' ||
+          tipoNorm == 'ADMIN OMNICANAL' ||
+          tipoNorm == 'ADMIN ENVIOS' ||
+          tipoNorm == 'admin') {
+        permitidas = List.generate(_paginas.length, (i) => i);
+      } else {
+        // Leer permisos desde la colección correcta
+        final permisosDoc = await FirebaseFirestore.instance
+            .collection('permisos_tipo_usuario')
+            .doc(tipoNorm)
+            .get();
+        if (permisosDoc.exists && permisosDoc.data() != null) {
+          final permisosTipo = permisosDoc.data();
+          if (permisosTipo != null) {
+            for (int i = 0; i < _paginas.length; i++) {
+              final nombrePagina = _paginas[i];
+              // Buscar la clave normalizada
+              String? clavePagina;
+              for (final pk in permisosTipo.keys) {
+                if (_normalizar(pk) == _normalizar(nombrePagina)) {
+                  clavePagina = pk;
+                  break;
+                }
+              }
+              if (clavePagina != null && permisosTipo[clavePagina] == true) {
+                permitidas.add(i);
+              }
+            }
+          }
+        }
+        if (permitidas.isEmpty) permitidas = [0];
+      }
+      setState(() {
+        _tipoUsuario = tipoOriginal;
+        _paginasPermitidas = permitidas;
+        _errorUsuario = null;
+      });
     } catch (e, stack) {
       print('[ERROR] Excepción al leer usuario Firestore: $e');
       print(stack);
@@ -180,7 +234,6 @@ class _HomePageState extends State<HomePage> {
         _errorUsuario = 'Error al leer datos de usuario: $e';
       });
     }
-    // Todas las referencias a tipoOriginal y la lógica de permisos están dentro del try-catch
   }
 
   @override
