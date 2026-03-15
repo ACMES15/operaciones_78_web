@@ -210,7 +210,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     final doc = await docRef.get();
     Map<String, dynamic> data = {};
     if (doc.exists) {
-      data = Map<String, dynamic>.from(doc.data()!);
+      // Protección: si doc.data() es null, usar mapa vacío
+      data = Map<String, dynamic>.from(doc.data() ?? {});
     }
     // Actualizar solo el tipo seleccionado
     data[tipoSeleccionadoPermisos!] =
