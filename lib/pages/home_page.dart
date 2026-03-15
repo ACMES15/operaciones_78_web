@@ -156,6 +156,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _determinarTipoUsuarioFirestore() async {
+    print('[DEBUG] Buscando usuario en Firestore: ${widget.usuario}');
     try {
       // Leer usuario directamente de Firestore
       final usuarioDoc = await FirebaseFirestore.instance
