@@ -169,7 +169,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     final datos = usuarioDoc.data()!;
-    final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
+    final tipoOriginal = datos['tipo'] ?? datos['tipo'] ?? '';
     if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
       setState(() {
         _errorUsuario =
@@ -195,7 +195,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       // Leer permisos_tipo_usuario para saber qué páginas mostrar
       final permisosDoc = await FirebaseFirestore.instance
-          .collection('usuarios')
+          .collection('permisos_tipo_usuario')
           .doc('permisos_tipo_usuario')
           .get();
       if (permisosDoc.exists && permisosDoc.data() != null) {
