@@ -223,108 +223,144 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
   }
 
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 700;
+        final horizontalPadding = isWide ? 32.0 : 8.0;
+        final fontSize = isWide ? 18.0 : 14.0;
+        return SingleChildScrollView(
+          controller: _scrollController,
+          padding:
+              EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Gestión de usuarios',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.arrow_downward),
-                label: const Text('Ir a permisos'),
-                onPressed: () {
-                  Scrollable.ensureVisible(
-                    _permisosKey.currentContext!,
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                icon: const Icon(Icons.person_add),
-                label: const Text('Agregar usuario'),
-                onPressed: _agregarUsuario,
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.upload_file),
-                label: const Text('Carga masiva'),
-                onPressed: _agregarMasivo,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columns: const [
-                DataColumn(label: Text('Nombre')),
-                DataColumn(label: Text('Usuario')),
-                DataColumn(label: Text('Correo')),
-                DataColumn(label: Text('Tipo de usuario')),
-                DataColumn(label: Text('Activo')),
-                DataColumn(label: Text('Acciones')),
-              ],
-              rows: _usuariosFiltrados.map((u) {
-                return DataRow(cells: [
-                  DataCell(Text(u['nombre'] ?? '')),
-                  DataCell(Text(u['usuario'] ?? '')),
-                  DataCell(Text(u['correo'] ?? '')),
-                  DataCell(Text(u['tipo'] ?? '')),
-                  DataCell(Checkbox(
-                    value: u['activo'] ?? true,
-                    onChanged: (val) async {
-                      await FirebaseFirestore.instance
-                          .collection('usuarios')
-                          .doc(u['id'])
-                          .update({'activo': val ?? true});
-                      _cargarUsuarios();
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Gestión de usuarios',
+                      style: TextStyle(
+                          fontSize: fontSize + 2, fontWeight: FontWeight.bold)),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.arrow_downward),
+                    label: const Text('Ir a permisos'),
+                    onPressed: () {
+                      Scrollable.ensureVisible(
+                        _permisosKey.currentContext!,
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeInOut,
+                      );
                     },
-                  )),
-                  DataCell(Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Editar',
-                        onPressed: () => _editarTipoPorUsuario(u['id']),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        tooltip: 'Eliminar',
-                        onPressed: () => _eliminarUsuarioPorUsuario(u['id']),
-                      ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.person_add),
+                    label: const Text('Agregar usuario'),
+                    onPressed: _agregarUsuario,
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Carga masiva'),
+                    onPressed: _agregarMasivo,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  minWidth: 300,
+                  maxWidth: isWide ? 1200 : double.infinity,
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columnSpacing: isWide ? 32 : 12,
+                    columns: [
+                      DataColumn(
+                          label: Text('Nombre',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
+                          label: Text('Usuario',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
+                          label: Text('Correo',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
+                          label: Text('Tipo de usuario',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
+                          label: Text('Activo',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
+                          label: Text('Acciones',
+                              style: TextStyle(fontSize: fontSize))),
                     ],
-                  )),
-                ]);
-              }).toList(),
-            ),
+                    rows: _usuariosFiltrados.map((u) {
+                      return DataRow(cells: [
+                        DataCell(Text(u['nombre'] ?? '',
+                            style: TextStyle(fontSize: fontSize))),
+                        DataCell(Text(u['usuario'] ?? '',
+                            style: TextStyle(fontSize: fontSize))),
+                        DataCell(Text(u['correo'] ?? '',
+                            style: TextStyle(fontSize: fontSize))),
+                        DataCell(Text(u['tipo'] ?? '',
+                            style: TextStyle(fontSize: fontSize))),
+                        DataCell(Checkbox(
+                          value: u['activo'] ?? true,
+                          onChanged: (val) async {
+                            await FirebaseFirestore.instance
+                                .collection('usuarios')
+                                .doc(u['id'])
+                                .update({'activo': val ?? true});
+                            _cargarUsuarios();
+                          },
+                        )),
+                        DataCell(Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              tooltip: 'Editar',
+                              onPressed: () => _editarTipoPorUsuario(u['id']),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              tooltip: 'Eliminar',
+                              onPressed: () =>
+                                  _eliminarUsuarioPorUsuario(u['id']),
+                            ),
+                          ],
+                        )),
+                      ]);
+                    }).toList(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Divider(thickness: 2),
+              const SizedBox(height: 12),
+              Text('Permisos por tipo de usuario',
+                  style: TextStyle(
+                      fontSize: fontSize + 2, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Card(
+                key: _permisosKey,
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: _buildPermisosPorTipo(),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          const Divider(thickness: 2),
-          const SizedBox(height: 12),
-          const Text('Permisos por tipo de usuario',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Card(
-            key: _permisosKey,
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: _buildPermisosPorTipo(),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
   // --- Permisos por tipo de usuario ---

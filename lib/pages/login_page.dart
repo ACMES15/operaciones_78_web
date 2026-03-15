@@ -105,7 +105,8 @@ class _LoginPageState extends State<LoginPage> {
                     if (!(_formKey.currentState?.validate() ?? false)) return;
                     final usuario = _usuarioController.text.trim();
                     final password = _passController.text.trim();
-                    final usuarioInput = usuario.trim().toLowerCase();
+                    // Buscar el usuario tal como lo escribe el usuario
+                    final usuarioInput = usuario.trim();
                     final passInput = password.trim().toLowerCase();
                     try {
                       final docSnap = await FirebaseFirestore.instance
