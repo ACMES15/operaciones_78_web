@@ -18,8 +18,10 @@ import 'historial_entregas_devcan_mobile.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
-  HomePage({required this.usuario, super.key}) {
-    print('[DEBUG] Constructor HomePage: usuario=$usuario');
+  final String? tipoUsuario;
+  HomePage({required this.usuario, this.tipoUsuario, super.key}) {
+    print(
+        '[DEBUG] Constructor HomePage: usuario=$usuario, tipoUsuario=$tipoUsuario');
   }
   @override
   State<HomePage> createState() => _HomePageState();
@@ -155,7 +157,63 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     print('[DEBUG] initState HomePage');
-    _determinarTipoUsuarioFirestore();
+    if (widget.tipoUsuario != null && widget.tipoUsuario!.isNotEmpty) {
+      print('[DEBUG] HomePage recibió tipoUsuario: ${widget.tipoUsuario}');
+      _tipoUsuario = widget.tipoUsuario!;
+      _determinarPermisosPorTipo(_tipoUsuario);
+    } else {
+      _determinarTipoUsuarioFirestore();
+    }
+  }
+
+  Future<void> _determinarPermisosPorTipo(String tipoOriginal) async {
+    String tipo = tipoOriginal;
+    if (_normalizar(tipo).contains('ADMIN')) {
+      tipo = 'ADMIN';
+    }
+    List<int> permitidas = [];
+    final tipoNorm = _normalizar(tipo);
+    print('[DEBUG] tipoNorm: $tipoNorm');
+    if (tipoNorm == 'SUPERADMIN' ||
+        tipoNorm == 'ADMIN' ||
+        tipoNorm == 'ADMINISTRATIVO' ||
+        tipoNorm == 'ADMIN OMNICANAL' ||
+        tipoNorm == 'ADMIN ENVIOS' ||
+        tipoNorm == 'admin') {
+      permitidas = List.generate(_paginas.length, (i) => i);
+    } else {
+      final permisosDoc = await FirebaseFirestore.instance
+          .collection('permisos_tipo_usuario')
+          .doc(tipoNorm)
+          .get();
+      print('[DEBUG] permisosDoc.exists: ${permisosDoc.exists}');
+      print('[DEBUG] permisosDoc.data(): ${permisosDoc.data()}');
+      if (permisosDoc.exists && permisosDoc.data() != null) {
+        final permisosTipo = permisosDoc.data();
+        if (permisosTipo != null) {
+          for (int i = 0; i < _paginas.length; i++) {
+            final nombrePagina = _paginas[i];
+            String? clavePagina;
+            for (final pk in permisosTipo.keys) {
+              if (_normalizar(pk) == _normalizar(nombrePagina)) {
+                clavePagina = pk;
+                break;
+              }
+            }
+            if (clavePagina != null && permisosTipo[clavePagina] == true) {
+              permitidas.add(i);
+            }
+          }
+        }
+      }
+      if (permitidas.isEmpty) permitidas = [0];
+    }
+    print('[DEBUG] permitidas: $permitidas');
+    setState(() {
+      _tipoUsuario = tipoOriginal;
+      _paginasPermitidas = permitidas;
+      _errorUsuario = null;
+    });
   }
 
   Future<void> _determinarTipoUsuarioFirestore() async {
@@ -195,55 +253,10 @@ class _HomePageState extends State<HomePage> {
         });
         return;
       }
-      String tipo = tipoOriginal.toString();
+      // String tipo = tipoOriginal.toString();
       print(
           '[DEBUG] Tipo de usuario leído desde Firestore: "$tipoOriginal" para usuario: "${widget.usuario}"');
-      if (_normalizar(tipo).contains('ADMIN')) {
-        tipo = 'ADMIN';
-      }
-      List<int> permitidas = [];
-      final tipoNorm = _normalizar(tipo);
-      print('[DEBUG] tipoNorm: $tipoNorm');
-      if (tipoNorm == 'SUPERADMIN' ||
-          tipoNorm == 'ADMIN' ||
-          tipoNorm == 'ADMINISTRATIVO' ||
-          tipoNorm == 'ADMIN OMNICANAL' ||
-          tipoNorm == 'ADMIN ENVIOS' ||
-          tipoNorm == 'admin') {
-        permitidas = List.generate(_paginas.length, (i) => i);
-      } else {
-        final permisosDoc = await FirebaseFirestore.instance
-            .collection('permisos_tipo_usuario')
-            .doc(tipoNorm)
-            .get();
-        print('[DEBUG] permisosDoc.exists: [33m${permisosDoc.exists}[0m');
-        print('[DEBUG] permisosDoc.data(): [33m${permisosDoc.data()}[0m');
-        if (permisosDoc.exists && permisosDoc.data() != null) {
-          final permisosTipo = permisosDoc.data();
-          if (permisosTipo != null) {
-            for (int i = 0; i < _paginas.length; i++) {
-              final nombrePagina = _paginas[i];
-              String? clavePagina;
-              for (final pk in permisosTipo.keys) {
-                if (_normalizar(pk) == _normalizar(nombrePagina)) {
-                  clavePagina = pk;
-                  break;
-                }
-              }
-              if (clavePagina != null && permisosTipo[clavePagina] == true) {
-                permitidas.add(i);
-              }
-            }
-          }
-        }
-        if (permitidas.isEmpty) permitidas = [0];
-      }
-      print('[DEBUG] permitidas: $permitidas');
-      setState(() {
-        _tipoUsuario = tipoOriginal;
-        _paginasPermitidas = permitidas;
-        _errorUsuario = null;
-      });
+      await _determinarPermisosPorTipo(tipoOriginal);
     } catch (e, stack) {
       print('[ERROR] Excepción al leer usuario Firestore: $e');
       print(stack);

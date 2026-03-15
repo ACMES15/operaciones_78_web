@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../home_page.dart';
+import 'home_page.dart';
 import 'cambiar_password_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -120,6 +120,9 @@ class _LoginPageState extends State<LoginPage> {
                         return;
                       }
                       final datos = docSnap.data() ?? {};
+                      final tipoUsuario = (datos['tipo'] ?? '').toString();
+                      print(
+                          '[DEBUG][LOGIN] Tipo de usuario Firestore: $tipoUsuario');
                       final passDb = (datos['password'] ?? '')
                           .toString()
                           .trim()
@@ -148,8 +151,9 @@ class _LoginPageState extends State<LoginPage> {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                HomePage(usuario: usuarioInput),
+                            builder: (context) => HomePage(
+                                usuario: usuarioInput,
+                                tipoUsuario: tipoUsuario),
                           ),
                         );
                         return;
