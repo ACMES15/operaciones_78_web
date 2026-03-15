@@ -203,10 +203,19 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
   }
 
   Future<void> _guardarPermisosTipoUsuario() async {
-    await FirebaseFirestore.instance
+    if (tipoSeleccionadoPermisos == null) return;
+    final docRef = FirebaseFirestore.instance
         .collection('permisos_tipo_usuario')
-        .doc('permisos')
-        .set(permisosPorTipo);
+        .doc('permisos');
+    final doc = await docRef.get();
+    Map<String, dynamic> data = {};
+    if (doc.exists) {
+      data = Map<String, dynamic>.from(doc.data()!);
+    }
+    // Actualizar solo el tipo seleccionado
+    data[tipoSeleccionadoPermisos!] =
+        permisosPorTipo[tipoSeleccionadoPermisos!];
+    await docRef.set(data);
     ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Permisos guardados en Firestore')));
     _cargarPermisosTipoUsuario();
