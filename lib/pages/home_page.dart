@@ -18,7 +18,9 @@ import 'historial_entregas_devcan_mobile.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
-  const HomePage({required this.usuario, super.key});
+  HomePage({required this.usuario, super.key}) {
+    print('[DEBUG] Constructor HomePage: usuario=$usuario');
+  }
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -152,6 +154,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    print('[DEBUG] initState HomePage');
     _determinarTipoUsuarioFirestore();
   }
 
