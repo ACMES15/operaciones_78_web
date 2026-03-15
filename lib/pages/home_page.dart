@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _determinarTipoUsuarioFirestore() async {
-    // Leer usuario y permisos directamente de Firestore
+    // Leer usuario directamente de Firestore
     final usuarioDoc = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(widget.usuario)
@@ -193,38 +193,26 @@ class _HomePageState extends State<HomePage> {
         tipoNorm == 'admin') {
       permitidas = List.generate(_paginas.length, (i) => i);
     } else {
-      // Leer permisos_tipo_usuario para saber qué páginas mostrar
+      // Leer permisos desde la colección correcta
       final permisosDoc = await FirebaseFirestore.instance
           .collection('permisos_tipo_usuario')
-          .doc('permisos_tipo_usuario')
+          .doc(tipoNorm)
           .get();
       if (permisosDoc.exists && permisosDoc.data() != null) {
-        final permisos =
-            permisosDoc.data()!['permisos'] as Map<String, dynamic>?;
-        if (permisos != null) {
-          String? clavePermiso;
-          for (final k in permisos.keys) {
-            if (_normalizar(k) == tipoNorm) {
-              clavePermiso = k;
-              break;
+        final permisosTipo = permisosDoc.data();
+        if (permisosTipo != null) {
+          for (int i = 0; i < _paginas.length; i++) {
+            final nombrePagina = _paginas[i];
+            // Buscar la clave normalizada
+            String? clavePagina;
+            for (final pk in permisosTipo.keys) {
+              if (_normalizar(pk) == _normalizar(nombrePagina)) {
+                clavePagina = pk;
+                break;
+              }
             }
-          }
-          final permisosTipo = clavePermiso != null
-              ? permisos[clavePermiso] as Map<String, dynamic>?
-              : null;
-          if (permisosTipo != null) {
-            for (int i = 0; i < _paginas.length; i++) {
-              final nombrePagina = _paginas[i];
-              String? clavePagina;
-              for (final pk in permisosTipo.keys) {
-                if (_normalizar(pk) == _normalizar(nombrePagina)) {
-                  clavePagina = pk;
-                  break;
-                }
-              }
-              if (clavePagina != null && permisosTipo[clavePagina] == true) {
-                permitidas.add(i);
-              }
+            if (clavePagina != null && permisosTipo[clavePagina] == true) {
+              permitidas.add(i);
             }
           }
         }

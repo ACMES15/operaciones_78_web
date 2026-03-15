@@ -100504,7 +100504,7 @@ break}n=$.aD
 f=(n==null?$.aD=$.c_():n).bP("[DEFAULT]")
 A.bw(f,g,!0)
 s=4
-return A.p(A.cB(new A.bC(f)).c3("usuarios").cU("permisos_tipo_usuario").eb(0),$async$vn)
+return A.p(A.cB(new A.bC(f)).c3("permisos_tipo_usuario").cU("permisos_tipo_usuario").eb(0),$async$vn)
 case 4:i=b
 if(i.gmY()&&i.ji(0)!=null){g=t.z
 p.as=A.dD(J.a7N(t.P.a(i.ji(0).h(0,"permisos")),new A.aE1(),g,g),t.N,t.Yl)

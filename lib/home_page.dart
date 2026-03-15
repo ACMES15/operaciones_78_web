@@ -132,7 +132,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     final permisosDoc = await FirebaseFirestore.instance
-        .collection('usuarios')
+        .collection('permisos_tipo_usuario')
         .doc('permisos_tipo_usuario')
         .get();
     if (permisosDoc.exists && permisosDoc.data() != null) {
