@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -47,7 +48,7 @@ Future<void> exportarExcel({
     sheet.appendRow(row);
   }
 
-  final fileBytes = excel.encode()!;
+  final fileBytes = excel.encode() ?? Uint8List(0);
   final blob = html.Blob([fileBytes],
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   final url = html.Url.createObjectUrlFromBlob(blob);
