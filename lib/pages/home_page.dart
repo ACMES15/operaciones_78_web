@@ -161,23 +161,34 @@ class _HomePageState extends State<HomePage> {
   Future<void> _determinarTipoUsuarioFirestore() async {
     print('[DEBUG] Buscando usuario en Firestore: ${widget.usuario}');
     try {
-      // Leer usuario directamente de Firestore
       final usuarioDoc = await FirebaseFirestore.instance
           .collection('usuarios')
           .doc(widget.usuario)
           .get();
-      if (!usuarioDoc.exists || usuarioDoc.data() == null) {
+      print('[DEBUG] usuarioDoc.exists: [33m${usuarioDoc.exists}[0m');
+      print('[DEBUG] usuarioDoc.data(): [33m${usuarioDoc.data()}[0m');
+      if (!usuarioDoc.exists) {
+        print('[ERROR] El documento de usuario no existe.');
         setState(() {
           _errorUsuario =
               'El usuario "${widget.usuario}" no existe en el sistema.';
         });
         return;
       }
-      final datos = usuarioDoc.data()!;
+      final datos = usuarioDoc.data();
+      if (datos == null) {
+        print('[ERROR] El documento de usuario existe pero data() es null.');
+        setState(() {
+          _errorUsuario =
+              'El usuario "${widget.usuario}" no tiene datos en Firestore.';
+        });
+        return;
+      }
       print('[DEBUG] Datos usuario Firestore: $datos');
-      // Extraer tipo de usuario (tipo o rol)
       final tipoOriginal = datos['tipo'] ?? datos['rol'] ?? '';
+      print('[DEBUG] tipoOriginal: $tipoOriginal');
       if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
+        print('[ERROR] El usuario no tiene tipo asignado.');
         setState(() {
           _errorUsuario =
               'El usuario "${widget.usuario}" no tiene un tipo asignado.';
@@ -192,6 +203,7 @@ class _HomePageState extends State<HomePage> {
       }
       List<int> permitidas = [];
       final tipoNorm = _normalizar(tipo);
+      print('[DEBUG] tipoNorm: $tipoNorm');
       if (tipoNorm == 'SUPERADMIN' ||
           tipoNorm == 'ADMIN' ||
           tipoNorm == 'ADMINISTRATIVO' ||
@@ -200,17 +212,17 @@ class _HomePageState extends State<HomePage> {
           tipoNorm == 'admin') {
         permitidas = List.generate(_paginas.length, (i) => i);
       } else {
-        // Leer permisos desde la colección correcta
         final permisosDoc = await FirebaseFirestore.instance
             .collection('permisos_tipo_usuario')
             .doc(tipoNorm)
             .get();
+        print('[DEBUG] permisosDoc.exists: [33m${permisosDoc.exists}[0m');
+        print('[DEBUG] permisosDoc.data(): [33m${permisosDoc.data()}[0m');
         if (permisosDoc.exists && permisosDoc.data() != null) {
           final permisosTipo = permisosDoc.data();
           if (permisosTipo != null) {
             for (int i = 0; i < _paginas.length; i++) {
               final nombrePagina = _paginas[i];
-              // Buscar la clave normalizada
               String? clavePagina;
               for (final pk in permisosTipo.keys) {
                 if (_normalizar(pk) == _normalizar(nombrePagina)) {
@@ -226,6 +238,7 @@ class _HomePageState extends State<HomePage> {
         }
         if (permitidas.isEmpty) permitidas = [0];
       }
+      print('[DEBUG] permitidas: $permitidas');
       setState(() {
         _tipoUsuario = tipoOriginal;
         _paginasPermitidas = permitidas;
