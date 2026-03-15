@@ -169,6 +169,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     final datos = usuarioDoc.data()!;
+    print('[DEBUG] Datos usuario Firestore: $datos');
     final tipoOriginal = datos['tipo'] ?? datos['tipo'] ?? '';
     if (tipoOriginal == null || tipoOriginal.toString().trim().isEmpty) {
       setState(() {
