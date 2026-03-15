@@ -11,6 +11,14 @@ class UserControlPageBody extends StatefulWidget {
 }
 
 class _UserControlPageBodyState extends State<UserControlPageBody> {
+  @override
+  void initState() {
+    super.initState();
+    _cargarUsuarios();
+    _cargarPermisosTipoUsuario();
+  }
+
+  String? tipoSeleccionadoPermisos;
   // Estado
   String _busqueda = '';
   // Tipos de usuario predefinidos
@@ -201,6 +209,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
         .set(permisosPorTipo);
     ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Permisos guardados en Firestore')));
+    _cargarPermisosTipoUsuario();
   }
 
   Widget build(BuildContext context) {
@@ -462,48 +471,74 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     if (_cargandoPermisos) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (tiposUsuario.isEmpty) {
+    if (tiposUsuarioFijos.isEmpty) {
       return const Text('No hay tipos de usuario definidos.');
     }
     if (paginasDisponibles.isEmpty) {
       return const Text('No hay páginas disponibles.');
     }
-    // Usar solo los tipos fijos para la tabla de permisos
-    List<String> tiposParaPermisos = tiposUsuarioFijos;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columns: [
-          const DataColumn(label: Text('Página')),
-          ...tiposParaPermisos.map((tipo) => DataColumn(label: Text(tipo))),
-          const DataColumn(label: Text('Guardar')),
-        ],
-        rows: paginasDisponibles.map((pagina) {
-          return DataRow(
-            cells: [
-              DataCell(Text(pagina)),
-              ...tiposParaPermisos.map((tipo) {
-                final checked = permisosPorTipo[tipo]?[pagina] ?? false;
-                return DataCell(Checkbox(
+    // Dropdown para seleccionar tipo de usuario
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Tipo de usuario: ',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            DropdownButton<String>(
+              value: tipoSeleccionadoPermisos ?? tiposUsuarioFijos.first,
+              items: tiposUsuarioFijos
+                  .map((tipo) => DropdownMenuItem(
+                        value: tipo,
+                        child: Text(tipo),
+                      ))
+                  .toList(),
+              onChanged: (val) {
+                setState(() {
+                  tipoSeleccionadoPermisos = val;
+                });
+              },
+            ),
+            const SizedBox(width: 16),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Recargar'),
+              onPressed: _cargarPermisosTipoUsuario,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (tipoSeleccionadoPermisos != null)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Selecciona las páginas que puede ver:',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              ...paginasDisponibles.map((pagina) {
+                final checked =
+                    permisosPorTipo[tipoSeleccionadoPermisos]?[pagina] ?? false;
+                return CheckboxListTile(
+                  title: Text(pagina),
                   value: checked,
                   onChanged: (val) {
                     setState(() {
-                      permisosPorTipo[tipo] ??= {};
-                      permisosPorTipo[tipo]![pagina] = val ?? false;
+                      permisosPorTipo[tipoSeleccionadoPermisos!] ??= {};
+                      permisosPorTipo[tipoSeleccionadoPermisos!]![pagina] =
+                          val ?? false;
                     });
                   },
-                ));
-              }),
-              DataCell(
-                ElevatedButton(
-                  onPressed: _guardarPermisosTipoUsuario,
-                  child: const Text('Guardar'),
-                ),
+                );
+              }).toList(),
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar permisos'),
+                onPressed: _guardarPermisosTipoUsuario,
               ),
             ],
-          );
-        }).toList(),
-      ),
+          ),
+      ],
     );
   }
 }
