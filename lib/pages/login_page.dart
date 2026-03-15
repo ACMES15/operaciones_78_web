@@ -174,7 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                     try {
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
-                          .where('rol', isEqualTo: 'ADMIN')
+                          .where('tipo', isEqualTo: 'ADMIN')
                           .get();
                       if (query.docs.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(

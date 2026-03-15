@@ -104054,7 +104054,7 @@ j=$.aD
 i=(j==null?$.aD=$.c_():j).bP("[DEFAULT]")
 A.bw(i,$.c3(),!0)
 s=7
-return A.p(A.cB(new A.bC(i)).c3("usuarios").EY(0,"rol","ADMIN").eb(0),$async$$0)
+return A.p(A.cB(new A.bC(i)).c3("usuarios").EY(0,"tipo","ADMIN").eb(0),$async$$0)
 case 7:m=b
 if(m.geh().length===0){n.a.V(t.q).f.c5(B.aMy)
 s=1
