@@ -318,6 +318,7 @@ class _HomePageState extends State<HomePage> {
             children: [
               const Icon(Icons.account_circle, color: Colors.white),
               const SizedBox(width: 12),
+              // Loader
               const SizedBox(
                 width: 24,
                 height: 24,
@@ -327,8 +328,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const SizedBox(width: 16),
-              const Text('Cargando datos de usuario...',
-                  style: TextStyle(color: Colors.white)),
+              // Mostrar usuario y tipo si están disponibles
+              Text(
+                'Usuario:  a0${widget.usuario}${_tipoUsuario.isNotEmpty ? '  |  Tipo: $_tipoUsuario' : ''}',
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(width: 16),
+              const Text('Cargando datos...',
+                  style: TextStyle(color: Colors.white70)),
             ],
           ),
           elevation: 0,
