@@ -278,7 +278,7 @@ class _CartaPorteEdicionCompletaPageState
           }
           Map<String, dynamic> cartaData = widget.carta;
           if (cartaSnapshot.hasData && cartaSnapshot.data?.data() != null) {
-            cartaData = cartaSnapshot.data!.data()!;
+            cartaData = cartaSnapshot.data?.data() ?? {};
           }
           return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: _choferesStream,

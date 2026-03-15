@@ -564,7 +564,7 @@ class _HomePageState extends State<HomePage> {
                         if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        final datos = snapshot.data!;
+                        final datos = snapshot.data ?? <Map<String, dynamic>>[];
                         if (datos.isEmpty) {
                           return Center(
                             child: Column(
@@ -600,7 +600,7 @@ class _HomePageState extends State<HomePage> {
                         if (!snapshot.hasData)
                           return const Center(
                               child: CircularProgressIndicator());
-                        final datos = snapshot.data!;
+                        final datos = snapshot.data ?? <Map<String, dynamic>>[];
                         if (datos.isEmpty) {
                           return Center(
                             child: Column(

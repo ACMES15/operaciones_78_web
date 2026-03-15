@@ -23,7 +23,7 @@ Future<Map<String, dynamic>?> leerDatosConCache(
   final doc =
       await FirebaseFirestore.instance.collection(coleccion).doc(docId).get();
   if (doc.exists) {
-    final data = doc.data()!;
+    final data = doc.data() ?? {};
     await prefs.setString(cacheKey, jsonEncode(data));
     return data;
   }

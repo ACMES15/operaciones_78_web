@@ -119,7 +119,7 @@ class _LoginPageState extends State<LoginPage> {
                         );
                         return;
                       }
-                      final datos = docSnap.data()!;
+                      final datos = docSnap.data() ?? {};
                       final passDb = (datos['password'] ?? '')
                           .toString()
                           .trim()

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/firebase_cache_utils.dart';
@@ -46,7 +47,7 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
       }
       sheet.appendRow(row);
     }
-    final fileBytes = excel.encode()!;
+    final fileBytes = excel.encode() ?? Uint8List(0);
     final blob = html.Blob([fileBytes],
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     final url = html.Url.createObjectUrlFromBlob(blob);

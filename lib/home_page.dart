@@ -117,7 +117,7 @@ class _HomePageState extends State<HomePage> {
         .doc('usuarios_guardados')
         .get();
     if (usuarioDoc.exists && usuarioDoc.data() != null) {
-      final usuariosMap = usuarioDoc.data()!;
+      final usuariosMap = usuarioDoc.data() ?? {};
       final datos = usuariosMap[_usuario];
       if (datos != null && datos['rol'] != null) {
         _tipoUsuario = datos['rol'].toString();
@@ -136,7 +136,7 @@ class _HomePageState extends State<HomePage> {
         .doc('permisos_tipo_usuario')
         .get();
     if (permisosDoc.exists && permisosDoc.data() != null) {
-      final permisosMap = permisosDoc.data()!;
+      final permisosMap = permisosDoc.data() ?? {};
       _permisosTipoUsuario = Map<String, Map<String, bool>>.from(
         (permisosMap['permisos'] as Map<String, dynamic>).map(
           (tipo, pags) => MapEntry(
