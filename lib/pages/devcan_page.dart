@@ -353,6 +353,11 @@ class _DevCanPageState extends State<DevCanPage> {
     final entregasRecientes = _rows
         .where((row) => row.any((ctrl) => ctrl.text.trim().isNotEmpty))
         .map((row) {
+      // Completar la fila si es más corta que headers
+      if (row.length < _headers.length) {
+        row.addAll(List.generate(
+            _headers.length - row.length, (_) => TextEditingController()));
+      }
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
