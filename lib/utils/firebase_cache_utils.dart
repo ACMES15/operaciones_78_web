@@ -5,10 +5,22 @@ import 'dart:convert';
 /// Guarda datos en Firestore y en cache local (SharedPreferences)
 Future<void> guardarDatosFirestoreYCache(
     String coleccion, String docId, Map<String, dynamic> datos) async {
-  await FirebaseFirestore.instance.collection(coleccion).doc(docId).set(datos);
-  final prefs = await SharedPreferences.getInstance();
-  final cacheKey = '${coleccion}_$docId';
-  await prefs.setString(cacheKey, jsonEncode(datos));
+  try {
+    await FirebaseFirestore.instance
+        .collection(coleccion)
+        .doc(docId)
+        .set(datos);
+  } catch (e, st) {
+    print('Error guardando en Firestore: $e\n$st');
+    rethrow;
+  }
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final cacheKey = '${coleccion}_$docId';
+    await prefs.setString(cacheKey, jsonEncode(datos));
+  } catch (e, st) {
+    print('Error guardando en cache local: $e\n$st');
+  }
 }
 
 /// Lee datos primero del cache local, si no existen los busca en Firestore y los cachea

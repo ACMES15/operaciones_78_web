@@ -324,19 +324,27 @@ class _DevCanPageState extends State<DevCanPage> {
       }
       return map;
     }).toList();
-    await guardarDatosFirestoreYCache('entregas', 'devcan', {'items': items});
-    setState(() {
-      _ultimaFechaEntrega = DateTime.now();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Información enviada para entregas.')),
-    );
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const EntregasDevCanPage(),
-      ),
-    );
+    try {
+      await guardarDatosFirestoreYCache('entregas', 'devcan', {'items': items});
+      setState(() {
+        _ultimaFechaEntrega = DateTime.now();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Información enviada para entregas.')),
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => const EntregasDevCanPage(),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error guardando en Firestore: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
   }
 
   Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
