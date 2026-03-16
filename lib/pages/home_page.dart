@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> {
     'Hoja de ruta': HojaDeRutaPage(),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
     'Historial Hoja de XD': HojaDeXDHistorialPage(),
-    'Carta Porte': CartaPorteTable(),
+    'Carta Porte': const CartaPorteTable(), // Conexión real
     'Historial Carta Porte': HistorialCartaPortePage(),
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
     'DevCan': DevCanPage(),
@@ -155,6 +155,37 @@ class _HomePageState extends State<HomePage> {
                                               ? notif['fecha'].toString()
                                               : '',
                                         ),
+                                        trailing: notif['leida'] == false
+                                            ? SizedBox(
+                                                width: 140,
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    TextButton(
+                                                      child: const Text('Resetear'),
+                                                      onPressed: () async {
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          SnackBar(content: Text('Funcionalidad de reseteo no implementada.')),
+                                                        );
+                                                      },
+                                                    ),
+                                                    TextButton(
+                                                      child: const Text('Atendida'),
+                                                      onPressed: () async {
+                                                        if (notif['id'] != null) {
+                                                          await FirebaseFirestore.instance
+                                                              .collection('notificaciones')
+                                                              .doc(notif['id'])
+                                                              .update({'leida': true});
+                                                          Navigator.pop(context);
+                                                          await _cargarNotificaciones();
+                                                        }
+                                                      },
+                                                    ),
+                                                  ],
+                                                ),
+                                              )
+                                            : const SizedBox.shrink(),
                                       );
                                     }).toList(),
                                   ),
@@ -170,7 +201,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 ),
-                if (widget.notificaciones > 0)
+                if (_notificaciones.isNotEmpty)
                   Positioned(
                     right: 8,
                     top: 8,
@@ -185,7 +216,7 @@ class _HomePageState extends State<HomePage> {
                         minHeight: 20,
                       ),
                       child: Text(
-                        '${widget.notificaciones}',
+                        '${_notificaciones.length}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
