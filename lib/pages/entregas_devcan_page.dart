@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'dart:convert';
 
@@ -30,11 +31,32 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
     _cargarDatos();
   }
 
-  Future<void> _cargarDatos() async {
+  Future<void> _cargarDatos({bool forzarFirestore = false}) async {
     setState(() => _cargando = true);
-    final entregasRaw = await leerDatosConCache('entregas', 'devcan');
-    final historialRaw =
-        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+    Map<String, dynamic>? entregasRaw;
+    Map<String, dynamic>? historialRaw;
+    if (forzarFirestore) {
+      // Leer directamente de Firestore y actualizar cache
+      final entregasDoc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('devcan')
+          .get();
+      entregasRaw = entregasDoc.exists ? entregasDoc.data() : {};
+      final historialDoc = await FirebaseFirestore.instance
+          .collection('historial_entregas')
+          .doc('devcan_firmadas')
+          .get();
+      historialRaw = historialDoc.exists ? historialDoc.data() : {};
+      // Actualizar cache local
+      await guardarDatosFirestoreYCache(
+          'entregas', 'devcan', entregasRaw ?? {});
+      await guardarDatosFirestoreYCache(
+          'historial_entregas', 'devcan_firmadas', historialRaw ?? {});
+    } else {
+      entregasRaw = await leerDatosConCache('entregas', 'devcan');
+      historialRaw =
+          await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+    }
     List<Map<String, dynamic>> entregas = [];
     if (entregasRaw != null && entregasRaw['items'] is List) {
       for (var e in (entregasRaw['items'] as List)) {
@@ -209,8 +231,8 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Recargar',
-            onPressed: _cargarDatos,
+            tooltip: 'Recargar (forzar Firestore)',
+            onPressed: () => _cargarDatos(forzarFirestore: true),
           ),
         ],
       ),

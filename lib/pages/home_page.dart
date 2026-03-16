@@ -46,7 +46,11 @@ class _HomePageState extends State<HomePage> {
         .where('leida', isEqualTo: false)
         .get();
     setState(() {
-      _notificaciones = query.docs.map((doc) => doc.data()).toList();
+      _notificaciones = query.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return data;
+      }).toList();
     });
   }
 
@@ -167,27 +171,45 @@ class _HomePageState extends State<HomePage> {
                         return AlertDialog(
                           title: const Text('Notificaciones'),
                           content: SizedBox(
-                            width: 350,
+                            width: 400,
                             child: _notificaciones.isEmpty
                                 ? const Text('No hay notificaciones nuevas.')
                                 : ListView(
                                     shrinkWrap: true,
                                     children: _notificaciones.map((notif) {
+                                      final tipo = notif['tipo'] ?? '';
+                                      final detalle = notif['detalle'];
                                       return ListTile(
                                         leading: const Icon(Icons.info_outline),
                                         title: Text(notif['mensaje'] ?? ''),
-                                        subtitle: Text(
-                                          notif['fecha'] != null
-                                              ? notif['fecha'].toString()
-                                              : '',
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (notif['fecha'] != null)
+                                              Text(notif['fecha'].toString()),
+                                            if (detalle != null &&
+                                                detalle is Map)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 4.0),
+                                                child: Text(
+                                                  detalle.entries
+                                                      .map((e) =>
+                                                          '${e.key}: ${e.value}')
+                                                      .join('\n'),
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.black87),
+                                                ),
+                                              ),
+                                          ],
                                         ),
                                         trailing: notif['leida'] == false
-                                            ? SizedBox(
-                                                width: 140,
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
+                                            ? Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (tipo == 'reset_password')
                                                     TextButton(
                                                       child: const Text(
                                                           'Resetear'),
@@ -201,6 +223,7 @@ class _HomePageState extends State<HomePage> {
                                                         );
                                                       },
                                                     ),
+                                                  if (tipo != 'reset_password')
                                                     TextButton(
                                                       child: const Text(
                                                           'Atendida'),
@@ -221,8 +244,7 @@ class _HomePageState extends State<HomePage> {
                                                         }
                                                       },
                                                     ),
-                                                  ],
-                                                ),
+                                                ],
                                               )
                                             : const SizedBox.shrink(),
                                       );
