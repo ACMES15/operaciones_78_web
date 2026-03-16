@@ -12,6 +12,7 @@ import '../pages/devcan_page.dart';
 import '../pages/historial_entregas_devcan_page.dart';
 import '../pages/recogidos/recogidos_page.dart';
 import '../pages/recogidos/historial_entregas_recogidos_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -33,6 +34,34 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  // Notificaciones
+  List<Map<String, dynamic>> _notificaciones = [];
+
+  Future<void> _cargarNotificaciones() async {
+    final query = await FirebaseFirestore.instance
+        .collection('notificaciones')
+        .where('para', isEqualTo: widget.tipoUsuario)
+        .where('leida', isEqualTo: false)
+        .get();
+    setState(() {
+      _notificaciones = query.docs.map((doc) => doc.data()).toList();
+    });
+  }
+
+  // Mapeo de nombre de página a ícono y tooltip
+  final Map<String, IconData> _pageIcons = const {
+    'Control de usuarios': Icons.admin_panel_settings,
+    'Hoja de ruta': Icons.map_outlined,
+    'Hoja de XD': Icons.description_outlined,
+    'Historial Hoja de XD': Icons.history_edu,
+    'Carta Porte': Icons.local_shipping,
+    'Historial Carta Porte': Icons.history,
+    'Plantilla Ejecutiva': Icons.assignment,
+    'DevCan': Icons.bolt,
+    'Historial Entregas DevCan': Icons.history_toggle_off,
+    'Recogidos': Icons.shopping_bag_outlined,
+    'Historial Entregas Recogidos': Icons.list_alt,
+  };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
   late List<String> _paginas;
@@ -104,7 +133,42 @@ class _HomePageState extends State<HomePage> {
                 IconButton(
                   icon: const Icon(Icons.notifications, color: Colors.white),
                   tooltip: 'Notificaciones',
-                  onPressed: () {},
+                  onPressed: () async {
+                    await _cargarNotificaciones();
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text('Notificaciones'),
+                          content: SizedBox(
+                            width: 350,
+                            child: _notificaciones.isEmpty
+                                ? const Text('No hay notificaciones nuevas.')
+                                : ListView(
+                                    shrinkWrap: true,
+                                    children: _notificaciones.map((notif) {
+                                      return ListTile(
+                                        leading: const Icon(Icons.info_outline),
+                                        title: Text(notif['mensaje'] ?? ''),
+                                        subtitle: Text(
+                                          notif['fecha'] != null
+                                              ? notif['fecha'].toString()
+                                              : '',
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Cerrar'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
                 if (widget.notificaciones > 0)
                   Positioned(
@@ -164,22 +228,26 @@ class _HomePageState extends State<HomePage> {
                     child: ListView.builder(
                       itemCount: _paginas.length,
                       itemBuilder: (context, index) {
-                        return ListTile(
-                          leading:
-                              const Icon(Icons.circle, color: Colors.white),
-                          title: _menuExpandido
-                              ? Text(
-                                  _paginas[index],
-                                  style: const TextStyle(color: Colors.white),
-                                )
-                              : null,
-                          selected: _selectedIndex == index,
-                          selectedTileColor: Colors.green.shade700,
-                          onTap: () {
-                            setState(() {
-                              _selectedIndex = index;
-                            });
-                          },
+                        final pageName = _paginas[index];
+                        final icon = _pageIcons[pageName] ?? Icons.circle;
+                        return Tooltip(
+                          message: pageName,
+                          child: ListTile(
+                            leading: Icon(icon, color: Colors.white),
+                            title: _menuExpandido
+                                ? Text(
+                                    pageName,
+                                    style: const TextStyle(color: Colors.white),
+                                  )
+                                : null,
+                            selected: _selectedIndex == index,
+                            selectedTileColor: Colors.green.shade700,
+                            onTap: () {
+                              setState(() {
+                                _selectedIndex = index;
+                              });
+                            },
+                          ),
                         );
                       },
                     ),
