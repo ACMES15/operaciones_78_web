@@ -5,7 +5,7 @@ import '../pages/user_control_page.dart';
 import '../pages/hoja_de_ruta_page.dart';
 import '../pages/hoja_de_xd_page.dart';
 import '../pages/hoja_de_xd_historial_page.dart';
-import '../pages/carta_porte_page.dart';
+// import '../pages/carta_porte_page.dart';
 import '../pages/carta_porte_table.dart' as real_carta_porte;
 import '../pages/historial_carta_porte_page.dart';
 import '../pages/plantilla_ejecutiva_page.dart';
@@ -58,12 +58,12 @@ class _HomePageState extends State<HomePage> {
   final Map<String, IconData> _pageIcons = const {
     'Bienvenida': Icons.home,
     'Control de usuarios': Icons.admin_panel_settings,
-    'Hoja de ruta': Icons.map_outlined,
-    'Hoja de XD': Icons.description_outlined,
-    'Historial Hoja de XD': Icons.history_edu,
+    'Hoja de ruta': Icons.alt_route,
+    'Hoja de XD': Icons.description,
+    'Historial Hoja de XD': Icons.history,
     'Carta Porte': Icons.local_shipping,
     'Historial Carta Porte': Icons.history,
-    'Plantilla Ejecutiva': Icons.assignment,
+    'Plantilla Ejecutiva': Icons.assignment_turned_in,
     'DevCan': Icons.bolt,
     'Historial Entregas DevCan': Icons.history_toggle_off,
     'Recogidos': Icons.shopping_bag_outlined,
@@ -110,28 +110,14 @@ class _HomePageState extends State<HomePage> {
       'Historial Entregas Recogidos',
       'Plantilla Ejecutiva',
     ];
-    // Siempre mostrar Bienvenida, luego las permitidas en el orden solicitado, luego las extras
     final permitidas = widget.paginasPermitidas.toSet();
     final paginasOrdenadas = ordenFijo
         .where((p) => permitidas.contains(p) || p == 'Bienvenida')
         .toList();
     final extras = permitidas.difference(ordenFijo.toSet()).toList();
     _paginas = [...paginasOrdenadas, ...extras];
-
-    // Debug: Mostrar páginas permitidas y claves del mapa
-    print('[DEBUG][HomePage] Páginas permitidas recibidas:');
-    for (final p in _paginas) {
-      print('  - "$p"');
-    }
-    print('[DEBUG][HomePage] Claves en _pageWidgets:');
-    for (final k in _pageWidgets.keys) {
-      print('  - "$k"');
-    }
-    for (final p in _paginas) {
-      if (!_pageWidgets.containsKey(p)) {
-        print('[ADVERTENCIA] No hay widget asociado para la página: "$p"');
-      }
-    }
+    // Cargar notificaciones pendientes al iniciar
+    _cargarNotificaciones();
   }
 
   @override
@@ -161,7 +147,8 @@ class _HomePageState extends State<HomePage> {
               alignment: Alignment.topRight,
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications, color: Colors.white),
+                  icon: const Icon(Icons.notifications,
+                      color: Colors.white, size: 28),
                   tooltip: 'Notificaciones',
                   onPressed: () async {
                     await _cargarNotificaciones();
@@ -169,91 +156,83 @@ class _HomePageState extends State<HomePage> {
                       context: context,
                       builder: (context) {
                         return AlertDialog(
-                          title: const Text('Notificaciones'),
+                          title: Row(
+                            children: [
+                              const Icon(Icons.notifications_active,
+                                  color: Color(0xFF2D6A4F)),
+                              const SizedBox(width: 8),
+                              const Text('Notificaciones ejecutivas'),
+                              const Spacer(),
+                              if (_notificaciones.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.shade700,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    _notificaciones.length.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                           content: SizedBox(
                             width: 400,
                             child: _notificaciones.isEmpty
                                 ? const Text('No hay notificaciones nuevas.')
                                 : ListView(
                                     shrinkWrap: true,
-                                    children: _notificaciones.map((notif) {
+                                    children:
+                                        _notificaciones.map<Widget>((notif) {
+                                      final mensaje = notif['mensaje'] ?? '';
+                                      final fecha = notif['fecha'] != null
+                                          ? (notif['fecha'] is String
+                                              ? notif['fecha']
+                                              : (notif['fecha'] is DateTime
+                                                  ? (notif['fecha'] as DateTime)
+                                                      .toString()
+                                                      .substring(0, 16)
+                                                  : (notif['fecha'] as dynamic)
+                                                      .toDate()
+                                                      .toString()
+                                                      .substring(0, 16)))
+                                          : '';
                                       final tipo = notif['tipo'] ?? '';
-                                      final detalle = notif['detalle'];
-                                      return ListTile(
-                                        leading: const Icon(Icons.info_outline),
-                                        title: Text(notif['mensaje'] ?? ''),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (notif['fecha'] != null)
-                                              Text(notif['fecha'].toString()),
-                                            if (detalle != null &&
-                                                detalle is Map)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 4.0),
-                                                child: Text(
-                                                  detalle.entries
-                                                      .map((e) =>
-                                                          '${e.key}: ${e.value}')
-                                                      .join('\n'),
-                                                  style: const TextStyle(
-                                                      fontSize: 13,
-                                                      color: Colors.black87),
-                                                ),
-                                              ),
-                                          ],
+                                      return Card(
+                                        color: Colors.white,
+                                        elevation: 3,
+                                        margin: const EdgeInsets.symmetric(
+                                            vertical: 7, horizontal: 2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                          side: const BorderSide(
+                                              color: Color(0xFF2D6A4F),
+                                              width: 1.2),
                                         ),
-                                        trailing: notif['leida'] == false
-                                            ? Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  if (tipo == 'reset_password')
-                                                    TextButton(
-                                                      child: const Text(
-                                                          'Resetear'),
-                                                      onPressed: () async {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          SnackBar(
-                                                              content: Text(
-                                                                  'Funcionalidad de reseteo no implementada.')),
-                                                        );
-                                                      },
-                                                    ),
-                                                  if (tipo != 'reset_password')
-                                                    TextButton(
-                                                      child: const Text(
-                                                          'Atendida'),
-                                                      onPressed: () async {
-                                                        if (notif['id'] !=
-                                                            null) {
-                                                          await FirebaseFirestore
-                                                              .instance
-                                                              .collection(
-                                                                  'notificaciones')
-                                                              .doc(notif['id'])
-                                                              .update({
-                                                            'leida': true
-                                                          });
-                                                          Navigator.pop(
-                                                              context);
-                                                          await _cargarNotificaciones();
-                                                        }
-                                                      },
-                                                    ),
-                                                ],
-                                              )
-                                            : const SizedBox.shrink(),
+                                        child: ListTile(
+                                          leading: const Icon(
+                                              Icons.notifications,
+                                              color: Color(0xFF2D6A4F)),
+                                          title: Text(mensaje,
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          subtitle: Text(
+                                              'Tipo: $tipo\nFecha: $fecha'),
+                                        ),
                                       );
                                     }).toList(),
                                   ),
                           ),
                           actions: [
                             TextButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => Navigator.of(context).pop(),
                               child: const Text('Cerrar'),
                             ),
                           ],
@@ -264,38 +243,43 @@ class _HomePageState extends State<HomePage> {
                 ),
                 if (_notificaciones.isNotEmpty)
                   Positioned(
-                    right: 8,
-                    top: 8,
+                    right: 6,
+                    top: 6,
                     child: Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 20,
-                        minHeight: 20,
+                        color: Colors.red.shade700,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 4,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Text(
-                        '${_notificaciones.length}',
+                        _notificaciones.length.toString(),
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
                           fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
               ],
             ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              tooltip: 'Cerrar sesión',
-              onPressed: widget.onLogout,
-            ),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Cerrar sesión',
+            onPressed: () => widget.onLogout(),
+          ),
+        ],
       ),
       body: Row(
         children: [
