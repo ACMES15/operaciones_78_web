@@ -319,22 +319,32 @@ class _DevCanPageState extends State<DevCanPage> {
       await Future.delayed(const Duration(seconds: 1));
     }
 
-    // Guardar la información para entregas
-    List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
+    // Guardar la información para entregas solo si hay filas válidas
+    List<Map<String, dynamic>> entregasRecientes = _rows
+        .where((row) => row.any((ctrl) => ctrl.text.trim().isNotEmpty))
+        .map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
       }
       return map;
     }).toList();
+
+    if (entregasRecientes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para enviar a entregas.')),
+      );
+      return;
+    }
+
     await guardarDatosFirestoreYCache(
         'entregas', 'devcan', {'items': entregasRecientes});
     setState(() {
-      // _entregasRecientes = entregasRecientes;
       _ultimaFechaEntrega = DateTime.now();
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Información enviada para entregas.')),
+      const SnackBar(
+          content: Text('¡Datos guardados correctamente en entregas!')),
     );
     await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).push(
