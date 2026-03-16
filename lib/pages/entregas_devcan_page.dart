@@ -297,10 +297,24 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                               final entrega = _entregasFiltradas[index];
                               final seleccionado =
                                   _seleccionados.contains(index);
+                              final esFaltante =
+                                  (entrega['BOX']?.toString().toUpperCase() ==
+                                      'FALTANTE');
                               return Card(
-                                elevation: 3,
+                                elevation: 4,
                                 margin: const EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 2),
+                                    vertical: 7, horizontal: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(
+                                    color: esFaltante
+                                        ? Colors.red.shade300
+                                        : const Color(0xFF2D6A4F),
+                                    width: esFaltante ? 2.2 : 1.2,
+                                  ),
+                                ),
+                                color:
+                                    esFaltante ? Colors.red[50] : Colors.white,
                                 child: CheckboxListTile(
                                   value: seleccionado,
                                   onChanged: (checked) {
@@ -318,7 +332,47 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                       _infoChip('SKU', entrega['SKU']),
                                       _infoChip('CANT', entrega['CANTIDAD']),
                                       _infoChip('SECC', entrega['SECCION']),
+                                      _infoChip('JEF', entrega['JEFATURA']),
+                                      if (esFaltante)
+                                        Container(
+                                          margin:
+                                              const EdgeInsets.only(left: 8),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade100,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            border: Border.all(
+                                                color: Colors.red.shade400),
+                                          ),
+                                          child: const Text(
+                                            'FALTANTE',
+                                            style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ),
                                     ],
+                                  ),
+                                  subtitle: esFaltante
+                                      ? const Text(
+                                          'Este LP está marcado como FALTANTE',
+                                          style: TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 13),
+                                        )
+                                      : null,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                               );
