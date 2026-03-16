@@ -10,6 +10,7 @@ import '../pages/carta_porte_table.dart' as real_carta_porte;
 import '../pages/historial_carta_porte_page.dart';
 import '../pages/plantilla_ejecutiva_page.dart';
 import '../pages/devcan_page.dart';
+import '../pages/bienvenida_page.dart';
 import '../pages/historial_entregas_devcan_page.dart';
 import '../pages/recogidos/recogidos_page.dart';
 import '../pages/recogidos/historial_entregas_recogidos_page.dart';
@@ -51,6 +52,7 @@ class _HomePageState extends State<HomePage> {
 
   // Mapeo de nombre de página a ícono y tooltip
   final Map<String, IconData> _pageIcons = const {
+      'Bienvenida': Icons.home,
     'Control de usuarios': Icons.admin_panel_settings,
     'Hoja de ruta': Icons.map_outlined,
     'Hoja de XD': Icons.description_outlined,
@@ -69,6 +71,7 @@ class _HomePageState extends State<HomePage> {
 
   // Mapeo de nombre de página a Widget real
   late final Map<String, Widget> _pageWidgets = {
+      'Bienvenida': BienvenidaPage(usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
     'Control de usuarios': UserControlPageBody(),
     'Hoja de ruta': HojaDeRutaPage(),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
@@ -87,7 +90,26 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _paginas = widget.paginasPermitidas;
+    // Orden fijo solicitado
+    final ordenFijo = [
+      'Bienvenida',
+      'Control de usuarios',
+      'Carta Porte',
+      'Historial Carta Porte',
+      'Hoja de ruta',
+      'Hoja de XD',
+      'Historial Hoja de XD',
+      'DevCan',
+      'Historial Entregas DevCan',
+      'Recogidos',
+      'Historial Entregas Recogidos',
+      'Plantilla Ejecutiva',
+    ];
+    // Siempre mostrar Bienvenida, luego las permitidas en el orden solicitado, luego las extras
+    final permitidas = widget.paginasPermitidas.toSet();
+    final paginasOrdenadas = ordenFijo.where((p) => permitidas.contains(p) || p == 'Bienvenida').toList();
+    final extras = permitidas.difference(ordenFijo.toSet()).toList();
+    _paginas = [...paginasOrdenadas, ...extras];
 
     // Debug: Mostrar páginas permitidas y claves del mapa
     print('[DEBUG][HomePage] Páginas permitidas recibidas:');
