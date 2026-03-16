@@ -189,7 +189,18 @@ class _LoginPageState extends State<LoginPage> {
                         );
                         return;
                       }
-                      // Aquí podrías enviar email o notificación real
+                      // Crear notificación en la colección 'notificaciones'
+                      await FirebaseFirestore.instance
+                          .collection('notificaciones')
+                          .add({
+                        'tipo': 'reset_password',
+                        'mensaje':
+                            'El usuario \'${_usuarioController.text.trim()}\' solicita reseteo de contraseña.',
+                        'fecha': DateTime.now(),
+                        'leido': false,
+                        'para': 'ADMIN',
+                        'usuario': _usuarioController.text.trim(),
+                      });
                       String listaAdmins =
                           query.docs.map((e) => e.id).join(', ');
                       ScaffoldMessenger.of(context).showSnackBar(

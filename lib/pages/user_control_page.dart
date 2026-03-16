@@ -441,7 +441,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                   'usuario': usuario,
                   'correo': correo,
                   'tipo': tipo,
-                  'activo': activo
+                  'activo': activo,
+                  'password': usuario // Contraseña inicial igual al usuario
                 });
                 Navigator.pop(ctx);
                 _cargarUsuarios();

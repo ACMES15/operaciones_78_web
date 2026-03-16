@@ -49,7 +49,31 @@ class _HomePageState extends State<HomePage> {
     return normalized;
   }
 
-  // int _notificacionesPendientes = 0;
+  int _notificacionesPendientes = 0;
+  List<Map<String, dynamic>> _notificaciones = [];
+  bool _mostrandoNotificaciones = false;
+  // Determina si el usuario es un ADMIN (ADMIN OMNICANAL, ADMIN, ADMIN ENVIOS)
+  bool get esAdmin {
+    final tipo = _normalizar(_tipoUsuario);
+    return tipo == 'ADMIN' ||
+        tipo == 'ADMIN OMNICANAL' ||
+        tipo == 'ADMIN ENVIOS';
+  }
+
+  // Carga notificaciones pendientes de la colección 'notificaciones'
+  Future<void> _cargarNotificaciones() async {
+    if (!esAdmin) return;
+    final snapshot = await FirebaseFirestore.instance
+        .collection('notificaciones')
+        .where('leida', isEqualTo: false)
+        .orderBy('fecha', descending: true)
+        .get();
+    setState(() {
+      _notificaciones = snapshot.docs.map((d) => d.data()).toList();
+      _notificacionesPendientes = _notificaciones.length;
+    });
+  }
+
   int _selectedIndex = 0;
   bool _menuExpandido = false;
   String _tipoUsuario = '';
@@ -157,9 +181,19 @@ class _HomePageState extends State<HomePage> {
       print('[DEBUG] HomePage recibió tipoUsuario: ${widget.tipoUsuario}');
       _tipoUsuario = widget.tipoUsuario!;
       _determinarPermisosPorTipo(_tipoUsuario);
+      _cargarNotificaciones();
     } else {
       _determinarTipoUsuarioFirestore();
     }
+    // Escucha cambios en notificaciones si es admin
+    FirebaseFirestore.instance
+        .collection('notificaciones')
+        .snapshots()
+        .listen((snapshot) {
+      if (esAdmin) {
+        _cargarNotificaciones();
+      }
+    });
   }
 
   Future<void> _determinarPermisosPorTipo(String tipoOriginal) async {
@@ -414,14 +448,54 @@ class _HomePageState extends State<HomePage> {
           children: [
             const Icon(Icons.account_circle, color: Colors.white),
             const SizedBox(width: 12),
-            Text('Usuario: ${widget.usuario}',
+            Text('Usuario: \\${widget.usuario}',
                 style: const TextStyle(color: Colors.white, fontSize: 16)),
             const SizedBox(width: 16),
-            Text('Tipo: $_tipoUsuario',
+            Text('Tipo: \\$_tipoUsuario',
                 style: const TextStyle(color: Colors.white, fontSize: 16)),
             const SizedBox(width: 16),
             _FechaHoraWidget(),
             const Spacer(),
+            if (esAdmin)
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: Colors.white),
+                    tooltip: 'Notificaciones',
+                    onPressed: () {
+                      setState(() {
+                        _mostrandoNotificaciones = !_mostrandoNotificaciones;
+                      });
+                    },
+                  ),
+                  if (_notificacionesPendientes > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
+                        child: Text(
+                          '$_notificacionesPendientes',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             IconButton(
               icon: const Icon(Icons.logout, color: Colors.white),
               tooltip: 'Cerrar sesión',
@@ -436,274 +510,337 @@ class _HomePageState extends State<HomePage> {
         ),
         elevation: 0,
       ),
-
-      // Widget para mostrar la fecha y hora actual en el AppBar
-      body: Row(
+      body: Stack(
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: _menuExpandido ? 180 : 60,
-            child: Container(
-              color: const Color(0xFF2D6A4F),
-              child: Column(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                        _menuExpandido ? Icons.arrow_back_ios : Icons.menu,
-                        color: Colors.white),
-                    onPressed: () {
-                      setState(() {
-                        _menuExpandido = !_menuExpandido;
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: Scrollbar(
-                      thumbVisibility: true,
-                      child: SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(
-                            minHeight: 0,
-                            maxHeight: 1500,
-                          ),
-                          child: NavigationRail(
-                            selectedIndex: selectedMenuIndex,
-                            onDestinationSelected: (int index) {
-                              setState(() {
-                                _selectedIndex = index;
-                              });
-                            },
-                            labelType: _menuExpandido
-                                ? NavigationRailLabelType.all
-                                : NavigationRailLabelType.none,
-                            backgroundColor: Colors.transparent,
-                            selectedIconTheme:
-                                const IconThemeData(color: Colors.white),
-                            selectedLabelTextStyle:
-                                const TextStyle(color: Colors.white),
-                            unselectedIconTheme:
-                                const IconThemeData(color: Colors.white70),
-                            unselectedLabelTextStyle:
-                                const TextStyle(color: Colors.white70),
-                            destinations: [
-                              for (int menuIdx = 0;
-                                  menuIdx < paginasPermitidas.length;
-                                  menuIdx++)
-                                NavigationRailDestination(
-                                  icon: Tooltip(
-                                    message:
-                                        _paginas[paginasPermitidas[menuIdx]],
-                                    child: (() {
-                                      int i = paginasPermitidas[menuIdx];
-                                      return i == 0
-                                          ? const Icon(Icons.people_outline)
-                                          : i == 1
-                                              ? const Icon(Icons.lock_outline)
-                                              : i == 2
+          Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: _menuExpandido ? 180 : 60,
+                child: Container(
+                  color: const Color(0xFF2D6A4F),
+                  child: Column(
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                            _menuExpandido ? Icons.arrow_back_ios : Icons.menu,
+                            color: Colors.white),
+                        onPressed: () {
+                          setState(() {
+                            _menuExpandido = !_menuExpandido;
+                          });
+                        },
+                      ),
+                      Expanded(
+                        child: Scrollbar(
+                          thumbVisibility: true,
+                          child: SingleChildScrollView(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minHeight: 0,
+                                maxHeight: 1500,
+                              ),
+                              child: NavigationRail(
+                                selectedIndex: selectedMenuIndex,
+                                onDestinationSelected: (int index) {
+                                  setState(() {
+                                    _selectedIndex = index;
+                                  });
+                                },
+                                labelType: _menuExpandido
+                                    ? NavigationRailLabelType.all
+                                    : NavigationRailLabelType.none,
+                                backgroundColor: Colors.transparent,
+                                selectedIconTheme:
+                                    const IconThemeData(color: Colors.white),
+                                selectedLabelTextStyle:
+                                    const TextStyle(color: Colors.white),
+                                unselectedIconTheme:
+                                    const IconThemeData(color: Colors.white70),
+                                unselectedLabelTextStyle:
+                                    const TextStyle(color: Colors.white70),
+                                destinations: [
+                                  for (int menuIdx = 0;
+                                      menuIdx < paginasPermitidas.length;
+                                      menuIdx++)
+                                    NavigationRailDestination(
+                                      icon: Tooltip(
+                                        message: _paginas[
+                                            paginasPermitidas[menuIdx]],
+                                        child: (() {
+                                          int i = paginasPermitidas[menuIdx];
+                                          return i == 0
+                                              ? const Icon(Icons.people_outline)
+                                              : i == 1
                                                   ? const Icon(
-                                                      Icons.map_outlined)
-                                                  : i == 3
-                                                      ? const Icon(Icons
-                                                          .description_outlined)
-                                                      : i == 4
-                                                          ? const Icon(
-                                                              Icons.history)
-                                                          : i == 5
-                                                              ? const Icon(Icons
-                                                                  .table_view)
-                                                              : i == 6
+                                                      Icons.lock_outline)
+                                                  : i == 2
+                                                      ? const Icon(
+                                                          Icons.map_outlined)
+                                                      : i == 3
+                                                          ? const Icon(Icons
+                                                              .description_outlined)
+                                                          : i == 4
+                                                              ? const Icon(
+                                                                  Icons.history)
+                                                              : i == 5
                                                                   ? const Icon(Icons
-                                                                      .history_toggle_off)
-                                                                  : i == 7
+                                                                      .table_view)
+                                                                  : i == 6
                                                                       ? const Icon(
                                                                           Icons
-                                                                              .assignment)
-                                                                      : i == 8
+                                                                              .history_toggle_off)
+                                                                      : i == 7
                                                                           ? const Icon(
-                                                                              Icons.fact_check)
-                                                                          : i == 9
-                                                                              ? const Icon(Icons.archive)
-                                                                              : i == 10
-                                                                                  ? const Icon(Icons.archive_outlined)
-                                                                                  : const Icon(Icons.pages);
-                                    })(),
-                                  ),
-                                  selectedIcon: (() {
-                                    int i = paginasPermitidas[menuIdx];
-                                    return i == 0
-                                        ? const Icon(Icons.people)
-                                        : i == 1
-                                            ? const Icon(Icons.lock)
-                                            : i == 2
-                                                ? const Icon(Icons.map)
-                                                : i == 3
-                                                    ? const Icon(
-                                                        Icons.description)
-                                                    : i == 4
+                                                                              Icons.assignment)
+                                                                          : i == 8
+                                                                              ? const Icon(Icons.fact_check)
+                                                                              : i == 9
+                                                                                  ? const Icon(Icons.archive)
+                                                                                  : i == 10
+                                                                                      ? const Icon(Icons.archive_outlined)
+                                                                                      : const Icon(Icons.pages);
+                                        })(),
+                                      ),
+                                      selectedIcon: (() {
+                                        int i = paginasPermitidas[menuIdx];
+                                        return i == 0
+                                            ? const Icon(Icons.people)
+                                            : i == 1
+                                                ? const Icon(Icons.lock)
+                                                : i == 2
+                                                    ? const Icon(Icons.map)
+                                                    : i == 3
                                                         ? const Icon(
-                                                            Icons.history)
-                                                        : i == 5
-                                                            ? const Icon(Icons
-                                                                .table_view)
-                                                            : i == 6
+                                                            Icons.description)
+                                                        : i == 4
+                                                            ? const Icon(
+                                                                Icons.history)
+                                                            : i == 5
                                                                 ? const Icon(Icons
-                                                                    .history_toggle_off)
-                                                                : i == 7
+                                                                    .table_view)
+                                                                : i == 6
                                                                     ? const Icon(
                                                                         Icons
-                                                                            .assignment)
-                                                                    : i == 8
+                                                                            .history_toggle_off)
+                                                                    : i == 7
                                                                         ? const Icon(
-                                                                            Icons.fact_check)
-                                                                        : i == 9
-                                                                            ? const Icon(Icons.archive)
-                                                                            : i == 10
-                                                                                ? const Icon(Icons.archive_outlined)
-                                                                                : const Icon(Icons.pages);
-                                  })(),
-                                  label: Text(
-                                      _paginas[paginasPermitidas[menuIdx]]),
-                                ),
-                            ],
+                                                                            Icons.assignment)
+                                                                        : i == 8
+                                                                            ? const Icon(Icons.fact_check)
+                                                                            : i == 9
+                                                                                ? const Icon(Icons.archive)
+                                                                                : i == 10
+                                                                                    ? const Icon(Icons.archive_outlined)
+                                                                                    : const Icon(Icons.pages);
+                                      })(),
+                                      label: Text(
+                                          _paginas[paginasPermitidas[menuIdx]]),
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
+              ),
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    // Manejo móvil simplificado y sin duplicaciones
+                    if (esMovil) {
+                      if (pagina == 'Historial Hoja de XD') {
+                        // TODO: Implementar carga de historial desde Firestore si es necesario
+                        return const Center(child: Text('No disponible.'));
+                      }
+
+                      if (pagina == 'Historial Entregas DevCan') {
+                        return FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _cargarHistorialDevCan(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData)
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            final datos =
+                                snapshot.data ?? <Map<String, dynamic>>[];
+                            if (datos.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text('No hay historial disponible.'),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.arrow_back),
+                                      label: const Text('Regresar al menú'),
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedIndex = 0;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return HistorialEntregasDevCanPageMobile(
+                              historial: datos,
+                              tipoUsuarioActual: _tipoUsuario,
+                            );
+                          },
+                        );
+                      }
+
+                      if (pagina == 'Historial Entregas Recogidos') {
+                        return FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _cargarHistorialRecogidos(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData)
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            final datos =
+                                snapshot.data ?? <Map<String, dynamic>>[];
+                            if (datos.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Text('No hay historial disponible.'),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      icon: const Icon(Icons.arrow_back),
+                                      label: const Text('Regresar al menú'),
+                                      onPressed: () {
+                                        setState(() {
+                                          _selectedIndex = 0;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return HistorialEntregasRecogidosPageMobile(
+                              historial: datos,
+                              tipoUsuarioActual: _tipoUsuario,
+                            );
+                          },
+                        );
+                      }
+
+                      if (pagina == 'Historial Carta Porte') {
+                        // TODO: Implementar carga de historial desde Firestore si es necesario
+                        return const Center(child: Text('No disponible.'));
+                      }
+
+                      if (pagina == 'DevCan') {
+                        // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasDevCanPage)
+                        // TODO: Implementar carga de entregas desde Firestore si es necesario
+                        return const Center(child: Text('No disponible.'));
+                      } else if (pagina == 'Recogidos') {
+                        // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasRecogidosPage)
+                        // TODO: Implementar carga de recogidos desde Firestore si es necesario
+                        return const Center(child: Text('No disponible.'));
+                      } else if (pagina == 'Hoja de XD') {
+                        return HojaDeXDPage(usuario: widget.usuario);
+                      } else if (pagina == 'Carta Porte') {
+                        // CartaPorteTable no disponible en la importación actual; usar placeholder
+                        return const Center(
+                            child: Text('Carta Porte no disponible'));
+                      } else if (pagina == 'Historial Carta Porte') {
+                        return HistorialCartaPortePage(key: UniqueKey());
+                      } else if (pagina == 'Historial Entregas DevCan') {
+                        return FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _cargarHistorialDevCan(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) {
+                              return const Center(
+                                  child: CircularProgressIndicator());
+                            }
+                            return HistorialEntregasDevCanPage(
+                              historial:
+                                  snapshot.data ?? <Map<String, dynamic>>[],
+                              tipoUsuarioActual: _tipoUsuario,
+                            );
+                          },
+                        );
+                      } else if (_pages.isNotEmpty &&
+                          _paginasPermitidas.isNotEmpty) {
+                        return _pages[_paginasPermitidas[selectedMenuIndex]];
+                      } else {
+                        return const Center(
+                            child: Text('Página no disponible'));
+                      }
+                    } else {
+                      // Desktop/tablet: always return the selected page
+                      return _pages[paginasPermitidas[selectedMenuIndex]];
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          if (_mostrandoNotificaciones && esAdmin)
+            Positioned(
+              right: 30,
+              top: kToolbarHeight + 10,
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 350,
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.green, width: 1.5),
+                  ),
+                  child: _notificaciones.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text('No hay notificaciones pendientes.',
+                              style: TextStyle(fontSize: 16)),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _notificaciones.length,
+                          itemBuilder: (context, idx) {
+                            final notif = _notificaciones[idx];
+                            return ListTile(
+                              leading: const Icon(Icons.lock_reset,
+                                  color: Colors.green),
+                              title: Text(
+                                  notif['mensaje'] ?? 'Solicitud de reseteo'),
+                              subtitle: notif['fecha'] != null
+                                  ? Text((notif['fecha'] as Timestamp)
+                                      .toDate()
+                                      .toString())
+                                  : null,
+                              trailing: IconButton(
+                                icon:
+                                    const Icon(Icons.check, color: Colors.blue),
+                                tooltip: 'Marcar como leída',
+                                onPressed: () async {
+                                  // Marcar como leída en Firestore
+                                  final notiId = notif['id'];
+                                  if (notiId != null) {
+                                    await FirebaseFirestore.instance
+                                        .collection('notificaciones')
+                                        .doc(notiId)
+                                        .update({'leida': true});
+                                    _cargarNotificaciones();
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                // Manejo móvil simplificado y sin duplicaciones
-                if (esMovil) {
-                  if (pagina == 'Historial Hoja de XD') {
-                    // TODO: Implementar carga de historial desde Firestore si es necesario
-                    return const Center(child: Text('No disponible.'));
-                  }
-
-                  if (pagina == 'Historial Entregas DevCan') {
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _cargarHistorialDevCan(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData)
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        final datos = snapshot.data ?? <Map<String, dynamic>>[];
-                        if (datos.isEmpty) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('No hay historial disponible.'),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.arrow_back),
-                                  label: const Text('Regresar al menú'),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedIndex = 0;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return HistorialEntregasDevCanPageMobile(
-                          historial: datos,
-                          tipoUsuarioActual: _tipoUsuario,
-                        );
-                      },
-                    );
-                  }
-
-                  if (pagina == 'Historial Entregas Recogidos') {
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _cargarHistorialRecogidos(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData)
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        final datos = snapshot.data ?? <Map<String, dynamic>>[];
-                        if (datos.isEmpty) {
-                          return Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text('No hay historial disponible.'),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.arrow_back),
-                                  label: const Text('Regresar al menú'),
-                                  onPressed: () {
-                                    setState(() {
-                                      _selectedIndex = 0;
-                                    });
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }
-                        return HistorialEntregasRecogidosPageMobile(
-                          historial: datos,
-                          tipoUsuarioActual: _tipoUsuario,
-                        );
-                      },
-                    );
-                  }
-
-                  if (pagina == 'Historial Carta Porte') {
-                    // TODO: Implementar carga de historial desde Firestore si es necesario
-                    return const Center(child: Text('No disponible.'));
-                  }
-
-                  if (pagina == 'DevCan') {
-                    // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasDevCanPage)
-                    // TODO: Implementar carga de entregas desde Firestore si es necesario
-                    return const Center(child: Text('No disponible.'));
-                  } else if (pagina == 'Recogidos') {
-                    // En móvil, mostrar botón que lleva al proceso de selección y firma (EntregasRecogidosPage)
-                    // TODO: Implementar carga de recogidos desde Firestore si es necesario
-                    return const Center(child: Text('No disponible.'));
-                  } else if (pagina == 'Hoja de XD') {
-                    return HojaDeXDPage(usuario: widget.usuario);
-                  } else if (pagina == 'Carta Porte') {
-                    // CartaPorteTable no disponible en la importación actual; usar placeholder
-                    return const Center(
-                        child: Text('Carta Porte no disponible'));
-                  } else if (pagina == 'Historial Carta Porte') {
-                    return HistorialCartaPortePage(key: UniqueKey());
-                  } else if (pagina == 'Historial Entregas DevCan') {
-                    return FutureBuilder<List<Map<String, dynamic>>>(
-                      future: _cargarHistorialDevCan(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData) {
-                          return const Center(
-                              child: CircularProgressIndicator());
-                        }
-                        return HistorialEntregasDevCanPage(
-                          historial: snapshot.data ?? <Map<String, dynamic>>[],
-                          tipoUsuarioActual: _tipoUsuario,
-                        );
-                      },
-                    );
-                  } else if (_pages.isNotEmpty &&
-                      _paginasPermitidas.isNotEmpty) {
-                    return _pages[_paginasPermitidas[selectedMenuIndex]];
-                  } else {
-                    return const Center(child: Text('Página no disponible'));
-                  }
-                } else {
-                  // Desktop/tablet: always return the selected page
-                  return _pages[paginasPermitidas[selectedMenuIndex]];
-                }
-              },
-            ),
-          ),
         ],
       ),
     );
