@@ -6,6 +6,7 @@ import '../pages/hoja_de_ruta_page.dart';
 import '../pages/hoja_de_xd_page.dart';
 import '../pages/hoja_de_xd_historial_page.dart';
 import '../pages/carta_porte_page.dart';
+import '../pages/carta_porte_table.dart' as real_carta_porte;
 import '../pages/historial_carta_porte_page.dart';
 import '../pages/plantilla_ejecutiva_page.dart';
 import '../pages/devcan_page.dart';
@@ -72,7 +73,7 @@ class _HomePageState extends State<HomePage> {
     'Hoja de ruta': HojaDeRutaPage(),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
     'Historial Hoja de XD': HojaDeXDHistorialPage(),
-    'Carta Porte': const CartaPorteTable(), // Conexión real
+    'Carta Porte': real_carta_porte.CartaPorteTable(), // Widget real con alias
     'Historial Carta Porte': HistorialCartaPortePage(),
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
     'DevCan': DevCanPage(),
@@ -159,25 +160,38 @@ class _HomePageState extends State<HomePage> {
                                             ? SizedBox(
                                                 width: 140,
                                                 child: Row(
-                                                  mainAxisSize: MainAxisSize.min,
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
                                                   children: [
                                                     TextButton(
-                                                      child: const Text('Resetear'),
+                                                      child: const Text(
+                                                          'Resetear'),
                                                       onPressed: () async {
-                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                          SnackBar(content: Text('Funcionalidad de reseteo no implementada.')),
+                                                        ScaffoldMessenger.of(
+                                                                context)
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                              content: Text(
+                                                                  'Funcionalidad de reseteo no implementada.')),
                                                         );
                                                       },
                                                     ),
                                                     TextButton(
-                                                      child: const Text('Atendida'),
+                                                      child: const Text(
+                                                          'Atendida'),
                                                       onPressed: () async {
-                                                        if (notif['id'] != null) {
-                                                          await FirebaseFirestore.instance
-                                                              .collection('notificaciones')
+                                                        if (notif['id'] !=
+                                                            null) {
+                                                          await FirebaseFirestore
+                                                              .instance
+                                                              .collection(
+                                                                  'notificaciones')
                                                               .doc(notif['id'])
-                                                              .update({'leida': true});
-                                                          Navigator.pop(context);
+                                                              .update({
+                                                            'leida': true
+                                                          });
+                                                          Navigator.pop(
+                                                              context);
                                                           await _cargarNotificaciones();
                                                         }
                                                       },
