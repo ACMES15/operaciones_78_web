@@ -154,6 +154,10 @@ class _LoginPageState extends State<LoginPage> {
                             .collection('permisos_tipo_usuario')
                             .doc(tipoUsuario)
                             .get();
+                        print(
+                            '[DEBUG][LOGIN] permisosSnap.exists: [33m${permisosSnap.exists}[0m');
+                        print(
+                            '[DEBUG][LOGIN] permisosSnap.data(): [36m${permisosSnap.data()}[0m');
                         final permisosData = permisosSnap.data() ?? {};
                         print('[DEBUG][LOGIN] permisosData Firestore:');
                         permisosData.forEach((k, v) => print('  - "$k": $v'));
