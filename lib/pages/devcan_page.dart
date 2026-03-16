@@ -337,22 +337,29 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
-    await guardarDatosFirestoreYCache(
-        'entregas', 'devcan', {'items': entregasRecientes});
-    setState(() {
-      _ultimaFechaEntrega = DateTime.now();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('¡Datos guardados correctamente en entregas!')),
-    );
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            EntregasDevCanPage(entregasRecientes: entregasRecientes),
-      ),
-    );
+    try {
+      await guardarDatosFirestoreYCache(
+          'entregas', 'devcan', {'items': entregasRecientes});
+      setState(() {
+        _ultimaFechaEntrega = DateTime.now();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('¡Datos guardados correctamente en entregas!')),
+      );
+      await Future.delayed(const Duration(seconds: 1));
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) =>
+              EntregasDevCanPage(entregasRecientes: entregasRecientes),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error al guardar en entregas: \\${e.toString()}')),
+      );
+    }
   }
 
   Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
@@ -551,19 +558,34 @@ class _DevCanPageState extends State<DevCanPage> {
                         : 'No hay entregas recientes',
                     child: ElevatedButton.icon(
                       onPressed: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final data = prefs.getString('entregas_devcan') ?? '[]';
-                        final List<dynamic> lista = jsonDecode(data);
-                        final entregas = lista
-                            .map<Map<String, dynamic>>(
-                                (e) => Map<String, dynamic>.from(e))
-                            .toList();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                EntregasDevCanPage(entregasRecientes: entregas),
-                          ),
-                        );
+                        try {
+                          final datos =
+                              await leerDatosConCache('entregas', 'devcan');
+                          final entregas = (datos != null &&
+                                  datos['items'] != null)
+                              ? List<Map<String, dynamic>>.from(datos['items'])
+                              : <Map<String, dynamic>>[];
+                          if (entregas.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      'No hay entregas guardadas para mostrar.')),
+                            );
+                            return;
+                          }
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) => EntregasDevCanPage(
+                                  entregasRecientes: entregas),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Error al leer entregas: \\${e.toString()}')),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.assignment_turned_in),
                       label: const Text('Ver Entregas DevCan'),
