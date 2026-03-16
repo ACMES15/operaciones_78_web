@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DevCanPage extends StatefulWidget {
   const DevCanPage({Key? key}) : super(key: key);
@@ -15,6 +16,77 @@ class DevCanPage extends StatefulWidget {
 }
 
 class _DevCanPageState extends State<DevCanPage> {
+  Future<void> _guardarEntregasYNotificar() async {
+    final items = _rows.map((row) {
+      Map<String, dynamic> map = {};
+      for (int i = 0; i < _headers.length; i++) {
+        map[_headers[i]] = row[i].text;
+      }
+      return map;
+    }).toList();
+
+    // Buscar filas con FALTANTE en BOX
+    final idxBox = _headers.indexOf('BOX');
+    final filasFaltantes = <Map<String, dynamic>>[];
+    for (final row in _rows) {
+      if (idxBox != -1 &&
+          (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
+              row[idxBox].text.trim().toUpperCase() == 'X')) {
+        Map<String, dynamic> map = {};
+        for (int i = 0; i < _headers.length; i++) {
+          map[_headers[i]] = row[i].text;
+        }
+        filasFaltantes.add(map);
+      }
+    }
+
+    // Guardar entregas
+    try {
+      await guardarDatosFirestoreYCache('entregas', 'devcan', {'items': items});
+      setState(() {
+        _ultimaFechaEntrega = DateTime.now();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Información guardada en entregas.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error guardando en Firestore: $e'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // Notificación de faltantes: crear documento individual para cada fila faltante
+    if (filasFaltantes.isNotEmpty) {
+      try {
+        final firestore = FirebaseFirestore.instance;
+        for (final map in filasFaltantes) {
+          final notifRef = await firestore.collection('notificaciones').add({
+            'mensaje': 'FALTANTE DevCan',
+            'fecha': DateTime.now(),
+            'leida': false,
+            'para': 'ADMIN OMNICANAL',
+            'usuario': 'ADMIN ENVIOS',
+            'detalle': map,
+          });
+          await notifRef.update({'id': notifRef.id});
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Notificación de faltantes enviada a la campana.')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error notificando faltantes: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   // Para evitar múltiples listeners en web
   bool _listenerAgregado = false;
   List<Map<String, dynamic>> _ultimaEntregaGuardada = [];
@@ -258,128 +330,6 @@ class _DevCanPageState extends State<DevCanPage> {
     });
   }
 
-  Future<void> _enviarAEntregasDevCan() async {
-    final idxValidacion = _headers.indexOf('VALIDACION');
-    final idxBox = _headers.indexOf('BOX');
-    List<int> filasIncompletas = [];
-    List<int> filasFaltantes = [];
-
-    for (int i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
-      if (idxValidacion != -1 && row[idxValidacion].text.trim() != '✔️') {
-        filasIncompletas.add(i + 1);
-      }
-      if (idxBox != -1 &&
-          (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
-              row[idxBox].text.trim().toUpperCase() == 'X')) {
-        filasFaltantes.add(i + 1);
-      }
-    }
-
-    if (filasIncompletas.isNotEmpty) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Advertencia'),
-          content: Text(
-              'Hay filas sin validar (VALIDACION en blanco o sin paloma):\nFilas: ${filasIncompletas.join(', ')}'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cerrar'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    if (filasFaltantes.isNotEmpty) {
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Advertencia de faltantes'),
-          content: Text(
-              'Hay filas marcadas como FALTANTE en BOX:\nFilas: ${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL o ADMIN ENVIOS.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Continuar'),
-            ),
-          ],
-        ),
-      );
-      await _guardarNotificacionFaltantes(filasFaltantes);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notificación de faltantes enviada.')),
-      );
-      await Future.delayed(const Duration(seconds: 1));
-    }
-
-    // Guardar la información para entregas
-    final items = _rows.map((row) {
-      Map<String, dynamic> map = {};
-      for (int i = 0; i < _headers.length; i++) {
-        map[_headers[i]] = row[i].text;
-      }
-      return map;
-    }).toList();
-    try {
-      await guardarDatosFirestoreYCache('entregas', 'devcan', {'items': items});
-      setState(() {
-        _ultimaFechaEntrega = DateTime.now();
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Información enviada para entregas.')),
-      );
-      await Future.delayed(const Duration(seconds: 1));
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => const EntregasDevCanPage(),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error guardando en Firestore: $e'),
-            backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
-    final datos = await leerDatosConCache('notificaciones', 'password');
-    List<dynamic> lista = [];
-    if (datos != null && datos['items'] != null) {
-      lista = List<dynamic>.from(datos['items']);
-    }
-    for (final idx in filasFaltantes) {
-      final row = _rows[idx - 1];
-      final detalle = _headers
-          .asMap()
-          .entries
-          .map((e) => '${e.value}: ${row[e.key].text}')
-          .join('\n');
-      lista.add({
-        'usuario': 'ADMIN OMNICANAL / ADMIN ENVIOS',
-        'fecha': DateTime.now().toIso8601String(),
-        'mensaje': 'FALTANTE DevCan',
-        'detalle': detalle,
-      });
-    }
-    await guardarDatosFirestoreYCache(
-        'notificaciones', 'password', {'items': lista});
-
-    // Construir lista de entregas recientes para pasar a la nueva página
-    // Ya no se requiere construir lista para pasarla a la página
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const EntregasDevCanPage(),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -505,25 +455,11 @@ class _DevCanPageState extends State<DevCanPage> {
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // Botón Guardar se agregará aquí
                   ElevatedButton.icon(
-                    onPressed: () async {
-                      await _cargarUltimaEntregaGuardada();
-                      final actual = _generarEntregaActual();
-                      if (_esMismaEntrega(_ultimaEntregaGuardada, actual)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'La información que quieres enviar ya fue enviada.'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
-                      await _enviarAEntregasDevCan();
-                      await _cargarUltimaEntregaGuardada();
-                    },
-                    icon: const Icon(Icons.send),
-                    label: const Text('Enviar a Entregas DevCan'),
+                    onPressed: _guardarEntregasYNotificar,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF2D6A4F),
                       foregroundColor: Colors.white,
