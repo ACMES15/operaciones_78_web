@@ -27,8 +27,21 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   void initState() {
     super.initState();
     _lpController = TextEditingController();
-    _resultados = widget.entregasRecientes;
+    _cargarEntregasDesdeFirestore();
     _cargarHistorialFirmadas();
+  }
+
+  Future<void> _cargarEntregasDesdeFirestore() async {
+    final datos = await leerDatosConCache('entregas', 'devcan');
+    List<Map<String, dynamic>> entregas = [];
+    if (datos != null && datos['items'] is List) {
+      entregas = (datos['items'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+    setState(() {
+      _resultados = entregas;
+    });
   }
 
   Future<void> _cargarHistorialFirmadas() async {
@@ -43,7 +56,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
             .toList();
         // Filtrar resultados para excluir LP ya firmados
         final lpsFirmadas = _lpsFirmadas;
-        _resultados = widget.entregasRecientes
+        _resultados = _resultados
             .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
             .toList();
         _seleccionados.removeWhere((idx) {
@@ -81,7 +94,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
 
   @override
   Widget build(BuildContext context) {
-    final jefaturas = widget.entregasRecientes
+    final jefaturas = _resultados
         .map((e) => (e['JEFATURA'] ?? '').toString())
         .where((j) => j.isNotEmpty)
         .toSet()
@@ -124,8 +137,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                             onChanged: (v) {
                               setState(() {
                                 final lpsFirmadas = _lpsFirmadas;
-                                _resultados =
-                                    widget.entregasRecientes.where((e) {
+                                _resultados = _resultados.where((e) {
                                   final lp =
                                       (e['LP'] ?? '').toString().toLowerCase();
                                   final desc = (e['DESCRIPCION'] ?? '')
@@ -163,8 +175,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                               setState(() {
                                 _jefaturaSeleccionada = v ?? '';
                                 final lpsFirmadas = _lpsFirmadas;
-                                _resultados =
-                                    widget.entregasRecientes.where((e) {
+                                _resultados = _resultados.where((e) {
                                   final j = (e['JEFATURA'] ?? '').toString();
                                   final matchesJ = _jefaturaSeleccionada.isEmpty
                                       ? true
@@ -199,8 +210,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                               onChanged: (v) {
                                 setState(() {
                                   final lpsFirmadas = _lpsFirmadas;
-                                  _resultados =
-                                      widget.entregasRecientes.where((e) {
+                                  _resultados = _resultados.where((e) {
                                     final lp = (e['LP'] ?? '')
                                         .toString()
                                         .toLowerCase();
@@ -240,8 +250,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                               setState(() {
                                 _jefaturaSeleccionada = v ?? '';
                                 final lpsFirmadas = _lpsFirmadas;
-                                _resultados =
-                                    widget.entregasRecientes.where((e) {
+                                _resultados = _resultados.where((e) {
                                   final j = (e['JEFATURA'] ?? '').toString();
                                   final matchesJ = _jefaturaSeleccionada.isEmpty
                                       ? true
@@ -516,7 +525,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                   // Refrescar lista de entregas no firmadas
                                   final lpsFirmadas = _lpsFirmadas;
                                   setState(() {
-                                    _resultados = widget.entregasRecientes
+                                    _resultados = _resultados
                                         .where((e) => !lpsFirmadas
                                             .contains(e['LP']?.toString()))
                                         .toList();
