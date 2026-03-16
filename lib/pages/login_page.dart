@@ -155,11 +155,17 @@ class _LoginPageState extends State<LoginPage> {
                             .doc(tipoUsuario)
                             .get();
                         final permisosData = permisosSnap.data() ?? {};
+                        print('[DEBUG][LOGIN] permisosData Firestore:');
+                        permisosData.forEach((k, v) => print('  - "$k": $v'));
                         final paginasPermitidas = <String>[];
                         permisosData.forEach((key, value) {
                           if (value == true || value == 'true')
                             paginasPermitidas.add(key);
                         });
+                        print('[DEBUG][LOGIN] paginasPermitidas filtradas:');
+                        for (final p in paginasPermitidas) {
+                          print('  - "$p"');
+                        }
                         // Obtener cantidad de notificaciones no leídas para el tipo de usuario
                         final notifsSnap = await FirebaseFirestore.instance
                             .collection('notificaciones')
