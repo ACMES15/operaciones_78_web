@@ -37,22 +37,17 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   // Notificaciones
-  List<Map<String, dynamic>> _notificaciones = [];
-
-  Future<void> _cargarNotificaciones() async {
-    final query = await FirebaseFirestore.instance
-        .collection('notificaciones')
-        .where('para', isEqualTo: widget.tipoUsuario)
-        .where('leida', isEqualTo: false)
-        .get();
-    setState(() {
-      _notificaciones = query.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-    });
-  }
+  late final Stream<List<Map<String, dynamic>>> _notificacionesStream =
+      FirebaseFirestore.instance
+          .collection('notificaciones')
+          .where('para', isEqualTo: widget.tipoUsuario)
+          .where('leida', isEqualTo: false)
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) {
+                final data = doc.data();
+                data['id'] = doc.id;
+                return data;
+              }).toList());
 
   // Mapeo de nombre de página a ícono y tooltip
   final Map<String, IconData> _pageIcons = const {
@@ -117,7 +112,6 @@ class _HomePageState extends State<HomePage> {
     final extras = permitidas.difference(ordenFijo.toSet()).toList();
     _paginas = [...paginasOrdenadas, ...extras];
     // Cargar notificaciones pendientes al iniciar
-    _cargarNotificaciones();
   }
 
   @override
@@ -130,147 +124,269 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           children: [
             const Icon(Icons.account_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Text(
-              'Usuario: ${widget.usuario}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(width: 16),
-            Text(
-              'Tipo: ${widget.tipoUsuario}',
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-            ),
-            const SizedBox(width: 16),
-            _FechaHoraWidget(),
-            const Spacer(),
-            Stack(
-              alignment: Alignment.topRight,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications,
-                      color: Colors.white, size: 28),
-                  tooltip: 'Notificaciones',
-                  onPressed: () async {
-                    await _cargarNotificaciones();
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: Row(
-                            children: [
-                              const Icon(Icons.notifications_active,
-                                  color: Color(0xFF2D6A4F)),
-                              const SizedBox(width: 8),
-                              const Text('Notificaciones ejecutivas'),
-                              const Spacer(),
-                              if (_notificaciones.isNotEmpty)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade700,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    _notificaciones.length.toString(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 15,
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _notificacionesStream,
+              builder: (context, snapshot) {
+                final notificaciones = snapshot.data ?? [];
+                return Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications,
+                          color: Colors.white, size: 28),
+                      tooltip: 'Notificaciones',
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: Row(
+                                children: [
+                                  const Icon(Icons.notifications_active,
+                                      color: Color(0xFF2D6A4F)),
+                                  const SizedBox(width: 8),
+                                  const Text('Notificaciones'),
+                                  const Spacer(),
+                                  if (notificaciones.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade700,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        notificaciones.length.toString(),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                ],
+                              ),
+                              content: SizedBox(
+                                width: 400,
+                                child: notificaciones.isEmpty
+                                    ? const Text(
+                                        'No hay notificaciones nuevas.')
+                                    : ListView(
+                                        shrinkWrap: true,
+                                        children:
+                                            notificaciones.map<Widget>((notif) {
+                                          final mensaje =
+                                              notif['mensaje'] ?? '';
+                                          final fecha = notif['fecha'] != null
+                                              ? (notif['fecha'] is String
+                                                  ? notif['fecha']
+                                                  : (notif['fecha'] is DateTime
+                                                      ? (notif['fecha']
+                                                              as DateTime)
+                                                          .toString()
+                                                          .substring(0, 16)
+                                                      : (notif['fecha']
+                                                              as dynamic)
+                                                          .toDate()
+                                                          .toString()
+                                                          .substring(0, 16)))
+                                              : '';
+                                          final tipo = notif['tipo'] ?? '';
+                                          final detalle =
+                                              notif['detalle'] ?? '';
+                                          final isReseteo = tipo
+                                                  .toLowerCase()
+                                                  .contains('reseteo') ||
+                                              mensaje
+                                                  .toLowerCase()
+                                                  .contains('reseteo');
+                                          return Card(
+                                            color: Colors.white,
+                                            elevation: 3,
+                                            margin: const EdgeInsets.symmetric(
+                                                vertical: 7, horizontal: 2),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              side: const BorderSide(
+                                                  color: Color(0xFF2D6A4F),
+                                                  width: 1.2),
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 8.0,
+                                                      horizontal: 4.0),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      const Icon(
+                                                          Icons.notifications,
+                                                          color: Color(
+                                                              0xFF2D6A4F)),
+                                                      const SizedBox(width: 8),
+                                                      Expanded(
+                                                        child: Text(
+                                                          mensaje,
+                                                          style: const TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  if (detalle.isNotEmpty)
+                                                    Text('Detalle: $detalle',
+                                                        style: const TextStyle(
+                                                            fontSize: 14)),
+                                                  Text('Tipo: $tipo',
+                                                      style: const TextStyle(
+                                                          fontSize: 13)),
+                                                  Text('Fecha: $fecha',
+                                                      style: const TextStyle(
+                                                          fontSize: 13)),
+                                                  const SizedBox(height: 8),
+                                                  Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: isReseteo
+                                                        ? ElevatedButton.icon(
+                                                            icon: const Icon(
+                                                                Icons
+                                                                    .restart_alt,
+                                                                size: 18),
+                                                            style:
+                                                                ElevatedButton
+                                                                    .styleFrom(
+                                                              backgroundColor:
+                                                                  Colors.blue
+                                                                      .shade700,
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          12,
+                                                                      vertical:
+                                                                          6),
+                                                              textStyle:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                            ),
+                                                            label: const Text(
+                                                                'Atender reseteo'),
+                                                            onPressed:
+                                                                () async {
+                                                              await FirebaseFirestore
+                                                                  .instance
+                                                                  .collection(
+                                                                      'notificaciones')
+                                                                  .doc(notif[
+                                                                      'id'])
+                                                                  .update({
+                                                                'leida': true
+                                                              });
+                                                            },
+                                                          )
+                                                        : ElevatedButton.icon(
+                                                            icon: const Icon(
+                                                                Icons
+                                                                    .check_circle,
+                                                                size: 18),
+                                                            style:
+                                                                ElevatedButton
+                                                                    .styleFrom(
+                                                              backgroundColor:
+                                                                  Colors.green
+                                                                      .shade700,
+                                                              foregroundColor:
+                                                                  Colors.white,
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          12,
+                                                                      vertical:
+                                                                          6),
+                                                              textStyle:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                            ),
+                                                            label: const Text(
+                                                                'Atendido'),
+                                                            onPressed:
+                                                                () async {
+                                                              await FirebaseFirestore
+                                                                  .instance
+                                                                  .collection(
+                                                                      'notificaciones')
+                                                                  .doc(notif[
+                                                                      'id'])
+                                                                  .update({
+                                                                'leida': true
+                                                              });
+                                                            },
+                                                          ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.of(context).pop(),
+                                  child: const Text('Cerrar'),
                                 ),
-                            ],
-                          ),
-                          content: SizedBox(
-                            width: 400,
-                            child: _notificaciones.isEmpty
-                                ? const Text('No hay notificaciones nuevas.')
-                                : ListView(
-                                    shrinkWrap: true,
-                                    children:
-                                        _notificaciones.map<Widget>((notif) {
-                                      final mensaje = notif['mensaje'] ?? '';
-                                      final fecha = notif['fecha'] != null
-                                          ? (notif['fecha'] is String
-                                              ? notif['fecha']
-                                              : (notif['fecha'] is DateTime
-                                                  ? (notif['fecha'] as DateTime)
-                                                      .toString()
-                                                      .substring(0, 16)
-                                                  : (notif['fecha'] as dynamic)
-                                                      .toDate()
-                                                      .toString()
-                                                      .substring(0, 16)))
-                                          : '';
-                                      final tipo = notif['tipo'] ?? '';
-                                      return Card(
-                                        color: Colors.white,
-                                        elevation: 3,
-                                        margin: const EdgeInsets.symmetric(
-                                            vertical: 7, horizontal: 2),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(14),
-                                          side: const BorderSide(
-                                              color: Color(0xFF2D6A4F),
-                                              width: 1.2),
-                                        ),
-                                        child: ListTile(
-                                          leading: const Icon(
-                                              Icons.notifications,
-                                              color: Color(0xFF2D6A4F)),
-                                          title: Text(mensaje,
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold)),
-                                          subtitle: Text(
-                                              'Tipo: $tipo\nFecha: $fecha'),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
+                              ],
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
-                if (_notificaciones.isNotEmpty)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade700,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 4,
-                            offset: Offset(0, 2),
+                    ),
+                    if (notificaciones.isNotEmpty)
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade700,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        _notificaciones.length.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          child: Text(
+                            notificaciones.length.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-              ],
+                  ],
+                );
+              },
             ),
+// ...el StreamBuilder de notificaciones ya cierra correctamente aquí...
           ],
         ),
         actions: [
