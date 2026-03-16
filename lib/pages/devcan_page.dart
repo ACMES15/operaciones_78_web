@@ -8,6 +8,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DevCanPage extends StatefulWidget {
   const DevCanPage({Key? key}) : super(key: key);
@@ -376,15 +377,23 @@ class _DevCanPageState extends State<DevCanPage> {
     try {
       print('[DEBUG] Intentando guardar en Firestore:');
       print(entregasRecientes);
-      await guardarDatosFirestoreYCache(
-          'entregas', 'devcan', {'items': entregasRecientes});
-      print('[DEBUG] Guardado exitoso en Firestore.');
+      // Guardar cada entrega como documento individual en la colección 'entregas_devcan'
+      final batch = FirebaseFirestore.instance.batch();
+      final collection =
+          FirebaseFirestore.instance.collection('entregas_devcan');
+      for (final entrega in entregasRecientes) {
+        final docRef = collection.doc();
+        batch.set(docRef, entrega);
+      }
+      await batch.commit();
+      print('[DEBUG] Guardado exitoso en Firestore (entregas_devcan).');
       setState(() {
         _ultimaFechaEntrega = DateTime.now();
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('¡Datos guardados correctamente en entregas!')),
+            content:
+                Text('¡Datos guardados correctamente en entregas_devcan!')),
       );
       await Future.delayed(const Duration(milliseconds: 800));
       Navigator.of(context).push(
@@ -399,7 +408,8 @@ class _DevCanPageState extends State<DevCanPage> {
       print(st);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Error al guardar en entregas: \\${e.toString()}')),
+            content:
+                Text('Error al guardar en entregas_devcan: \\${e.toString()}')),
       );
     }
   }
