@@ -58,6 +58,21 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _paginas = widget.paginasPermitidas;
+
+    // Debug: Mostrar páginas permitidas y claves del mapa
+    print('[DEBUG][HomePage] Páginas permitidas recibidas:');
+    for (final p in _paginas) {
+      print('  - "$p"');
+    }
+    print('[DEBUG][HomePage] Claves en _pageWidgets:');
+    for (final k in _pageWidgets.keys) {
+      print('  - "$k"');
+    }
+    for (final p in _paginas) {
+      if (!_pageWidgets.containsKey(p)) {
+        print('[ADVERTENCIA] No hay widget asociado para la página: "$p"');
+      }
+    }
   }
 
   @override
