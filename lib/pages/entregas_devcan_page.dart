@@ -206,6 +206,13 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                 fontSize: 24,
                 color: Colors.white)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recargar',
+            onPressed: _cargarDatos,
+          ),
+        ],
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())

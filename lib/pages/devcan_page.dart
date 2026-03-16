@@ -58,24 +58,26 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
-    // Notificación de faltantes: crear documento individual para cada fila faltante
+    // Notificación de faltantes: crear documento individual para cada fila faltante y para ambos usuarios
     if (filasFaltantes.isNotEmpty) {
       try {
         final firestore = FirebaseFirestore.instance;
         for (final map in filasFaltantes) {
-          final notifRef = await firestore.collection('notificaciones').add({
-            'mensaje': 'FALTANTE DevCan',
-            'fecha': DateTime.now(),
-            'leida': false,
-            'para': 'ADMIN OMNICANAL',
-            'usuario': 'ADMIN ENVIOS',
-            'detalle': map,
-          });
-          await notifRef.update({'id': notifRef.id});
+          for (final destino in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            final notifRef = await firestore.collection('notificaciones').add({
+              'mensaje': 'FALTANTE DevCan',
+              'fecha': DateTime.now(),
+              'leida': false,
+              'para': destino,
+              'detalle': map, // todos los datos del faltante
+            });
+            await notifRef.update({'id': notifRef.id});
+          }
         }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Notificación de faltantes enviada a la campana.')),
+              content: Text(
+                  'Notificación de faltantes enviada a la campana para ambos usuarios.')),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
