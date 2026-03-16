@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
 
   // Mapeo de nombre de página a ícono y tooltip
   final Map<String, IconData> _pageIcons = const {
-      'Bienvenida': Icons.home,
+    'Bienvenida': Icons.home,
     'Control de usuarios': Icons.admin_panel_settings,
     'Hoja de ruta': Icons.map_outlined,
     'Hoja de XD': Icons.description_outlined,
@@ -71,7 +71,8 @@ class _HomePageState extends State<HomePage> {
 
   // Mapeo de nombre de página a Widget real
   late final Map<String, Widget> _pageWidgets = {
-      'Bienvenida': BienvenidaPage(usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
+    'Bienvenida': BienvenidaPage(
+        usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
     'Control de usuarios': UserControlPageBody(),
     'Hoja de ruta': HojaDeRutaPage(),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
@@ -107,7 +108,9 @@ class _HomePageState extends State<HomePage> {
     ];
     // Siempre mostrar Bienvenida, luego las permitidas en el orden solicitado, luego las extras
     final permitidas = widget.paginasPermitidas.toSet();
-    final paginasOrdenadas = ordenFijo.where((p) => permitidas.contains(p) || p == 'Bienvenida').toList();
+    final paginasOrdenadas = ordenFijo
+        .where((p) => permitidas.contains(p) || p == 'Bienvenida')
+        .toList();
     final extras = permitidas.difference(ordenFijo.toSet()).toList();
     _paginas = [...paginasOrdenadas, ...extras];
 
@@ -300,11 +303,23 @@ class _HomePageState extends State<HomePage> {
                         return Tooltip(
                           message: pageName,
                           child: ListTile(
-                            leading: Icon(icon, color: Colors.white),
+                            leading: Icon(
+                              icon,
+                              color: _selectedIndex == index
+                                  ? Colors.amber
+                                  : Colors.white,
+                            ),
                             title: _menuExpandido
                                 ? Text(
                                     pageName,
-                                    style: const TextStyle(color: Colors.white),
+                                    style: TextStyle(
+                                      color: _selectedIndex == index
+                                          ? Colors.amber
+                                          : Colors.white,
+                                      fontWeight: _selectedIndex == index
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
                                   )
                                 : null,
                             selected: _selectedIndex == index,
