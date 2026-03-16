@@ -262,6 +262,7 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   Future<void> _enviarAEntregasDevCan() async {
+    print('[DEBUG] _enviarAEntregasDevCan llamado');
     final idxValidacion = _headers.indexOf('VALIDACION');
     final idxBox = _headers.indexOf('BOX');
     List<int> filasIncompletas = [];
@@ -278,6 +279,14 @@ class _DevCanPageState extends State<DevCanPage> {
               row[idxBox].text.trim().toUpperCase() == 'X')) {
         filasFaltantes.add(i + 1);
       }
+    }
+
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay filas para procesar.')),
+      );
+      print('[DEBUG] No hay filas para procesar.');
+      return;
     }
 
     // Si hay filas incompletas, advertir y salir
