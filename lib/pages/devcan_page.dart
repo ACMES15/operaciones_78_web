@@ -234,7 +234,8 @@ class _DevCanPageState extends State<DevCanPage> {
                 List.generate(_headers.length, (_) => TextEditingController()));
           }
         });
-        print('Filas importadas: \\n' + _rows.length.toString());
+        print('Filas importadas: \n' + _rows.length.toString());
+        setState(() {}); // Forzar reconstrucción tras importación
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -246,7 +247,7 @@ class _DevCanPageState extends State<DevCanPage> {
                 Text('Encabezados detectados:'),
                 SelectableText(_headers.join(', ')),
                 const SizedBox(height: 8),
-                Text('Filas importadas: ${_rows.length}'),
+                Text('Filas importadas: \\${_rows.length}'),
               ],
             ),
             actions: [
@@ -556,6 +557,8 @@ class _DevCanPageState extends State<DevCanPage> {
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: () async {
+                      print(
+                          '[DEBUG] Botón Enviar a Entregas DevCan presionado');
                       await _cargarUltimaEntregaGuardada();
                       final actual = _generarEntregaActual();
                       if (_esMismaEntrega(_ultimaEntregaGuardada, actual)) {
