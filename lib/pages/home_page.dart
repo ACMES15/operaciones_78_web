@@ -30,10 +30,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Debug info
-  String? _debugTipoFirestore;
-  String? _debugTipoNormalizado;
-  String? _debugPermisosDoc;
   // Estado para error de usuario/tipo
   String? _errorUsuario;
 
@@ -201,9 +197,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _determinarPermisosPorTipo(String tipoOriginal) async {
-    String debugTipoFirestore = tipoOriginal;
-    String debugTipoNormalizado = _normalizar(tipoOriginal);
-    String debugPermisosDoc = '';
+    // Variables de depuración eliminadas
     String tipo = tipoOriginal;
     // Solo si es exactamente uno de los admin, ve todo
     final tipoNorm = _normalizar(tipo);
@@ -217,15 +211,14 @@ class _HomePageState extends State<HomePage> {
     ];
     List<int> permitidas = [];
     if (admins.contains(tipoNorm)) {
-      debugPermisosDoc = 'ADMIN: acceso total';
+      // Línea de depuración eliminada
       permitidas = List.generate(_paginas.length, (i) => i);
     } else {
       final permisosDoc = await FirebaseFirestore.instance
           .collection('permisos_tipo_usuario')
           .doc(tipoNorm)
           .get();
-      debugPermisosDoc =
-          permisosDoc.exists ? permisosDoc.data().toString() : 'NO EXISTE';
+      // Línea de depuración eliminada
       print('[DEBUG] permisosDoc.exists: ${permisosDoc.exists}');
       print('[DEBUG] permisosDoc.data(): ${permisosDoc.data()}');
       if (permisosDoc.exists && permisosDoc.data() != null) {
@@ -251,12 +244,6 @@ class _HomePageState extends State<HomePage> {
       _tipoUsuario = tipoOriginal;
       _paginasPermitidas = permitidas;
       _errorUsuario = null;
-      // Debug info
-      _debugTipoFirestore = tipoOriginal;
-      _debugTipoNormalizado = _normalizar(tipoOriginal);
-      _debugPermisosDoc = (admins.contains(_normalizar(tipoOriginal)))
-          ? 'ADMIN: acceso total'
-          : (permitidas.isEmpty ? 'NO EXISTE' : 'OK');
     });
   }
 
@@ -313,22 +300,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     // DEBUG: Mostrar info de tipo y permisos
-    final debugInfo = (_debugTipoFirestore != null &&
-            _debugTipoNormalizado != null &&
-            _debugPermisosDoc != null)
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Divider(),
-              Text('DEBUG tipo Firestore: ${_debugTipoFirestore}',
-                  style: const TextStyle(fontSize: 12, color: Colors.red)),
-              Text('DEBUG tipo normalizado: ${_debugTipoNormalizado}',
-                  style: const TextStyle(fontSize: 12, color: Colors.red)),
-              Text('DEBUG doc permisos: ${_debugPermisosDoc}',
-                  style: const TextStyle(fontSize: 12, color: Colors.red)),
-            ],
-          )
-        : const SizedBox.shrink();
+    // Removed debug information block
     if (_errorUsuario != null) {
       return Scaffold(
         body: Center(
@@ -864,8 +836,6 @@ class _HomePageState extends State<HomePage> {
             ),
         ],
       ),
-      // DEBUG: Mostrar info de tipo y permisos debajo del AppBar
-      bottomNavigationBar: debugInfo,
     );
   }
 }
