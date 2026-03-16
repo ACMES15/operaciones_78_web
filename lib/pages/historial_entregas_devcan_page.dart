@@ -39,6 +39,7 @@ class _HistorialEntregasDevCanPageState
   }
 
   late List<Map<String, dynamic>> _resultados;
+  List<Map<String, dynamic>> _datosOriginales = [];
 
   Future<void> _recargarFirestore() async {
     final firestore = FirebaseFirestore.instance;
@@ -56,10 +57,19 @@ class _HistorialEntregasDevCanPageState
         }
       }
     }
-    setState(() {
-      _resultados = nuevos;
-    });
-    // Actualizar cache local
+    _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
+    if (_filtro.isNotEmpty) {
+      _resultados = _datosOriginales.where((e) {
+        return e.entries.any((entry) {
+          final v = entry.value;
+          if (v == null) return false;
+          return v.toString().toLowerCase().contains(_filtro);
+        });
+      }).toList();
+    } else {
+      _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
+    }
+    setState(() {});
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('historial_entregas_devcan', jsonEncode(nuevos));
   }
@@ -70,7 +80,8 @@ class _HistorialEntregasDevCanPageState
   @override
   void initState() {
     super.initState();
-    _resultados = widget.historial;
+    _datosOriginales = List<Map<String, dynamic>>.from(widget.historial);
+    _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
     _busquedaController = TextEditingController();
   }
 
@@ -83,9 +94,12 @@ class _HistorialEntregasDevCanPageState
   void _filtrar(String value) {
     setState(() {
       _filtro = value.toLowerCase();
-      _resultados = widget.historial.where((e) {
-        return e.values
-            .any((v) => v.toString().toLowerCase().contains(_filtro));
+      _resultados = _datosOriginales.where((e) {
+        return e.entries.any((entry) {
+          final v = entry.value;
+          if (v == null) return false;
+          return v.toString().toLowerCase().contains(_filtro);
+        });
       }).toList();
     });
   }
@@ -300,6 +314,36 @@ class _HistorialEntregasDevCanPageState
                                         style: const TextStyle(
                                             fontSize: 15,
                                             color: Color(0xFF495057)),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.verified_user,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'Validó: ' +
+                                                  (entrega['usuarioValido']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
+                                          const SizedBox(width: 16),
+                                          const Icon(Icons.person_outline,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'Entregó: ' +
+                                                  (entrega['usuarioEntrega']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
+                                        ],
                                       ),
                                     ],
                                   ),
