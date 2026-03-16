@@ -45,9 +45,13 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
     final datos = await leerDatosConCache('entregas', 'devcan');
     List<Map<String, dynamic>> entregas = [];
     if (datos != null && datos['items'] is List) {
-      entregas = (datos['items'] as List)
-          .map((e) => Map<String, dynamic>.from(e as Map))
-          .toList();
+      for (var e in (datos['items'] as List)) {
+        if (e is Map) {
+          // Asegura que todas las claves sean String
+          entregas.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
     }
     setState(() {
       _resultados = entregas;
