@@ -149,12 +149,40 @@ class _LoginPageState extends State<LoginPage> {
                       }
                       // Si ya cambió la contraseña, validar normalmente
                       if (passDb == passInput) {
+                        // Obtener páginas permitidas desde permisos_tipo_usuario
+                        final permisosSnap = await FirebaseFirestore.instance
+                            .collection('permisos_tipo_usuario')
+                            .doc(tipoUsuario)
+                            .get();
+                        final permisosData = permisosSnap.data() ?? {};
+                        final paginasPermitidas = <String>[];
+                        permisosData.forEach((key, value) {
+                          if (value == true) paginasPermitidas.add(key);
+                        });
+                        // Obtener cantidad de notificaciones no leídas para el tipo de usuario
+                        final notifsSnap = await FirebaseFirestore.instance
+                            .collection('notificaciones')
+                            .where('para', isEqualTo: tipoUsuario)
+                            .where('leida', isEqualTo: false)
+                            .get();
+                        final notificaciones = notifsSnap.docs.length;
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
                             builder: (context) => HomePage(
-                                usuario: usuarioInput,
-                                tipoUsuario: tipoUsuario),
+                              usuario: usuarioInput,
+                              tipoUsuario: tipoUsuario,
+                              paginasPermitidas: paginasPermitidas,
+                              notificaciones: notificaciones,
+                              onLogout: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginPage(),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         );
                         return;
