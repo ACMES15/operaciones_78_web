@@ -20,25 +20,48 @@ class HistorialEntregasDevCanPage extends StatefulWidget {
 
 class _HistorialEntregasDevCanPageState
     extends State<HistorialEntregasDevCanPage> {
-  late List<Map<String, dynamic>> _resultados;
   Future<void> _eliminarRegistro(int index) async {
-    // Eliminar de la lista local
     setState(() {
       _resultados.removeAt(index);
     });
     // Actualizar almacenamiento persistente
-    // Se asume que el historial se guarda en SharedPreferences con la clave 'historial_entregas_devcan'
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('historial_entregas_devcan', jsonEncode(_resultados));
     // Actualizar Firestore
     final firestore = FirebaseFirestore.instance;
     await firestore
-        .collection('historial_entregas_devcan')
+        .collection('historial_entregas')
         .doc('devcan_firmadas')
         .set({'items': _resultados});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro eliminado del historial.')),
     );
+  }
+
+  late List<Map<String, dynamic>> _resultados;
+
+  Future<void> _recargarFirestore() async {
+    final firestore = FirebaseFirestore.instance;
+    final doc = await firestore
+        .collection('historial_entregas')
+        .doc('devcan_firmadas')
+        .get();
+    final data = doc.exists ? doc.data() : null;
+    List<Map<String, dynamic>> nuevos = [];
+    if (data != null && data['items'] is List) {
+      for (var e in (data['items'] as List)) {
+        if (e is Map) {
+          nuevos.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
+    }
+    setState(() {
+      _resultados = nuevos;
+    });
+    // Actualizar cache local
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('historial_entregas_devcan', jsonEncode(nuevos));
   }
 
   late TextEditingController _busquedaController;
@@ -81,7 +104,7 @@ class _HistorialEntregasDevCanPageState
       final blob = html.Blob([Uint8List.fromList(bytes)],
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
+      html.AnchorElement(href: url)
         ..setAttribute('download', 'historial_entregas_devcan.xlsx')
         ..click();
       html.Url.revokeObjectUrl(url);
@@ -109,6 +132,11 @@ class _HistorialEntregasDevCanPageState
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
+            onPressed: _recargarFirestore,
+            tooltip: 'Actualizar desde Firestore',
+          ),
           IconButton(
             icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
             onPressed: _descargarExcel,
