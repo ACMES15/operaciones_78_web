@@ -4,29 +4,21 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 
 class EntregasDevCanPage extends StatefulWidget {
-  final List<Map<String, dynamic>> entregasRecientes;
-
-  const EntregasDevCanPage({Key? key, required this.entregasRecientes})
-      : super(key: key);
+  const EntregasDevCanPage({Key? key}) : super(key: key);
 
   @override
   State<EntregasDevCanPage> createState() => _EntregasDevCanPageState();
 }
 
 class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
-  late TextEditingController _lpController;
-  late List<Map<String, dynamic>> _resultados;
-  List<Map<String, dynamic>> _filtrados = [];
+  final TextEditingController _lpController = TextEditingController();
+  String _lpBusqueda = '';
+  String _jefaturaSeleccionada = '';
+  List<Map<String, dynamic>> _entregas = [];
   List<Map<String, dynamic>> _historialFirmadas = [];
   Set<int> _seleccionados = {};
-  List<Map<String, dynamic>> _firmados = [];
-  Future<void> _agregarAlHistorial(List<Map<String, dynamic>> firmadas) async {
-    // Aquí deberías guardar en Firestore o en tu backend
-    // Por ahora solo simula un retardo
-    await Future.delayed(Duration(milliseconds: 300));
-  }
+  bool _cargando = true;
 
-  String _jefaturaSeleccionada = '';
   Set<String> get _lpsFirmadas => _historialFirmadas
       .map((e) => e['LP']?.toString())
       .whereType<String>()
@@ -35,552 +27,313 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   @override
   void initState() {
     super.initState();
-    _lpController = TextEditingController();
-    _resultados = [];
-    _cargarEntregasDesdeFirestore();
-    _cargarHistorialFirmadas();
+    _cargarDatos();
   }
 
-  Future<void> _cargarEntregasDesdeFirestore() async {
-    final datos = await leerDatosConCache('entregas', 'devcan');
+  Future<void> _cargarDatos() async {
+    setState(() => _cargando = true);
+    final entregasRaw = await leerDatosConCache('entregas', 'devcan');
+    final historialRaw =
+        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
     List<Map<String, dynamic>> entregas = [];
-    if (datos != null && datos['items'] is List) {
-      for (var e in (datos['items'] as List)) {
+    if (entregasRaw != null && entregasRaw['items'] is List) {
+      for (var e in (entregasRaw['items'] as List)) {
         if (e is Map) {
-          // Asegura que todas las claves sean String
           entregas.add(Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v))));
         }
       }
     }
+    List<Map<String, dynamic>> historial = [];
+    if (historialRaw != null && historialRaw['items'] is List) {
+      for (var e in (historialRaw['items'] as List)) {
+        if (e is Map) {
+          historial.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
+    }
     setState(() {
-      _resultados = entregas;
-      _filtrados = List<Map<String, dynamic>>.from(entregas);
+      _entregas = entregas;
+      _historialFirmadas = historial;
+      _cargando = false;
     });
   }
 
-  Future<void> _cargarHistorialFirmadas() async {
-    final datos =
-        await leerDatosConCache('historial_entregas', 'devcan_firmadas');
-    if (datos != null && datos['items'] != null) {
-      final List<dynamic> decoded = datos['items'];
-      setState(() {
-        _historialFirmadas = decoded
-            .cast<Map<String, dynamic>>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
-        // Filtrar resultados para excluir LP ya firmados
-        final lpsFirmadas = _lpsFirmadas;
-        _filtrados = _resultados
-            .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
-            .toList();
-        _seleccionados.removeWhere((idx) {
-          if (idx >= _filtrados.length) return true;
-          final lp = _filtrados[idx]['LP']?.toString();
-          return lpsFirmadas.contains(lp);
-        });
-      });
+  List<Map<String, dynamic>> get _entregasFiltradas {
+    final lpsFirmadas = _lpsFirmadas;
+    return _entregas
+        .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
+        .where((e) =>
+            _lpBusqueda.isEmpty ||
+            (e['LP']?.toString().toLowerCase() ?? '')
+                .contains(_lpBusqueda.toLowerCase()))
+        .where((e) =>
+            _jefaturaSeleccionada.isEmpty ||
+            (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
+        .toList();
+  }
+
+  Future<void> _firmarSeleccionados(BuildContext context) async {
+    final seleccionadas =
+        _seleccionados.map((idx) => _entregasFiltradas[idx]).toList();
+    final lpsFirmadas = _lpsFirmadas;
+    // Validar que ningún LP esté ya firmado
+    final lpsSeleccionadas =
+        seleccionadas.map((e) => e['LP']?.toString()).toSet();
+    final lpsYaFirmadas = lpsSeleccionadas.intersection(lpsFirmadas);
+    if (lpsYaFirmadas.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Al menos un LP ya fue firmado. Actualiza la lista.')));
+      setState(() => _seleccionados.clear());
+      return;
     }
+    final nombreController = TextEditingController();
+    final signatureController = SignatureController(
+        penStrokeWidth: 3,
+        penColor: Colors.black,
+        exportBackgroundColor: Colors.white);
+    final resultado = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Firmar entregas',
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
+        content: SizedBox(
+          width: 400,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nombreController,
+                  decoration: const InputDecoration(
+                      labelText: 'Nombre de quien recibe',
+                      border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 16),
+                const Text('Firma:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Color(0xFF2D6A4F)),
+                  ),
+                  width: double.infinity,
+                  height: 140,
+                  child: Signature(
+                    controller: signatureController,
+                    backgroundColor: Colors.white,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => signatureController.clear(),
+                    icon: const Icon(Icons.cleaning_services_outlined),
+                    label: const Text('Limpiar firma'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final firmaBytes = await signatureController.toPngBytes();
+              if (nombreController.text.trim().isEmpty || firmaBytes == null) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                    content: Text('Nombre y firma requeridos.')));
+                return;
+              }
+              Navigator.of(ctx).pop({
+                'nombre': nombreController.text.trim(),
+                'firma': base64Encode(firmaBytes),
+              });
+            },
+            child: const Text('Guardar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+    signatureController.dispose();
+    if (resultado == null) return;
+    // Guardar en historial
+    final nuevasFirmadas = seleccionadas
+        .map((e) => {
+              ...e,
+              'nombreRecibe': resultado['nombre'],
+              'firma': resultado['firma'],
+              'fechaFirma': DateTime.now().toIso8601String(),
+            })
+        .toList();
+    final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
+    historialActual.addAll(nuevasFirmadas);
+    await guardarDatosFirestoreYCache(
+        'historial_entregas', 'devcan_firmadas', {'items': historialActual});
+    setState(() {
+      _seleccionados.clear();
+    });
+    await _cargarDatos();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final jefaturas = _entregasFiltradas
+        .map((e) => (e['JEFATURA'] ?? '').toString())
+        .where((j) => j.isNotEmpty)
+        .toSet()
+        .toList();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F9F6),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 0,
+        title: const Text('Entregas DevCan',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Colors.white)),
+        centerTitle: true,
+      ),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 24, vertical: isMobile ? 8 : 18),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _lpController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar o escanear LP',
+                            prefixIcon: Icon(Icons.search),
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (v) {
+                            setState(() => _lpBusqueda = v);
+                          },
+                          onTap: () => _lpController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _lpController.text.length),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: _jefaturaSeleccionada.isEmpty
+                            ? null
+                            : _jefaturaSeleccionada,
+                        hint: const Text('Jefatura'),
+                        isExpanded: false,
+                        items: [
+                          const DropdownMenuItem<String>(
+                              value: '', child: Text('Todas')),
+                          ...jefaturas
+                              .map((j) =>
+                                  DropdownMenuItem(value: j, child: Text(j)))
+                              .toList(),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _jefaturaSeleccionada = v ?? ''),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _entregasFiltradas.isEmpty
+                        ? const Center(
+                            child: Text('No hay entregas para mostrar.',
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.grey)))
+                        : ListView.builder(
+                            itemCount: _entregasFiltradas.length,
+                            itemBuilder: (context, index) {
+                              final entrega = _entregasFiltradas[index];
+                              final seleccionado =
+                                  _seleccionados.contains(index);
+                              return Card(
+                                elevation: 3,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 6, horizontal: 2),
+                                child: CheckboxListTile(
+                                  value: seleccionado,
+                                  onChanged: (checked) {
+                                    setState(() {
+                                      if (checked == true) {
+                                        _seleccionados.add(index);
+                                      } else {
+                                        _seleccionados.remove(index);
+                                      }
+                                    });
+                                  },
+                                  title: Row(
+                                    children: [
+                                      _infoChip('LP', entrega['LP']),
+                                      _infoChip('SKU', entrega['SKU']),
+                                      _infoChip('CANT', entrega['CANTIDAD']),
+                                      _infoChip('SECC', entrega['SECCION']),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  if (_seleccionados.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.edit_document),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2D6A4F),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 12),
+                        ),
+                        label: const Text('Firmar seleccionados',
+                            style: TextStyle(fontSize: 18)),
+                        onPressed: () => _firmarSeleccionados(context),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget _infoChip(String label, dynamic value) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9F5EC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2D6A4F)),
+      ),
+      child: Text('$label: ${value ?? '-'}',
+          style: const TextStyle(fontWeight: FontWeight.bold)),
+    );
   }
 
   @override
   void dispose() {
     _lpController.dispose();
     super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final jefaturas = _filtrados
-        .map((e) => (e['JEFATURA'] ?? '').toString())
-        .where((j) => j.isNotEmpty)
-        .toSet()
-        .toList();
-    return LayoutBuilder(builder: (context, constraints) {
-      final isMobile = constraints.maxWidth < 600;
-      return Scaffold(
-        backgroundColor: const Color(0xFFF4F9F6),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF2D6A4F),
-          elevation: 0,
-          title: Text('Entregas DevCan',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: isMobile ? 20 : 28,
-                color: Colors.white,
-              )),
-          centerTitle: true,
-        ),
-        body: Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 8 : 24, vertical: isMobile ? 8 : 18),
-          child: _filtrados.isEmpty
-              ? Center(
-                  child: Text('No hay entregas para mostrar.',
-                      style: TextStyle(fontSize: 18, color: Colors.grey[700])))
-              : Column(
-                  children: [
-                    isMobile
-                        ? Column(
-                            children: [
-                              TextField(
-                                controller: _lpController,
-                                decoration: InputDecoration(
-                                  hintText: 'Buscar LP o descripción',
-                                  prefixIcon: const Icon(Icons.search),
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                                onChanged: (v) {
-                                  setState(() {
-                                    final lpsFirmadas = _lpsFirmadas;
-                                    _filtrados = _resultados.where((e) {
-                                      final lp = (e['LP'] ?? '')
-                                          .toString()
-                                          .toLowerCase();
-                                      final desc = (e['DESCRIPCION'] ?? '')
-                                          .toString()
-                                          .toLowerCase();
-                                      final lpRaw = (e['LP'] ?? '').toString();
-                                      return (lp.contains(v.toLowerCase()) ||
-                                              desc.contains(v.toLowerCase())) &&
-                                          !lpsFirmadas.contains(lpRaw);
-                                    }).toList();
-                                    _seleccionados.removeWhere((idx) {
-                                      if (idx >= _filtrados.length) return true;
-                                      final lp =
-                                          _filtrados[idx]['LP']?.toString();
-                                      return lpsFirmadas.contains(lp);
-                                    });
-                                  });
-                                },
-                              ),
-                              const SizedBox(height: 8),
-                              DropdownButton<String>(
-                                value: _jefaturaSeleccionada.isEmpty
-                                    ? null
-                                    : _jefaturaSeleccionada,
-                                hint: const Text('Jefatura'),
-                                isExpanded: true,
-                                items: [
-                                  const DropdownMenuItem<String>(
-                                      value: '', child: Text('Todas')),
-                                  ...jefaturas
-                                      .map((j) => DropdownMenuItem(
-                                          value: j, child: Text(j)))
-                                      .toList(),
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _jefaturaSeleccionada = v ?? '';
-                                    final lpsFirmadas = _lpsFirmadas;
-                                    _filtrados = _resultados.where((e) {
-                                      final j =
-                                          (e['JEFATURA'] ?? '').toString();
-                                      final matchesJ =
-                                          _jefaturaSeleccionada.isEmpty
-                                              ? true
-                                              : j == _jefaturaSeleccionada;
-                                      final lpRaw = (e['LP'] ?? '').toString();
-                                      return matchesJ &&
-                                          !lpsFirmadas.contains(lpRaw);
-                                    }).toList();
-                                    _seleccionados.removeWhere((idx) {
-                                      if (idx >= _filtrados.length) return true;
-                                      final lp =
-                                          _filtrados[idx]['LP']?.toString();
-                                      return lpsFirmadas.contains(lp);
-                                    });
-                                  });
-                                },
-                              ),
-                            ],
-                          )
-                        : Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _lpController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Buscar LP o descripción',
-                                    prefixIcon: const Icon(Icons.search),
-                                    border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(8)),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                  ),
-                                  onChanged: (v) {
-                                    setState(() {
-                                      final lpsFirmadas = _lpsFirmadas;
-                                      _filtrados = _resultados.where((e) {
-                                        final lp = (e['LP'] ?? '')
-                                            .toString()
-                                            .toLowerCase();
-                                        final desc = (e['DESCRIPCION'] ?? '')
-                                            .toString()
-                                            .toLowerCase();
-                                        final lpRaw =
-                                            (e['LP'] ?? '').toString();
-                                        return (lp.contains(v.toLowerCase()) ||
-                                                desc.contains(
-                                                    v.toLowerCase())) &&
-                                            !lpsFirmadas.contains(lpRaw);
-                                      }).toList();
-                                      _seleccionados.removeWhere((idx) {
-                                        if (idx >= _filtrados.length)
-                                          return true;
-                                        final lp =
-                                            _filtrados[idx]['LP']?.toString();
-                                        return lpsFirmadas.contains(lp);
-                                      });
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              DropdownButton<String>(
-                                value: _jefaturaSeleccionada.isEmpty
-                                    ? null
-                                    : _jefaturaSeleccionada,
-                                hint: const Text('Jefatura'),
-                                isExpanded: true,
-                                items: [
-                                  const DropdownMenuItem<String>(
-                                      value: '', child: Text('Todas')),
-                                  ...jefaturas
-                                      .map((j) => DropdownMenuItem(
-                                          value: j, child: Text(j)))
-                                      .toList(),
-                                ],
-                                onChanged: (v) {
-                                  setState(() {
-                                    _jefaturaSeleccionada = v ?? '';
-                                    final lpsFirmadas = _lpsFirmadas;
-                                    _filtrados = _resultados.where((e) {
-                                      final j =
-                                          (e['JEFATURA'] ?? '').toString();
-                                      final matchesJ =
-                                          _jefaturaSeleccionada.isEmpty
-                                              ? true
-                                              : j == _jefaturaSeleccionada;
-                                      final lpRaw = (e['LP'] ?? '').toString();
-                                      return matchesJ &&
-                                          !lpsFirmadas.contains(lpRaw);
-                                    }).toList();
-                                    _seleccionados.removeWhere((idx) {
-                                      if (idx >= _filtrados.length) return true;
-                                      final lp =
-                                          _filtrados[idx]['LP']?.toString();
-                                      return lpsFirmadas.contains(lp);
-                                    });
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: ListView.builder(
-                        itemCount: _filtrados.length,
-                        itemBuilder: (context, index) {
-                          final entrega = _filtrados[index];
-                          return Container(
-                            margin: EdgeInsets.symmetric(
-                                vertical: isMobile ? 4 : 8,
-                                horizontal: isMobile ? 0 : 0),
-                            child: Card(
-                              elevation: isMobile ? 2 : 6,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(isMobile ? 8 : 16)),
-                              color: Colors.white,
-                              child: CheckboxListTile(
-                                value: _seleccionados.contains(index),
-                                onChanged: (checked) {
-                                  final lp = entrega['LP']?.toString();
-                                  if (_lpsFirmadas.contains(lp)) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Este LP ya fue firmado y no puede seleccionarse.')),
-                                    );
-                                    return;
-                                  }
-                                  setState(() {
-                                    if (checked == true) {
-                                      _seleccionados.add(index);
-                                    } else {
-                                      _seleccionados.remove(index);
-                                    }
-                                  });
-                                },
-                                title: isMobile
-                                    ? Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                              (entrega['LP'] ?? '-').toString(),
-                                              style: const TextStyle(
-                                                  color: Color(0xFF2D6A4F),
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 16)),
-                                          Text(
-                                              'DESCRIPCION: ${entrega['DESCRIPCION'] ?? '-'}',
-                                              style: const TextStyle(
-                                                  fontSize: 14,
-                                                  color: Color(0xFF495057))),
-                                          Text(
-                                              'CANTIDAD: ${entrega['CANTIDAD'] ?? '-'}',
-                                              style: const TextStyle(
-                                                  fontSize: 14,
-                                                  color: Color(0xFF495057))),
-                                          Text(
-                                              'SECCION: ${entrega['SECCION'] ?? '-'}',
-                                              style: const TextStyle(
-                                                  fontSize: 14,
-                                                  color: Color(0xFF495057))),
-                                        ],
-                                      )
-                                    : Row(
-                                        children: [
-                                          Container(
-                                            constraints: const BoxConstraints(
-                                                minWidth: 60,
-                                                maxWidth: 120,
-                                                minHeight: 40,
-                                                maxHeight: 50),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF2D6A4F),
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                            alignment: Alignment.center,
-                                            child: FittedBox(
-                                              fit: BoxFit.scaleDown,
-                                              child: Text(
-                                                (entrega['LP'] ?? '-')
-                                                    .toString(),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                    'DESCRIPCION: ${entrega['DESCRIPCION'] ?? '-'}',
-                                                    style: const TextStyle(
-                                                        fontSize: 16,
-                                                        color:
-                                                            Color(0xFF495057))),
-                                                Text(
-                                                    'CANTIDAD: ${entrega['CANTIDAD'] ?? '-'}',
-                                                    style: const TextStyle(
-                                                        fontSize: 16,
-                                                        color:
-                                                            Color(0xFF495057))),
-                                                Text(
-                                                    'SECCION: ${entrega['SECCION'] ?? '-'}',
-                                                    style: const TextStyle(
-                                                        fontSize: 16,
-                                                        color:
-                                                            Color(0xFF495057))),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                subtitle: Text(
-                                  'Jefatura: ${entrega['JEFATURA'] ?? '-'}',
-                                  style: TextStyle(
-                                      fontSize: isMobile ? 13 : 16,
-                                      color: Color(0xFF495057)),
-                                ),
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: isMobile ? 8 : 16,
-                                    vertical: isMobile ? 2 : 8),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // El botón solo se muestra si hay seleccionados
-                    Builder(
-                      builder: (context) {
-                        if (_seleccionados.isEmpty) return SizedBox.shrink();
-                        return Center(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF2D6A4F),
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: isMobile ? 16 : 32,
-                                  vertical: isMobile ? 8 : 12),
-                            ),
-                            child: Text('Firmar',
-                                style: TextStyle(
-                                    fontSize: isMobile ? 16 : 20,
-                                    color: Colors.white)),
-                            onPressed: () async {
-                              // Validar que ningún LP seleccionado ya esté firmado
-                              final lpsSeleccionadas = _seleccionados
-                                  .map((idx) =>
-                                      _filtrados[idx]['LP']?.toString())
-                                  .toSet();
-                              final lpsYaFirmadas =
-                                  lpsSeleccionadas.intersection(_lpsFirmadas);
-                              if (lpsYaFirmadas.isNotEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Al menos un LP seleccionado ya fue firmado. Actualiza la lista.')),
-                                );
-                                setState(() {
-                                  _seleccionados.removeWhere((idx) =>
-                                      _lpsFirmadas.contains(
-                                          _resultados[idx]['LP']?.toString()));
-                                });
-                                return;
-                              }
-                              final nombreController = TextEditingController();
-                              final signatureController = SignatureController(
-                                penStrokeWidth: 3,
-                                penColor: Colors.black,
-                                exportBackgroundColor: Colors.white,
-                              );
-                              await showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (ctx) => AlertDialog(
-                                  title: Text('Firmar entregas',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2D6A4F),
-                                          fontSize: isMobile ? 18 : 22)),
-                                  content: SizedBox(
-                                    width: isMobile ? double.infinity : 400,
-                                    child: SingleChildScrollView(
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          TextField(
-                                            controller: nombreController,
-                                            decoration: const InputDecoration(
-                                              labelText:
-                                                  'Nombre de quien recibe',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          const Text('Firma:',
-                                              style: TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Color(0xFF2D6A4F))),
-                                          Container(
-                                            margin: const EdgeInsets.symmetric(
-                                                vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey[200],
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                              border: Border.all(
-                                                  color: Color(0xFF2D6A4F)),
-                                            ),
-                                            width: double.infinity,
-                                            height: isMobile ? 100 : 140,
-                                            child: Signature(
-                                              controller: signatureController,
-                                              backgroundColor: Colors.white,
-                                            ),
-                                          ),
-                                          Align(
-                                            alignment: Alignment.centerRight,
-                                            child: TextButton.icon(
-                                              onPressed: () =>
-                                                  signatureController.clear(),
-                                              icon: const Icon(Icons
-                                                  .cleaning_services_outlined),
-                                              label:
-                                                  const Text('Limpiar firma'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () async {
-                                        final firmaBytes =
-                                            await signatureController
-                                                .toPngBytes();
-                                        List<Map<String, dynamic>> firmadas =
-                                            [];
-                                        setState(() {
-                                          for (var idx in _seleccionados) {
-                                            final entrega = _filtrados[idx];
-                                            final registro = {
-                                              ...entrega,
-                                              'nombreRecibe':
-                                                  nombreController.text,
-                                              'firma': firmaBytes != null
-                                                  ? base64Encode(firmaBytes)
-                                                  : null,
-                                              'fechaFirma': DateTime.now()
-                                                  .toIso8601String(),
-                                            };
-                                            _firmados.add(registro);
-                                            firmadas.add(registro);
-                                          }
-                                          _seleccionados.clear();
-                                        });
-                                        await _agregarAlHistorial(firmadas);
-                                        // Refrescar lista de entregas no firmadas
-                                        final lpsFirmadas = _lpsFirmadas;
-                                        setState(() {
-                                          _resultados = _resultados
-                                              .where((e) =>
-                                                  !lpsFirmadas.contains(
-                                                      e['LP']?.toString()))
-                                              .toList();
-                                        });
-                                        Navigator.of(ctx).pop();
-                                      },
-                                      child: const Text('Guardar'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.of(ctx).pop(),
-                                      child: const Text('Cancelar'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              signatureController.dispose();
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-        ),
-      ); // cierra Padding
-    }); // cierra Scaffold
   }
 }

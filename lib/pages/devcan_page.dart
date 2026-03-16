@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'entregas_devcan_page.dart';
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:excel/excel.dart' as ex;
 import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DevCanPage extends StatefulWidget {
   const DevCanPage({Key? key}) : super(key: key);
@@ -52,7 +49,6 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   DateTime? _ultimaFechaEntrega;
-  // List<Map<String, dynamic>> _entregasRecientes = [];
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
   String _scanSeccion = '';
@@ -188,7 +184,7 @@ class _DevCanPageState extends State<DevCanPage> {
             final fila = List<String>.generate(
               _headers.length,
               (i) => i < row.length && row[i] != null
-                  ? row[i]?.value?.toString() ?? ''
+                  ? row[i]!.value.toString()
                   : '',
             );
             datos.add(fila);
@@ -235,8 +231,7 @@ class _DevCanPageState extends State<DevCanPage> {
                 List.generate(_headers.length, (_) => TextEditingController()));
           }
         });
-        print('Filas importadas: \n' + _rows.length.toString());
-        setState(() {}); // Forzar reconstrucción tras importación
+        print('Filas importadas: \\n' + _rows.length.toString());
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -248,7 +243,7 @@ class _DevCanPageState extends State<DevCanPage> {
                 Text('Encabezados detectados:'),
                 SelectableText(_headers.join(', ')),
                 const SizedBox(height: 8),
-                Text('Filas importadas: \\${_rows.length}'),
+                Text('Filas importadas: ${_rows.length}'),
               ],
             ),
             actions: [
@@ -261,6 +256,120 @@ class _DevCanPageState extends State<DevCanPage> {
         );
       });
     });
+  }
+
+  Future<void> _enviarAEntregasDevCan() async {
+    final idxValidacion = _headers.indexOf('VALIDACION');
+    final idxBox = _headers.indexOf('BOX');
+    List<int> filasIncompletas = [];
+    List<int> filasFaltantes = [];
+
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      if (idxValidacion != -1 && row[idxValidacion].text.trim() != '✔️') {
+        filasIncompletas.add(i + 1);
+      }
+      if (idxBox != -1 &&
+          (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
+              row[idxBox].text.trim().toUpperCase() == 'X')) {
+        filasFaltantes.add(i + 1);
+      }
+    }
+
+    if (filasIncompletas.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Advertencia'),
+          content: Text(
+              'Hay filas sin validar (VALIDACION en blanco o sin paloma):\nFilas: ${filasIncompletas.join(', ')}'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (filasFaltantes.isNotEmpty) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Advertencia de faltantes'),
+          content: Text(
+              'Hay filas marcadas como FALTANTE en BOX:\nFilas: ${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL o ADMIN ENVIOS.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Continuar'),
+            ),
+          ],
+        ),
+      );
+      await _guardarNotificacionFaltantes(filasFaltantes);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notificación de faltantes enviada.')),
+      );
+      await Future.delayed(const Duration(seconds: 1));
+    }
+
+    // Guardar la información para entregas
+    final items = _rows.map((row) {
+      Map<String, dynamic> map = {};
+      for (int i = 0; i < _headers.length; i++) {
+        map[_headers[i]] = row[i].text;
+      }
+      return map;
+    }).toList();
+    await guardarDatosFirestoreYCache('entregas', 'devcan', {'items': items});
+    setState(() {
+      _ultimaFechaEntrega = DateTime.now();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Información enviada para entregas.')),
+    );
+    await Future.delayed(const Duration(seconds: 1));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const EntregasDevCanPage(),
+      ),
+    );
+  }
+
+  Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
+    final datos = await leerDatosConCache('notificaciones', 'password');
+    List<dynamic> lista = [];
+    if (datos != null && datos['items'] != null) {
+      lista = List<dynamic>.from(datos['items']);
+    }
+    for (final idx in filasFaltantes) {
+      final row = _rows[idx - 1];
+      final detalle = _headers
+          .asMap()
+          .entries
+          .map((e) => '${e.value}: ${row[e.key].text}')
+          .join('\n');
+      lista.add({
+        'usuario': 'ADMIN OMNICANAL / ADMIN ENVIOS',
+        'fecha': DateTime.now().toIso8601String(),
+        'mensaje': 'FALTANTE DevCan',
+        'detalle': detalle,
+      });
+    }
+    await guardarDatosFirestoreYCache(
+        'notificaciones', 'password', {'items': lista});
+
+    // Construir lista de entregas recientes para pasar a la nueva página
+    // Ya no se requiere construir lista para pasarla a la página
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const EntregasDevCanPage(),
+      ),
+    );
   }
 
   @override
@@ -390,48 +499,23 @@ class _DevCanPageState extends State<DevCanPage> {
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
                     onPressed: () async {
-                      // Generar lista de entregas actuales
-                      final entregasRecientes = _rows
-                          .where((row) =>
-                              row.any((ctrl) => ctrl.text.trim().isNotEmpty))
-                          .map((row) {
-                        if (row.length < _headers.length) {
-                          row.addAll(List.generate(_headers.length - row.length,
-                              (_) => TextEditingController()));
-                        }
-                        Map<String, dynamic> map = {};
-                        for (int i = 0; i < _headers.length; i++) {
-                          map[_headers[i]] = row[i].text;
-                        }
-                        return map;
-                      }).toList();
-                      if (entregasRecientes.isEmpty) {
+                      await _cargarUltimaEntregaGuardada();
+                      final actual = _generarEntregaActual();
+                      if (_esMismaEntrega(_ultimaEntregaGuardada, actual)) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('No hay datos para guardar.')),
+                            content: Text(
+                                'La información que quieres enviar ya fue enviada.'),
+                            backgroundColor: Colors.orange,
+                          ),
                         );
                         return;
                       }
-                      try {
-                        await guardarDatosFirestoreYCache(
-                            'entregas', 'devcan', {'items': entregasRecientes});
-                        setState(() {
-                          _ultimaFechaEntrega = DateTime.now();
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('¡Datos guardados correctamente!')),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('Error al guardar: ${e.toString()}')),
-                        );
-                      }
+                      await _enviarAEntregasDevCan();
+                      await _cargarUltimaEntregaGuardada();
                     },
-                    icon: const Icon(Icons.save),
-                    label: const Text('Guardar'),
+                    icon: const Icon(Icons.send),
+                    label: const Text('Enviar a Entregas DevCan'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF2D6A4F),
                       foregroundColor: Colors.white,
@@ -443,41 +527,12 @@ class _DevCanPageState extends State<DevCanPage> {
                         ? 'Datos recientes\nÚltima subida: ${_ultimaFechaEntrega}'
                         : 'No hay entregas recientes',
                     child: ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          final datos =
-                              await leerDatosConCache('entregas', 'devcan');
-                          final items =
-                              (datos != null && datos['items'] is List)
-                                  ? datos['items'] as List
-                                  : null;
-                          final entregas = (items != null)
-                              ? items
-                                  .map((e) =>
-                                      Map<String, dynamic>.from(e as Map))
-                                  .toList()
-                              : <Map<String, dynamic>>[];
-                          if (entregas.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text(
-                                      'No hay entregas guardadas para mostrar.')),
-                            );
-                            return;
-                          }
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => EntregasDevCanPage(
-                                  entregasRecientes: entregas),
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                                content: Text(
-                                    'Error al leer entregas: \\${e.toString()}')),
-                          );
-                        }
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => const EntregasDevCanPage(),
+                          ),
+                        );
                       },
                       icon: const Icon(Icons.assignment_turned_in),
                       label: const Text('Ver Entregas DevCan'),
