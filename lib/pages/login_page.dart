@@ -149,23 +149,31 @@ class _LoginPageState extends State<LoginPage> {
                       }
                       // Si ya cambió la contraseña, validar normalmente
                       if (passDb == passInput) {
-                        // Obtener páginas permitidas desde permisos_tipo_usuario
+                        // Obtener páginas permitidas desde permisos_tipo_usuario/permisos/{tipoUsuario}
                         final permisosSnap = await FirebaseFirestore.instance
                             .collection('permisos_tipo_usuario')
-                            .doc(tipoUsuario)
+                            .doc('permisos')
                             .get();
                         print(
-                            '[DEBUG][LOGIN] permisosSnap.exists: [33m${permisosSnap.exists}[0m');
+                            '[DEBUG][LOGIN] permisosSnap.exists: ${permisosSnap.exists}');
                         print(
-                            '[DEBUG][LOGIN] permisosSnap.data(): [36m${permisosSnap.data()}[0m');
-                        final permisosData = permisosSnap.data() ?? {};
+                            '[DEBUG][LOGIN] permisosSnap.data(): ${permisosSnap.data()}');
+                        final allPermisos = permisosSnap.data() ?? {};
+                        final permisosData = allPermisos[tipoUsuario] ?? {};
                         print('[DEBUG][LOGIN] permisosData Firestore:');
-                        permisosData.forEach((k, v) => print('  - "$k": $v'));
+                        if (permisosData is Map) {
+                          permisosData.forEach((k, v) => print('  - "$k": $v'));
+                        } else {
+                          print(
+                              '  [ADVERTENCIA] permisosData no es un mapa. Valor: $permisosData');
+                        }
                         final paginasPermitidas = <String>[];
-                        permisosData.forEach((key, value) {
-                          if (value == true || value == 'true')
-                            paginasPermitidas.add(key);
-                        });
+                        if (permisosData is Map) {
+                          permisosData.forEach((key, value) {
+                            if (value == true || value == 'true')
+                              paginasPermitidas.add(key);
+                          });
+                        }
                         print('[DEBUG][LOGIN] paginasPermitidas filtradas:');
                         for (final p in paginasPermitidas) {
                           print('  - "$p"');
