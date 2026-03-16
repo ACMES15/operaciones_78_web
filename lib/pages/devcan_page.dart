@@ -267,6 +267,7 @@ class _DevCanPageState extends State<DevCanPage> {
     List<int> filasIncompletas = [];
     List<int> filasFaltantes = [];
 
+    // Validar filas
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       if (idxValidacion != -1 && row[idxValidacion].text.trim() != '✔️') {
@@ -279,8 +280,9 @@ class _DevCanPageState extends State<DevCanPage> {
       }
     }
 
+    // Si hay filas incompletas, advertir y salir
     if (filasIncompletas.isNotEmpty) {
-      showDialog(
+      await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia'),
@@ -297,6 +299,7 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
+    // Si hay faltantes, notificar antes de guardar
     if (filasFaltantes.isNotEmpty) {
       await showDialog(
         context: context,
@@ -312,15 +315,23 @@ class _DevCanPageState extends State<DevCanPage> {
           ],
         ),
       );
-      await _guardarNotificacionFaltantes(filasFaltantes);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notificación de faltantes enviada.')),
-      );
-      await Future.delayed(const Duration(seconds: 1));
+      try {
+        await _guardarNotificacionFaltantes(filasFaltantes);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Notificación de faltantes enviada.')),
+        );
+        await Future.delayed(const Duration(milliseconds: 800));
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error al notificar faltantes: \\${e.toString()}')),
+        );
+        return;
+      }
     }
 
-    // Guardar la información para entregas solo si hay filas válidas
-    List<Map<String, dynamic>> entregasRecientes = _rows
+    // Construir lista de entregas válidas
+    final entregasRecientes = _rows
         .where((row) => row.any((ctrl) => ctrl.text.trim().isNotEmpty))
         .map((row) {
       Map<String, dynamic> map = {};
@@ -337,6 +348,7 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
+    // Guardar en Firestore
     try {
       print('[DEBUG] Intentando guardar en Firestore:');
       print(entregasRecientes);
@@ -350,7 +362,7 @@ class _DevCanPageState extends State<DevCanPage> {
         const SnackBar(
             content: Text('¡Datos guardados correctamente en entregas!')),
       );
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(milliseconds: 800));
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) =>
