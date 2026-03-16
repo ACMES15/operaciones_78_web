@@ -210,8 +210,11 @@ class _DevCanPageState extends State<DevCanPage> {
     });
 
     bool encontrado = false;
+    // Normalizar el código escaneado y el de la tabla quitando ceros a la izquierda para comparar
+    String normalizarLP(String lp) => lp.replaceFirst(RegExp(r'^0+'), '');
+    final codigoNorm = normalizarLP(codigo);
     for (final row in _rows) {
-      if (idxLP != -1 && row[idxLP].text.trim() == codigo) {
+      if (idxLP != -1 && normalizarLP(row[idxLP].text.trim()) == codigoNorm) {
         final seccion =
             idxSeccionDevCan != -1 ? row[idxSeccionDevCan].text.trim() : '';
         final jefaturaNombre =
@@ -280,7 +283,13 @@ class _DevCanPageState extends State<DevCanPage> {
             final List<TextEditingController> ctrls =
                 List.generate(_headers.length, (i) {
               final ctrl = TextEditingController();
-              ctrl.text = i < fila.length ? fila[i] : '';
+              // Si es la columna LP, rellenar a 10 dígitos
+              if (_headers[i] == 'LP' && i < fila.length) {
+                final lp = fila[i].padLeft(10, '0');
+                ctrl.text = lp;
+              } else {
+                ctrl.text = i < fila.length ? fila[i] : '';
+              }
               return ctrl;
             });
             // Si hay valor en SECCION, buscar y asignar JEFATURA automáticamente

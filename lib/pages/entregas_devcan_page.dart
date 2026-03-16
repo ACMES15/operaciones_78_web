@@ -398,7 +398,8 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.edit_document),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2D6A4F),
+                          backgroundColor:
+                              const Color.fromARGB(255, 244, 247, 245),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 32, vertical: 12),
                         ),
