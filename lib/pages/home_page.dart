@@ -198,18 +198,18 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _determinarPermisosPorTipo(String tipoOriginal) async {
     String tipo = tipoOriginal;
-    if (_normalizar(tipo).contains('ADMIN')) {
-      tipo = 'ADMIN';
-    }
-    List<int> permitidas = [];
+    // Solo si es exactamente uno de los admin, ve todo
     final tipoNorm = _normalizar(tipo);
-    print('[DEBUG] tipoNorm: $tipoNorm');
-    if (tipoNorm == 'SUPERADMIN' ||
-        tipoNorm == 'ADMIN' ||
-        tipoNorm == 'ADMINISTRATIVO' ||
-        tipoNorm == 'ADMIN OMNICANAL' ||
-        tipoNorm == 'ADMIN ENVIOS' ||
-        tipoNorm == 'admin') {
+    List<String> admins = [
+      'SUPERADMIN',
+      'ADMIN',
+      'ADMINISTRATIVO',
+      'ADMIN OMNICANAL',
+      'ADMIN ENVIOS',
+      'admin'
+    ];
+    List<int> permitidas = [];
+    if (admins.contains(tipoNorm)) {
       permitidas = List.generate(_paginas.length, (i) => i);
     } else {
       final permisosDoc = await FirebaseFirestore.instance
@@ -223,14 +223,12 @@ class _HomePageState extends State<HomePage> {
         if (permisosTipo != null) {
           for (int i = 0; i < _paginas.length; i++) {
             final nombrePagina = _paginas[i];
-            String? clavePagina;
-            for (final pk in permisosTipo.keys) {
-              if (_normalizar(pk) == _normalizar(nombrePagina)) {
-                clavePagina = pk;
-                break;
-              }
-            }
-            if (clavePagina != null && permisosTipo[clavePagina] == true) {
+            // Buscar clave que coincida ignorando mayúsculas, tildes y espacios
+            final clave = permisosTipo.keys.firstWhere(
+              (k) => _normalizar(k) == _normalizar(nombrePagina),
+              orElse: () => '',
+            );
+            if (clave.isNotEmpty && permisosTipo[clave] == true) {
               permitidas.add(i);
             }
           }
