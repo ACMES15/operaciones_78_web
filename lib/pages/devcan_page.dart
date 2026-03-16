@@ -270,16 +270,30 @@ class _DevCanPageState extends State<DevCanPage> {
     List<int> filasFaltantes = [];
 
     // Validar filas
+    int filasValidas = 0;
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];
-      if (idxValidacion != -1 && row[idxValidacion].text.trim() != '✔️') {
+      final val = idxValidacion != -1 ? row[idxValidacion].text.trim() : '';
+      print('[DEBUG] Fila \\${i + 1} VALIDACION: "' + val + '"');
+      if (idxValidacion != -1 && val != '✔️') {
         filasIncompletas.add(i + 1);
+      } else {
+        filasValidas++;
       }
       if (idxBox != -1 &&
           (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
               row[idxBox].text.trim().toUpperCase() == 'X')) {
         filasFaltantes.add(i + 1);
       }
+    }
+    print('[DEBUG] Filas válidas: ' + filasValidas.toString());
+    print('[DEBUG] Filas incompletas: ' + filasIncompletas.toString());
+    if (filasIncompletas.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Filas incompletas: \\${filasIncompletas.join(', ')}')),
+      );
     }
 
     if (_rows.isEmpty) {
