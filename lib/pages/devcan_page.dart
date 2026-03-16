@@ -338,8 +338,11 @@ class _DevCanPageState extends State<DevCanPage> {
     }
 
     try {
+      print('[DEBUG] Intentando guardar en Firestore:');
+      print(entregasRecientes);
       await guardarDatosFirestoreYCache(
           'entregas', 'devcan', {'items': entregasRecientes});
+      print('[DEBUG] Guardado exitoso en Firestore.');
       setState(() {
         _ultimaFechaEntrega = DateTime.now();
       });
@@ -354,7 +357,10 @@ class _DevCanPageState extends State<DevCanPage> {
               EntregasDevCanPage(entregasRecientes: entregasRecientes),
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      print('[ERROR] Error al guardar en Firestore:');
+      print(e);
+      print(st);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('Error al guardar en entregas: \\${e.toString()}')),
@@ -561,9 +567,15 @@ class _DevCanPageState extends State<DevCanPage> {
                         try {
                           final datos =
                               await leerDatosConCache('entregas', 'devcan');
-                          final entregas = (datos != null &&
-                                  datos['items'] != null)
-                              ? List<Map<String, dynamic>>.from(datos['items'])
+                          final items =
+                              (datos != null && datos['items'] is List)
+                                  ? datos['items'] as List
+                                  : null;
+                          final entregas = (items != null)
+                              ? items
+                                  .map((e) =>
+                                      Map<String, dynamic>.from(e as Map))
+                                  .toList()
                               : <Map<String, dynamic>>[];
                           if (entregas.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
