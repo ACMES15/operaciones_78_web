@@ -345,26 +345,16 @@ class _HomePageState extends State<HomePage> {
     final esMovil = esCelular(context);
     List<int> paginasPermitidas = _paginasPermitidas;
     int selectedMenuIndex = _selectedIndex;
-    if (esMovil) {
-      paginasPermitidas = _paginasPermitidas
-          .where((i) => _paginasMovil.contains(_paginas[i]))
-          .toList();
-      if (paginasPermitidas.isEmpty) {
-        return Scaffold(
-          body: Center(
-            child: Text('No tienes permisos para ver ninguna página en móvil.'),
-          ),
-        );
-      }
-      if (selectedMenuIndex < 0 ||
-          selectedMenuIndex >= paginasPermitidas.length) {
-        selectedMenuIndex = 0;
-      }
-    } else {
-      if (selectedMenuIndex < 0 ||
-          selectedMenuIndex >= paginasPermitidas.length) {
-        selectedMenuIndex = 0;
-      }
+    if (paginasPermitidas.isEmpty) {
+      return Scaffold(
+        body: Center(
+          child: Text('No tienes permisos para ver ninguna página.'),
+        ),
+      );
+    }
+    if (selectedMenuIndex < 0 ||
+        selectedMenuIndex >= paginasPermitidas.length) {
+      selectedMenuIndex = 0;
     }
 
     final pagina = _paginas[paginasPermitidas[selectedMenuIndex]];

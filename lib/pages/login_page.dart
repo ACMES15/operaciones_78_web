@@ -190,17 +190,19 @@ class _LoginPageState extends State<LoginPage> {
                         return;
                       }
                       // Crear notificación en la colección 'notificaciones'
-                      await FirebaseFirestore.instance
+                      final notifRef = await FirebaseFirestore.instance
                           .collection('notificaciones')
                           .add({
                         'tipo': 'reset_password',
                         'mensaje':
                             'El usuario \'${_usuarioController.text.trim()}\' solicita reseteo de contraseña.',
                         'fecha': DateTime.now(),
-                        'leido': false,
+                        'leida': false,
                         'para': 'ADMIN',
                         'usuario': _usuarioController.text.trim(),
                       });
+                      // Guardar el ID del documento para poder marcar como leída
+                      await notifRef.update({'id': notifRef.id});
                       String listaAdmins =
                           query.docs.map((e) => e.id).join(', ');
                       ScaffoldMessenger.of(context).showSnackBar(
