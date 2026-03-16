@@ -108,9 +108,17 @@ class _HistorialEntregasDevCanPageState
     final excel = Excel.createExcel();
     final sheet = excel['Historial'];
     if (_resultados.isNotEmpty) {
-      sheet.appendRow(_resultados.first.keys.toList());
+      // Obtener todas las claves únicas de todos los registros
+      final allKeys = <String>{};
       for (final row in _resultados) {
-        sheet.appendRow(row.values.toList());
+        allKeys.addAll(row.keys);
+      }
+      final orderedKeys = allKeys.toList();
+      sheet.appendRow(orderedKeys);
+      for (final row in _resultados) {
+        // Alinear los valores según el orden de las claves
+        final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
+        sheet.appendRow(rowValues);
       }
     }
     final bytes = excel.encode();
@@ -174,7 +182,7 @@ class _HistorialEntregasDevCanPageState
             const SizedBox(height: 16),
             Expanded(
               child: _resultados.isEmpty
-                  ? const Center(child: Text('No hay entregas firmadas'))
+                  ? const Center(child: Text('Actualiza para ver las entregas'))
                   : ListView.separated(
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemCount: _resultados.length,
@@ -275,9 +283,10 @@ class _HistorialEntregasDevCanPageState
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                            entrega['nombreRecibe']
-                                                    ?.toString() ??
-                                                '-',
+                                            (entrega['nombreRecibe']
+                                                        ?.toString() ??
+                                                    '-')
+                                                .toUpperCase(),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 16),

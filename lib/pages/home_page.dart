@@ -84,7 +84,7 @@ class _HomePageState extends State<HomePage> {
     'Carta Porte': real_carta_porte.CartaPorteTable(), // Widget real con alias
     'Historial Carta Porte': HistorialCartaPortePage(),
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
-    'DevCan': DevCanPage(),
+    'DevCan': DevCanPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Recogidos': RecogidosPage(),

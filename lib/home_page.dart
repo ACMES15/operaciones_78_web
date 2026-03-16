@@ -77,7 +77,7 @@ class _HomePageState extends State<HomePage> {
         CartaPorteTable(),
         HistorialCartaPortePage(),
         PlantillaEjecutivaPage(),
-        DevCanPage(),
+        DevCanPage(usuario: widget.usuario),
         HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
         RecogidosPage(),
         HistorialEntregasRecogidosPage(

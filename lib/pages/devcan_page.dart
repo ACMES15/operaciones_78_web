@@ -9,7 +9,8 @@ import '../utils/firebase_cache_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DevCanPage extends StatefulWidget {
-  const DevCanPage({Key? key}) : super(key: key);
+  final String usuario;
+  const DevCanPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<DevCanPage> createState() => _DevCanPageState();
@@ -22,6 +23,8 @@ class _DevCanPageState extends State<DevCanPage> {
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
       }
+      // Agregar usuarioValido automáticamente
+      map['usuarioValido'] = widget.usuario;
       return map;
     }).toList();
 
@@ -476,7 +479,8 @@ class _DevCanPageState extends State<DevCanPage> {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => const EntregasDevCanPage(),
+                            builder: (context) =>
+                                EntregasDevCanPage(usuario: widget.usuario),
                           ),
                         );
                       },

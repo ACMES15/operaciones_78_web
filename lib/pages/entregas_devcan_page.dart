@@ -5,7 +5,8 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 
 class EntregasDevCanPage extends StatefulWidget {
-  const EntregasDevCanPage({Key? key}) : super(key: key);
+  final String usuario;
+  const EntregasDevCanPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<EntregasDevCanPage> createState() => _EntregasDevCanPageState();
@@ -134,6 +135,17 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                   decoration: const InputDecoration(
                       labelText: 'Nombre de quien recibe',
                       border: OutlineInputBorder()),
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (value) {
+                    final upper = value.toUpperCase();
+                    if (value != upper) {
+                      nombreController.value = nombreController.value.copyWith(
+                        text: upper,
+                        selection:
+                            TextSelection.collapsed(offset: upper.length),
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
                 const Text('Firma:',
@@ -175,7 +187,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                 return;
               }
               Navigator.of(ctx).pop({
-                'nombre': nombreController.text.trim(),
+                'nombre': nombreController.text.trim().toUpperCase(),
                 'firma': base64Encode(firmaBytes),
               });
             },
@@ -197,6 +209,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
               'nombreRecibe': resultado['nombre'],
               'firma': resultado['firma'],
               'fechaFirma': DateTime.now().toIso8601String(),
+              'usuarioEntrega': widget.usuario,
             })
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
