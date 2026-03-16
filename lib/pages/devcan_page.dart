@@ -269,16 +269,13 @@ class _DevCanPageState extends State<DevCanPage> {
     List<int> filasIncompletas = [];
     List<int> filasFaltantes = [];
 
-    // Validar filas
-    int filasValidas = 0;
+    // Validar filas (solo advertir, no bloquear)
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       final val = idxValidacion != -1 ? row[idxValidacion].text.trim() : '';
       print('[DEBUG] Fila \\${i + 1} VALIDACION: "' + val + '"');
       if (idxValidacion != -1 && val != '✔️') {
         filasIncompletas.add(i + 1);
-      } else {
-        filasValidas++;
       }
       if (idxBox != -1 &&
           (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
@@ -286,15 +283,7 @@ class _DevCanPageState extends State<DevCanPage> {
         filasFaltantes.add(i + 1);
       }
     }
-    print('[DEBUG] Filas válidas: ' + filasValidas.toString());
     print('[DEBUG] Filas incompletas: ' + filasIncompletas.toString());
-    if (filasIncompletas.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('Filas incompletas: \\${filasIncompletas.join(', ')}')),
-      );
-    }
 
     if (_rows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -304,23 +293,29 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
-    // Si hay filas incompletas, advertir y salir
+    // Si hay filas incompletas, advertir pero permitir continuar
     if (filasIncompletas.isNotEmpty) {
-      await showDialog(
+      final continuar = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia'),
           content: Text(
-              'Hay filas sin validar (VALIDACION en blanco o sin paloma):\nFilas: ${filasIncompletas.join(', ')}'),
+              'Hay filas sin validar (VALIDACION sin paloma):\nFilas: \\${filasIncompletas.join(', ')}\n¿Deseas continuar y guardar de todos modos?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cerrar'),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Guardar de todos modos'),
             ),
           ],
         ),
       );
-      return;
+      if (continuar != true) {
+        return;
+      }
     }
 
     // Si hay faltantes, notificar antes de guardar
@@ -330,7 +325,7 @@ class _DevCanPageState extends State<DevCanPage> {
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia de faltantes'),
           content: Text(
-              'Hay filas marcadas como FALTANTE en BOX:\nFilas: ${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL o ADMIN ENVIOS.'),
+              'Hay filas marcadas como FALTANTE en BOX:\nFilas: \\${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL o ADMIN ENVIOS.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
