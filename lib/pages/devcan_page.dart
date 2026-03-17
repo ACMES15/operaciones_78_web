@@ -143,22 +143,23 @@ class _DevCanPageState extends State<DevCanPage> {
   ];
   final List<List<TextEditingController>> _rows = [];
 
-  // Datos de plantilla ejecutiva (simulación, se debe cargar igual que en plantilla ejecutiva)
-  List<List<String>> plantillaEjecutivaDatos = [];
-
-  // Cargar datos de plantilla ejecutiva desde localStorage
-  void _cargarPlantillaEjecutiva() {
-    final encoded = html.window.localStorage['plantilla_ejecutiva_datos'];
-    if (encoded != null && encoded.isNotEmpty) {
-      final filas = encoded
-          .split('\n')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      setState(() {
-        plantillaEjecutivaDatos = filas.map((f) => f.split('|')).toList();
-      });
+  // Buscar JEFATURA en Firestore dado un valor de SECCION
+  Future<String> _buscarJefaturaFirestore(String seccion) async {
+    if (seccion.isEmpty) return '';
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('plantilla_ejecutiva')
+          .where('SECCION', isEqualTo: seccion)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        final data = query.docs.first.data();
+        return data['JEFATURA']?.toString() ?? '';
+      }
+    } catch (e) {
+      print('Error buscando JEFATURA en Firestore: $e');
     }
+    return '';
   }
 
   void _addRow() {
@@ -170,7 +171,7 @@ class _DevCanPageState extends State<DevCanPage> {
   @override
   void initState() {
     super.initState();
-    _cargarPlantillaEjecutiva();
+    // Ya no se usa plantillaEjecutivaDatos, ahora todo es Firestore
     _cargarUltimaEntregaGuardada();
 
     // Advertencia al cerrar/navegar en web solo si hay datos sin enviar
@@ -292,22 +293,18 @@ class _DevCanPageState extends State<DevCanPage> {
               }
               return ctrl;
             });
-            // Si hay valor en SECCION, buscar y asignar JEFATURA automáticamente
+            // Si hay valor en SECCION, buscar y asignar JEFATURA automáticamente desde Firestore
             final idxSeccion = _headers.indexOf('SECCION');
             final idxJefatura = _headers.indexOf('JEFATURA');
             if (idxSeccion != -1 && idxJefatura != -1) {
               final seccion = ctrls[idxSeccion].text.trim();
               if (seccion.isNotEmpty) {
-                String jefatura = '';
-                for (final filaEjecutiva in plantillaEjecutivaDatos) {
-                  final idxSec =
-                      filaEjecutiva.indexWhere((e) => e.trim() == seccion);
-                  if (idxSec != -1 && filaEjecutiva.length > idxSec + 1) {
-                    jefatura = filaEjecutiva[idxSec + 1];
-                    break;
+                ctrls[idxJefatura].text = '';
+                _buscarJefaturaFirestore(seccion).then((jefatura) {
+                  if (jefatura.isNotEmpty) {
+                    ctrls[idxJefatura].text = jefatura;
                   }
-                }
-                ctrls[idxJefatura].text = jefatura;
+                });
               }
             }
             _rows.add(ctrls);
@@ -616,25 +613,18 @@ class _DevCanPageState extends State<DevCanPage> {
                                           ),
                                           style: const TextStyle(fontSize: 14),
                                           onChanged: (value) {
-                                            String jefatura = '';
-                                            for (final fila
-                                                in plantillaEjecutivaDatos) {
-                                              final idxSeccion =
-                                                  fila.indexWhere((e) =>
-                                                      e.trim() == value.trim());
-                                              if (idxSeccion != -1) {
-                                                if (fila.length >
-                                                    idxSeccion + 1) {
-                                                  jefatura =
-                                                      fila[idxSeccion + 1];
-                                                }
-                                                break;
-                                              }
-                                            }
-                                            setState(() {
-                                              _rows[rowIdx][_headers
-                                                      .indexOf('JEFATURA')]
-                                                  .text = jefatura;
+                                            // Buscar JEFATURA en Firestore al editar SECCION
+                                            _rows[rowIdx][_headers
+                                                    .indexOf('JEFATURA')]
+                                                .text = '';
+                                            _buscarJefaturaFirestore(
+                                                    value.trim())
+                                                .then((jefatura) {
+                                              setState(() {
+                                                _rows[rowIdx][_headers
+                                                        .indexOf('JEFATURA')]
+                                                    .text = jefatura;
+                                              });
                                             });
                                           },
                                         ),
