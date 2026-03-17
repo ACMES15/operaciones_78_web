@@ -382,7 +382,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
                         border: OutlineInputBorder(),
                       ),
                       onSubmitted: (value) {
-                        // Aquí puedes agregar lógica de escaneo si lo deseas
+                        _buscarYMarcarLP(value.trim());
                       },
                     ),
                   ),
