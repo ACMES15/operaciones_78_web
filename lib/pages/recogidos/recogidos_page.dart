@@ -126,24 +126,11 @@ class _RecogidosPageState extends State<RecogidosPage> {
             idxJefatura != -1 ? row[idxJefatura].text.trim() : '';
         // Buscar en plantilla ejecutiva por coincidencia de SECCION (ignorando formato)
         if (seccion.isNotEmpty && plantillaEjecutivaDatos.isNotEmpty) {
-          // Buscar el índice de la columna SECCION y NOMBRE por nombre
-          final header = plantillaEjecutivaDatos[0];
-          final idxSeccionPlantilla =
-              header.indexWhere((h) => h.trim().toUpperCase() == 'SECCION');
-          final idxNombrePlantilla =
-              header.indexWhere((h) => h.trim().toUpperCase() == 'NOMBRE');
-          if (idxSeccionPlantilla != -1 && idxNombrePlantilla != -1) {
-            final normalizar =
-                (String s) => s.replaceAll(RegExp(r'\s+'), '').toLowerCase();
-            final seccionNorm = normalizar(seccion);
-            final match = plantillaEjecutivaDatos.skip(1).firstWhere(
-                  (fila) =>
-                      fila.length > idxSeccionPlantilla &&
-                      normalizar(fila[idxSeccionPlantilla]) == seccionNorm,
-                  orElse: () => [],
-                );
-            if (match.isNotEmpty && match.length > idxNombrePlantilla) {
-              jefaturaNombre = match[idxNombrePlantilla].trim();
+          for (final filaEjecutiva in plantillaEjecutivaDatos) {
+            final idxSec = filaEjecutiva.indexWhere((e) => e.trim() == seccion);
+            if (idxSec != -1 && filaEjecutiva.length > idxSec + 1) {
+              jefaturaNombre = filaEjecutiva[idxSec + 1];
+              break;
             }
           }
         }
@@ -221,24 +208,12 @@ class _RecogidosPageState extends State<RecogidosPage> {
             if (idxSeccion != -1 && idxJefatura != -1) {
               final seccion = ctrls[idxSeccion].text.trim();
               if (seccion.isNotEmpty && plantillaEjecutivaDatos.isNotEmpty) {
-                final header = plantillaEjecutivaDatos[0];
-                final idxSeccionPlantilla = header
-                    .indexWhere((h) => h.trim().toUpperCase() == 'SECCION');
-                final idxNombrePlantilla = header
-                    .indexWhere((h) => h.trim().toUpperCase() == 'NOMBRE');
-                if (idxSeccionPlantilla != -1 && idxNombrePlantilla != -1) {
-                  final normalizar = (String s) =>
-                      s.replaceAll(RegExp(r'\s+'), '').toLowerCase();
-                  final seccionNorm = normalizar(seccion);
-                  final match = plantillaEjecutivaDatos.skip(1).firstWhere(
-                        (fila) =>
-                            fila.length > idxSeccionPlantilla &&
-                            normalizar(fila[idxSeccionPlantilla]) ==
-                                seccionNorm,
-                        orElse: () => [],
-                      );
-                  if (match.isNotEmpty && match.length > idxNombrePlantilla) {
-                    ctrls[idxJefatura].text = match[idxNombrePlantilla].trim();
+                for (final filaEjecutiva in plantillaEjecutivaDatos) {
+                  final idxSec =
+                      filaEjecutiva.indexWhere((e) => e.trim() == seccion);
+                  if (idxSec != -1 && filaEjecutiva.length > idxSec + 1) {
+                    ctrls[idxJefatura].text = filaEjecutiva[idxSec + 1];
+                    break;
                   }
                 }
               }
