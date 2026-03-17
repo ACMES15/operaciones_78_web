@@ -497,23 +497,9 @@ class _RecogidosPageState extends State<RecogidosPage> {
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: () async {
-                      await _cargarUltimaEntregaGuardada();
-                      final actual = _generarEntregaActual();
-                      if (_esMismaEntrega(_ultimaEntregaGuardada, actual)) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'La información que quieres enviar ya fue enviada.'),
-                            backgroundColor: Colors.orange,
-                          ),
-                        );
-                        return;
-                      }
-                      await _cargarUltimaEntregaGuardada();
-                    },
-                    icon: const Icon(Icons.send),
-                    label: const Text('Enviar a Recogidos'),
+                    onPressed: _guardarEntregasYNotificar,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color(0xFF2D6A4F),
                       foregroundColor: Colors.white,

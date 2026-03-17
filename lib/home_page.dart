@@ -265,74 +265,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const Spacer(),
-                      // CAMPANA DE NOTIFICACIONES
-                      Stack(
-                        alignment: Alignment.topRight,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notifications,
-                                color: Colors.white, size: 28),
-                            tooltip: 'Notificaciones',
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: const Text('Notificaciones'),
-                                    content: SizedBox(
-                                      width: 350,
-                                      child: _notificaciones.isEmpty
-                                          ? const Text('No hay notificaciones')
-                                          : ListView.separated(
-                                              shrinkWrap: true,
-                                              itemCount: _notificaciones.length,
-                                              separatorBuilder: (_, __) =>
-                                                  const Divider(),
-                                              itemBuilder: (context, idx) =>
-                                                  ListTile(
-                                                leading: const Icon(
-                                                    Icons.notifications_active,
-                                                    color: Colors.teal),
-                                                title:
-                                                    Text(_notificaciones[idx]),
-                                              ),
-                                            ),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
-                                        child: const Text('Cerrar'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                          if (_notificacionesNoLeidas > 0)
-                            Positioned(
-                              right: 6,
-                              top: 6,
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Text(
-                                  _notificacionesNoLeidas.toString(),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(width: 16),
+                      // Usuario, tipo y fecha/hora donde estaba la campana
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
@@ -409,6 +342,74 @@ class _HomePageState extends State<HomePage> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Campana de notificaciones junto a cierre de sesión
+                      Stack(
+                        alignment: Alignment.topRight,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications,
+                                color: Colors.white, size: 28),
+                            tooltip: 'Notificaciones',
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: const Text('Notificaciones'),
+                                    content: SizedBox(
+                                      width: 350,
+                                      child: _notificaciones.isEmpty
+                                          ? const Text('No hay notificaciones')
+                                          : ListView.separated(
+                                              shrinkWrap: true,
+                                              itemCount: _notificaciones.length,
+                                              separatorBuilder: (_, __) =>
+                                                  const Divider(),
+                                              itemBuilder: (context, idx) =>
+                                                  ListTile(
+                                                leading: const Icon(
+                                                    Icons.notifications_active,
+                                                    color: Colors.teal),
+                                                title:
+                                                    Text(_notificaciones[idx]),
+                                              ),
+                                            ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: const Text('Cerrar'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          if (_notificacionesNoLeidas > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text(
+                                  _notificacionesNoLeidas.toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(width: 16),
                       ElevatedButton.icon(
