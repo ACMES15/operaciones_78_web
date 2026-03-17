@@ -260,7 +260,7 @@ class _DevCanPageState extends State<DevCanPage> {
       if (files == null || files.isEmpty) return;
       final reader = html.FileReader();
       reader.readAsArrayBuffer(files[0]);
-      reader.onLoadEnd.listen((event) {
+      reader.onLoadEnd.listen((event) async {
         final result = reader.result;
         // reader.result can be ByteBuffer or Uint8List depending on browser
         final Uint8List bytes =
@@ -282,47 +282,45 @@ class _DevCanPageState extends State<DevCanPage> {
           }
           break; // Solo la primera hoja
         }
+        // Limpiar filas previas y liberar memoria
+        for (var row in _rows) {
+          for (var ctrl in row) {
+            ctrl.dispose();
+          }
+        }
+        List<List<TextEditingController>> nuevasFilas = [];
+        for (final fila in datos) {
+          final List<TextEditingController> ctrls =
+              List.generate(_headers.length, (i) {
+            final ctrl = TextEditingController();
+            // Si es la columna LP, rellenar a 10 dígitos
+            if (_headers[i] == 'LP' && i < fila.length) {
+              final lp = fila[i].padLeft(10, '0');
+              ctrl.text = lp;
+            } else {
+              ctrl.text = i < fila.length ? fila[i] : '';
+            }
+            return ctrl;
+          });
+          // Si hay valor en SECCION, buscar y asignar JEFATURA automáticamente desde Firestore
+          final idxSeccion = _headers.indexOf('SECCION');
+          final idxJefatura = _headers.indexOf('JEFATURA');
+          if (idxSeccion != -1 && idxJefatura != -1) {
+            final seccion = ctrls[idxSeccion].text.trim();
+            if (seccion.isNotEmpty) {
+              final jefatura = await _buscarJefaturaFirestore(seccion);
+              ctrls[idxJefatura].text = jefatura;
+            }
+          }
+          nuevasFilas.add(ctrls);
+        }
+        if (nuevasFilas.isEmpty) {
+          nuevasFilas.add(
+              List.generate(_headers.length, (_) => TextEditingController()));
+        }
         setState(() {
-          // Limpiar filas previas y liberar memoria
-          for (var row in _rows) {
-            for (var ctrl in row) {
-              ctrl.dispose();
-            }
-          }
           _rows.clear();
-          for (final fila in datos) {
-            final List<TextEditingController> ctrls =
-                List.generate(_headers.length, (i) {
-              final ctrl = TextEditingController();
-              // Si es la columna LP, rellenar a 10 dígitos
-              if (_headers[i] == 'LP' && i < fila.length) {
-                final lp = fila[i].padLeft(10, '0');
-                ctrl.text = lp;
-              } else {
-                ctrl.text = i < fila.length ? fila[i] : '';
-              }
-              return ctrl;
-            });
-            // Si hay valor en SECCION, buscar y asignar JEFATURA automáticamente desde Firestore
-            final idxSeccion = _headers.indexOf('SECCION');
-            final idxJefatura = _headers.indexOf('JEFATURA');
-            if (idxSeccion != -1 && idxJefatura != -1) {
-              final seccion = ctrls[idxSeccion].text.trim();
-              if (seccion.isNotEmpty) {
-                ctrls[idxJefatura].text = '';
-                _buscarJefaturaFirestore(seccion).then((jefatura) {
-                  if (jefatura.isNotEmpty) {
-                    ctrls[idxJefatura].text = jefatura;
-                  }
-                });
-              }
-            }
-            _rows.add(ctrls);
-          }
-          if (_rows.isEmpty) {
-            _rows.add(
-                List.generate(_headers.length, (_) => TextEditingController()));
-          }
+          _rows.addAll(nuevasFilas);
         });
         print('Filas importadas: \\n' + _rows.length.toString());
         showDialog(
