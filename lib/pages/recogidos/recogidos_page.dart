@@ -459,8 +459,8 @@ class _RecogidosPageState extends State<RecogidosPage> {
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => EntregasRecogidosPage(
-                                entregasRecientes: _generarEntregaActual()),
+                            builder: (context) =>
+                                EntregasRecogidosPage(usuario: widget.usuario),
                           ),
                         );
                       },
