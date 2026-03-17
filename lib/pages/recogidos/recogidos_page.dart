@@ -510,61 +510,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
                             }),
                           ),
                         ),
-                        // Campo de escaneo y datos
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            SizedBox(
-                              width: 260,
-                              child: TextField(
-                                controller: _scanController,
-                                focusNode: _scanFocus,
-                                autofocus: true,
-                                decoration: const InputDecoration(
-                                  labelText: 'Escanear código LP',
-                                  border: OutlineInputBorder(),
-                                ),
-                                onSubmitted: (value) {
-                                  _buscarYMarcarLP(value.trim());
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Text('SECCION:',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 22)),
-                                    const SizedBox(width: 6),
-                                    Text(_scanSeccion,
-                                        style: const TextStyle(
-                                            color: Colors.blue,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 22)),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    const Text('JEFATURA:',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 22)),
-                                    const SizedBox(width: 6),
-                                    Text(_scanDepartamento,
-                                        style: const TextStyle(
-                                            color: Colors.green,
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 22)),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        const SizedBox(height: 8),
                         const SizedBox(height: 16),
                         // Tabla editable
                         Expanded(
