@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'entregas_recogidos_page.dart';
 import 'dart:typed_data';
-import 'dart:convert';
 import 'package:excel/excel.dart' as ex;
 import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:js' as js;
 import '../../utils/firebase_cache_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Definición única en el nivel superior
 class RecogidosPage extends StatefulWidget {
   final String usuario;
   const RecogidosPage({Key? key, required this.usuario}) : super(key: key);
@@ -33,7 +31,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
     'BOX',
     'VALIDACION',
   ];
-  List<List<TextEditingController>> _rows = [];
+  final List<List<TextEditingController>> _rows = [];
 
   Future<void> _buscarJefaturaFirestore(
       String seccion, Function(String) onResult) async {
@@ -57,10 +55,38 @@ class _RecogidosPageState extends State<RecogidosPage> {
     onResult('');
   }
 
-  void _addRow() {
-    setState(() {
-      _rows.add(List.generate(_headers.length, (_) => TextEditingController()));
-    });
+  List<Map<String, dynamic>> _generarEntregaActual() {
+    return _rows.map((row) {
+      Map<String, dynamic> map = {};
+      for (int i = 0; i < _headers.length; i++) {
+        map[_headers[i]] = row[i].text;
+      }
+      return map;
+    }).toList();
+  }
+
+  bool _esMismaEntrega(
+      List<Map<String, dynamic>> a, List<Map<String, dynamic>> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i].toString() != b[i].toString()) return false;
+    }
+    return true;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (kIsWeb && !_listenerAgregado) {
+      html.window.onBeforeUnload.listen((event) {
+        if (!_esMismaEntrega(_ultimaEntregaGuardada, _generarEntregaActual())) {
+          js.context.callMethod('eval', [
+            "window.event.returnValue = 'Advertencia: Si sales sin guardar los datos de Recogidos se perderán.';"
+          ]);
+        }
+      });
+      _listenerAgregado = true;
+    }
   }
 
   @override
@@ -73,6 +99,12 @@ class _RecogidosPageState extends State<RecogidosPage> {
       }
     }
     super.dispose();
+  }
+
+  void _addRow() {
+    setState(() {
+      _rows.add(List.generate(_headers.length, (_) => TextEditingController()));
+    });
   }
 
   void _importFromExcel() {
@@ -105,14 +137,8 @@ class _RecogidosPageState extends State<RecogidosPage> {
           }
           break;
         }
-        for (var row in _rows) {
-          for (var ctrl in row) {
-            ctrl.dispose();
-          }
-        }
-        setState(() {
-          _rows.clear();
-        });
+        // Procesar filas de forma asíncrona y luego hacer un solo setState
+        List<List<TextEditingController>> nuevasFilas = [];
         for (final fila in datos) {
           final List<TextEditingController> ctrls =
               List.generate(_headers.length, (i) {
@@ -135,16 +161,22 @@ class _RecogidosPageState extends State<RecogidosPage> {
               });
             }
           }
-          setState(() {
-            _rows.add(ctrls);
-          });
+          nuevasFilas.add(ctrls);
         }
-        if (_rows.isEmpty) {
-          setState(() {
-            _rows.add(
-                List.generate(_headers.length, (_) => TextEditingController()));
-          });
+        if (nuevasFilas.isEmpty) {
+          nuevasFilas.add(
+              List.generate(_headers.length, (_) => TextEditingController()));
         }
+        // Liberar memoria de filas previas y actualizar de una vez
+        setState(() {
+          for (var row in _rows) {
+            for (var ctrl in row) {
+              ctrl.dispose();
+            }
+          }
+          _rows.clear();
+          _rows.addAll(nuevasFilas);
+        });
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -171,140 +203,395 @@ class _RecogidosPageState extends State<RecogidosPage> {
     });
   }
 
-  // ...existing code para guardar, validar, notificar...
+  Future<void> _guardarRecogidosYNotificar() async {
+    final items = _rows.map((row) {
+      Map<String, dynamic> map = {};
+      for (int i = 0; i < _headers.length; i++) {
+        map[_headers[i]] = row[i].text;
+      }
+      map['usuarioValido'] = widget.usuario;
+      return map;
+    }).toList();
+
+    // Buscar filas con FALTANTE en BOX
+    final idxBox = _headers.indexOf('BOX');
+    final filasFaltantes = <Map<String, dynamic>>[];
+    for (final row in _rows) {
+      if (idxBox != -1 &&
+          (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
+              row[idxBox].text.trim().toUpperCase() == 'X')) {
+        Map<String, dynamic> map = {};
+        for (int i = 0; i < _headers.length; i++) {
+          map[_headers[i]] = row[i].text;
+        }
+        filasFaltantes.add(map);
+      }
+    }
+
+    // Guardar recogidos
+    try {
+      await guardarDatosFirestoreYCache(
+          'entregas', 'recogidos', {'items': items});
+      setState(() {
+        _ultimaFechaEntrega = DateTime.now();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Información guardada en recogidos.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error guardando en Firestore: $e'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // Notificación de faltantes: crear documento individual para cada fila faltante y para ambos usuarios
+    if (filasFaltantes.isNotEmpty) {
+      try {
+        final firestore = FirebaseFirestore.instance;
+        for (final map in filasFaltantes) {
+          for (final destino in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            final notifRef = await firestore.collection('notificaciones').add({
+              'mensaje': 'FALTANTE Recogidos',
+              'fecha': DateTime.now(),
+              'leida': false,
+              'para': destino,
+              'detalle': map,
+            });
+            await notifRef.update({'id': notifRef.id});
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Notificación de faltantes enviada a la campana para ambos usuarios.')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error notificando faltantes: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Recogidos')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _addRow,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar fila'),
+    return WillPopScope(
+      onWillPop: () async {
+        if (!_esMismaEntrega(_ultimaEntregaGuardada, _generarEntregaActual())) {
+          final salir = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Advertencia'),
+              content: const Text(
+                  'Si sales sin guardar los datos de Recogidos se perderán. ¿Seguro que quieres salir?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancelar'),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _importFromExcel,
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Importar desde Excel'),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  child: const Text('Salir'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: _headers.length * 140,
-                  child: Column(
-                    children: [
-                      Container(
-                        color: Colors.grey[200],
-                        child: Row(
-                          children: List.generate(_headers.length, (i) {
-                            return Container(
-                              width: 140,
-                              padding: const EdgeInsets.all(8),
-                              child: Text(
-                                _headers[i],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            );
-                          }),
-                        ),
+          );
+          return salir == true;
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF4F9F6),
+        body: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: const [
+                  Icon(Icons.assignment_return,
+                      color: Color(0xFF2D6A4F), size: 32),
+                  SizedBox(width: 10),
+                  Text(
+                    'Recogidos',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 26,
+                      color: Color(0xFF2D6A4F),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  SizedBox(
+                    width: 260,
+                    child: TextField(
+                      controller: _scanController,
+                      focusNode: _scanFocus,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Escanear código LP',
+                        border: OutlineInputBorder(),
                       ),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _rows.length,
-                          itemBuilder: (context, rowIdx) {
-                            return Row(
-                              children:
-                                  List.generate(_headers.length, (colIdx) {
-                                final isJefatura =
-                                    _headers[colIdx] == 'JEFATURA';
-                                final isSeccion = _headers[colIdx] == 'SECCION';
-                                if (isJefatura) {
-                                  return Container(
-                                    width: 140,
-                                    padding: const EdgeInsets.all(4),
-                                    child: TextField(
-                                      controller: _rows[rowIdx][colIdx],
-                                      readOnly: true,
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 4),
-                                      ),
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.green,
-                                          fontWeight: FontWeight.w600),
-                                    ),
-                                  );
-                                } else if (isSeccion) {
-                                  return Container(
-                                    width: 140,
-                                    padding: const EdgeInsets.all(4),
-                                    child: TextField(
-                                      controller: _rows[rowIdx][colIdx],
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 4),
-                                      ),
-                                      style: const TextStyle(fontSize: 14),
-                                      onChanged: (value) async {
-                                        await _buscarJefaturaFirestore(
-                                            value.trim(), (jefatura) {
-                                          setState(() {
-                                            _rows[rowIdx][_headers
-                                                    .indexOf('JEFATURA')]
-                                                .text = jefatura;
-                                          });
-                                        });
-                                      },
-                                    ),
-                                  );
-                                } else {
-                                  return Container(
-                                    width: 140,
-                                    padding: const EdgeInsets.all(4),
-                                    child: TextField(
-                                      controller: _rows[rowIdx][colIdx],
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 4),
-                                      ),
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  );
-                                }
-                              }),
-                            );
-                          },
-                        ),
+                      onSubmitted: (value) {
+                        // Aquí puedes agregar lógica de escaneo si lo deseas
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('SECCION:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 22)),
+                          const SizedBox(width: 6),
+                          Text(_scanSeccion,
+                              style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 22)),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          const Text('JEFATURA:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 22)),
+                          const SizedBox(width: 6),
+                          Text(_scanDepartamento,
+                              style: const TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 22)),
+                        ],
                       ),
                     ],
                   ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _addRow,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar fila'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 224, 230, 227),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _importFromExcel,
+                    icon: const Icon(Icons.file_upload),
+                    label: const Text('Importar desde Excel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 216, 222, 220),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _guardarRecogidosYNotificar,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Tooltip(
+                    message: _ultimaFechaEntrega != null
+                        ? 'Datos recientes\nÚltima subida: [38;5;2m${_ultimaFechaEntrega}'
+                        : 'No hay entregas recientes',
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => EntregasRecogidosPage(
+                                entregasRecientes: _generarEntregaActual()),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.assignment_turned_in),
+                      label: const Text('Ver Entregas Recogidos'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFFBDBDBD),
+                        foregroundColor: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: (_headers.length - 1) * 110 + 300,
+                    child: Column(
+                      children: [
+                        Container(
+                          color: const Color(0xFFE9ECEF),
+                          child: Row(
+                            children: List.generate(_headers.length, (i) {
+                              final isJefatura = _headers[i] == 'JEFATURA';
+                              return Container(
+                                width: isJefatura ? 300 : 110,
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  border: const Border(
+                                    right: BorderSide(
+                                      color: Color(0xFFBDBDBD),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                child: Text(
+                                  _headers[i],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                              itemCount: _rows.length,
+                              itemBuilder: (context, rowIdx) {
+                                return Row(
+                                  children:
+                                      List.generate(_headers.length, (colIdx) {
+                                    final isJefatura =
+                                        _headers[colIdx] == 'JEFATURA';
+                                    final isSeccion =
+                                        _headers[colIdx] == 'SECCION';
+                                    final cellWidth =
+                                        isJefatura ? 300.0 : 110.0;
+                                    if (isJefatura) {
+                                      return Container(
+                                        width: cellWidth,
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          border: const Border(
+                                            right: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                            bottom: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          child: Text(
+                                            _rows[rowIdx][colIdx].text,
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF2D6A4F)),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      );
+                                    } else if (isSeccion) {
+                                      return Container(
+                                        width: cellWidth,
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          border: const Border(
+                                            right: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                            bottom: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _rows[rowIdx][colIdx],
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 4),
+                                          ),
+                                          style: const TextStyle(fontSize: 14),
+                                          onChanged: (value) async {
+                                            await _buscarJefaturaFirestore(
+                                                value.trim(), (jefatura) {
+                                              setState(() {
+                                                _rows[rowIdx][_headers
+                                                        .indexOf('JEFATURA')]
+                                                    .text = jefatura;
+                                              });
+                                            });
+                                          },
+                                        ),
+                                      );
+                                    } else {
+                                      return Container(
+                                        width: cellWidth,
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          border: const Border(
+                                            right: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                            bottom: BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _rows[rowIdx][colIdx],
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 4),
+                                          ),
+                                          style: const TextStyle(fontSize: 14),
+                                        ),
+                                      );
+                                    }
+                                  }),
+                                );
+                              }),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
