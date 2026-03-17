@@ -103415,7 +103415,7 @@ r=A.r(p,!0,r)
 B.l.N(r,n)
 this.w=r},
 L(a){var s,r,q,p,o,n,m=this,l=null,k=m.a,j=t.p
-k=A.b1(A.a([B.Wa,B.du,A.by(A.a([A.Y("Usuario: \x009"+k.c,l,l,l,B.rb,l,l),A.Y("Tipo: \x009"+k.d,l,l,l,B.rb,l,l),new A.Kx(l)],j),B.aB,B.I,B.N)],j),B.S,B.I,B.N,l)
+k=A.b1(A.a([B.Wa,B.du,A.by(A.a([A.Y("Usuario: "+k.c,l,l,l,B.rb,l,l),A.Y("Tipo: "+k.d,l,l,l,B.rb,l,l),new A.Kx(l)],j),B.aB,B.I,B.N)],j),B.S,B.I,B.N,l)
 k=A.ip(A.a([A.vC(new A.aE3(),m.gaiH(),t.b5),A.dt(l,B.Wd,l,l,new A.aE4(m),l,"Cerrar sesi\xf3n")],j),B.ad,l,0,l,l,l,k,l)
 s=m.r
 r=s?180:60

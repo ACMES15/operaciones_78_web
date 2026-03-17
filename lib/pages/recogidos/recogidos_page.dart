@@ -122,8 +122,19 @@ class _RecogidosPageState extends State<RecogidosPage> {
     for (final row in _rows) {
       if (idxLP != -1 && normalizarLP(row[idxLP].text.trim()) == codigoNorm) {
         final seccion = idxSeccion != -1 ? row[idxSeccion].text.trim() : '';
-        final jefaturaNombre =
+        String jefaturaNombre =
             idxJefatura != -1 ? row[idxJefatura].text.trim() : '';
+        // Buscar en plantillaEjecutivaDatos si es un código
+        if (jefaturaNombre.isNotEmpty && plantillaEjecutivaDatos.isNotEmpty) {
+          // Buscar por código en la plantilla ejecutiva (asumiendo que la columna 0 es código y la 1 es nombre)
+          final match = plantillaEjecutivaDatos.firstWhere(
+            (fila) => fila.isNotEmpty && fila[0].trim() == jefaturaNombre,
+            orElse: () => [],
+          );
+          if (match.isNotEmpty && match.length > 1) {
+            jefaturaNombre = match[1].trim();
+          }
+        }
         if (idxValidacion != -1) {
           row[idxValidacion].text = '✔️';
         }
