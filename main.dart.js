@@ -104415,7 +104415,7 @@ return null},
 $S:0}
 A.GJ.prototype={
 ac(){var s=A.a([],t.Y)
-return new A.LC(s,new A.aI(B.ao,$.a5()),A.iA(!0,null,!0,!0,null,null,!1),A.a(["LP","SECCION","JEFATURA","BOX","VALIDACION"],t.s),A.a([],t.sY))}}
+return new A.LC(s,new A.aI(B.ao,$.a5()),A.iA(!0,null,!0,!0,null,null,!1),A.a(["LP","RECOGIDO","SKU","DESCRIPCION","CANTIDAD","SECCION","JEFATURA","VALIDACION","BOX"],t.s),A.a([],t.sY))}}
 A.LC.prototype={
 vq(a,b){return this.a9M(a,b)},
 a9M(a,b){var s=0,r=A.w(t.H),q,p,o,n,m,l,k
@@ -104472,7 +104472,7 @@ for(e=a9.length,d=f!==-1,c=t.N,b=t.z,a=0;a<a9.length;a9.length===e||(0,A.E)(a9),
 if(d){a1=J.R(a0)
 a1=B.o.az(a1.h(a0,f).a.a).toUpperCase()==="FALTANTE"||B.o.az(a1.h(a0,f).a.a).toUpperCase()==="X"}else a1=!1
 if(a1){a2=A.z(c,b)
-for(a1=J.R(a0),a3=0;a3<5;++a3)a2.m(0,b0[a3],a1.h(a0,a3).a.a)
+for(a1=J.R(a0),a3=0;a3<9;++a3)a2.m(0,b0[a3],a1.h(a0,a3).a.a)
 J.dp(m,a2)}}p=4
 s=7
 return A.p(A.hE("entregas","recogidos",A.a6(["items",b1],c,b)),$async$rE)
@@ -104536,10 +104536,10 @@ case 2:return A.t(o,r)}})
 return A.v($async$rE,r)},
 L(a){var s=this,r=null,q=A.b1(B.akm,B.S,B.I,B.N,r),p=t.p,o=A.b1(A.a([A.d1(A.d2(!0,B.aF,!0,r,!0,B.P,r,A.d7(),s.r,r,r,r,r,r,2,B.vN,B.ab,!0,r,!0,r,!1,s.w,B.aD,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,new A.aGM(),r,!1,r,!1,r,!0,r,B.aJ,r,r,B.aA,B.ay,r,r,r,r,r,r,r,B.ac,r,B.aM,r,r,r,r),r,260),B.mB,A.bw(A.a([A.b1(A.a([B.MM,B.dU,A.Y("",r,r,r,B.Mw,r,r)],p),B.S,B.I,B.N,r),A.b1(A.a([B.MP,B.dU,A.Y("",r,r,r,B.Mo,r,r)],p),B.S,B.I,B.N,r)],p),B.az,B.I,B.N)],p),B.eF,B.I,B.N,r),n=A.dH(B.ec,B.hd,s.ga8S(),A.dS(r,r,B.tN,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r)),m=A.dH(B.vH,B.MH,s.gaho(),A.dS(r,r,A.aK(255,216,222,220),r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r)),l=A.dH(B.eM,B.eq,s.gadW(),A.dS(r,r,A.bt(4281166415),r,r,r,r,r,r,B.D,r,r,r,r,r,r,r,r,r)),k=s.f
 k=k!=null?"Datos recientes\n\xdaltima subida: \x1b[38;5;2m"+k.k(0):"No hay entregas recientes"
-return new A.r0(A.hb(r,B.jK,new A.aW(B.os,A.bw(A.a([q,B.c2,o,B.qV,A.b1(A.a([n,B.cb,m,B.cb,l,B.cb,A.WV(A.dH(B.vE,B.aTh,new A.aGN(s,a),A.dS(r,r,A.bt(4290624957),r,r,r,r,r,r,B.Q,r,r,r,r,r,r,r,r,r)),k)],p),B.S,B.I,B.N,r),B.c2,A.cN(A.hc(A.d1(A.bw(A.a([A.cm(r,A.b1(A.iI(5,new A.aGO(s),!0,t.l),B.S,B.I,B.N,r),B.V,B.tV,r,r,r,r,r,r,r,r,r),A.cN(A.l6(new A.aGP(s),s.Q.length,r,!1),1)],p),B.S,B.I,B.N),r,740),r,r,B.bA),1)],p),B.az,B.I,B.N),r)),new A.aGQ(s,a),r)}}
+return new A.r0(A.hb(r,B.jK,new A.aW(B.os,A.bw(A.a([q,B.c2,o,B.qV,A.b1(A.a([n,B.cb,m,B.cb,l,B.cb,A.WV(A.dH(B.vE,B.aTh,new A.aGN(s,a),A.dS(r,r,A.bt(4290624957),r,r,r,r,r,r,B.Q,r,r,r,r,r,r,r,r,r)),k)],p),B.S,B.I,B.N,r),B.c2,A.cN(A.hc(A.d1(A.bw(A.a([A.cm(r,A.b1(A.iI(9,new A.aGO(s),!0,t.l),B.S,B.I,B.N,r),B.V,B.tV,r,r,r,r,r,r,r,r,r),A.cN(A.l6(new A.aGP(s),s.Q.length,r,!1),1)],p),B.S,B.I,B.N),r,1180),r,r,B.bA),1)],p),B.az,B.I,B.N),r)),new A.aGQ(s,a),r)}}
 A.aGu.prototype={
 $1(a){var s,r,q,p=A.z(t.N,t.z)
-for(s=this.a.z,r=J.R(a),q=0;q<5;++q)p.m(0,s[q],r.h(a,q).a.a)
+for(s=this.a.z,r=J.R(a),q=0;q<9;++q)p.m(0,s[q],r.h(a,q).a.a)
 return p},
 $S:97}
 A.aGR.prototype={
@@ -104547,8 +104547,8 @@ $1(a){var s=this.a
 if(!s.Re(s.e,s.Hb()))$.aRQ().ts("eval",["window.event.returnValue = 'Advertencia: Si sales sin guardar los datos de Recogidos se perder\xe1n.';"])},
 $S:58}
 A.aGt.prototype={
-$0(){var s,r=J.dW(5,t.QX)
-for(s=0;s<5;++s)r[s]=new A.aI(B.ao,$.a5())
+$0(){var s,r=J.dW(9,t.QX)
+for(s=0;s<9;++s)r[s]=new A.aI(B.ao,$.a5())
 this.a.Q.push(r)},
 $S:0}
 A.aGD.prototype={
@@ -104579,8 +104579,8 @@ while(!0){o=k.d
 o===$&&A.b()
 if(!(j<o))break
 i=k.Mv(j)
-h=A.a(new Array(5),p)
-for(g=0;g<5;++g){if(g<i.length&&i[g]!=null){o=i[g]
+h=A.a(new Array(9),p)
+for(g=0;g<9;++g){if(g<i.length&&i[g]!=null){o=i[g]
 if(o==null)o=null
 else{o=o.b
 o===$&&A.b()
@@ -104588,7 +104588,7 @@ o=o==null?null:J.aa(o)}if(o==null)o=""}else o=""
 h[g]=o}a4.push(h);++j}break}f=A.a([],t.sY)
 p=a4.length,o=q.a,n=t.QX,m=o.z,e=0
 case 2:if(!(e<a4.length)){s=4
-break}d=A.iI(5,new A.aGy(o,a4[e]),!0,n)
+break}d=A.iI(9,new A.aGy(o,a4[e]),!0,n)
 c=B.l.cC(m,"SECCION")
 b=B.l.cC(m,"JEFATURA")
 s=c!==-1&&b!==-1?5:6
@@ -104602,8 +104602,8 @@ case 9:case 8:case 6:f.push(d)
 case 3:a4.length===p||(0,A.E)(a4),++e
 s=2
 break
-case 4:if(f.length===0){a0=J.dW(5,n)
-for(e=0;e<5;++e)a0[e]=new A.aI(B.ao,$.a5())
+case 4:if(f.length===0){a0=J.dW(9,n)
+for(e=0;e<9;++e)a0[e]=new A.aI(B.ao,$.a5())
 f.push(a0)}o.P(new A.aGA(o,f))
 p=o.c
 p.toString
@@ -104638,7 +104638,7 @@ $0(){return A.bI(this.a,!1).cZ()},
 $S:0}
 A.aGv.prototype={
 $1(a){var s,r,q,p,o=A.z(t.N,t.z)
-for(s=this.a,r=s.z,q=J.R(a),p=0;p<5;++p)o.m(0,r[p],q.h(a,p).a.a)
+for(s=this.a,r=s.z,q=J.R(a),p=0;p<9;++p)o.m(0,r[p],q.h(a,p).a.a)
 o.m(0,"usuarioValido",s.a.c)
 return o},
 $S:97}
@@ -104686,7 +104686,7 @@ $1(a){var s=null,r=this.a.z[a],q=r==="JEFATURA"?300:110
 return A.cm(s,A.Y(r,s,s,s,B.mJ,B.bN,s),B.V,s,s,new A.bY(s,s,B.t6,s,s,s,B.at),s,s,s,B.di,s,s,q)},
 $S:73}
 A.aGP.prototype={
-$2(a,b){return A.b1(A.iI(5,new A.aGK(this.a,b),!0,t.l),B.S,B.I,B.N,null)},
+$2(a,b){return A.b1(A.iI(9,new A.aGK(this.a,b),!0,t.l),B.S,B.I,B.N,null)},
 $S:239}
 A.aGK.prototype={
 $1(a){var s,r,q=null,p=this.a,o=p.z[a],n=o==="JEFATURA",m=n?300:110

@@ -26,10 +26,14 @@ class _RecogidosPageState extends State<RecogidosPage> {
   String _scanDepartamento = '';
   final List<String> _headers = [
     'LP',
+    'RECOGIDO',
+    'SKU',
+    'DESCRIPCION',
+    'CANTIDAD',
     'SECCION',
     'JEFATURA',
-    'BOX',
     'VALIDACION',
+    'BOX',
   ];
   final List<List<TextEditingController>> _rows = [];
 
