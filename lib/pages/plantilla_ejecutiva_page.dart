@@ -47,10 +47,18 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
 
   Future<void> _guardarDatosFirebase() async {
     try {
+      // Convertir cada fila a un mapa con las columnas como claves
+      final datosMapeados = datosLocales.map((fila) {
+        final map = <String, String>{};
+        for (int i = 0; i < columnas.length && i < fila.length; i++) {
+          map[columnas[i]] = fila[i];
+        }
+        return map;
+      }).toList();
       await guardarDatosFirestoreYCache(
         'plantilla_ejecutiva',
         'datos',
-        {'datos': datosLocales},
+        {'datos': datosMapeados},
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
