@@ -143,21 +143,31 @@ class _DevCanPageState extends State<DevCanPage> {
   ];
   final List<List<TextEditingController>> _rows = [];
 
-  // Buscar JEFATURA en Firestore dado un valor de SECCION
+  // Buscar NOMBRE en plantilla_ejecutiva/datos por SECCION y ponerlo en JEFATURA
   Future<String> _buscarJefaturaFirestore(String seccion) async {
     if (seccion.isEmpty) return '';
     try {
-      final query = await FirebaseFirestore.instance
+      final doc = await FirebaseFirestore.instance
           .collection('plantilla_ejecutiva')
-          .where('SECCION', isEqualTo: seccion)
-          .limit(1)
+          .doc('datos')
           .get();
-      if (query.docs.isNotEmpty) {
-        final data = query.docs.first.data();
-        return data['JEFATURA']?.toString() ?? '';
+      final data = doc.data();
+      if (data != null && data['datos'] is List) {
+        final List<dynamic> lista = data['datos'];
+        final encontrado = lista.firstWhere(
+          (item) =>
+              (item['SECCION'] != null
+                  ? item['SECCION'].toString().trim()
+                  : '') ==
+              seccion.trim(),
+          orElse: () => null,
+        );
+        if (encontrado != null && encontrado['NOMBRE'] != null) {
+          return encontrado['NOMBRE'].toString();
+        }
       }
     } catch (e) {
-      print('Error buscando JEFATURA en Firestore: $e');
+      print('Error buscando NOMBRE/JEFATURA en Firestore: $e');
     }
     return '';
   }
