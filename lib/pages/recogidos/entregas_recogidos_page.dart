@@ -90,6 +90,33 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                   color: Colors.white,
                 )),
             centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                tooltip: 'Recarga forzada',
+                onPressed: () async {
+                  // Invalida el caché y recarga desde Firestore
+                  await invalidateCache('entregas', 'recogidos');
+                  final datos =
+                      await leerDatosConCache('entregas', 'recogidos');
+                  if (datos != null && datos['items'] != null) {
+                    setState(() {
+                      _resultados =
+                          List<Map<String, dynamic>>.from(datos['items']);
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Datos recargados desde Firestore.')),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('No se pudieron recargar los datos.')),
+                    );
+                  }
+                },
+              ),
+            ],
           ),
           body: Padding(
             padding: EdgeInsets.symmetric(

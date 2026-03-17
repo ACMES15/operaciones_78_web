@@ -224,12 +224,32 @@ class _HistorialEntregasRecogidosPageState
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                            entrega['nombreRecibe']
-                                                    ?.toString() ??
-                                                '-',
+                                            'Entrega: ' +
+                                                (entrega['nombreRecibe']
+                                                        ?.toString() ??
+                                                    '-'),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 16),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.verified_user,
+                                              size: 18,
+                                              color: Color(0xFF1976D2)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'Valida: ' +
+                                                (entrega['usuarioValido']
+                                                        ?.toString() ??
+                                                    '-'),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 15,
+                                                color: Color(0xFF1976D2)),
                                           ),
                                         ],
                                       ),

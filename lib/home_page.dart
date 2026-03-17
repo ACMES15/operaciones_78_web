@@ -79,7 +79,7 @@ class _HomePageState extends State<HomePage> {
         PlantillaEjecutivaPage(),
         DevCanPage(usuario: widget.usuario),
         HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
-        RecogidosPage(),
+        RecogidosPage(usuario: widget.usuario),
         HistorialEntregasRecogidosPage(
             historial: const [], tipoUsuarioActual: ''),
       ];

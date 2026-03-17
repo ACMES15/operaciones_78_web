@@ -11,7 +11,8 @@ import '../../utils/firebase_cache_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecogidosPage extends StatefulWidget {
-  const RecogidosPage({Key? key}) : super(key: key);
+  final String usuario;
+  const RecogidosPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<RecogidosPage> createState() => _RecogidosPageState();
@@ -92,23 +93,6 @@ class _RecogidosPageState extends State<RecogidosPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _cargarPlantillaEjecutiva();
-    _cargarUltimaEntregaGuardada();
-    if (kIsWeb && !_listenerAgregado) {
-      html.window.onBeforeUnload.listen((event) {
-        if (!_esMismaEntrega(_ultimaEntregaGuardada, _generarEntregaActual())) {
-          js.context.callMethod('eval', [
-            "window.event.returnValue = 'Advertencia: Si sales sin enviar los datos a Recogidos se perderán los datos.';"
-          ]);
-        }
-      });
-      _listenerAgregado = true;
-    }
-  }
-
-  @override
   void dispose() {
     _scanController.dispose();
     _scanFocus.dispose();
@@ -132,8 +116,11 @@ class _RecogidosPageState extends State<RecogidosPage> {
     });
 
     bool encontrado = false;
+    // Normalizar el código escaneado y el de la tabla quitando ceros a la izquierda para comparar
+    String normalizarLP(String lp) => lp.replaceFirst(RegExp(r'^0+'), '');
+    final codigoNorm = normalizarLP(codigo);
     for (final row in _rows) {
-      if (idxLP != -1 && row[idxLP].text.trim() == codigo) {
+      if (idxLP != -1 && normalizarLP(row[idxLP].text.trim()) == codigoNorm) {
         final seccion = idxSeccion != -1 ? row[idxSeccion].text.trim() : '';
         final jefaturaNombre =
             idxJefatura != -1 ? row[idxJefatura].text.trim() : '';
@@ -197,7 +184,13 @@ class _RecogidosPageState extends State<RecogidosPage> {
             final List<TextEditingController> ctrls =
                 List.generate(_headers.length, (i) {
               final ctrl = TextEditingController();
-              ctrl.text = i < fila.length ? fila[i] : '';
+              // Si es la columna LP, rellenar a 10 dígitos
+              if (_headers[i] == 'LP' && i < fila.length) {
+                final lp = fila[i].padLeft(10, '0');
+                ctrl.text = lp;
+              } else {
+                ctrl.text = i < fila.length ? fila[i] : '';
+              }
               return ctrl;
             });
             final idxSeccion = _headers.indexOf('SECCION');
@@ -250,7 +243,9 @@ class _RecogidosPageState extends State<RecogidosPage> {
     });
   }
 
-  Future<void> _enviarAEntregasRecogidos() async {
+  // The old function _enviarAEntregasRecogidos has been replaced by _guardarEntregasYNotificar
+
+  Future<void> _guardarEntregasYNotificar() async {
     final idxValidacion = _headers.indexOf('VALIDACION');
     final idxBox = _headers.indexOf('BOX');
     List<int> filasIncompletas = [];
@@ -292,7 +287,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
         builder: (ctx) => AlertDialog(
           title: const Text('Advertencia de faltantes'),
           content: Text(
-              'Hay filas marcadas como FALTANTE en BOX:\nFilas: ${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL o ADMIN ENVIOS.'),
+              'Hay filas marcadas como FALTANTE en BOX:\nFilas: ${filasFaltantes.join(', ')}\n\nSe notificará a los usuarios ADMIN OMNICANAL y ADMIN ENVIOS.'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
@@ -301,69 +296,75 @@ class _RecogidosPageState extends State<RecogidosPage> {
           ],
         ),
       );
-      await _guardarNotificacionFaltantes(filasFaltantes);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notificación de faltantes enviada.')),
-      );
-      await Future.delayed(const Duration(seconds: 1));
     }
 
+    // Construir lista de entregas con usuarioValido
     List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
       }
+      map['usuarioValido'] = widget.usuario;
       return map;
     }).toList();
-    await guardarDatosFirestoreYCache(
-        'entregas', 'recogidos', {'items': entregasRecientes});
-    setState(() {
-      _ultimaEntregaGuardada = entregasRecientes;
-      _ultimaFechaEntrega = DateTime.now();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Información enviada para Recogidos.')),
-    );
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            EntregasRecogidosPage(entregasRecientes: entregasRecientes),
-      ),
-    );
-  }
 
-  Future<void> _guardarNotificacionFaltantes(List<int> filasFaltantes) async {
-    final datos = await leerDatosConCache('notificaciones', 'password');
-    List<dynamic> lista = [];
-    if (datos != null && datos['items'] != null) {
-      lista = List<dynamic>.from(datos['items']);
-    }
-    for (final idx in filasFaltantes) {
-      final row = _rows[idx - 1];
-      final detalle = _headers
-          .asMap()
-          .entries
-          .map((e) => '${e.value}: ${row[e.key].text}')
-          .join('\n');
-      lista.add({
-        'usuario': 'ADMIN OMNICANAL / ADMIN ENVIOS',
-        'fecha': DateTime.now().toIso8601String(),
-        'mensaje': 'FALTANTE Recogidos',
-        'detalle': detalle,
+    // Guardar entregas en Firestore
+    try {
+      await guardarDatosFirestoreYCache(
+          'entregas', 'recogidos', {'items': entregasRecientes});
+      setState(() {
+        _ultimaEntregaGuardada = entregasRecientes;
+        _ultimaFechaEntrega = DateTime.now();
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Información guardada en Recogidos.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error guardando en Firestore: $e'),
+            backgroundColor: Colors.red),
+      );
+      return;
     }
-    await guardarDatosFirestoreYCache(
-        'notificaciones', 'password', {'items': lista});
 
-    List<Map<String, dynamic>> entregasRecientes = _rows.map((row) {
-      Map<String, dynamic> map = {};
-      for (int i = 0; i < _headers.length; i++) {
-        map[_headers[i]] = row[i].text;
+    // Notificación de faltantes: crear documento individual para cada fila faltante y para ambos usuarios
+    if (filasFaltantes.isNotEmpty) {
+      try {
+        final firestore = FirebaseFirestore.instance;
+        for (final idx in filasFaltantes) {
+          final row = _rows[idx - 1];
+          Map<String, dynamic> detalle = {};
+          for (int i = 0; i < _headers.length; i++) {
+            detalle[_headers[i]] = row[i].text;
+          }
+          detalle['usuarioValido'] = widget.usuario;
+          for (final destino in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            final notifRef = await firestore.collection('notificaciones').add({
+              'mensaje': 'FALTANTE Recogidos',
+              'fecha': DateTime.now(),
+              'leida': false,
+              'para': destino,
+              'detalle': detalle,
+            });
+            await notifRef.update({'id': notifRef.id});
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Notificación de faltantes enviada a la campana para ambos usuarios.')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error notificando faltantes: $e'),
+              backgroundColor: Colors.red),
+        );
       }
-      return map;
-    }).toList();
+    }
 
+    await Future.delayed(const Duration(seconds: 1));
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) =>
@@ -509,7 +510,6 @@ class _RecogidosPageState extends State<RecogidosPage> {
                         );
                         return;
                       }
-                      await _enviarAEntregasRecogidos();
                       await _cargarUltimaEntregaGuardada();
                     },
                     icon: const Icon(Icons.send),

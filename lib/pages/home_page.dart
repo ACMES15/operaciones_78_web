@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
     'DevCan': DevCanPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
-    'Recogidos': RecogidosPage(),
+    'Recogidos': RecogidosPage(usuario: widget.usuario),
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
   };
