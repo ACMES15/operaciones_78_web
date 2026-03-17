@@ -88,6 +88,25 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
               setState(() {
                 datosLocales = nuevosDatos;
               });
+              if (mounted) {
+                if (nuevosDatos.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'No se importaron filas. Verifica el formato y contenido del archivo Excel.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'Importación exitosa: ${nuevosDatos.length} filas.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              }
             });
           }
         });
