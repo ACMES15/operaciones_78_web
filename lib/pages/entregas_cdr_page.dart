@@ -89,7 +89,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           if (sheet == null) continue;
           for (int rowIndex = 1; rowIndex < sheet.maxRows; rowIndex++) {
             final row = sheet.row(rowIndex);
-            // Solo importar hasta BULTOS (8 columnas)
             final fila = List<String>.generate(
               _headers.length,
               (i) => i < 8 && i < row.length && row[i] != null
@@ -106,27 +105,28 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           }
         }
         List<List<TextEditingController>> nuevasFilas = [];
+        List<Future<void>> jefaturaFutures = [];
         for (final fila in datos) {
           final List<TextEditingController> ctrls =
               List.generate(_headers.length, (i) {
             final ctrl = TextEditingController();
-            // Solo llenar hasta BULTOS, JEFATURA se llenará después
             ctrl.text = i < 8 ? (i < fila.length ? fila[i] : '') : '';
             return ctrl;
           });
-          // Buscar y asignar JEFATURA automáticamente
           final idxSeccion = _headers.indexOf('SECCION');
           final idxJefatura = _headers.indexOf('JEFATURA');
           if (idxSeccion != -1 && idxJefatura != -1) {
             final seccion = ctrls[idxSeccion].text.trim();
             if (seccion.isNotEmpty) {
-              final jefatura = await _buscarJefaturaFirestore(seccion);
-              ctrls[idxJefatura].text = jefatura;
+              jefaturaFutures
+                  .add(_buscarJefaturaFirestore(seccion).then((jefatura) {
+                ctrls[idxJefatura].text = jefatura;
+              }));
             }
           }
           nuevasFilas.add(ctrls);
         }
-        // Si no hay filas importadas, mostrar al menos una vacía
+        await Future.wait(jefaturaFutures);
         if (nuevasFilas.isEmpty) {
           nuevasFilas.add(
               List.generate(_headers.length, (_) => TextEditingController()));
