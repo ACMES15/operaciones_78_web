@@ -43,14 +43,14 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
   ];
   final List<int> columnasNumericas = [0, 1, 6, 8];
   bool cargando = false;
-  List<List<String>> datos = [];
+  List<List<String>> datosLocales = [];
 
   Future<void> _guardarDatosFirebase() async {
     try {
       await guardarDatosFirestoreYCache(
         'plantilla_ejecutiva',
         'datos',
-        {'datos': datos},
+        {'datos': datosLocales},
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,9 +85,7 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
             reader.onLoadEnd.listen((event) async {
               final bytes = reader.result as Uint8List;
               final nuevosDatos = _procesarExcelDirecto(bytes, columnas);
-              setState(() {
-                datos = nuevosDatos;
-              });
+              // Ahora solo se usa datosLocales
               // Ya no se guarda automáticamente, solo se actualiza la vista local
             });
           }
@@ -129,18 +127,16 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
           .doc('datos')
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        List<List<String>> datosFirestore = [];
+        if (snapshot.hasData &&
+            snapshot.data?.data() != null &&
+            snapshot.data!.data()!['datos'] != null) {
+          datosFirestore = List<List<String>>.from(
+              (snapshot.data!.data()!['datos'] as List)
+                  .map((fila) => List<String>.from(fila)));
         }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error cargando plantilla ejecutiva'));
-        }
-        final data = snapshot.data?.data();
-        datos = [];
-        if (data != null && data['datos'] != null) {
-          datos = List<List<String>>.from(
-              (data['datos'] as List).map((fila) => List<String>.from(fila)));
-        }
+        final mostrarDatos =
+            datosLocales.isNotEmpty ? datosLocales : datosFirestore;
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
           child: Column(
@@ -158,7 +154,10 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
                   _botonImportarHtmlWeb(),
                   const SizedBox(width: 12),
                   ElevatedButton.icon(
-                    onPressed: datos.isEmpty ? null : _guardarDatosFirebase,
+                    onPressed:
+                        mostrarDatos.isNotEmpty && datosLocales.isNotEmpty
+                            ? _guardarDatosFirebase
+                            : null,
                     icon: const Icon(Icons.save),
                     label: const Text('Guardar'),
                     style:
@@ -183,9 +182,9 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
                                       style: const TextStyle(
                                           fontWeight: FontWeight.bold))))
                               .toList(),
-                          rows: datos.isEmpty
+                          rows: mostrarDatos.isEmpty
                               ? []
-                              : datos
+                              : mostrarDatos
                                   .map((fila) => DataRow(
                                         cells: List.generate(
                                           columnas.length,
