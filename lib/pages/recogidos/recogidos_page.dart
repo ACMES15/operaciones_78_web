@@ -175,10 +175,138 @@ class _RecogidosPageState extends State<RecogidosPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ...existing code de UI...
     return Scaffold(
       appBar: AppBar(title: const Text('Recogidos')),
-      body: Center(child: Text('Página Recogidos lista para lógica y UI.')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _addRow,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar fila'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _importFromExcel,
+                  icon: const Icon(Icons.file_upload),
+                  label: const Text('Importar desde Excel'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: _headers.length * 140,
+                  child: Column(
+                    children: [
+                      Container(
+                        color: Colors.grey[200],
+                        child: Row(
+                          children: List.generate(_headers.length, (i) {
+                            return Container(
+                              width: 140,
+                              padding: const EdgeInsets.all(8),
+                              child: Text(
+                                _headers[i],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _rows.length,
+                          itemBuilder: (context, rowIdx) {
+                            return Row(
+                              children:
+                                  List.generate(_headers.length, (colIdx) {
+                                final isJefatura =
+                                    _headers[colIdx] == 'JEFATURA';
+                                final isSeccion = _headers[colIdx] == 'SECCION';
+                                if (isJefatura) {
+                                  return Container(
+                                    width: 140,
+                                    padding: const EdgeInsets.all(4),
+                                    child: TextField(
+                                      controller: _rows[rowIdx][colIdx],
+                                      readOnly: true,
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 4),
+                                      ),
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.green,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  );
+                                } else if (isSeccion) {
+                                  return Container(
+                                    width: 140,
+                                    padding: const EdgeInsets.all(4),
+                                    child: TextField(
+                                      controller: _rows[rowIdx][colIdx],
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 4),
+                                      ),
+                                      style: const TextStyle(fontSize: 14),
+                                      onChanged: (value) async {
+                                        await _buscarJefaturaFirestore(
+                                            value.trim(), (jefatura) {
+                                          setState(() {
+                                            _rows[rowIdx][_headers
+                                                    .indexOf('JEFATURA')]
+                                                .text = jefatura;
+                                          });
+                                        });
+                                      },
+                                    ),
+                                  );
+                                } else {
+                                  return Container(
+                                    width: 140,
+                                    padding: const EdgeInsets.all(4),
+                                    child: TextField(
+                                      controller: _rows[rowIdx][colIdx],
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 4),
+                                      ),
+                                      style: const TextStyle(fontSize: 14),
+                                    ),
+                                  );
+                                }
+                              }),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
