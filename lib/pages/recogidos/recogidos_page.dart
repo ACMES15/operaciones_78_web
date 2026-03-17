@@ -124,15 +124,30 @@ class _RecogidosPageState extends State<RecogidosPage> {
         final seccion = idxSeccion != -1 ? row[idxSeccion].text.trim() : '';
         String jefaturaNombre =
             idxJefatura != -1 ? row[idxJefatura].text.trim() : '';
-        // Buscar en plantillaEjecutivaDatos si es un código
-        if (jefaturaNombre.isNotEmpty && plantillaEjecutivaDatos.isNotEmpty) {
-          // Buscar por código en la plantilla ejecutiva (asumiendo que la columna 0 es código y la 1 es nombre)
-          final match = plantillaEjecutivaDatos.firstWhere(
-            (fila) => fila.isNotEmpty && fila[0].trim() == jefaturaNombre,
-            orElse: () => [],
-          );
-          if (match.isNotEmpty && match.length > 1) {
-            jefaturaNombre = match[1].trim();
+        // Buscar en plantilla ejecutiva por coincidencia de SECCION (ignorando formato)
+        if (seccion.isNotEmpty && plantillaEjecutivaDatos.isNotEmpty) {
+          // Buscar el índice de la columna SECCION y NOMBRE en la plantilla
+          final idxSeccionPlantilla = plantillaEjecutivaDatos.isNotEmpty &&
+                  plantillaEjecutivaDatos[0].length > 1
+              ? 1
+              : -1;
+          final idxNombrePlantilla = plantillaEjecutivaDatos.isNotEmpty &&
+                  plantillaEjecutivaDatos[0].length > 2
+              ? 2
+              : -1;
+          if (idxSeccionPlantilla != -1 && idxNombrePlantilla != -1) {
+            final normalizar =
+                (String s) => s.replaceAll(RegExp(r'\s+'), '').toLowerCase();
+            final seccionNorm = normalizar(seccion);
+            final match = plantillaEjecutivaDatos.firstWhere(
+              (fila) =>
+                  fila.length > idxSeccionPlantilla &&
+                  normalizar(fila[idxSeccionPlantilla]).contains(seccionNorm),
+              orElse: () => [],
+            );
+            if (match.isNotEmpty && match.length > idxNombrePlantilla) {
+              jefaturaNombre = match[idxNombrePlantilla].trim();
+            }
           }
         }
         if (idxValidacion != -1) {
