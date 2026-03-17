@@ -159,9 +159,19 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
         if (snapshot.hasData &&
             snapshot.data?.data() != null &&
             snapshot.data!.data()!['datos'] != null) {
-          datosFirestore = List<List<String>>.from(
-              (snapshot.data!.data()!['datos'] as List)
-                  .map((fila) => List<String>.from(fila)));
+          final raw = snapshot.data!.data()!['datos'] as List;
+          if (raw.isNotEmpty && raw.first is Map) {
+            // Si es una lista de mapas (formato Firestore correcto)
+            datosFirestore = raw.map<List<String>>((fila) {
+              return columnas
+                  .map((col) => (fila as Map)[col]?.toString() ?? '')
+                  .toList();
+            }).toList();
+          } else {
+            // Si es una lista de listas (caso antiguo)
+            datosFirestore = List<List<String>>.from(
+                raw.map((fila) => List<String>.from(fila)));
+          }
         }
         final mostrarDatos =
             datosLocales.isNotEmpty ? datosLocales : datosFirestore;
