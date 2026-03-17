@@ -364,13 +364,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
       }
     }
 
-    await Future.delayed(const Duration(seconds: 1));
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) =>
-            EntregasRecogidosPage(entregasRecientes: entregasRecientes),
-      ),
-    );
+    // No navegar automáticamente, solo mostrar snackbar de éxito/error
   }
 
   @override
