@@ -4,6 +4,7 @@ import 'package:excel/excel.dart';
 import 'dart:typed_data';
 import 'dart:convert';
 import 'package:universal_html/html.dart' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HistorialEntregasRecogidosPage extends StatefulWidget {
   final List<Map<String, dynamic>> historial;
@@ -19,17 +20,59 @@ class HistorialEntregasRecogidosPage extends StatefulWidget {
 
 class _HistorialEntregasRecogidosPageState
     extends State<HistorialEntregasRecogidosPage> {
-  late List<Map<String, dynamic>> _resultados;
   Future<void> _eliminarRegistro(int index) async {
     setState(() {
       _resultados.removeAt(index);
     });
+    // Actualizar almacenamiento persistente
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
         'historial_entregas_recogidos', jsonEncode(_resultados));
+    // Actualizar Firestore
+    final firestore = FirebaseFirestore.instance;
+    await firestore
+        .collection('historial_entregas')
+        .doc('recogidos_firmadas')
+        .set({'items': _resultados});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro eliminado del historial.')),
     );
+  }
+
+  late List<Map<String, dynamic>> _resultados;
+  List<Map<String, dynamic>> _datosOriginales = [];
+
+  Future<void> _recargarFirestore() async {
+    final firestore = FirebaseFirestore.instance;
+    final doc = await firestore
+        .collection('historial_entregas')
+        .doc('recogidos_firmadas')
+        .get();
+    final data = doc.exists ? doc.data() : null;
+    List<Map<String, dynamic>> nuevos = [];
+    if (data != null && data['items'] is List) {
+      for (var e in (data['items'] as List)) {
+        if (e is Map) {
+          nuevos.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
+    }
+    _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
+    if (_filtro.isNotEmpty) {
+      _resultados = _datosOriginales.where((e) {
+        return e.entries.any((entry) {
+          final v = entry.value;
+          if (v == null) return false;
+          return v.toString().toLowerCase().contains(_filtro);
+        });
+      }).toList();
+    } else {
+      _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
+    }
+    setState(() {});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('historial_entregas_recogidos', jsonEncode(nuevos));
   }
 
   late TextEditingController _busquedaController;
@@ -38,7 +81,8 @@ class _HistorialEntregasRecogidosPageState
   @override
   void initState() {
     super.initState();
-    _resultados = widget.historial;
+    _datosOriginales = List<Map<String, dynamic>>.from(widget.historial);
+    _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
     _busquedaController = TextEditingController();
   }
 
@@ -51,9 +95,12 @@ class _HistorialEntregasRecogidosPageState
   void _filtrar(String value) {
     setState(() {
       _filtro = value.toLowerCase();
-      _resultados = widget.historial.where((e) {
-        return e.values
-            .any((v) => v.toString().toLowerCase().contains(_filtro));
+      _resultados = _datosOriginales.where((e) {
+        return e.entries.any((entry) {
+          final v = entry.value;
+          if (v == null) return false;
+          return v.toString().toLowerCase().contains(_filtro);
+        });
       }).toList();
     });
   }
@@ -62,9 +109,17 @@ class _HistorialEntregasRecogidosPageState
     final excel = Excel.createExcel();
     final sheet = excel['Historial'];
     if (_resultados.isNotEmpty) {
-      sheet.appendRow(_resultados.first.keys.toList());
+      // Obtener todas las claves únicas de todos los registros
+      final allKeys = <String>{};
       for (final row in _resultados) {
-        sheet.appendRow(row.values.toList());
+        allKeys.addAll(row.keys);
+      }
+      final orderedKeys = allKeys.toList();
+      sheet.appendRow(orderedKeys);
+      for (final row in _resultados) {
+        // Alinear los valores según el orden de las claves
+        final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
+        sheet.appendRow(rowValues);
       }
     }
     final bytes = excel.encode();
@@ -72,7 +127,7 @@ class _HistorialEntregasRecogidosPageState
       final blob = html.Blob([Uint8List.fromList(bytes)],
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
+      html.AnchorElement(href: url)
         ..setAttribute('download', 'historial_entregas_recogidos.xlsx')
         ..click();
       html.Url.revokeObjectUrl(url);
@@ -101,6 +156,11 @@ class _HistorialEntregasRecogidosPageState
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
+            onPressed: _recargarFirestore,
+            tooltip: 'Actualizar desde Firestore',
+          ),
+          IconButton(
             icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
             onPressed: _descargarExcel,
             tooltip: 'Descargar Excel',
@@ -123,7 +183,7 @@ class _HistorialEntregasRecogidosPageState
             const SizedBox(height: 16),
             Expanded(
               child: _resultados.isEmpty
-                  ? const Center(child: Text('No hay entregas firmadas'))
+                  ? const Center(child: Text('Actualiza para ver las entregas'))
                   : ListView.separated(
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemCount: _resultados.length,
@@ -224,65 +284,70 @@ class _HistorialEntregasRecogidosPageState
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                            'Entrega: ' +
-                                                (entrega['nombreRecibe']
+                                            (entrega['nombreRecibe']
                                                         ?.toString() ??
-                                                    '-'),
+                                                    '-')
+                                                .toUpperCase(),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize: 16),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 8),
+                                      Text('SKU: \\${entrega['SKU'] ?? '-'}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      Text(
+                                          'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      Text(
+                                          'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      Text(
+                                          'Sección: \\${entrega['SECCION'] ?? '-'}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      Text(
+                                          'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      const SizedBox(height: 8),
                                       Row(
                                         children: [
                                           const Icon(Icons.verified_user,
                                               size: 18,
-                                              color: Color(0xFF1976D2)),
+                                              color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                            'Valida: ' +
-                                                (entrega['usuarioValido']
-                                                        ?.toString() ??
-                                                    '-'),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w500,
-                                                fontSize: 15,
-                                                color: Color(0xFF1976D2)),
-                                          ),
+                                              'Validó: ' +
+                                                  (entrega['usuarioValido']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
+                                          const SizedBox(width: 16),
+                                          const Icon(Icons.person_outline,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'Entregó: ' +
+                                                  (entrega['usuarioEntrega']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
                                         ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        'SKU: \\${entrega['SKU'] ?? '-'}',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF495057)),
-                                      ),
-                                      Text(
-                                        'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF495057)),
-                                      ),
-                                      Text(
-                                        'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF495057)),
-                                      ),
-                                      Text(
-                                        'Sección: \\${entrega['SECCION'] ?? '-'}',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF495057)),
-                                      ),
-                                      Text(
-                                        'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF495057)),
                                       ),
                                     ],
                                   ),
@@ -334,3 +399,4 @@ class _HistorialEntregasRecogidosPageState
     );
   }
 }
+// ...existing code...
