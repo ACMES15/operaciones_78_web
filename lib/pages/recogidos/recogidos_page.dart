@@ -17,6 +17,41 @@ class RecogidosPage extends StatefulWidget {
 }
 
 class _RecogidosPageState extends State<RecogidosPage> {
+  void _buscarYMarcarLP(String codigo) {
+    final idxLP = _headers.indexOf('LP');
+    final idxSeccion = _headers.indexOf('SECCION');
+    final idxJefatura = _headers.indexOf('JEFATURA');
+    final idxValidacion = _headers.indexOf('VALIDACION');
+    setState(() {
+      _scanSeccion = '';
+      _scanDepartamento = '';
+    });
+    bool encontrado = false;
+    String normalizarLP(String lp) => lp.replaceFirst(RegExp(r'^0+'), '');
+    final codigoNorm = normalizarLP(codigo);
+    for (final row in _rows) {
+      if (idxLP != -1 && normalizarLP(row[idxLP].text.trim()) == codigoNorm) {
+        final seccion = idxSeccion != -1 ? row[idxSeccion].text.trim() : '';
+        final jefaturaNombre =
+            idxJefatura != -1 ? row[idxJefatura].text.trim() : '';
+        if (idxValidacion != -1) {
+          row[idxValidacion].text = '✔️';
+        }
+        _scanSeccion = seccion;
+        _scanDepartamento = jefaturaNombre;
+        encontrado = true;
+        break;
+      }
+    }
+    if (encontrado) {
+      setState(() {});
+    }
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scanController.clear();
+      _scanFocus.requestFocus();
+    });
+  }
+
   bool _listenerAgregado = false;
   List<Map<String, dynamic>> _ultimaEntregaGuardada = [];
   DateTime? _ultimaFechaEntrega;
@@ -475,119 +510,247 @@ class _RecogidosPageState extends State<RecogidosPage> {
                             }),
                           ),
                         ),
+                        // Campo de escaneo y datos
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            SizedBox(
+                              width: 260,
+                              child: TextField(
+                                controller: _scanController,
+                                focusNode: _scanFocus,
+                                autofocus: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Escanear código LP',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onSubmitted: (value) {
+                                  _buscarYMarcarLP(value.trim());
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Text('SECCION:',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 22)),
+                                    const SizedBox(width: 6),
+                                    Text(_scanSeccion,
+                                        style: const TextStyle(
+                                            color: Colors.blue,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 22)),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Text('JEFATURA:',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 22)),
+                                    const SizedBox(width: 6),
+                                    Text(_scanDepartamento,
+                                        style: const TextStyle(
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 22)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Tabla editable
                         Expanded(
                           child: ListView.builder(
-                              itemCount: _rows.length,
-                              itemBuilder: (context, rowIdx) {
-                                return Row(
-                                  children:
-                                      List.generate(_headers.length, (colIdx) {
-                                    final isJefatura =
-                                        _headers[colIdx] == 'JEFATURA';
-                                    final isSeccion =
-                                        _headers[colIdx] == 'SECCION';
-                                    final cellWidth =
-                                        isJefatura ? 300.0 : 110.0;
-                                    if (isJefatura) {
-                                      return Container(
-                                        width: cellWidth,
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          border: const Border(
-                                            right: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
-                                            bottom: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
+                            itemCount: _rows.length,
+                            itemBuilder: (context, rowIdx) {
+                              return Row(
+                                children:
+                                    List.generate(_headers.length, (colIdx) {
+                                  final isJefatura =
+                                      _headers[colIdx] == 'JEFATURA';
+                                  final isSeccion =
+                                      _headers[colIdx] == 'SECCION';
+                                  final isValidacion =
+                                      _headers[colIdx] == 'VALIDACION';
+                                  final isBox = _headers[colIdx] == 'BOX';
+                                  final cellWidth = isJefatura ? 300.0 : 110.0;
+                                  if (isJefatura) {
+                                    return Container(
+                                      width: cellWidth,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        border: const Border(
+                                          right: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
                                           ),
                                         ),
-                                        alignment: Alignment.center,
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 8),
-                                          child: Text(
-                                            _rows[rowIdx][colIdx].text,
-                                            style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF2D6A4F)),
-                                            textAlign: TextAlign.center,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 8),
+                                        child: Text(
+                                          _rows[rowIdx][colIdx].text,
+                                          style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFF2D6A4F)),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (isSeccion) {
+                                    return Container(
+                                      width: cellWidth,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        border: const Border(
+                                          right: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
                                           ),
                                         ),
-                                      );
-                                    } else if (isSeccion) {
-                                      return Container(
-                                        width: cellWidth,
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          border: const Border(
-                                            right: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
-                                            bottom: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
-                                          ),
+                                      ),
+                                      child: TextField(
+                                        controller: _rows[rowIdx][colIdx],
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.symmetric(
+                                              vertical: 8, horizontal: 4),
                                         ),
-                                        child: TextField(
-                                          controller: _rows[rowIdx][colIdx],
-                                          decoration: const InputDecoration(
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    vertical: 8, horizontal: 4),
-                                          ),
-                                          style: const TextStyle(fontSize: 14),
-                                          onChanged: (value) async {
-                                            await _buscarJefaturaFirestore(
-                                                value.trim(), (jefatura) {
-                                              setState(() {
-                                                _rows[rowIdx][_headers
-                                                        .indexOf('JEFATURA')]
-                                                    .text = jefatura;
-                                              });
+                                        style: const TextStyle(fontSize: 14),
+                                        onChanged: (value) async {
+                                          await _buscarJefaturaFirestore(
+                                              value.trim(), (jefatura) {
+                                            setState(() {
+                                              _rows[rowIdx][_headers
+                                                      .indexOf('JEFATURA')]
+                                                  .text = jefatura;
                                             });
-                                          },
-                                        ),
-                                      );
-                                    } else {
-                                      return Container(
-                                        width: cellWidth,
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          border: const Border(
-                                            right: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
-                                            bottom: BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
+                                          });
+                                        },
+                                      ),
+                                    );
+                                  } else if (isValidacion) {
+                                    final validado =
+                                        _rows[rowIdx][colIdx].text.trim() ==
+                                            '✔️';
+                                    return Container(
+                                      width: cellWidth,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            validado ? Colors.green[200] : null,
+                                        border: const Border(
+                                          right: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
                                           ),
                                         ),
-                                        child: TextField(
-                                          controller: _rows[rowIdx][colIdx],
-                                          decoration: const InputDecoration(
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    vertical: 8, horizontal: 4),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: validado
+                                          ? const Icon(Icons.check,
+                                              color: Colors.green, size: 24)
+                                          : TextField(
+                                              controller: _rows[rowIdx][colIdx],
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                isDense: true,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        vertical: 8,
+                                                        horizontal: 4),
+                                              ),
+                                              style:
+                                                  const TextStyle(fontSize: 14),
+                                            ),
+                                    );
+                                  } else if (isBox) {
+                                    return Container(
+                                      width: cellWidth,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        border: const Border(
+                                          right: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
                                           ),
-                                          style: const TextStyle(fontSize: 14),
+                                          bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
                                         ),
-                                      );
-                                    }
-                                  }),
-                                );
-                              }),
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Checkbox(
+                                        value: _rows[rowIdx][colIdx]
+                                                .text
+                                                .trim()
+                                                .toUpperCase() ==
+                                            'FALTANTE',
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            _rows[rowIdx][colIdx].text =
+                                                checked! ? 'FALTANTE' : '';
+                                          });
+                                        },
+                                      ),
+                                    );
+                                  } else {
+                                    return Container(
+                                      width: cellWidth,
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        border: const Border(
+                                          right: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                        ),
+                                      ),
+                                      child: TextField(
+                                        controller: _rows[rowIdx][colIdx],
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.symmetric(
+                                              vertical: 8, horizontal: 4),
+                                        ),
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    );
+                                  }
+                                }),
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
