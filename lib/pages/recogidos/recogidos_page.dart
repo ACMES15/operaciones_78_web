@@ -520,7 +520,12 @@ class _RecogidosPageState extends State<RecogidosPage> {
                         final prefs = await SharedPreferences.getInstance();
                         final data =
                             prefs.getString('entregas_recogidos') ?? '[]';
-                        final List<dynamic> lista = jsonDecode(data);
+                        List<dynamic> lista;
+                        try {
+                          lista = jsonDecode(data);
+                        } catch (e) {
+                          lista = [];
+                        }
                         final entregas = lista
                             .map<Map<String, dynamic>>(
                                 (e) => Map<String, dynamic>.from(e))

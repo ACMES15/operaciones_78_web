@@ -88,17 +88,7 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
               setState(() {
                 datos = nuevosDatos;
               });
-              // Guardar en Firestore y cache
-              try {
-                await guardarDatosFirestoreYCache(
-                  'plantilla_ejecutiva',
-                  'datos',
-                  {'datos': nuevosDatos},
-                );
-              } catch (e) {
-                // ignore: avoid_print
-                print('Error guardando en Firestore/cache: $e');
-              }
+              // Ya no se guarda automáticamente, solo se actualiza la vista local
             });
           }
         });
