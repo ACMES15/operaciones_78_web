@@ -57,6 +57,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Recogidos',
       'Historial Entregas Recogidos',
       'Entregas CDR',
+      'Historial De Entregas CDR',
     ];
   }
 

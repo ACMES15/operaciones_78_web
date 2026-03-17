@@ -16,6 +16,7 @@ import '../pages/recogidos/recogidos_page.dart';
 import '../pages/recogidos/historial_entregas_recogidos_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/entregas_cdr_page.dart';
+import '../pages/historial_firmadas_cdr_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -65,6 +66,7 @@ class _HomePageState extends State<HomePage> {
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
     'Entregas CDR': Icons.inventory_2,
+    'Historial De Entregas CDR': Icons.history_edu,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -88,6 +90,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Entregas CDR': EntregasCdrPage(),
+    'Historial De Entregas CDR': HistorialFirmadasCdrPage(),
   };
 
   @override
@@ -107,6 +110,7 @@ class _HomePageState extends State<HomePage> {
       'Recogidos',
       'Historial Entregas Recogidos',
       'Entregas CDR',
+      'Historial De Entregas CDR',
       'Plantilla Ejecutiva',
     ];
     final permitidas = widget.paginasPermitidas.toSet();

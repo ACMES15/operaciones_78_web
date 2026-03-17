@@ -117,16 +117,32 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     );
     signatureController.dispose();
     if (resultado == null) return;
-    // Guardar en Firestore
+
     final firestore = FirebaseFirestore.instance;
+    // 1. Actualizar los datos firmados y eliminarlos de entregas_cdr
     for (final entrega in seleccionadas) {
-      final doc =
+      final docRef =
           firestore.collection('entregas_cdr').doc(entrega['id']?.toString());
-      await doc.update({
-        'nombreRecibe': resultado['nombre'],
-        'firma': resultado['firma'],
-        'fechaFirma': DateTime.now().toIso8601String(),
-      });
+      final nuevaEntrega = Map<String, dynamic>.from(entrega);
+      nuevaEntrega['nombreRecibe'] = resultado['nombre'];
+      nuevaEntrega['firma'] = resultado['firma'];
+      nuevaEntrega['fechaFirma'] = DateTime.now().toIso8601String();
+      // Eliminar el id para evitar conflictos en el historial
+      nuevaEntrega.remove('id');
+      await docRef.delete();
+
+      // 2. Agregar al historial de firmadas
+      final historialDoc =
+          firestore.collection('historial_entregas').doc('cdr_firmadas');
+      final historialSnap = await historialDoc.get();
+      List<dynamic> historial = [];
+      if (historialSnap.exists &&
+          historialSnap.data() != null &&
+          historialSnap.data()!['items'] is List) {
+        historial = List.from(historialSnap.data()!['items']);
+      }
+      historial.add(nuevaEntrega);
+      await historialDoc.set({'items': historial});
     }
     setState(() => _seleccionados.clear());
     await _cargarDesdeFirestore();
@@ -294,11 +310,12 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                   },
                                   title: Row(
                                     children: [
-                                      _infoChip('LP', entrega['LP']),
+                                      _infoChip('DOCTO', entrega['DOCUMENTO']),
                                       _infoChip('SKU', entrega['SKU']),
                                       _infoChip('CANT', entrega['CANTIDAD']),
                                       _infoChip('SECC', entrega['SECCION']),
                                       _infoChip('JEF', entrega['JEFATURA']),
+                                      _infoChip('DESC', entrega['DESCRIPCION']),
                                     ],
                                   ),
                                   subtitle: Column(
