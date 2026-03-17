@@ -104781,7 +104781,7 @@ A.Nc.prototype={
 ar(){this.aQ()
 this.mC()
 this.ri()},
-ga0f(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos"],t.s)},
+ga0f(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR"],t.s)},
 mC(){var s=0,r=A.v(t.H),q=this,p,o,n,m,l,k,j
 var $async$mC=A.w(function(a,b){if(a===1)return A.r(b,r)
 while(true)switch(s){case 0:k=$.af
