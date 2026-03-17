@@ -85,8 +85,9 @@ class _PlantillaEjecutivaBodyState extends State<_PlantillaEjecutivaBody> {
             reader.onLoadEnd.listen((event) async {
               final bytes = reader.result as Uint8List;
               final nuevosDatos = _procesarExcelDirecto(bytes, columnas);
-              // Ahora solo se usa datosLocales
-              // Ya no se guarda automáticamente, solo se actualiza la vista local
+              setState(() {
+                datosLocales = nuevosDatos;
+              });
             });
           }
         });
