@@ -14,6 +14,14 @@ class EntregasCdrPage extends StatefulWidget {
 }
 
 class _EntregasCdrPageState extends State<EntregasCdrPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (_rows.isEmpty) {
+      _addRow();
+    }
+  }
+
   final List<String> _headers = [
     'HOJA DE RUTA',
     'TIPO DOCTO',
@@ -81,9 +89,10 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           if (sheet == null) continue;
           for (int rowIndex = 1; rowIndex < sheet.maxRows; rowIndex++) {
             final row = sheet.row(rowIndex);
+            // Solo importar hasta BULTOS (8 columnas)
             final fila = List<String>.generate(
               _headers.length,
-              (i) => i < row.length && row[i] != null
+              (i) => i < 8 && i < row.length && row[i] != null
                   ? row[i]!.value.toString()
                   : '',
             );
@@ -101,7 +110,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           final List<TextEditingController> ctrls =
               List.generate(_headers.length, (i) {
             final ctrl = TextEditingController();
-            ctrl.text = i < fila.length ? fila[i] : '';
+            // Solo llenar hasta BULTOS, JEFATURA se llenará después
+            ctrl.text = i < 8 ? (i < fila.length ? fila[i] : '') : '';
             return ctrl;
           });
           // Buscar y asignar JEFATURA automáticamente
@@ -116,6 +126,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           }
           nuevasFilas.add(ctrls);
         }
+        // Si no hay filas importadas, mostrar al menos una vacía
         if (nuevasFilas.isEmpty) {
           nuevasFilas.add(
               List.generate(_headers.length, (_) => TextEditingController()));
@@ -123,6 +134,9 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         setState(() {
           _rows.clear();
           _rows.addAll(nuevasFilas);
+          if (_rows.isEmpty) {
+            _addRow();
+          }
         });
       });
     });
@@ -199,24 +213,32 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                         child: Row(
                           children: List.generate(_headers.length, (i) {
                             final isJefatura = _headers[i] == 'JEFATURA';
-                            return Container(
-                              width: isJefatura ? 200 : 140,
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                border: const Border(
-                                  right: BorderSide(
-                                    color: Color(0xFFBDBDBD),
-                                    width: 1,
+                            return Expanded(
+                              flex: isJefatura ? 2 : 1,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    right: BorderSide(
+                                      color: i == _headers.length - 1
+                                          ? Colors.transparent
+                                          : const Color(0xFFBDBDBD),
+                                      width: 1,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              child: Text(
-                                _headers[i],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
+                                child: Center(
+                                  child: Text(
+                                    _headers[i],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
-                                textAlign: TextAlign.center,
                               ),
                             );
                           }),
@@ -226,112 +248,89 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                         child: ListView.builder(
                           itemCount: _rows.length,
                           itemBuilder: (context, rowIdx) {
-                            return Row(
-                              children:
-                                  List.generate(_headers.length, (colIdx) {
-                                final isJefatura =
-                                    _headers[colIdx] == 'JEFATURA';
-                                final isSeccion = _headers[colIdx] == 'SECCION';
-                                final cellWidth = isJefatura ? 200.0 : 140.0;
-                                if (isJefatura) {
-                                  return Container(
-                                    width: cellWidth,
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      border: const Border(
-                                        right: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                        bottom: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    alignment: Alignment.center,
+                            return Container(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                      color: Color(0xFFBDBDBD), width: 1),
+                                ),
+                              ),
+                              child: Row(
+                                children:
+                                    List.generate(_headers.length, (colIdx) {
+                                  final isJefatura =
+                                      _headers[colIdx] == 'JEFATURA';
+                                  final isSeccion =
+                                      _headers[colIdx] == 'SECCION';
+                                  return Expanded(
+                                    flex: isJefatura ? 2 : 1,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          vertical: 8),
-                                      child: Text(
-                                        _rows[rowIdx][colIdx].text,
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: Color(0xFF2D6A4F)),
-                                        textAlign: TextAlign.center,
-                                      ),
+                                          vertical: 6, horizontal: 2),
+                                      child: isJefatura
+                                          ? Center(
+                                              child: Text(
+                                                _rows[rowIdx][colIdx].text,
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFF2D6A4F)),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            )
+                                          : isSeccion
+                                              ? TextField(
+                                                  controller: _rows[rowIdx]
+                                                      [colIdx],
+                                                  textAlign: TextAlign.center,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    border: InputBorder.none,
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                            horizontal: 4),
+                                                  ),
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                  onChanged: (value) {
+                                                    _rows[rowIdx][
+                                                            _headers.indexOf(
+                                                                'JEFATURA')]
+                                                        .text = '';
+                                                    _buscarJefaturaFirestore(
+                                                            value.trim())
+                                                        .then((jefatura) {
+                                                      setState(() {
+                                                        _rows[rowIdx][_headers
+                                                                .indexOf(
+                                                                    'JEFATURA')]
+                                                            .text = jefatura;
+                                                      });
+                                                    });
+                                                  },
+                                                )
+                                              : TextField(
+                                                  controller: _rows[rowIdx]
+                                                      [colIdx],
+                                                  textAlign: TextAlign.center,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    border: InputBorder.none,
+                                                    isDense: true,
+                                                    contentPadding:
+                                                        EdgeInsets.symmetric(
+                                                            vertical: 8,
+                                                            horizontal: 4),
+                                                  ),
+                                                  style: const TextStyle(
+                                                      fontSize: 14),
+                                                ),
                                     ),
                                   );
-                                } else if (isSeccion) {
-                                  return Container(
-                                    width: cellWidth,
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      border: const Border(
-                                        right: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                        bottom: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: TextField(
-                                      controller: _rows[rowIdx][colIdx],
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 4),
-                                      ),
-                                      style: const TextStyle(fontSize: 14),
-                                      onChanged: (value) {
-                                        _rows[rowIdx]
-                                                [_headers.indexOf('JEFATURA')]
-                                            .text = '';
-                                        _buscarJefaturaFirestore(value.trim())
-                                            .then((jefatura) {
-                                          setState(() {
-                                            _rows[rowIdx][_headers
-                                                    .indexOf('JEFATURA')]
-                                                .text = jefatura;
-                                          });
-                                        });
-                                      },
-                                    ),
-                                  );
-                                } else {
-                                  return Container(
-                                    width: cellWidth,
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      border: const Border(
-                                        right: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                        bottom: BorderSide(
-                                          color: Color(0xFFBDBDBD),
-                                          width: 1,
-                                        ),
-                                      ),
-                                    ),
-                                    child: TextField(
-                                      controller: _rows[rowIdx][colIdx],
-                                      decoration: const InputDecoration(
-                                        border: InputBorder.none,
-                                        isDense: true,
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 8, horizontal: 4),
-                                      ),
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
-                                  );
-                                }
-                              }),
+                                }),
+                              ),
                             );
                           },
                         ),
