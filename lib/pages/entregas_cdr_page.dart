@@ -46,6 +46,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
     final col = FirebaseFirestore.instance.collection('entregas_cdr');
     for (final fila in datos) {
       final doc = col.doc();
+      fila['id'] = doc.id; // Guardar el id del documento
       batch.set(doc, fila);
       // Si es faltante, notificar a ADMIN OMNICANAL y ADMIN ENVIOS
       if (fila['BOX'] == true) {
