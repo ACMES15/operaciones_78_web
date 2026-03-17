@@ -285,6 +285,8 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                               final entrega = _resultados[index];
                               final seleccionado =
                                   _seleccionados.contains(index);
+                              final isFaltante = entrega['BOX'] == true ||
+                                  entrega['BOX'] == 'true';
                               return Card(
                                 elevation: 4,
                                 margin: const EdgeInsets.symmetric(
@@ -296,7 +298,9 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                     width: 1.2,
                                   ),
                                 ),
-                                color: Colors.white,
+                                color: isFaltante
+                                    ? const Color(0xFFFFCDD2)
+                                    : Colors.white,
                                 child: CheckboxListTile(
                                   value: seleccionado,
                                   onChanged: (checked) {
