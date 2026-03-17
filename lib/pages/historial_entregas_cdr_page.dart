@@ -5,6 +5,7 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:universal_html/html.dart' as html;
+import 'package:excel/excel.dart' as ex;
 
 class HistorialEntregasCdrPage extends StatefulWidget {
   const HistorialEntregasCdrPage({Key? key}) : super(key: key);
@@ -185,7 +186,31 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   }
 
   void _descargarExcel() {
-    // Implementar exportación a Excel si se requiere
+    // Exportar los resultados actuales a Excel
+    final excel = ex.Excel.createExcel();
+    final sheet = excel['Historial'];
+    if (_resultados.isNotEmpty) {
+      final allKeys = <String>{};
+      for (final row in _resultados) {
+        allKeys.addAll(row.keys);
+      }
+      final orderedKeys = allKeys.toList();
+      sheet.appendRow(orderedKeys);
+      for (final row in _resultados) {
+        final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
+        sheet.appendRow(rowValues);
+      }
+    }
+    final bytes = excel.encode();
+    if (bytes != null) {
+      final blob = html.Blob([Uint8List.fromList(bytes)],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'historial_entregas_cdr.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    }
   }
 
   @override
@@ -205,199 +230,245 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
-        elevation: 0,
-        title: const Text('ENTREGAS DE CDR',
-            style: TextStyle(
+        backgroundColor: Colors.white,
+        elevation: 2,
+        title: Row(
+          children: [
+            const Icon(Icons.fact_check, color: Color(0xFF2D6A4F), size: 30),
+            const SizedBox(width: 10),
+            const Text(
+              'Historial Entregas CDR',
+              style: TextStyle(
+                color: Color(0xFF2D6A4F),
                 fontWeight: FontWeight.bold,
-                fontSize: 24,
-                color: Colors.white)),
-        centerTitle: true,
+                fontSize: 22,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Recargar (forzar Firestore)',
+            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
             onPressed: _cargarDesdeFirestore,
+            tooltip: 'Actualizar desde Firestore',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
+            onPressed: _descargarExcel,
+            tooltip: 'Descargar Excel',
           ),
         ],
       ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: EdgeInsets.symmetric(
-                  horizontal: isMobile ? 8 : 24, vertical: isMobile ? 8 : 18),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _lpController,
-                          autofocus: true,
-                          decoration: const InputDecoration(
-                            hintText: 'Buscar LP',
-                            prefixIcon: Icon(Icons.search),
-                            border: OutlineInputBorder(),
-                            filled: true,
-                            fillColor: Colors.white,
-                          ),
-                          onChanged: (v) {
-                            setState(() => _lpBusqueda = v);
-                            _aplicarFiltro();
-                          },
-                          onTap: () => _lpController.selection = TextSelection(
-                              baseOffset: 0,
-                              extentOffset: _lpController.text.length),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      DropdownButton<String>(
-                        value: _jefaturaSeleccionada.isEmpty
-                            ? null
-                            : _jefaturaSeleccionada,
-                        hint: const Text('Jefatura'),
-                        isExpanded: false,
-                        items: [
-                          const DropdownMenuItem<String>(
-                              value: '', child: Text('Todas')),
-                          ...jefaturas
-                              .map((j) =>
-                                  DropdownMenuItem(value: j, child: Text(j)))
-                              .toList(),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _jefaturaSeleccionada = v ?? '');
-                          _aplicarFiltro();
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: _resultados.isEmpty
-                        ? const Center(
-                            child: Text('No hay entregas para mostrar.',
-                                style: TextStyle(
-                                    fontSize: 18, color: Colors.grey)))
-                        : ListView.builder(
-                            itemCount: _resultados.length,
-                            itemBuilder: (context, index) {
-                              final entrega = _resultados[index];
-                              final seleccionado =
-                                  _seleccionados.contains(index);
-                              return Card(
-                                elevation: 4,
-                                margin: const EdgeInsets.symmetric(
-                                    vertical: 7, horizontal: 2),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: const BorderSide(
-                                    color: Color(0xFF2D6A4F),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                color: Colors.white,
-                                child: CheckboxListTile(
-                                  value: seleccionado,
-                                  onChanged: (checked) {
-                                    setState(() {
-                                      if (checked == true) {
-                                        _seleccionados.add(index);
-                                      } else {
-                                        _seleccionados.remove(index);
-                                      }
-                                    });
-                                  },
-                                  title: Row(
-                                    children: [
-                                      _infoChip('DOCTO', entrega['DOCUMENTO']),
-                                      _infoChip('SKU', entrega['SKU']),
-                                      _infoChip('CANT', entrega['CANTIDAD']),
-                                      _infoChip('SECC', entrega['SECCION']),
-                                      _infoChip('JEF', entrega['JEFATURA']),
-                                      _infoChip('DESC', entrega['DESCRIPCION']),
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (entrega['firma'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text('Firma:',
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                              SizedBox(
-                                                height: 80,
-                                                child: entrega['firma']
-                                                        is String
-                                                    ? Image.memory(
-                                                        base64Decode(
-                                                            entrega['firma']),
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                    : const Text(
-                                                        'Firma no disponible'),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      if (entrega['nombreRecibe'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                              'Recibió: ${entrega['nombreRecibe']}',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold)),
-                                        ),
-                                      if (entrega['fechaFirma'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 2.0),
-                                          child: Text(
-                                              'Fecha: ${entrega['fechaFirma']}'),
-                                        ),
-                                    ],
-                                  ),
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _lpController,
+              decoration: const InputDecoration(
+                labelText: 'Buscar por cualquier campo',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (v) {
+                setState(() => _lpBusqueda = v);
+                _aplicarFiltro();
+              },
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _resultados.isEmpty
+                  ? const Center(child: Text('No hay entregas para mostrar.'))
+                  : ListView.separated(
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemCount: _resultados.length,
+                      itemBuilder: (context, index) {
+                        final entrega = _resultados[index];
+                        final dynamic firmaData = entrega['firma'];
+                        Widget? firmaWidget;
+                        if (firmaData != null) {
+                          try {
+                            Uint8List? bytes;
+                            if (firmaData is Uint8List) {
+                              bytes = firmaData;
+                            } else if (firmaData is List<int>) {
+                              bytes = Uint8List.fromList(firmaData);
+                            } else if (firmaData is String) {
+                              bytes = Uint8List.fromList(
+                                  const Base64Decoder().convert(firmaData));
+                            }
+                            if (bytes != null && bytes.isNotEmpty) {
+                              firmaWidget = Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    bytes,
+                                    width: 70,
+                                    height: 40,
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                               );
-                            },
+                            }
+                          } catch (_) {}
+                        }
+                        final isFaltante = entrega['BOX'] == true;
+                        return Card(
+                          elevation: 6,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          color: isFaltante
+                              ? const Color(0xFFFFCDD2)
+                              : Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Column(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: isFaltante
+                                          ? Colors.red[300]
+                                          : const Color(0xFF2D6A4F),
+                                      child: const Icon(Icons.fact_check,
+                                          color: Colors.white),
+                                    ),
+                                    if (firmaWidget != null) firmaWidget,
+                                  ],
+                                ),
+                                const SizedBox(width: 18),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            'DOC: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[700]),
+                                          ),
+                                          Text(
+                                            entrega['DOCUMENTO']?.toString() ??
+                                                '-',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                                color: Color(0xFF2D6A4F)),
+                                          ),
+                                          const Spacer(),
+                                          Icon(Icons.calendar_today,
+                                              size: 18,
+                                              color: Colors.grey[600]),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            entrega['fechaFirma'] != null
+                                                ? entrega['fechaFirma']
+                                                    .toString()
+                                                    .substring(0, 10)
+                                                : '-',
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF495057)),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.person,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            (entrega['nombreRecibe']
+                                                        ?.toString() ??
+                                                    '-')
+                                                .toUpperCase(),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 16),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'SKU: \\${entrega['SKU'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
+                                      Text(
+                                        'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
+                                      Text(
+                                        'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
+                                      Text(
+                                        'Sección: \\${entrega['SECCION'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
+                                      Text(
+                                        'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.verified_user,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'Validó: ' +
+                                                  (entrega['usuarioValido']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
+                                          const SizedBox(width: 16),
+                                          const Icon(Icons.person_outline,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                              'Entregó: ' +
+                                                  (entrega['usuarioEntrega']
+                                                          ?.toString() ??
+                                                      '-'),
+                                              style: const TextStyle(
+                                                  fontSize: 15,
+                                                  color: Color(0xFF495057))),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                  ),
-                  if (_seleccionados.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8.0),
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.edit_document),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color.fromARGB(255, 244, 247, 245),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 32, vertical: 12),
-                        ),
-                        label: const Text('Firmar seleccionados',
-                            style: TextStyle(fontSize: 18)),
-                        onPressed: () => _firmarSeleccionados(context),
-                      ),
+                        );
+                      },
                     ),
-                ],
-              ),
             ),
+          ],
+        ),
+      ),
     );
   }
 
