@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'historial_entregas_cdr_page.dart';
 import 'dart:typed_data';
 import 'package:excel/excel.dart' as ex;
 import 'dart:html' as html;
@@ -240,6 +241,21 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                   label: const Text('Guardar'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color.fromARGB(255, 173, 220, 183),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HistorialEntregasCdrPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('Ver Entregas CDR'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 200, 220, 255),
                   ),
                 ),
               ],
@@ -488,3 +504,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
     );
   }
 }
+
+// Importa la nueva página al inicio del archivo:
+// import 'historial_entregas_cdr_page.dart';
