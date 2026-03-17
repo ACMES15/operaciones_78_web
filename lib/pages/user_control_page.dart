@@ -31,6 +31,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     'JEFATURA',
     'PREVENCION',
     'VENTAS',
+    'INVENTARIOS',
+    'MESADEBODAS',
   ];
   List<String> tiposUsuario = [];
   final ScrollController _scrollController = ScrollController();

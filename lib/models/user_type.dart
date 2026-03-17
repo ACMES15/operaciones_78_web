@@ -2,6 +2,8 @@ enum UserType {
   adminOmnicanal,
   adminEnvios,
   usuarioNormal,
+  inventarios,
+  mesadebodas,
 }
 
 extension UserTypeExtension on UserType {
@@ -13,6 +15,10 @@ extension UserTypeExtension on UserType {
         return 'ADMIN ENVIOS';
       case UserType.usuarioNormal:
         return 'Usuario Normal';
+      case UserType.inventarios:
+        return 'INVENTARIOS';
+      case UserType.mesadebodas:
+        return 'MESADEBODAS';
     }
   }
 }

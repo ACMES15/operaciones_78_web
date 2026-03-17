@@ -7,6 +7,8 @@ enum UserType {
   adminOmnicanal,
   cliente,
   invitado,
+  inventarios,
+  mesadebodas,
 }
 
 class AppUser {
