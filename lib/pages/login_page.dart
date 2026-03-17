@@ -129,7 +129,8 @@ class _LoginPageState extends State<LoginPage> {
                           .trim()
                           .toLowerCase();
                       // Si es la primera vez, la contraseña es igual al usuario
-                      if (passDb == usuarioInput && passInput == usuarioInput) {
+                      if (passDb == usuarioInput.trim().toLowerCase() &&
+                          passInput == usuarioInput.trim().toLowerCase()) {
                         final changed = await Navigator.push(
                           context,
                           MaterialPageRoute(
