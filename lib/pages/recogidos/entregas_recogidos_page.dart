@@ -14,6 +14,25 @@ class EntregasRecogidosPage extends StatefulWidget {
 }
 
 class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
+  // ...existing code...
+
+  Widget _mobileField(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Expanded(
+              child: Text('${value ?? '-'}',
+                  style: const TextStyle(fontSize: 16))),
+        ],
+      ),
+    );
+  }
+
   final TextEditingController _lpController = TextEditingController();
   String _lpBusqueda = '';
   String _jefaturaSeleccionada = '';
