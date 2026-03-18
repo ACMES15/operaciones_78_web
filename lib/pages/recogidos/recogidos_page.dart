@@ -352,14 +352,22 @@ class _RecogidosPageState extends State<RecogidosPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Recogidos',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 26,
-                        color: Color(0xFF2D6A4F),
-                        letterSpacing: 0.5,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.inventory_2,
+                            color: Color(0xFF2D6A4F), size: 32),
+                        SizedBox(width: 10),
+                        Text(
+                          'Recogidos',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            color: Color(0xFF2D6A4F),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
@@ -387,6 +395,22 @@ class _RecogidosPageState extends State<RecogidosPage> {
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.inventory_2, color: Color(0xFF2D6A4F), size: 32),
+                        SizedBox(width: 10),
+                        Text(
+                          'Recogidos',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            color: Color(0xFF2D6A4F),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 18),
                     // Campo escáner LP
                     Row(
                       children: [

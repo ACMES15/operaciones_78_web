@@ -76,10 +76,13 @@ class _DevCanPageState extends State<DevCanPage> {
   void _buscarYMarcarLP(String codigo) {
     final idxLP = _headers.indexOf('LP');
     final idxValidacion = _headers.indexOf('VALIDACION');
+    String normalizarLP(String lp) => lp.replaceFirst(RegExp(r'^0+'), '');
+    final codigoNorm = normalizarLP(codigo);
     setState(() {
-      // Buscar el LP en las filas
       for (final row in _rows) {
-        if (idxLP != -1 && row[idxLP].text.trim() == codigo) {
+        if (idxLP != -1 &&
+            (row[idxLP].text.trim() == codigo ||
+                normalizarLP(row[idxLP].text.trim()) == codigoNorm)) {
           if (idxValidacion != -1) {
             row[idxValidacion].text = '✔️';
           }
@@ -87,7 +90,6 @@ class _DevCanPageState extends State<DevCanPage> {
         }
       }
     });
-    // Limpiar campo y volver a enfocar para siguiente escaneo
     Future.delayed(const Duration(milliseconds: 100), () {
       _scanController.clear();
       _scanFocus.requestFocus();
@@ -179,29 +181,69 @@ class _DevCanPageState extends State<DevCanPage> {
         ),
         body: isMobileSmall
             ? Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.list_alt),
-                  label: const Text('Ver Entregas DevCan'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D6A4F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 18),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EntregasDevCanPage(usuario: widget.usuario),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.inventory_2,
+                            color: Color(0xFF2D6A4F), size: 32),
+                        SizedBox(width: 10),
+                        Text(
+                          'DevCan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            color: Color(0xFF2D6A4F),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.list_alt),
+                      label: const Text('Ver Entregas DevCan'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D6A4F),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 18),
                       ),
-                    );
-                  },
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EntregasDevCanPage(usuario: widget.usuario),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               )
             : Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.inventory_2,
+                            color: Color(0xFF2D6A4F), size: 32),
+                        SizedBox(width: 10),
+                        Text(
+                          'DevCan',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 26,
+                            color: Color(0xFF2D6A4F),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 18),
                     // Campo escáner LP
                     Row(
                       children: [
