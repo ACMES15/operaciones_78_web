@@ -374,12 +374,82 @@ class _DevCanPageState extends State<DevCanPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('DevCan'),
+          title: const Text(
+            'DevCan',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Color(0xFF2D6A4F),
+              letterSpacing: 1.2,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          centerTitle: true,
+          backgroundColor: Color(0xFFE9ECEF),
+          elevation: 0,
         ),
         body: Padding(
           padding: const EdgeInsets.all(8.0),
           child: Column(
             children: [
+              // Campo escáner LP
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _scanController,
+                      focusNode: _scanFocus,
+                      decoration: const InputDecoration(
+                        labelText: 'Escanear código LP',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      onSubmitted: (codigo) {
+                        _buscarYMarcarLP(codigo.trim());
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () =>
+                        _buscarYMarcarLP(_scanController.text.trim()),
+                    child: const Text('Buscar LP'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Botones de proceso DevCan
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: _importFromExcel,
+                    child: const Text('Importar Excel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _guardarEntregasYNotificar,
+                    child: const Text('Guardar'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _addRow,
+                    child: const Text('Agregar fila'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EntregasDevCanPage(usuario: widget.usuario),
+                        ),
+                      );
+                    },
+                    child: const Text('Ver entregas DevCan'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
