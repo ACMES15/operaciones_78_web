@@ -165,18 +165,23 @@ class _DevCanPageState extends State<DevCanPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            'DevCan',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 25,
-              color: Color(0xFF2D6A4F),
-              letterSpacing: 1.2,
-            ),
-            textAlign: TextAlign.left,
+          title: Row(
+            children: const [
+              Icon(Icons.inventory_2, color: Color(0xFF2D6A4F), size: 28),
+              SizedBox(width: 10),
+              Text(
+                'DevCan',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 25,
+                  color: Color(0xFF2D6A4F),
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
           ),
           centerTitle: true,
-          backgroundColor: Color(0xFFE9ECEF),
+          backgroundColor: const Color(0xFFE9ECEF),
           elevation: 0,
         ),
         body: isMobileSmall
