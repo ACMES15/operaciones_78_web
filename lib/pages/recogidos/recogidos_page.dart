@@ -349,23 +349,38 @@ class _RecogidosPageState extends State<RecogidosPage> {
         backgroundColor: const Color(0xFFF4F9F6),
         body: isMobileSmall
             ? Center(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.list_alt),
-                  label: const Text('Ver Entregas Recogidos'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D6A4F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 18),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EntregasRecogidosPage(usuario: widget.usuario),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Recogidos',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                        color: Color(0xFF2D6A4F),
+                        letterSpacing: 0.5,
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.list_alt),
+                      label: const Text('Ver Entregas Recogidos'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D6A4F),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 18),
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EntregasRecogidosPage(usuario: widget.usuario),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               )
             : Padding(

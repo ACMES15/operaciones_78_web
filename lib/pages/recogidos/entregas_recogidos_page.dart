@@ -467,38 +467,89 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                       }
                                     });
                                   },
-                                  title: Row(
-                                    children: [
-                                      _infoChip('LP', entrega['LP']),
-                                      _infoChip('SKU', entrega['SKU']),
-                                      _infoChip('CANT', entrega['CANTIDAD']),
-                                      _infoChip('SECC', entrega['SECCION']),
-                                      _infoChip('JEF', entrega['JEFATURA']),
-                                      if (esFaltante)
-                                        Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 8),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.shade100,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
-                                                color: Colors.red.shade400),
-                                          ),
-                                          child: const Text(
-                                            'FALTANTE',
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              letterSpacing: 1.2,
-                                            ),
-                                          ),
+                                  title: isMobile
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _mobileField('LP', entrega['LP']),
+                                            _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('CANTIDAD',
+                                                entrega['CANTIDAD']),
+                                            _mobileField(
+                                                'SECCION', entrega['SECCION']),
+                                            _mobileField('JEFATURA',
+                                                entrega['JEFATURA']),
+                                            _mobileField('DESCRIPCION',
+                                                entrega['DESCRIPCION']),
+                                            _mobileField('VALIDACION',
+                                                entrega['VALIDACION']),
+                                            if (esFaltante)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    top: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color:
+                                                          Colors.red.shade400),
+                                                ),
+                                                child: const Text(
+                                                  'FALTANTE',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            _infoChip('LP', entrega['LP']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip(
+                                                'CANT', entrega['CANTIDAD']),
+                                            _infoChip(
+                                                'SECC', entrega['SECCION']),
+                                            _infoChip(
+                                                'JEF', entrega['JEFATURA']),
+                                            if (esFaltante)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    left: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color:
+                                                          Colors.red.shade400),
+                                                ),
+                                                child: const Text(
+                                                  'FALTANTE',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
-                                    ],
-                                  ),
                                   subtitle: esFaltante
                                       ? const Text(
                                           'Este LP está marcado como FALTANTE',
