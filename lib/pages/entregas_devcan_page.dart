@@ -13,6 +13,23 @@ class EntregasDevCanPage extends StatefulWidget {
 }
 
 class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
+  Widget _mobileField(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Expanded(
+              child: Text('${value ?? '-'}',
+                  style: const TextStyle(fontSize: 16))),
+        ],
+      ),
+    );
+  }
+
   final TextEditingController _lpController = TextEditingController();
   String _lpBusqueda = '';
   String _jefaturaSeleccionada = '';
@@ -439,66 +456,142 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                 ),
                                 color:
                                     esFaltante ? Colors.red[50] : Colors.white,
-                                child: CheckboxListTile(
-                                  value: seleccionado,
-                                  onChanged: (checked) {
-                                    setState(() {
-                                      if (checked == true) {
-                                        _seleccionados.add(index);
-                                      } else {
-                                        _seleccionados.remove(index);
-                                      }
-                                    });
-                                  },
-                                  title: Row(
-                                    children: [
-                                      _infoChip('LP', entrega['LP']),
-                                      _infoChip('SKU', entrega['SKU']),
-                                      _infoChip('CANT', entrega['CANTIDAD']),
-                                      _infoChip('SECC', entrega['SECCION']),
-                                      _infoChip('JEF', entrega['JEFATURA']),
-                                      if (esFaltante)
-                                        Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 8),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.shade100,
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                            border: Border.all(
-                                                color: Colors.red.shade400),
-                                          ),
-                                          child: const Text(
-                                            'FALTANTE',
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 14,
-                                              letterSpacing: 1.2,
-                                            ),
-                                          ),
+                                child: isMobile
+                                    ? CheckboxListTile(
+                                        value: seleccionado,
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            if (checked == true) {
+                                              _seleccionados.add(index);
+                                            } else {
+                                              _seleccionados.remove(index);
+                                            }
+                                          });
+                                        },
+                                        title: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _mobileField('LP', entrega['LP']),
+                                            _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('CANTIDAD',
+                                                entrega['CANTIDAD']),
+                                            _mobileField(
+                                                'SECCION', entrega['SECCION']),
+                                            _mobileField('JEFATURA',
+                                                entrega['JEFATURA']),
+                                            _mobileField('DESCRIPCION',
+                                                entrega['DESCRIPCION']),
+                                            _mobileField('DEVOLUCION',
+                                                entrega['DEVOLUCION']),
+                                            _mobileField('VALIDACION',
+                                                entrega['VALIDACION']),
+                                            if (esFaltante)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    top: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color:
+                                                          Colors.red.shade400),
+                                                ),
+                                                child: const Text(
+                                                  'FALTANTE',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
                                         ),
-                                    ],
-                                  ),
-                                  subtitle: esFaltante
-                                      ? const Text(
-                                          'Este LP está marcado como FALTANTE',
-                                          style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 13),
-                                        )
-                                      : null,
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      )
+                                    : CheckboxListTile(
+                                        value: seleccionado,
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            if (checked == true) {
+                                              _seleccionados.add(index);
+                                            } else {
+                                              _seleccionados.remove(index);
+                                            }
+                                          });
+                                        },
+                                        title: Row(
+                                          children: [
+                                            _infoChip('LP', entrega['LP']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip(
+                                                'CANT', entrega['CANTIDAD']),
+                                            _infoChip(
+                                                'SECC', entrega['SECCION']),
+                                            _infoChip(
+                                                'JEF', entrega['JEFATURA']),
+                                            if (esFaltante)
+                                              Container(
+                                                margin: const EdgeInsets.only(
+                                                    left: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.shade100,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color:
+                                                          Colors.red.shade400),
+                                                ),
+                                                child: const Text(
+                                                  'FALTANTE',
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    letterSpacing: 1.2,
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        subtitle: esFaltante
+                                            ? const Text(
+                                                'Este LP está marcado como FALTANTE',
+                                                style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.w500,
+                                                    fontSize: 13),
+                                              )
+                                            : null,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
                               );
                             },
                           ),
