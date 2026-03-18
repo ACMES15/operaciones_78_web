@@ -74,7 +74,24 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   void _buscarYMarcarLP(String codigo) {
-    // Implementación de búsqueda y marcado de LP (placeholder)
+    final idxLP = _headers.indexOf('LP');
+    final idxValidacion = _headers.indexOf('VALIDACION');
+    setState(() {
+      // Buscar el LP en las filas
+      for (final row in _rows) {
+        if (idxLP != -1 && row[idxLP].text.trim() == codigo) {
+          if (idxValidacion != -1) {
+            row[idxValidacion].text = '✔️';
+          }
+          break;
+        }
+      }
+    });
+    // Limpiar campo y volver a enfocar para siguiente escaneo
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scanController.clear();
+      _scanFocus.requestFocus();
+    });
   }
 
   void _cargarUltimaEntregaGuardada() {
