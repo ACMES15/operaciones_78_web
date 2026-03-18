@@ -219,6 +219,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.shortestSide <= 600;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       body: Padding(
@@ -242,36 +243,9 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _addRow,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar fila'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 224, 230, 227),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _importFromExcel,
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Importar desde Excel'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 216, 222, 220),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: _guardarEnFirestore,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 173, 220, 183),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
+            if (isMobile)
+              Center(
+                child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -284,284 +258,340 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                   label: const Text('Ver Entregas CDR'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 18),
+                    textStyle: const TextStyle(fontSize: 20),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SizedBox(
-                  width: _headers.length * 140,
-                  child: Column(
-                    children: [
-                      Container(
-                        color: const Color(0xFFE9ECEF),
-                        child: Row(
-                          children: List.generate(_headers.length, (i) {
-                            final isJefatura = _headers[i] == 'JEFATURA';
-                            return Expanded(
-                              flex: isJefatura ? 2 : 1,
-                              child: Container(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  border: Border(
-                                    right: BorderSide(
-                                      color: const Color(0xFFBDBDBD),
-                                      width: 1,
-                                    ),
-                                    left: i == 0
-                                        ? const BorderSide(
-                                            color: Color(0xFFBDBDBD), width: 1)
-                                        : BorderSide.none,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _headers[i],
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      letterSpacing: 0.5,
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
+              )
+            else ...[
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _addRow,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar fila'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 224, 230, 227),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _importFromExcel,
+                    icon: const Icon(Icons.file_upload),
+                    label: const Text('Importar desde Excel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 216, 222, 220),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _guardarEnFirestore,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 173, 220, 183),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              HistorialEntregasCdrPage(usuario: widget.usuario),
                         ),
-                      ),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: _rows.length,
-                          itemBuilder: (context, rowIdx) {
-                            final isFaltante = _headers.contains('BOX') &&
-                                _rows[rowIdx][_headers.indexOf('BOX')].text ==
-                                    'true';
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: isFaltante
-                                    ? const Color(0xFFFFCDD2)
-                                    : null, // Rojo claro si faltante
-                                border: const Border(
-                                  bottom: BorderSide(
-                                      color: Color(0xFFBDBDBD), width: 1),
-                                ),
-                              ),
-                              child: Row(
-                                children:
-                                    List.generate(_headers.length, (colIdx) {
-                                  final isJefatura =
-                                      _headers[colIdx] == 'JEFATURA';
-                                  final isSeccion =
-                                      _headers[colIdx] == 'SECCION';
-                                  final isBox = _headers[colIdx] == 'BOX';
-                                  return Expanded(
-                                    flex: isJefatura ? 2 : 1,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        border: Border(
-                                          right: BorderSide(
-                                            color: const Color(0xFFBDBDBD),
-                                            width: 1,
-                                          ),
-                                          left: colIdx == 0
-                                              ? const BorderSide(
-                                                  color: Color(0xFFBDBDBD),
-                                                  width: 1)
-                                              : BorderSide.none,
-                                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('Ver Entregas CDR'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: _headers.length * 140,
+                    child: Column(
+                      children: [
+                        Container(
+                          color: const Color(0xFFE9ECEF),
+                          child: Row(
+                            children: List.generate(_headers.length, (i) {
+                              final isJefatura = _headers[i] == 'JEFATURA';
+                              return Expanded(
+                                flex: isJefatura ? 2 : 1,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      right: BorderSide(
+                                        color: const Color(0xFFBDBDBDBD),
+                                        width: 1,
                                       ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 6, horizontal: 2),
-                                        child: isBox
-                                            ? Checkbox(
-                                                value: _rows[rowIdx][colIdx]
-                                                        .text ==
-                                                    'true',
-                                                onChanged: (val) {
-                                                  setState(() {
-                                                    _rows[rowIdx][colIdx].text =
-                                                        val == true
-                                                            ? 'true'
-                                                            : 'false';
-                                                  });
-                                                },
-                                              )
-                                            : isJefatura
-                                                ? Center(
-                                                    child: Text(
+                                      left: i == 0
+                                          ? const BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1)
+                                          : BorderSide.none,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _headers[i],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        letterSpacing: 0.5,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _rows.length,
+                            itemBuilder: (context, rowIdx) {
+                              final isFaltante = _headers.contains('BOX') &&
+                                  _rows[rowIdx][_headers.indexOf('BOX')].text ==
+                                      'true';
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: isFaltante
+                                      ? const Color(0xFFFFCDD2)
+                                      : null, // Rojo claro si faltante
+                                  border: const Border(
+                                    bottom: BorderSide(
+                                        color: Color(0xFFBDBDBD), width: 1),
+                                  ),
+                                ),
+                                child: Row(
+                                  children:
+                                      List.generate(_headers.length, (colIdx) {
+                                    final isJefatura =
+                                        _headers[colIdx] == 'JEFATURA';
+                                    final isSeccion =
+                                        _headers[colIdx] == 'SECCION';
+                                    final isBox = _headers[colIdx] == 'BOX';
+                                    return Expanded(
+                                      flex: isJefatura ? 2 : 1,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          border: Border(
+                                            right: BorderSide(
+                                              color: const Color(0xFFBDBDBD),
+                                              width: 1,
+                                            ),
+                                            left: colIdx == 0
+                                                ? const BorderSide(
+                                                    color: Color(0xFFBDBDBD),
+                                                    width: 1)
+                                                : BorderSide.none,
+                                          ),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 6, horizontal: 2),
+                                          child: isBox
+                                              ? Checkbox(
+                                                  value: _rows[rowIdx][colIdx]
+                                                          .text ==
+                                                      'true',
+                                                  onChanged: (val) {
+                                                    setState(() {
                                                       _rows[rowIdx][colIdx]
-                                                          .text,
-                                                      style: const TextStyle(
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: Color(
-                                                              0xFF2D6A4F)),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  )
-                                                : isSeccion
-                                                    ? TextField(
-                                                        controller:
-                                                            _rows[rowIdx]
-                                                                [colIdx],
+                                                              .text =
+                                                          val == true
+                                                              ? 'true'
+                                                              : 'false';
+                                                    });
+                                                  },
+                                                )
+                                              : isJefatura
+                                                  ? Center(
+                                                      child: Text(
+                                                        _rows[rowIdx][colIdx]
+                                                            .text,
+                                                        style: const TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Color(
+                                                                0xFF2D6A4F)),
                                                         textAlign:
                                                             TextAlign.center,
-                                                        decoration:
-                                                            const InputDecoration(
-                                                          border:
-                                                              InputBorder.none,
-                                                          isDense: true,
-                                                          contentPadding:
-                                                              EdgeInsets
-                                                                  .symmetric(
-                                                                      vertical:
-                                                                          8,
-                                                                      horizontal:
-                                                                          4),
-                                                        ),
-                                                        style: const TextStyle(
-                                                            fontSize: 14),
-                                                        onChanged: (value) {
-                                                          _rows[rowIdx][_headers
-                                                                  .indexOf(
-                                                                      'JEFATURA')]
-                                                              .text = '';
-                                                          _buscarJefaturaFirestore(
-                                                                  value.trim())
-                                                              .then((jefatura) {
-                                                            setState(() {
-                                                              _rows[rowIdx][_headers
-                                                                      .indexOf(
-                                                                          'JEFATURA')]
-                                                                  .text = jefatura;
+                                                      ),
+                                                    )
+                                                  : isSeccion
+                                                      ? TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                          onChanged: (value) {
+                                                            _rows[rowIdx][_headers
+                                                                    .indexOf(
+                                                                        'JEFATURA')]
+                                                                .text = '';
+                                                            _buscarJefaturaFirestore(
+                                                                    value
+                                                                        .trim())
+                                                                .then(
+                                                                    (jefatura) {
+                                                              setState(() {
+                                                                _rows[rowIdx][_headers
+                                                                        .indexOf(
+                                                                            'JEFATURA')]
+                                                                    .text = jefatura;
+                                                              });
                                                             });
-                                                          });
-                                                        },
-                                                      )
-                                                    : _headers[colIdx] ==
-                                                            'TIPO DOCTO'
-                                                        ? DropdownButtonFormField<
-                                                            String>(
-                                                            value: _rows[rowIdx]
-                                                                        [colIdx]
-                                                                    .text
-                                                                    .isNotEmpty
-                                                                ? (_tiposDocto.contains(
-                                                                        _rows[rowIdx][colIdx]
-                                                                            .text)
-                                                                    ? _rows[rowIdx]
+                                                          },
+                                                        )
+                                                      : _headers[colIdx] ==
+                                                              'TIPO DOCTO'
+                                                          ? DropdownButtonFormField<
+                                                              String>(
+                                                              value: _rows[rowIdx]
+                                                                          [
+                                                                          colIdx]
+                                                                      .text
+                                                                      .isNotEmpty
+                                                                  ? (_tiposDocto.contains(_rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text)
+                                                                      ? _rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text
+                                                                      : _rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text)
+                                                                  : null,
+                                                              items: [
+                                                                ..._tiposDocto
+                                                                    .map((tipo) =>
+                                                                        DropdownMenuItem(
+                                                                          value:
+                                                                              tipo,
+                                                                          child:
+                                                                              Text(tipo),
+                                                                        )),
+                                                                if (_rows[rowIdx]
                                                                             [
                                                                             colIdx]
                                                                         .text
-                                                                    : _rows[rowIdx]
+                                                                        .isNotEmpty &&
+                                                                    !_tiposDocto
+                                                                        .contains(
+                                                                            _rows[rowIdx][colIdx].text))
+                                                                  DropdownMenuItem(
+                                                                    value: _rows[rowIdx]
                                                                             [
                                                                             colIdx]
-                                                                        .text)
-                                                                : null,
-                                                            items: [
-                                                              ..._tiposDocto
-                                                                  .map((tipo) =>
-                                                                      DropdownMenuItem(
-                                                                        value:
-                                                                            tipo,
-                                                                        child: Text(
-                                                                            tipo),
-                                                                      )),
-                                                              if (_rows[rowIdx][
-                                                                          colIdx]
-                                                                      .text
-                                                                      .isNotEmpty &&
-                                                                  !_tiposDocto.contains(
-                                                                      _rows[rowIdx]
-                                                                              [
+                                                                        .text,
+                                                                    child: Text(
+                                                                        _rows[rowIdx][colIdx].text +
+                                                                            ' (importado)'),
+                                                                  ),
+                                                              ],
+                                                              onChanged:
+                                                                  (value) {
+                                                                setState(() {
+                                                                  _rows[rowIdx][
                                                                               colIdx]
-                                                                          .text))
-                                                                DropdownMenuItem(
-                                                                  value: _rows[
-                                                                              rowIdx]
-                                                                          [
-                                                                          colIdx]
-                                                                      .text,
-                                                                  child: Text(_rows[rowIdx]
-                                                                              [
-                                                                              colIdx]
-                                                                          .text +
-                                                                      ' (importado)'),
-                                                                ),
-                                                            ],
-                                                            onChanged: (value) {
-                                                              setState(() {
-                                                                _rows[rowIdx][
-                                                                            colIdx]
-                                                                        .text =
-                                                                    value ?? '';
-                                                              });
-                                                            },
-                                                            decoration:
-                                                                const InputDecoration(
-                                                              border:
-                                                                  InputBorder
-                                                                      .none,
-                                                              isDense: true,
-                                                              contentPadding:
-                                                                  EdgeInsets.symmetric(
-                                                                      vertical:
-                                                                          8,
-                                                                      horizontal:
-                                                                          4),
+                                                                          .text =
+                                                                      value ??
+                                                                          '';
+                                                                });
+                                                              },
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                              isExpanded: true,
+                                                            )
+                                                          : TextField(
+                                                              controller:
+                                                                  _rows[rowIdx]
+                                                                      [colIdx],
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
                                                             ),
-                                                            style:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        14),
-                                                            isExpanded: true,
-                                                          )
-                                                        : TextField(
-                                                            controller:
-                                                                _rows[rowIdx]
-                                                                    [colIdx],
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                            decoration:
-                                                                const InputDecoration(
-                                                              border:
-                                                                  InputBorder
-                                                                      .none,
-                                                              isDense: true,
-                                                              contentPadding:
-                                                                  EdgeInsets.symmetric(
-                                                                      vertical:
-                                                                          8,
-                                                                      horizontal:
-                                                                          4),
-                                                            ),
-                                                            style:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        14),
-                                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                }),
-                              ),
-                            );
-                          },
+                                    );
+                                  }),
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

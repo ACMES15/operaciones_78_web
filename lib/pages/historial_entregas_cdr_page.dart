@@ -33,89 +33,197 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         penStrokeWidth: 3,
         penColor: Colors.black,
         exportBackgroundColor: Colors.white);
+    final isMobile = MediaQuery.of(context).size.shortestSide <= 600;
     final resultado = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Firmar entregas',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
-        content: SizedBox(
-          width: 400,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nombreController,
-                  decoration: const InputDecoration(
-                      labelText: 'Nombre de quien recibe',
-                      border: OutlineInputBorder()),
-                  textCapitalization: TextCapitalization.characters,
-                  onChanged: (value) {
-                    final upper = value.toUpperCase();
-                    if (value != upper) {
-                      nombreController.value = nombreController.value.copyWith(
-                        text: upper,
-                        selection:
-                            TextSelection.collapsed(offset: upper.length),
-                      );
+      builder: (ctx) => isMobile
+          ? Dialog(
+              insetPadding: const EdgeInsets.all(0),
+              child: Container(
+                width: double.infinity,
+                height: double.infinity,
+                color: Colors.white,
+                child: SafeArea(
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Firmar entregas',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2D6A4F),
+                                  fontSize: 22)),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: nombreController,
+                            decoration: const InputDecoration(
+                                labelText: 'Nombre de quien recibe',
+                                border: OutlineInputBorder()),
+                            textCapitalization: TextCapitalization.characters,
+                            onChanged: (value) {
+                              final upper = value.toUpperCase();
+                              if (value != upper) {
+                                nombreController.value =
+                                    nombreController.value.copyWith(
+                                  text: upper,
+                                  selection: TextSelection.collapsed(
+                                      offset: upper.length),
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          const Text('Firma:',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2D6A4F))),
+                          Container(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Color(0xFF2D6A4F)),
+                            ),
+                            width: double.infinity,
+                            height: 180,
+                            child: Signature(
+                              controller: signatureController,
+                              backgroundColor: Colors.white,
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => signatureController.clear(),
+                              icon:
+                                  const Icon(Icons.cleaning_services_outlined),
+                              label: const Text('Limpiar firma'),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () async {
+                                  final firmaBytes =
+                                      await signatureController.toPngBytes();
+                                  if (nombreController.text.trim().isEmpty ||
+                                      firmaBytes == null) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                            content: Text(
+                                                'Nombre y firma requeridos.')));
+                                    return;
+                                  }
+                                  Navigator.of(ctx).pop({
+                                    'nombre': nombreController.text
+                                        .trim()
+                                        .toUpperCase(),
+                                    'firma': base64Encode(firmaBytes),
+                                  });
+                                },
+                                child: const Text('Guardar'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancelar'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          : AlertDialog(
+              title: const Text('Firmar entregas',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nombreController,
+                        decoration: const InputDecoration(
+                            labelText: 'Nombre de quien recibe',
+                            border: OutlineInputBorder()),
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (value) {
+                          final upper = value.toUpperCase();
+                          if (value != upper) {
+                            nombreController.value =
+                                nombreController.value.copyWith(
+                              text: upper,
+                              selection:
+                                  TextSelection.collapsed(offset: upper.length),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('Firma:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D6A4F))),
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Color(0xFF2D6A4F)),
+                        ),
+                        width: double.infinity,
+                        height: 140,
+                        child: Signature(
+                          controller: signatureController,
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => signatureController.clear(),
+                          icon: const Icon(Icons.cleaning_services_outlined),
+                          label: const Text('Limpiar firma'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final firmaBytes = await signatureController.toPngBytes();
+                    if (nombreController.text.trim().isEmpty ||
+                        firmaBytes == null) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                          content: Text('Nombre y firma requeridos.')));
+                      return;
                     }
+                    Navigator.of(ctx).pop({
+                      'nombre': nombreController.text.trim().toUpperCase(),
+                      'firma': base64Encode(firmaBytes),
+                    });
                   },
+                  child: const Text('Guardar'),
                 ),
-                const SizedBox(height: 16),
-                const Text('Firma:',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
-                Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Color(0xFF2D6A4F)),
-                  ),
-                  width: double.infinity,
-                  height: 140,
-                  child: Signature(
-                    controller: signatureController,
-                    backgroundColor: Colors.white,
-                  ),
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => signatureController.clear(),
-                    icon: const Icon(Icons.cleaning_services_outlined),
-                    label: const Text('Limpiar firma'),
-                  ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancelar'),
                 ),
               ],
             ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final firmaBytes = await signatureController.toPngBytes();
-              if (nombreController.text.trim().isEmpty || firmaBytes == null) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                    content: Text('Nombre y firma requeridos.')));
-                return;
-              }
-              Navigator.of(ctx).pop({
-                'nombre': nombreController.text.trim().toUpperCase(),
-                'firma': base64Encode(firmaBytes),
-              });
-            },
-            child: const Text('Guardar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancelar'),
-          ),
-        ],
-      ),
     );
     signatureController.dispose();
     if (resultado == null) return;
