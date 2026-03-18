@@ -309,7 +309,9 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
+    final mediaQuery = MediaQuery.of(context);
+    final isMobile =
+        mediaQuery.size.shortestSide <= 600 || mediaQuery.size.width < 700;
     final jefaturas = _resultados
         .map((e) => (e['JEFATURA'] ?? '').toString())
         .where((j) => j.isNotEmpty)
@@ -414,84 +416,179 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                 color: isFaltante
                                     ? const Color(0xFFFFCDD2)
                                     : Colors.white,
-                                child: CheckboxListTile(
-                                  value: seleccionado,
-                                  onChanged: (checked) {
-                                    setState(() {
-                                      if (checked == true) {
-                                        _seleccionados.add(index);
-                                      } else {
-                                        _seleccionados.remove(index);
-                                      }
-                                    });
-                                  },
-                                  title: Row(
-                                    children: [
-                                      _infoChip('DOCTO', entrega['DOCUMENTO']),
-                                      _infoChip('SKU', entrega['SKU']),
-                                      _infoChip('CANT', entrega['CANTIDAD']),
-                                      _infoChip('SECC', entrega['SECCION']),
-                                      _infoChip('JEF', entrega['JEFATURA']),
-                                      _infoChip('DESC', entrega['DESCRIPCION']),
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if (entrega['firma'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 8.0),
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text('Firma:',
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.bold)),
-                                              SizedBox(
-                                                height: 80,
-                                                child: entrega['firma']
-                                                        is String
-                                                    ? Image.memory(
-                                                        base64Decode(
-                                                            entrega['firma']),
-                                                        fit: BoxFit.contain,
-                                                      )
-                                                    : const Text(
-                                                        'Firma no disponible'),
+                                child: isMobile
+                                    ? CheckboxListTile(
+                                        value: seleccionado,
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            if (checked == true) {
+                                              _seleccionados.add(index);
+                                            } else {
+                                              _seleccionados.remove(index);
+                                            }
+                                          });
+                                        },
+                                        title: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _mobileField('Documento',
+                                                entrega['DOCUMENTO']),
+                                            _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('Cantidad',
+                                                entrega['CANTIDAD']),
+                                            _mobileField(
+                                                'Sección', entrega['SECCION']),
+                                            _mobileField('Jefatura',
+                                                entrega['JEFATURA']),
+                                            _mobileField('Descripción',
+                                                entrega['DESCRIPCION']),
+                                            if (entrega['firma'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 8.0),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text('Firma:',
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
+                                                    SizedBox(
+                                                      height: 80,
+                                                      child: entrega['firma']
+                                                              is String
+                                                          ? Image.memory(
+                                                              base64Decode(
+                                                                  entrega[
+                                                                      'firma']),
+                                                              fit: BoxFit
+                                                                  .contain)
+                                                          : const Text(
+                                                              'Firma no disponible'),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                            ],
-                                          ),
+                                            if (entrega['nombreRecibe'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 4.0),
+                                                child: Text(
+                                                    'Recibió: ${entrega['nombreRecibe']}',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                              ),
+                                            if (entrega['fechaFirma'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 2.0),
+                                                child: Text(
+                                                    'Fecha: ${entrega['fechaFirma']}'),
+                                              ),
+                                          ],
                                         ),
-                                      if (entrega['nombreRecibe'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                              'Recibió: ${entrega['nombreRecibe']}',
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.bold)),
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                      if (entrega['fechaFirma'] != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 2.0),
-                                          child: Text(
-                                              'Fecha: ${entrega['fechaFirma']}'),
+                                      )
+                                    : CheckboxListTile(
+                                        value: seleccionado,
+                                        onChanged: (checked) {
+                                          setState(() {
+                                            if (checked == true) {
+                                              _seleccionados.add(index);
+                                            } else {
+                                              _seleccionados.remove(index);
+                                            }
+                                          });
+                                        },
+                                        title: Row(
+                                          children: [
+                                            _infoChip(
+                                                'DOCTO', entrega['DOCUMENTO']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip(
+                                                'CANT', entrega['CANTIDAD']),
+                                            _infoChip(
+                                                'SECC', entrega['SECCION']),
+                                            _infoChip(
+                                                'JEF', entrega['JEFATURA']),
+                                            _infoChip(
+                                                'DESC', entrega['DESCRIPCION']),
+                                          ],
                                         ),
-                                    ],
-                                  ),
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            if (entrega['firma'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 8.0),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text('Firma:',
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
+                                                    SizedBox(
+                                                      height: 80,
+                                                      child: entrega['firma']
+                                                              is String
+                                                          ? Image.memory(
+                                                              base64Decode(
+                                                                  entrega[
+                                                                      'firma']),
+                                                              fit: BoxFit
+                                                                  .contain)
+                                                          : const Text(
+                                                              'Firma no disponible'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            if (entrega['nombreRecibe'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 4.0),
+                                                child: Text(
+                                                    'Recibió: ${entrega['nombreRecibe']}',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                              ),
+                                            if (entrega['fechaFirma'] != null)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 2.0),
+                                                child: Text(
+                                                    'Fecha: ${entrega['fechaFirma']}'),
+                                              ),
+                                          ],
+                                        ),
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                                horizontal: 12, vertical: 2),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
                               );
                             },
                           ),
@@ -515,6 +612,23 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _mobileField(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Expanded(
+              child: Text('${value ?? '-'}',
+                  style: const TextStyle(fontSize: 16))),
+        ],
+      ),
     );
   }
 

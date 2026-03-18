@@ -219,7 +219,9 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.shortestSide <= 600;
+    final mediaQuery = MediaQuery.of(context);
+    final isMobile =
+        mediaQuery.size.shortestSide <= 600 || mediaQuery.size.width < 700;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       body: Padding(
