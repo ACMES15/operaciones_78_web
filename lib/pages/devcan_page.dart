@@ -378,11 +378,11 @@ class _DevCanPageState extends State<DevCanPage> {
             'DevCan',
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 22,
+              fontSize: 25,
               color: Color(0xFF2D6A4F),
               letterSpacing: 1.2,
             ),
-            textAlign: TextAlign.center,
+            textAlign: TextAlign.left,
           ),
           centerTitle: true,
           backgroundColor: Color(0xFFE9ECEF),

@@ -4,11 +4,12 @@ import 'historial_entregas_cdr_page.dart';
 import 'dart:typed_data';
 import 'package:excel/excel.dart' as ex;
 import 'dart:html' as html;
-import 'dart:js' as js;
+// import 'dart:js' as js; // Eliminado: no se usa
 import 'package:flutter/foundation.dart';
 
 class EntregasCdrPage extends StatefulWidget {
-  const EntregasCdrPage({Key? key}) : super(key: key);
+  final String usuario;
+  const EntregasCdrPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<EntregasCdrPage> createState() => _EntregasCdrPageState();
@@ -47,6 +48,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
     for (final fila in datos) {
       final doc = col.doc();
       fila['id'] = doc.id; // Guardar el id del documento
+      fila['usuarioValido'] = widget.usuario;
       batch.set(doc, fila);
       // Si es faltante, notificar a ADMIN OMNICANAL y ADMIN ENVIOS
       if (fila['BOX'] == true) {
@@ -93,8 +95,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
   final List<List<TextEditingController>> _rows = [];
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
-  String _scanSeccion = '';
-  String _scanJefatura = '';
+  // String _scanSeccion = '';
+  // String _scanJefatura = '';
 
   void _addRow() {
     setState(() {
@@ -273,7 +275,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const HistorialEntregasCdrPage(),
+                        builder: (_) =>
+                            HistorialEntregasCdrPage(usuario: widget.usuario),
                       ),
                     );
                   },

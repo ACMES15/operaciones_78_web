@@ -7,7 +7,9 @@ import 'dart:typed_data';
 import 'package:universal_html/html.dart' as html;
 
 class HistorialEntregasCdrPage extends StatefulWidget {
-  const HistorialEntregasCdrPage({Key? key}) : super(key: key);
+  final String usuario;
+  const HistorialEntregasCdrPage({Key? key, required this.usuario})
+      : super(key: key);
 
   @override
   State<HistorialEntregasCdrPage> createState() =>
@@ -24,7 +26,6 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   Set<int> _seleccionados = {};
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
-
     final seleccionadas =
         _seleccionados.map((idx) => _resultados[idx]).toList();
     final nombreController = TextEditingController();
@@ -32,11 +33,6 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         penStrokeWidth: 3,
         penColor: Colors.black,
         exportBackgroundColor: Colors.white);
-
-    // Obtener usuario de SharedPreferences (como en HomePage)
-    final prefs = await SharedPreferences.getInstance();
-    final usuario = prefs.getString('usuario') ?? '';
-
     final resultado = await showDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
@@ -133,8 +129,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
       nuevaEntrega['nombreRecibe'] = resultado['nombre'];
       nuevaEntrega['firma'] = resultado['firma'];
       nuevaEntrega['fechaFirma'] = DateTime.now().toIso8601String();
-      nuevaEntrega['usuarioValido'] = usuario;
-      nuevaEntrega['usuarioEntrega'] = usuario;
+      nuevaEntrega['usuarioEntrega'] = widget.usuario;
       // Eliminar el id para evitar conflictos en el historial
       nuevaEntrega.remove('id');
       await docRef.delete();

@@ -89,7 +89,7 @@ class _HomePageState extends State<HomePage> {
     'Recogidos': RecogidosPage(usuario: widget.usuario),
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
-    'Entregas CDR': EntregasCdrPage(),
+    'Entregas CDR': EntregasCdrPage(usuario: widget.usuario),
     'Historial De Entregas CDR': HistorialFirmadasCdrPage(),
   };
 
