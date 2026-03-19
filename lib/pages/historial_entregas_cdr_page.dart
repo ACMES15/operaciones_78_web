@@ -514,6 +514,10 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                         },
                                         title: Row(
                                           children: [
+                                            _infoChip('HOJA RUTA',
+                                                entrega['HOJA_DE_RUTA']),
+                                            _infoChip('TIPO DOCTO',
+                                                entrega['TIPO_DOCTO']),
                                             _infoChip(
                                                 'DOCTO', entrega['DOCUMENTO']),
                                             _infoChip('SKU', entrega['SKU']),

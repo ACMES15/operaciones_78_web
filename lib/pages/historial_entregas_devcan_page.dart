@@ -258,6 +258,21 @@ class _HistorialEntregasDevCanPageState
                                                 fontSize: 18,
                                                 color: Color(0xFF2D6A4F)),
                                           ),
+                                          const SizedBox(width: 18),
+                                          Text(
+                                            'Devolución: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[700]),
+                                          ),
+                                          Text(
+                                            entrega['DEVOLUCION']?.toString() ??
+                                                '-',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Color(0xFF2D6A4F)),
+                                          ),
                                           const Spacer(),
                                           Icon(Icons.calendar_today,
                                               size: 18,

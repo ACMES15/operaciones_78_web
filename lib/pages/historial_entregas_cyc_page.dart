@@ -202,6 +202,22 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                     fontSize: 18,
                                                     color: Color(0xFF2D6A4F)),
                                               ),
+                                              const SizedBox(width: 18),
+                                              Text(
+                                                'N° PEDIDO: ',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.grey[700]),
+                                              ),
+                                              Text(
+                                                entrega['NUMERO_PEDIDO']
+                                                        ?.toString() ??
+                                                    '-',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                    color: Color(0xFF2D6A4F)),
+                                              ),
                                               const Spacer(),
                                               Icon(Icons.calendar_today,
                                                   size: 18,
@@ -217,6 +233,19 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                     fontSize: 14,
                                                     color: Color(0xFF495057)),
                                               ),
+                                              const SizedBox(width: 12),
+                                              Icon(Icons.person_outline,
+                                                  size: 18,
+                                                  color: Color(0xFF2D6A4F)),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                entrega['usuarioEntrega']
+                                                        ?.toString() ??
+                                                    '-',
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    color: Color(0xFF495057)),
+                                              ),
                                             ],
                                           ),
                                           const SizedBox(height: 8),
@@ -226,6 +255,12 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                   size: 18,
                                                   color: Color(0xFF2D6A4F)),
                                               const SizedBox(width: 6),
+                                              Text(
+                                                'Recibió: ',
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF2D6A4F)),
+                                              ),
                                               Text(
                                                 (entrega['nombreRecibe']
                                                             ?.toString() ??
