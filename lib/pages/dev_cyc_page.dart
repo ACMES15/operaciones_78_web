@@ -208,23 +208,46 @@ class _DevCycPageState extends State<DevCycPage> {
             const SizedBox(height: 16),
             if (isMobile)
               Center(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EntregasCycPage(usuario: widget.usuario),
+                child: Column(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EntregasCycPage(usuario: widget.usuario),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.list_alt),
+                      label: const Text('Ver Entregas CyC'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 18),
+                        textStyle: const TextStyle(fontSize: 20),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.list_alt),
-                  label: const Text('Ver Entregas CyC'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 200, 220, 255),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 18),
-                    textStyle: const TextStyle(fontSize: 20),
-                  ),
+                    ),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => HistorialEntregasCycPage(
+                                usuario: widget.usuario),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.history),
+                      label: const Text('Ver Entregas Recogidos'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color.fromARGB(255, 255, 230, 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 32, vertical: 18),
+                        textStyle: const TextStyle(fontSize: 20),
+                      ),
+                    ),
+                  ],
                 ),
               )
             else ...[
@@ -270,6 +293,22 @@ class _DevCycPageState extends State<DevCycPage> {
                     label: const Text('Ver Entregas CyC'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              HistorialEntregasCycPage(usuario: widget.usuario),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history),
+                    label: const Text('Ver Entregas Recogidos'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 255, 230, 200),
                     ),
                   ),
                 ],
