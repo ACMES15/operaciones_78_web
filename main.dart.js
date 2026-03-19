@@ -105962,7 +105962,7 @@ A.Nq.prototype={
 an(){this.aO()
 this.mF()
 this.rq()},
-ga0C(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","DEV MBODAS","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR"],t.s)},
+ga0C(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Dev Mbodas","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR"],t.s)},
 mF(){var s=0,r=A.v(t.H),q=this,p,o,n,m,l,k,j
 var $async$mF=A.w(function(a,b){if(a===1)return A.r(b,r)
 while(true)switch(s){case 0:k=$.ac

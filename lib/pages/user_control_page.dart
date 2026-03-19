@@ -53,7 +53,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Historial Carta Porte',
       'Plantilla Ejecutiva',
       'DevCan',
-      'DEV MBODAS',
+      'Dev Mbodas',
       'Historial Entregas DevCan',
       'Recogidos',
       'Historial Entregas Recogidos',
