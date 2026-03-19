@@ -23,6 +23,7 @@ import '../pages/dev_xd_page.dart';
 import '../pages/historial_entregas_xd_page.dart';
 import '../pages/dev_cyc_page.dart';
 import '../pages/entregas_cyc_page.dart';
+import '../pages/historial_entregas_cyc_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -74,9 +75,10 @@ class _HomePageState extends State<HomePage> {
     'Dev XD': Icons.extension,
     'Historial Entregas XD': Icons.history,
     'Dev CyC': Icons.assignment,
-    'Entregas CyC': Icons.assignment_turned_in,
+    // 'Entregas CyC': Icons.assignment_turned_in, // No debe estar en menú
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
+    'Historial Entregas CyC': Icons.history, // Nuevo ícono para historial CyC
     // 'Entregas XD': Icons.extension, // Eliminado del menú
     'Entregas CDR': Icons.inventory_2,
     'Historial De Entregas CDR': Icons.history_edu,
@@ -102,7 +104,9 @@ class _HomePageState extends State<HomePage> {
     'Historial Entregas XD': HistorialEntregasXdPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Dev CyC': DevCycPage(usuario: widget.usuario),
-    'Entregas CyC': EntregasCycPage(usuario: widget.usuario),
+    'Entregas CyC':
+        EntregasCycPage(usuario: widget.usuario), // Solo navegación interna
+    'Historial Entregas CyC': HistorialEntregasCycPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
@@ -117,6 +121,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     // Orden fijo solicitado
+    final permitidas = widget.paginasPermitidas.toSet();
+    // Eliminar "Entregas XD" y "Entregas CyC" si están en permitidas
+    permitidas.remove('Entregas XD');
+    permitidas.remove('Entregas CyC');
     final ordenFijo = [
       'Bienvenida',
       'Control de usuarios',
@@ -136,12 +144,10 @@ class _HomePageState extends State<HomePage> {
       'Dev XD',
       'Historial Entregas XD',
       'Dev CyC',
-      'Entregas CyC',
+      'Historial Entregas CyC', // Solo historial CyC en menú
       'Plantilla Ejecutiva',
     ];
-    final permitidas = widget.paginasPermitidas.toSet();
-    // Eliminar "Entregas XD" si está en permitidas
-    permitidas.remove('Entregas XD');
+    // ...existing code...
     final paginasOrdenadas = ordenFijo
         .where((p) => permitidas.contains(p) || p == 'Bienvenida')
         .toList();

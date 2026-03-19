@@ -63,6 +63,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Historial Entregas Dev Mbodas',
       'Historial Entregas XD',
       'Dev CyC',
+      'Historial Entregas CyC',
     ];
   }
 
