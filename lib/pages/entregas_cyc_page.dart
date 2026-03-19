@@ -13,6 +13,7 @@ class EntregasCycPage extends StatefulWidget {
 }
 
 class _EntregasCycPageState extends State<EntregasCycPage> {
+  String _jefaturaSeleccionada = '';
   List<Map<String, dynamic>> _pendientes = [];
   List<Map<String, dynamic>> _originales = [];
   bool _cargando = true;
@@ -299,133 +300,228 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
 
   @override
   Widget build(BuildContext context) {
-    final resultados = _filtro.isEmpty
-        ? _pendientes
-        : _pendientes
-            .where((e) => e.entries.any((entry) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    // Obtener todas las jefaturas únicas de los pendientes
+    final jefaturas = _pendientes
+        .map((e) => (e['JEFATURA'] ?? '').toString())
+        .where((j) => j.isNotEmpty)
+        .toSet()
+        .toList();
+    // Filtrado visual y por jefatura
+    final resultados = _pendientes
+        .where((e) =>
+            (_filtro.isEmpty ||
+                e.entries.any((entry) {
                   final v = entry.value;
                   if (v == null) return false;
                   return v.toString().toLowerCase().contains(_filtro);
-                }))
-            .toList();
+                })) &&
+            (_jefaturaSeleccionada.isEmpty ||
+                (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada))
+        .toList();
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F9F6),
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 2,
-        title: Row(
-          children: [
-            const Icon(Icons.fact_check, color: Color(0xFF2D6A4F), size: 30),
-            const SizedBox(width: 10),
-            const Text(
-              'Entregas CyC',
-              style: TextStyle(
-                color: Color(0xFF2D6A4F),
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 0,
+        title: const Text('Entregas CyC',
+            style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-            ),
-          ],
-        ),
+                fontSize: 24,
+                color: Colors.white)),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recargar',
             onPressed: _cargarPendientes,
-            tooltip: 'Actualizar desde Firestore',
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _busquedaController,
-              decoration: const InputDecoration(
-                labelText: 'Buscar por cualquier campo',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-              onChanged: _filtrar,
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _cargando
-                  ? const Center(child: CircularProgressIndicator())
-                  : resultados.isEmpty
-                      ? const Center(child: Text('No hay entregas pendientes.'))
-                      : ListView.separated(
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemCount: resultados.length,
-                          itemBuilder: (context, idx) {
-                            final item = resultados[idx];
-                            final seleccionado = _seleccionados.contains(idx);
-                            return Card(
-                              elevation: 6,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                              color: seleccionado
-                                  ? const Color(0xFFD8F3DC)
-                                  : Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.all(18),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Column(
-                                      children: [
-                                        Checkbox(
-                                          value: seleccionado,
-                                          onChanged: (val) {
-                                            setState(() {
-                                              if (val == true) {
-                                                _seleccionados.add(idx);
-                                              } else {
-                                                _seleccionados.remove(idx);
-                                              }
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(width: 18),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          ...item.entries.map((e) => Text(
-                                                '${e.key}: ${e.value}',
-                                                style: const TextStyle(
-                                                    fontSize: 15,
-                                                    color: Color(0xFF495057)),
-                                              )),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 18),
-                                    ElevatedButton.icon(
-                                      onPressed: _seleccionados.isEmpty
-                                          ? null
-                                          : () => _firmarSeleccionados(context),
-                                      icon: const Icon(Icons.edit),
-                                      label: const Text('Firmar'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFF2D6A4F),
-                                        foregroundColor: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 24, vertical: isMobile ? 8 : 18),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _busquedaController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar o escanear CyC',
+                            prefixIcon: Icon(Icons.search),
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: _filtrar,
+                          onTap: () => _busquedaController.selection =
+                              TextSelection(
+                                  baseOffset: 0,
+                                  extentOffset:
+                                      _busquedaController.text.length),
                         ),
+                      ),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: _jefaturaSeleccionada.isEmpty
+                            ? null
+                            : _jefaturaSeleccionada,
+                        hint: const Text('Jefatura'),
+                        isExpanded: false,
+                        items: [
+                          const DropdownMenuItem<String>(
+                              value: '', child: Text('Todas')),
+                          ...jefaturas
+                              .map((j) =>
+                                  DropdownMenuItem(value: j, child: Text(j)))
+                              .toList(),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _jefaturaSeleccionada = v ?? ''),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: resultados.isEmpty
+                        ? const Center(
+                            child: Text('No hay entregas para mostrar.',
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.grey)))
+                        : ListView.builder(
+                            itemCount: resultados.length,
+                            itemBuilder: (context, index) {
+                              final entrega = resultados[index];
+                              final seleccionado =
+                                  _seleccionados.contains(index);
+                              return Card(
+                                elevation: 4,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 7, horizontal: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: const BorderSide(
+                                    color: Color(0xFF2D6A4F),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                color: Colors.white,
+                                child: CheckboxListTile(
+                                  value: seleccionado,
+                                  onChanged: (checked) {
+                                    setState(() {
+                                      if (checked == true) {
+                                        _seleccionados.add(index);
+                                      } else {
+                                        _seleccionados.remove(index);
+                                      }
+                                    });
+                                  },
+                                  title: isMobile
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _mobileField(
+                                                'CyC',
+                                                entrega['CyC'] ??
+                                                    entrega['CYC']),
+                                            _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('CANTIDAD',
+                                                entrega['CANTIDAD']),
+                                            _mobileField(
+                                                'SECCION', entrega['SECCION']),
+                                            _mobileField('JEFATURA',
+                                                entrega['JEFATURA']),
+                                            _mobileField('DESCRIPCION',
+                                                entrega['DESCRIPCION']),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            _infoChip(
+                                                'CyC',
+                                                entrega['CyC'] ??
+                                                    entrega['CYC']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip(
+                                                'CANT', entrega['CANTIDAD']),
+                                            _infoChip(
+                                                'SECC', entrega['SECCION']),
+                                            _infoChip(
+                                                'JEF', entrega['JEFATURA']),
+                                            _infoChip(
+                                                'DESC', entrega['DESCRIPCION']),
+                                          ],
+                                        ),
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  if (_seleccionados.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.edit_document),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color.fromARGB(255, 244, 247, 245),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 12),
+                        ),
+                        label: const Text('Firmar seleccionados',
+                            style: TextStyle(fontSize: 18)),
+                        onPressed: () => _firmarSeleccionados(context),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ],
-        ),
+    );
+  }
+
+  Widget _mobileField(String label, dynamic value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$label: ',
+              style:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Expanded(
+              child: Text('${value ?? '-'}',
+                  style: const TextStyle(fontSize: 16))),
+        ],
       ),
+    );
+  }
+
+  Widget _infoChip(String label, dynamic value) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9F5EC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2D6A4F)),
+      ),
+      child: Text('$label: ${value ?? '-'}',
+          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }
