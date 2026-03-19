@@ -275,14 +275,21 @@ class _DevMbodasPageState extends State<DevMbodasPage> {
 
   // (Eliminado el bloque duplicado y fuera de lugar)
   Future<void> _guardarMbodasYNotificar() async {
-    final items = _rows.map((row) {
+    final items = <Map<String, dynamic>>[];
+    final idxLP = _headers.indexOf('LP');
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
       Map<String, dynamic> map = {};
-      for (int i = 0; i < _headers.length; i++) {
-        map[_headers[i]] = row[i].text;
+      for (int j = 0; j < _headers.length; j++) {
+        map[_headers[j]] = row[j].text;
       }
       map['usuarioValido'] = widget.usuario;
-      return map;
-    }).toList();
+      // Asignar id único
+      map['id'] = (idxLP != -1 && row[idxLP].text.isNotEmpty)
+          ? row[idxLP].text.trim()
+          : 'item_$i';
+      items.add(map);
+    }
 
     final idxBox = _headers.indexOf('BOX');
     final filasFaltantes = <Map<String, dynamic>>[];
