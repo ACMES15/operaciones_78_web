@@ -22,6 +22,7 @@ import '../pages/historial_entregas_dev_mbodas_page.dart';
 import '../pages/dev_xd_page.dart';
 import '../pages/historial_entregas_xd_page.dart';
 import '../pages/dev_cyc_page.dart';
+import '../pages/entregas_cyc_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -73,6 +74,7 @@ class _HomePageState extends State<HomePage> {
     'Dev XD': Icons.extension,
     'Historial Entregas XD': Icons.history,
     'Dev CyC': Icons.assignment,
+    'Entregas CyC': Icons.assignment_turned_in,
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
     // 'Entregas XD': Icons.extension, // Eliminado del menú
@@ -100,9 +102,9 @@ class _HomePageState extends State<HomePage> {
     'Historial Entregas XD': HistorialEntregasXdPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Dev CyC': DevCycPage(usuario: widget.usuario),
+    'Entregas CyC': EntregasCycPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
-    'Recogidos': RecogidosPage(usuario: widget.usuario),
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Historial Entregas Dev Mbodas': HistorialEntregasDevMbodasPage(
@@ -134,6 +136,7 @@ class _HomePageState extends State<HomePage> {
       'Dev XD',
       'Historial Entregas XD',
       'Dev CyC',
+      'Entregas CyC',
       'Plantilla Ejecutiva',
     ];
     final permitidas = widget.paginasPermitidas.toSet();

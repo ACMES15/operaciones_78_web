@@ -262,7 +262,7 @@ class _DevCycPageState extends State<DevCycPage> {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) =>
-                              HistorialEntregasCycPage(usuario: widget.usuario),
+                              EntregasCycPage(usuario: widget.usuario),
                         ),
                       );
                     },
