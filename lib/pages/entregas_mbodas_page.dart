@@ -21,8 +21,8 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
   Set<int> _seleccionados = {};
   bool _cargando = true;
 
-  Set<String> get _lpsFirmadas => _historialFirmadas
-      .map((e) => e['LP']?.toString())
+  Set<String> get _idsFirmados => _historialFirmadas
+      .map((e) => e['id']?.toString())
       .whereType<String>()
       .toSet();
 
@@ -58,10 +58,16 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     }
     List<Map<String, dynamic>> entregas = [];
     if (entregasRaw != null && entregasRaw['items'] is List) {
+      int idx = 0;
       for (var e in (entregasRaw['items'] as List)) {
         if (e is Map) {
-          entregas.add(Map<String, dynamic>.from(
-              e.map((k, v) => MapEntry(k.toString(), v))));
+          final map = Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v)));
+          // Si no tiene id, asignar uno único
+          map['id'] =
+              map['id']?.toString() ?? (map['LP']?.toString() ?? 'item_$idx');
+          entregas.add(map);
+          idx++;
         }
       }
     }
@@ -69,8 +75,10 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     if (historialRaw != null && historialRaw['items'] is List) {
       for (var e in (historialRaw['items'] as List)) {
         if (e is Map) {
-          historial.add(Map<String, dynamic>.from(
-              e.map((k, v) => MapEntry(k.toString(), v))));
+          final map = Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v)));
+          map['id'] = map['id']?.toString() ?? (map['LP']?.toString() ?? '');
+          historial.add(map);
         }
       }
     }
@@ -82,9 +90,9 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
   }
 
   List<Map<String, dynamic>> get _entregasFiltradas {
-    final lpsFirmadas = _lpsFirmadas;
+    final idsFirmados = _idsFirmados;
     return _entregas
-        .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
+        .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
             (e['LP']?.toString().toLowerCase() ?? '')
@@ -98,13 +106,14 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
   Future<void> _firmarSeleccionados(BuildContext context) async {
     final seleccionadas =
         _seleccionados.map((idx) => _entregasFiltradas[idx]).toList();
-    final lpsFirmadas = _lpsFirmadas;
-    final lpsSeleccionadas =
-        seleccionadas.map((e) => e['LP']?.toString()).toSet();
-    final lpsYaFirmadas = lpsSeleccionadas.intersection(lpsFirmadas);
-    if (lpsYaFirmadas.isNotEmpty) {
+    final idsFirmados = _idsFirmados;
+    final idsSeleccionados =
+        seleccionadas.map((e) => e['id']?.toString()).toSet();
+    final idsYaFirmados = idsSeleccionados.intersection(idsFirmados);
+    if (idsYaFirmados.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Al menos un LP ya fue firmado. Actualiza la lista.')));
+          content: Text(
+              'Al menos un elemento ya fue firmado. Actualiza la lista.')));
       setState(() => _seleccionados.clear());
       return;
     }
@@ -317,6 +326,7 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
               'firma': resultado['firma'],
               'fechaFirma': DateTime.now().toIso8601String(),
               'usuarioEntrega': widget.usuario,
+              'id': e['id']?.toString() ?? (e['LP']?.toString() ?? ''),
             })
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
