@@ -33,11 +33,6 @@ class _DevXdPageState extends State<DevXdPage> {
     setState(() {
       final ctrls =
           List.generate(_headers.length, (_) => TextEditingController());
-      final idxXd = _headers.indexOf('XD');
-      final idxSku = _headers.indexOf('SKU');
-      if (idxXd != -1 && idxSku != -1 && ctrls[idxSku].text.trim().isNotEmpty) {
-        ctrls[idxXd].text = 'Fisico';
-      }
       _rows.add(ctrls);
     });
   }
@@ -114,8 +109,7 @@ class _DevXdPageState extends State<DevXdPage> {
         final seccion = row.length > 4 && row[4] != null
             ? row[4]?.value?.toString() ?? ''
             : '';
-        fila.add(xd.isNotEmpty ? 'Fisico' : ''); // XD: Fisico si hay XD
-        fila.add(xd);
+        fila.add(xd); // XD como texto plano
         fila.add(sku);
         fila.add(descripcion);
         fila.add(cantidad);
@@ -396,37 +390,28 @@ class _DevXdPageState extends State<DevXdPage> {
                                                       ),
                                                     )
                                                   : isXd
-                                                      ? DropdownButton<String>(
-                                                          value: _rows[rowIdx]
-                                                                      [colIdx]
-                                                                  .text
-                                                                  .isEmpty
-                                                              ? null
-                                                              : _rows[rowIdx]
-                                                                      [colIdx]
-                                                                  .text,
-                                                          isExpanded: true,
-                                                          underline:
-                                                              SizedBox.shrink(),
-                                                          items: const [
-                                                            DropdownMenuItem(
-                                                                value: 'Fisico',
-                                                                child: Text(
-                                                                    'Fisico')),
-                                                            DropdownMenuItem(
-                                                                value:
-                                                                    'Virtual',
-                                                                child: Text(
-                                                                    'Virtual')),
-                                                          ],
-                                                          onChanged: (value) {
-                                                            setState(() {
-                                                              _rows[rowIdx][
-                                                                          colIdx]
-                                                                      .text =
-                                                                  value ?? '';
-                                                            });
-                                                          },
+                                                      ? TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
                                                         )
                                                       : isSeccion
                                                           ? TextField(
