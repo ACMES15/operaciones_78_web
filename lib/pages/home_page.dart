@@ -109,12 +109,12 @@ class _HomePageState extends State<HomePage> {
       'Hoja de XD',
       'Historial Hoja de XD',
       'DevCan',
-      'Dev Mbodas',
       'Historial Entregas DevCan',
       'Recogidos',
       'Historial Entregas Recogidos',
       'Entregas CDR',
       'Historial De Entregas CDR',
+      'Dev Mbodas',
       'Plantilla Ejecutiva',
     ];
     final permitidas = widget.paginasPermitidas.toSet();

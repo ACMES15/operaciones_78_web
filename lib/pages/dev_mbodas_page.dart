@@ -383,7 +383,7 @@ class _DevMbodasPageState extends State<DevMbodasPage> {
               Icon(Icons.cake, color: Color(0xFF2D6A4F), size: 28),
               SizedBox(width: 10),
               Text(
-                'DEV MBODAS',
+                'Dev Mbodas',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 25,
