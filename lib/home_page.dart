@@ -10,10 +10,12 @@ import 'pages/carta_porte_table.dart';
 import 'pages/historial_carta_porte_page.dart';
 import 'pages/plantilla_ejecutiva_page.dart';
 import 'pages/devcan_page.dart';
-import 'pages/historial_entregas_devcan_page.dart';
+import 'pages/dev_mbodas_page.dart';
+import 'pages/historial_entregas_dev_mbodas_page.dart';
 import 'pages/recogidos/recogidos_page.dart';
 import 'pages/recogidos/historial_entregas_recogidos_page.dart';
 import 'pages/user_control_page.dart';
+import 'pages/historial_entregas_devcan_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -40,6 +42,8 @@ class _HomePageState extends State<HomePage> {
     'Plantilla Ejecutiva',
     'DevCan',
     'Historial Entregas DevCan',
+    'Dev Mbodas',
+    'Historial Entregas Dev Mbodas',
     'Recogidos',
     'Historial Entregas Recogidos',
   ];
@@ -52,6 +56,8 @@ class _HomePageState extends State<HomePage> {
     Icons.history_toggle_off,
     Icons.article_outlined,
     Icons.developer_mode,
+    Icons.history_edu,
+    Icons.developer_board,
     Icons.history_edu,
     Icons.shopping_bag_outlined,
     Icons.list_alt,
@@ -66,6 +72,8 @@ class _HomePageState extends State<HomePage> {
     'Plantilla Ejecutiva',
     'DevCan',
     'Historial Entregas DevCan',
+    'Dev Mbodas',
+    'Historial Entregas Dev Mbodas',
     'Recogidos',
     'Historial Entregas Recogidos',
   ];
@@ -79,6 +87,9 @@ class _HomePageState extends State<HomePage> {
         PlantillaEjecutivaPage(),
         DevCanPage(usuario: widget.usuario),
         HistorialEntregasDevCanPage(historial: const [], tipoUsuarioActual: ''),
+        DevMbodasPage(usuario: widget.usuario),
+        HistorialEntregasDevMbodasPage(
+            historial: const [], tipoUsuarioActual: ''),
         RecogidosPage(usuario: widget.usuario),
         HistorialEntregasRecogidosPage(
             historial: const [], tipoUsuarioActual: ''),
