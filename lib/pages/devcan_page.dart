@@ -189,23 +189,6 @@ class _DevCanPageState extends State<DevCanPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.inventory_2,
-                            color: Color(0xFF2D6A4F), size: 32),
-                        SizedBox(width: 10),
-                        Text(
-                          'DevCan',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                            color: Color(0xFF2D6A4F),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
                     SizedBox(height: 24),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.list_alt),
@@ -232,22 +215,6 @@ class _DevCanPageState extends State<DevCanPage> {
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.inventory_2,
-                            color: Color(0xFF2D6A4F), size: 32),
-                        SizedBox(width: 10),
-                        Text(
-                          'DevCan',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                            color: Color(0xFF2D6A4F),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
                     SizedBox(height: 18),
                     // Campo escáner LP
                     Row(

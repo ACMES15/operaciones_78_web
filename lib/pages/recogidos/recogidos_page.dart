@@ -347,28 +347,31 @@ class _RecogidosPageState extends State<RecogidosPage> {
       },
       child: Scaffold(
         backgroundColor: const Color(0xFFF4F9F6),
+        appBar: AppBar(
+          title: Row(
+            children: const [
+              Icon(Icons.inventory_2, color: Color(0xFF2D6A4F), size: 28),
+              SizedBox(width: 10),
+              Text(
+                'Recogidos',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 25,
+                  color: Color(0xFF2D6A4F),
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          centerTitle: true,
+          backgroundColor: const Color(0xFFE9ECEF),
+          elevation: 0,
+        ),
         body: isMobileSmall
             ? Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.inventory_2,
-                            color: Color(0xFF2D6A4F), size: 32),
-                        SizedBox(width: 10),
-                        Text(
-                          'Recogidos',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                            color: Color(0xFF2D6A4F),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 24),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.list_alt),
@@ -395,22 +398,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
                 padding: const EdgeInsets.all(8.0),
                 child: Column(
                   children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.inventory_2, color: Color(0xFF2D6A4F), size: 32),
-                        SizedBox(width: 10),
-                        Text(
-                          'Recogidos',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 26,
-                            color: Color(0xFF2D6A4F),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 18),
+                    const SizedBox(height: 18),
                     // Campo escáner LP
                     Row(
                       children: [
