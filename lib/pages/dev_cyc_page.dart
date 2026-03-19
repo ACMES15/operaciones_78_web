@@ -208,49 +208,26 @@ class _DevCycPageState extends State<DevCycPage> {
             const SizedBox(height: 16),
             if (isMobile)
               Center(
-                child: Column(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                EntregasCycPage(usuario: widget.usuario),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.list_alt),
-                      label: const Text('Ver Entregas CyC'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromARGB(255, 200, 220, 255),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 18),
-                        textStyle: const TextStyle(fontSize: 20),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EntregasCycPage(usuario: widget.usuario),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => HistorialEntregasCycPage(
-                                usuario: widget.usuario),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.history),
-                      label: const Text('Ver Entregas Recogidos'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromARGB(255, 255, 230, 200),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 18),
-                        textStyle: const TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
+                  icon: const Icon(Icons.list_alt),
+                  label: const Text('Ver Entregas CyC'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 18),
+                    textStyle: const TextStyle(fontSize: 20),
+                  ),
                 ),
               )
-            else ...[
+            else
               Row(
                 children: [
                   ElevatedButton.icon(
@@ -295,193 +272,166 @@ class _DevCycPageState extends State<DevCycPage> {
                       backgroundColor: Color.fromARGB(255, 200, 220, 255),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              HistorialEntregasCycPage(usuario: widget.usuario),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.history),
-                    label: const Text('Ver Entregas Recogidos'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color.fromARGB(255, 255, 230, 200),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: _headers.length * 140,
-                    child: Column(
-                      children: [
-                        Container(
-                          color: const Color(0xFFE9ECEF),
-                          child: Row(
-                            children: List.generate(_headers.length, (i) {
-                              final isJefatura = _headers[i] == 'JEFATURA';
-                              return Expanded(
-                                flex: isJefatura ? 2 : 1,
-                                child: Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      right: BorderSide(
-                                        color: const Color(0xFFBDBDBD),
-                                        width: 1,
-                                      ),
-                                      left: i == 0
-                                          ? const BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1)
-                                          : BorderSide.none,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      _headers[i],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        letterSpacing: 0.5,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: _rows.length,
-                            itemBuilder: (context, rowIdx) {
-                              return Container(
-                                decoration: const BoxDecoration(
+            const SizedBox(height: 16),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: _headers.length * 140,
+                  child: Column(
+                    children: [
+                      Container(
+                        color: const Color(0xFFE9ECEF),
+                        child: Row(
+                          children: List.generate(_headers.length, (i) {
+                            final isJefatura = _headers[i] == 'JEFATURA';
+                            return Expanded(
+                              flex: isJefatura ? 2 : 1,
+                              child: Container(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
                                   border: Border(
-                                    bottom: BorderSide(
-                                        color: Color(0xFFBDBDBD), width: 1),
+                                    right: BorderSide(
+                                      color: const Color(0xFFBDBDBD),
+                                      width: 1,
+                                    ),
+                                    left: i == 0
+                                        ? const BorderSide(
+                                            color: Color(0xFFBDBDBD), width: 1)
+                                        : BorderSide.none,
                                   ),
                                 ),
-                                child: Row(
-                                  children:
-                                      List.generate(_headers.length, (colIdx) {
-                                    final isJefatura =
-                                        _headers[colIdx] == 'JEFATURA';
-                                    final isSeccion =
-                                        _headers[colIdx] == 'SECCION';
-                                    return Expanded(
-                                      flex: isJefatura ? 2 : 1,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                            right: BorderSide(
-                                              color: const Color(0xFFBDBDBD),
-                                              width: 1,
-                                            ),
-                                            left: colIdx == 0
-                                                ? const BorderSide(
-                                                    color: Color(0xFFBDBDBD),
-                                                    width: 1)
-                                                : BorderSide.none,
+                                child: Center(
+                                  child: Text(
+                                    _headers[i],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _rows.length,
+                          itemBuilder: (context, rowIdx) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                border: Border(
+                                  bottom: BorderSide(
+                                      color: Color(0xFFBDBDBD), width: 1),
+                                ),
+                              ),
+                              child: Row(
+                                children:
+                                    List.generate(_headers.length, (colIdx) {
+                                  final isJefatura =
+                                      _headers[colIdx] == 'JEFATURA';
+                                  final isSeccion =
+                                      _headers[colIdx] == 'SECCION';
+                                  return Expanded(
+                                    flex: isJefatura ? 2 : 1,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: const Color(0xFFBDBDBD),
+                                            width: 1,
                                           ),
-                                        ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 6, horizontal: 2),
-                                          child: isJefatura
-                                              ? Center(
-                                                  child: Text(
-                                                    _rows[rowIdx][colIdx].text,
-                                                    style: const TextStyle(
-                                                        fontSize: 14,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color:
-                                                            Color(0xFF2D6A4F)),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                )
-                                              : isSeccion
-                                                  ? TextField(
-                                                      controller: _rows[rowIdx]
-                                                          [colIdx],
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        isDense: true,
-                                                        contentPadding:
-                                                            EdgeInsets
-                                                                .symmetric(
-                                                                    vertical: 8,
-                                                                    horizontal:
-                                                                        4),
-                                                      ),
-                                                      style: const TextStyle(
-                                                          fontSize: 14),
-                                                      onChanged: (value) {
-                                                        _rows[rowIdx][_headers
-                                                                .indexOf(
-                                                                    'JEFATURA')]
-                                                            .text = '';
-                                                        _buscarJefaturaFirestore(
-                                                                value.trim())
-                                                            .then((jefatura) {
-                                                          setState(() {
-                                                            _rows[rowIdx][_headers
-                                                                    .indexOf(
-                                                                        'JEFATURA')]
-                                                                .text = jefatura;
-                                                          });
-                                                        });
-                                                      },
-                                                    )
-                                                  : TextField(
-                                                      controller: _rows[rowIdx]
-                                                          [colIdx],
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        isDense: true,
-                                                        contentPadding:
-                                                            EdgeInsets
-                                                                .symmetric(
-                                                                    vertical: 8,
-                                                                    horizontal:
-                                                                        4),
-                                                      ),
-                                                      style: const TextStyle(
-                                                          fontSize: 14),
-                                                    ),
+                                          left: colIdx == 0
+                                              ? const BorderSide(
+                                                  color: Color(0xFFBDBDBD),
+                                                  width: 1)
+                                              : BorderSide.none,
                                         ),
                                       ),
-                                    );
-                                  }),
-                                ),
-                              );
-                            },
-                          ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 6, horizontal: 2),
+                                        child: isJefatura
+                                            ? Center(
+                                                child: Text(
+                                                  _rows[rowIdx][colIdx].text,
+                                                  style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              )
+                                            : isSeccion
+                                                ? TextField(
+                                                    controller: _rows[rowIdx]
+                                                        [colIdx],
+                                                    textAlign: TextAlign.center,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      border: InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                              horizontal: 4),
+                                                    ),
+                                                    style: const TextStyle(
+                                                        fontSize: 14),
+                                                    onChanged: (value) {
+                                                      _rows[rowIdx][
+                                                              _headers.indexOf(
+                                                                  'JEFATURA')]
+                                                          .text = '';
+                                                      _buscarJefaturaFirestore(
+                                                              value.trim())
+                                                          .then((jefatura) {
+                                                        setState(() {
+                                                          _rows[rowIdx][_headers
+                                                                  .indexOf(
+                                                                      'JEFATURA')]
+                                                              .text = jefatura;
+                                                        });
+                                                      });
+                                                    },
+                                                  )
+                                                : TextField(
+                                                    controller: _rows[rowIdx]
+                                                        [colIdx],
+                                                    textAlign: TextAlign.center,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      border: InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                              horizontal: 4),
+                                                    ),
+                                                    style: const TextStyle(
+                                                        fontSize: 14),
+                                                  ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            );
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
+            ),
           ],
         ),
       ),

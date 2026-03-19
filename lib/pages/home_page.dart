@@ -109,6 +109,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Entregas CyC': HistorialEntregasCycPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
+    'Recogidos': RecogidosPage(usuario: widget.usuario),
     'Historial Entregas Recogidos': HistorialEntregasRecogidosPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Historial Entregas Dev Mbodas': HistorialEntregasDevMbodasPage(

@@ -299,87 +299,133 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.shortestSide <= 600;
+    final resultados = _filtro.isEmpty
+        ? _pendientes
+        : _pendientes
+            .where((e) => e.entries.any((entry) {
+                  final v = entry.value;
+                  if (v == null) return false;
+                  return v.toString().toLowerCase().contains(_filtro);
+                }))
+            .toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Entregas CyC'),
-        backgroundColor: const Color(0xFF2D6A4F),
-      ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _busquedaController,
-                          decoration: const InputDecoration(
-                            labelText: 'Buscar',
-                            prefixIcon: Icon(Icons.search),
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: _filtrar,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      ElevatedButton.icon(
-                        onPressed: _seleccionados.isEmpty
-                            ? null
-                            : () => _firmarSeleccionados(context),
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Firmar seleccionados'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2D6A4F),
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: _pendientes.isEmpty
-                        ? const Center(
-                            child: Text('No hay entregas pendientes.'))
-                        : Scrollbar(
-                            child: ListView.builder(
-                              itemCount: _pendientes.length,
-                              itemBuilder: (context, idx) {
-                                final item = _pendientes[idx];
-                                final seleccionado =
-                                    _seleccionados.contains(idx);
-                                return Card(
-                                  color: seleccionado
-                                      ? const Color(0xFFD8F3DC)
-                                      : null,
-                                  child: ListTile(
-                                    leading: Checkbox(
-                                      value: seleccionado,
-                                      onChanged: (val) {
-                                        setState(() {
-                                          if (val == true) {
-                                            _seleccionados.add(idx);
-                                          } else {
-                                            _seleccionados.remove(idx);
-                                          }
-                                        });
-                                      },
-                                    ),
-                                    title: Text(item.entries
-                                        .map((e) => '${e.key}: ${e.value}')
-                                        .join(' | ')),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                  ),
-                ],
+        backgroundColor: Colors.white,
+        elevation: 2,
+        title: Row(
+          children: [
+            const Icon(Icons.fact_check, color: Color(0xFF2D6A4F), size: 30),
+            const SizedBox(width: 10),
+            const Text(
+              'Entregas CyC',
+              style: TextStyle(
+                color: Color(0xFF2D6A4F),
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
               ),
             ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
+            onPressed: _cargarPendientes,
+            tooltip: 'Actualizar desde Firestore',
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _busquedaController,
+              decoration: const InputDecoration(
+                labelText: 'Buscar por cualquier campo',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: _filtrar,
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _cargando
+                  ? const Center(child: CircularProgressIndicator())
+                  : resultados.isEmpty
+                      ? const Center(child: Text('No hay entregas pendientes.'))
+                      : ListView.separated(
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 12),
+                          itemCount: resultados.length,
+                          itemBuilder: (context, idx) {
+                            final item = resultados[idx];
+                            final seleccionado = _seleccionados.contains(idx);
+                            return Card(
+                              elevation: 6,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              color: seleccionado
+                                  ? const Color(0xFFD8F3DC)
+                                  : Colors.white,
+                              child: Padding(
+                                padding: const EdgeInsets.all(18),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Checkbox(
+                                          value: seleccionado,
+                                          onChanged: (val) {
+                                            setState(() {
+                                              if (val == true) {
+                                                _seleccionados.add(idx);
+                                              } else {
+                                                _seleccionados.remove(idx);
+                                              }
+                                            });
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 18),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ...item.entries.map((e) => Text(
+                                                '${e.key}: ${e.value}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              )),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 18),
+                                    ElevatedButton.icon(
+                                      onPressed: _seleccionados.isEmpty
+                                          ? null
+                                          : () => _firmarSeleccionados(context),
+                                      icon: const Icon(Icons.edit),
+                                      label: const Text('Firmar'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF2D6A4F),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
