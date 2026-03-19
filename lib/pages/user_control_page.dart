@@ -54,6 +54,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Plantilla Ejecutiva',
       'DevCan',
       'Dev Mbodas',
+      'Dev XD',
+      'Entregas XD',
       'Historial Entregas DevCan',
       'Recogidos',
       'Historial Entregas Recogidos',

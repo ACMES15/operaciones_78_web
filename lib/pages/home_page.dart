@@ -19,6 +19,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/entregas_cdr_page.dart';
 import '../pages/historial_firmadas_cdr_page.dart';
 import '../pages/historial_entregas_dev_mbodas_page.dart';
+import '../pages/dev_xd_page.dart';
+import '../pages/entregas_xd_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -67,6 +69,7 @@ class _HomePageState extends State<HomePage> {
     'Dev Mbodas': Icons.cake,
     'Historial Entregas Dev Mbodas': Icons.cake,
     'Historial Entregas DevCan': Icons.history_toggle_off,
+    'Dev XD': Icons.extension,
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
     'Entregas CDR': Icons.inventory_2,
@@ -89,6 +92,7 @@ class _HomePageState extends State<HomePage> {
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
     'DevCan': DevCanPage(usuario: widget.usuario),
     'Dev Mbodas': DevMbodasPage(usuario: widget.usuario),
+    'Dev XD': DevXdPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Recogidos': RecogidosPage(usuario: widget.usuario),
@@ -120,6 +124,7 @@ class _HomePageState extends State<HomePage> {
       'Historial De Entregas CDR',
       'Dev Mbodas',
       'Historial Entregas Dev Mbodas',
+      'Dev XD',
       'Plantilla Ejecutiva',
     ];
     final permitidas = widget.paginasPermitidas.toSet();
