@@ -58,11 +58,21 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     }
     List<Map<String, dynamic>> entregas = [];
     if (entregasRaw != null && entregasRaw['items'] is List) {
-      entregas = List<Map<String, dynamic>>.from(entregasRaw['items']);
+      for (var e in (entregasRaw['items'] as List)) {
+        if (e is Map) {
+          entregas.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
     }
     List<Map<String, dynamic>> historial = [];
     if (historialRaw != null && historialRaw['items'] is List) {
-      historial = List<Map<String, dynamic>>.from(historialRaw['items']);
+      for (var e in (historialRaw['items'] as List)) {
+        if (e is Map) {
+          historial.add(Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v))));
+        }
+      }
     }
     setState(() {
       _entregas = entregas;
@@ -89,7 +99,6 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     final seleccionadas =
         _seleccionados.map((idx) => _entregasFiltradas[idx]).toList();
     final lpsFirmadas = _lpsFirmadas;
-    // Validar que ningún LP esté ya firmado
     final lpsSeleccionadas =
         seleccionadas.map((e) => e['LP']?.toString()).toSet();
     final lpsYaFirmadas = lpsSeleccionadas.intersection(lpsFirmadas);
@@ -151,59 +160,59 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                           const SizedBox(height: 16),
                           const Text('Firma:',
                               style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16)),
-                          const SizedBox(height: 8),
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2D6A4F))),
                           Container(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
                             decoration: BoxDecoration(
-                              border: Border.all(
-                                  color: Color(0xFF2D6A4F), width: 2),
-                              borderRadius: BorderRadius.circular(12),
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Color(0xFF2D6A4F)),
                             ),
+                            width: double.infinity,
+                            height: 180,
                             child: Signature(
                               controller: signatureController,
-                              height: 150,
                               backgroundColor: Colors.white,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () => signatureController.clear(),
+                              icon:
+                                  const Icon(Icons.cleaning_services_outlined),
+                              label: const Text('Limpiar firma'),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               ElevatedButton(
-                                onPressed: () => signatureController.clear(),
-                                child: const Text('Limpiar'),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton(
                                 onPressed: () async {
-                                  if (nombreController.text.trim().isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content: Text(
-                                                'Ingresa el nombre de quien recibe.')));
-                                    return;
-                                  }
-                                  if (signatureController.isEmpty) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                            content: Text(
-                                                'Debes firmar antes de continuar.')));
-                                    return;
-                                  }
-                                  final signature =
+                                  final firmaBytes =
                                       await signatureController.toPngBytes();
-                                  if (signature == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
+                                  if (nombreController.text.trim().isEmpty ||
+                                      firmaBytes == null) {
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
                                         const SnackBar(
                                             content: Text(
-                                                'Error al capturar la firma.')));
+                                                'Nombre y firma requeridos.')));
                                     return;
                                   }
                                   Navigator.of(ctx).pop({
-                                    'nombre': nombreController.text.trim(),
-                                    'firma': base64Encode(signature),
+                                    'nombre': nombreController.text
+                                        .trim()
+                                        .toUpperCase(),
+                                    'firma': base64Encode(firmaBytes),
                                   });
                                 },
-                                child: const Text('Aceptar'),
+                                child: const Text('Guardar'),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancelar'),
                               ),
                             ],
                           ),
@@ -214,119 +223,292 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                 ),
               ),
             )
-          : Dialog(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Firmar entregas',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D6A4F),
-                            fontSize: 22)),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nombreController,
-                      decoration: const InputDecoration(
-                          labelText: 'Nombre de quien recibe',
-                          border: OutlineInputBorder()),
-                      textCapitalization: TextCapitalization.characters,
-                      onChanged: (value) {
-                        final upper = value.toUpperCase();
-                        if (value != upper) {
-                          nombreController.value =
-                              nombreController.value.copyWith(
-                            text: upper,
-                            selection:
-                                TextSelection.collapsed(offset: upper.length),
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Firma:',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Color(0xFF2D6A4F), width: 2),
-                        borderRadius: BorderRadius.circular(12),
+          : AlertDialog(
+              title: const Text('Firmar entregas',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFF2D6A4F))),
+              content: SizedBox(
+                width: 400,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nombreController,
+                        decoration: const InputDecoration(
+                            labelText: 'Nombre de quien recibe',
+                            border: OutlineInputBorder()),
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (value) {
+                          final upper = value.toUpperCase();
+                          if (value != upper) {
+                            nombreController.value =
+                                nombreController.value.copyWith(
+                              text: upper,
+                              selection:
+                                  TextSelection.collapsed(offset: upper.length),
+                            );
+                          }
+                        },
                       ),
-                      child: Signature(
-                        controller: signatureController,
-                        height: 150,
-                        backgroundColor: Colors.white,
+                      const SizedBox(height: 16),
+                      const Text('Firma:',
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D6A4F))),
+                      Container(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Color(0xFF2D6A4F)),
+                        ),
+                        width: double.infinity,
+                        height: 140,
+                        child: Signature(
+                          controller: signatureController,
+                          backgroundColor: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        ElevatedButton(
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
                           onPressed: () => signatureController.clear(),
-                          child: const Text('Limpiar'),
+                          icon: const Icon(Icons.cleaning_services_outlined),
+                          label: const Text('Limpiar firma'),
                         ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () async {
-                            if (nombreController.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Ingresa el nombre de quien recibe.')));
-                              return;
-                            }
-                            if (signatureController.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text(
-                                          'Debes firmar antes de continuar.')));
-                              return;
-                            }
-                            final signature =
-                                await signatureController.toPngBytes();
-                            if (signature == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content:
-                                          Text('Error al capturar la firma.')));
-                              return;
-                            }
-                            Navigator.of(ctx).pop({
-                              'nombre': nombreController.text.trim(),
-                              'firma': base64Encode(signature),
-                            });
-                          },
-                          child: const Text('Aceptar'),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    final firmaBytes = await signatureController.toPngBytes();
+                    if (nombreController.text.trim().isEmpty ||
+                        firmaBytes == null) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                          content: Text('Nombre y firma requeridos.')));
+                      return;
+                    }
+                    Navigator.of(ctx).pop({
+                      'nombre': nombreController.text.trim().toUpperCase(),
+                      'firma': base64Encode(firmaBytes),
+                    });
+                  },
+                  child: const Text('Guardar'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancelar'),
+                ),
+              ],
+            ),
+    );
+    signatureController.dispose();
+    if (resultado == null) return;
+    // Guardar en historial
+    final nuevasFirmadas = seleccionadas
+        .map((e) => {
+              ...e,
+              'nombreRecibe': resultado['nombre'],
+              'firma': resultado['firma'],
+              'fechaFirma': DateTime.now().toIso8601String(),
+              'usuarioEntrega': widget.usuario,
+            })
+        .toList();
+    final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
+    historialActual.addAll(nuevasFirmadas);
+    await guardarDatosFirestoreYCache(
+        'historial_entregas', 'mbodas_firmadas', {'items': historialActual});
+    setState(() {
+      _seleccionados.clear();
+    });
+    await _cargarDatos();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Entregas firmadas y guardadas correctamente.')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final jefaturas = _entregasFiltradas
+        .map((e) => (e['JEFATURA'] ?? '').toString())
+        .where((j) => j.isNotEmpty)
+        .toSet()
+        .toList();
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F9F6),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 0,
+        title: const Text('Entregas MBODAS',
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                color: Colors.white)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Recargar (forzar Firestore)',
+            onPressed: () => _cargarDatos(forzarFirestore: true),
+          ),
+        ],
+      ),
+      body: _cargando
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: isMobile ? 8 : 24, vertical: isMobile ? 8 : 18),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _lpController,
+                          autofocus: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Buscar o escanear LP',
+                            prefixIcon: Icon(Icons.search),
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          onChanged: (v) {
+                            setState(() => _lpBusqueda = v);
+                          },
+                          onTap: () => _lpController.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: _lpController.text.length),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      DropdownButton<String>(
+                        value: _jefaturaSeleccionada.isEmpty
+                            ? null
+                            : _jefaturaSeleccionada,
+                        hint: const Text('Jefatura'),
+                        isExpanded: false,
+                        items: [
+                          const DropdownMenuItem<String>(
+                              value: '', child: Text('Todas')),
+                          ...jefaturas
+                              .map((j) =>
+                                  DropdownMenuItem(value: j, child: Text(j)))
+                              .toList(),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _jefaturaSeleccionada = v ?? ''),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: _entregasFiltradas.isEmpty
+                        ? const Center(
+                            child: Text('No hay entregas para mostrar.',
+                                style: TextStyle(
+                                    fontSize: 18, color: Colors.grey)))
+                        : ListView.builder(
+                            itemCount: _entregasFiltradas.length,
+                            itemBuilder: (context, index) {
+                              final entrega = _entregasFiltradas[index];
+                              final seleccionado =
+                                  _seleccionados.contains(index);
+                              return Card(
+                                elevation: 4,
+                                margin: const EdgeInsets.symmetric(
+                                    vertical: 7, horizontal: 2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: const BorderSide(
+                                    color: Color(0xFF2D6A4F),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                color: Colors.white,
+                                child: CheckboxListTile(
+                                  value: seleccionado,
+                                  onChanged: (checked) {
+                                    setState(() {
+                                      if (checked == true) {
+                                        _seleccionados.add(index);
+                                      } else {
+                                        _seleccionados.remove(index);
+                                      }
+                                    });
+                                  },
+                                  title: isMobile
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            _mobileField('LP', entrega['LP']),
+                                            _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('CANTIDAD',
+                                                entrega['CANTIDAD']),
+                                            _mobileField(
+                                                'SECCION', entrega['SECCION']),
+                                            _mobileField('JEFATURA',
+                                                entrega['JEFATURA']),
+                                            _mobileField('DESCRIPCION',
+                                                entrega['DESCRIPCION']),
+                                            _mobileField(
+                                                'MBODAS', entrega['MBODAS']),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            _infoChip('LP', entrega['LP']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip(
+                                                'CANT', entrega['CANTIDAD']),
+                                            _infoChip(
+                                                'SECC', entrega['SECCION']),
+                                            _infoChip(
+                                                'JEF', entrega['JEFATURA']),
+                                            _infoChip(
+                                                'DESC', entrega['DESCRIPCION']),
+                                            _infoChip(
+                                                'MBODAS', entrega['MBODAS']),
+                                          ],
+                                        ),
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 2),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  if (_seleccionados.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.edit_document),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              const Color.fromARGB(255, 244, 247, 245),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 12),
+                        ),
+                        label: const Text('Firmar seleccionados',
+                            style: TextStyle(fontSize: 18)),
+                        onPressed: () => _firmarSeleccionados(context),
+                      ),
+                    ),
+                ],
               ),
             ),
     );
-    if (resultado == null) return;
-    // Guardar firmas
-    for (final entrega in seleccionadas) {
-      entrega['FIRMADO_POR'] = resultado['nombre'];
-      entrega['FIRMA'] = resultado['firma'];
-      entrega['FECHA_FIRMA'] = DateTime.now().toIso8601String();
-    }
-    // Actualizar historial y entregas
-    setState(() {
-      _historialFirmadas.addAll(seleccionadas);
-      _entregas.removeWhere((e) => seleccionadas.contains(e));
-      _seleccionados.clear();
-    });
-    await guardarDatosFirestoreYCache(
-        'historial_entregas', 'mbodas_firmadas', {'items': _historialFirmadas});
-    await guardarDatosFirestoreYCache(
-        'entregas', 'mbodas', {'items': _entregas});
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Entregas firmadas y guardadas correctamente.')));
   }
 
   Widget _mobileField(String label, dynamic value) {
@@ -361,141 +543,8 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.shortestSide <= 600;
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: const [
-            Icon(Icons.cake, color: Color(0xFF2D6A4F), size: 28),
-            SizedBox(width: 10),
-            Text(
-              'Entregas MBODAS',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 25,
-                color: Color(0xFF2D6A4F),
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFFE9ECEF),
-        elevation: 0,
-      ),
-      body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _lpController,
-                          decoration: const InputDecoration(
-                            labelText: 'Buscar LP',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          onChanged: (v) {
-                            setState(() {
-                              _lpBusqueda = v;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _cargarDatos,
-                        child: const Text('Actualizar'),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: _entregasFiltradas.isEmpty
-                      ? const Center(child: Text('No hay entregas pendientes'))
-                      : ListView.builder(
-                          itemCount: _entregasFiltradas.length,
-                          itemBuilder: (context, idx) {
-                            final entrega = _entregasFiltradas[idx];
-                            final seleccionado = _seleccionados.contains(idx);
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              child: ListTile(
-                                leading: Checkbox(
-                                  value: seleccionado,
-                                  onChanged: (v) {
-                                    setState(() {
-                                      if (v == true) {
-                                        _seleccionados.add(idx);
-                                      } else {
-                                        _seleccionados.remove(idx);
-                                      }
-                                    });
-                                  },
-                                ),
-                                title: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: [
-                                    _infoChip('LP', entrega['LP']),
-                                    _infoChip('SKU', entrega['SKU']),
-                                    _infoChip(
-                                        'DESCRIPCION', entrega['DESCRIPCION']),
-                                    _infoChip('CANTIDAD', entrega['CANTIDAD']),
-                                    _infoChip('SECCION', entrega['SECCION']),
-                                    _infoChip('JEFATURA', entrega['JEFATURA']),
-                                    _infoChip('MBODAS', entrega['MBODAS']),
-                                  ],
-                                ),
-                                subtitle: isMobile
-                                    ? Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          _mobileField('LP', entrega['LP']),
-                                          _mobileField('SKU', entrega['SKU']),
-                                          _mobileField('DESCRIPCION',
-                                              entrega['DESCRIPCION']),
-                                          _mobileField(
-                                              'CANTIDAD', entrega['CANTIDAD']),
-                                          _mobileField(
-                                              'SECCION', entrega['SECCION']),
-                                          _mobileField(
-                                              'JEFATURA', entrega['JEFATURA']),
-                                          _mobileField(
-                                              'MBODAS', entrega['MBODAS']),
-                                        ],
-                                      )
-                                    : null,
-                              ),
-                            );
-                          },
-                        ),
-                ),
-                if (_entregasFiltradas.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.edit_document, size: 22),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color.fromARGB(255, 244, 247, 245),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 12),
-                      ),
-                      label: const Text('Firmar seleccionados',
-                          style: TextStyle(fontSize: 18)),
-                      onPressed: () => _firmarSeleccionados(context),
-                    ),
-                  ),
-              ],
-            ),
-    );
+  void dispose() {
+    _lpController.dispose();
+    super.dispose();
   }
 }
