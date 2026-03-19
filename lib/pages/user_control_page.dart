@@ -55,7 +55,6 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'DevCan',
       'Dev Mbodas',
       'Dev XD',
-      'Entregas XD',
       'Historial Entregas DevCan',
       'Recogidos',
       'Historial Entregas Recogidos',
