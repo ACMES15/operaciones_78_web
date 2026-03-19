@@ -44,17 +44,17 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
       entregasRaw = entregasDoc.exists ? entregasDoc.data() : {};
       final historialDoc = await FirebaseFirestore.instance
           .collection('historial_entregas')
-          .doc('mbodas_firmadas')
+          .doc('dev_mbodas_firmadas')
           .get();
       historialRaw = historialDoc.exists ? historialDoc.data() : {};
       await guardarDatosFirestoreYCache(
           'entregas', 'mbodas', entregasRaw ?? {});
       await guardarDatosFirestoreYCache(
-          'historial_entregas', 'mbodas_firmadas', historialRaw ?? {});
+          'historial_entregas', 'dev_mbodas_firmadas', historialRaw ?? {});
     } else {
       entregasRaw = await leerDatosConCache('entregas', 'mbodas');
       historialRaw =
-          await leerDatosConCache('historial_entregas', 'mbodas_firmadas');
+          await leerDatosConCache('historial_entregas', 'dev_mbodas_firmadas');
     }
     List<Map<String, dynamic>> entregas = [];
     if (entregasRaw != null && entregasRaw['items'] is List) {
@@ -321,14 +321,15 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
     historialActual.addAll(nuevasFirmadas);
-    await guardarDatosFirestoreYCache(
-        'historial_entregas', 'mbodas_firmadas', {'items': historialActual});
+    await guardarDatosFirestoreYCache('historial_entregas',
+        'dev_mbodas_firmadas', {'items': historialActual});
     setState(() {
       _seleccionados.clear();
     });
     await _cargarDatos();
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Entregas firmadas y guardadas correctamente.')));
+    // Ya no navega automáticamente, solo limpia y recarga
   }
 
   @override
