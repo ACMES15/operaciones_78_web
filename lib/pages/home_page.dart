@@ -10,6 +10,7 @@ import '../pages/carta_porte_table.dart' as real_carta_porte;
 import '../pages/historial_carta_porte_page.dart';
 import '../pages/plantilla_ejecutiva_page.dart';
 import '../pages/devcan_page.dart';
+import '../pages/dev_mbodas_page.dart';
 import '../pages/bienvenida_page.dart';
 import '../pages/historial_entregas_devcan_page.dart';
 import '../pages/recogidos/recogidos_page.dart';
@@ -62,6 +63,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Carta Porte': Icons.history,
     'Plantilla Ejecutiva': Icons.assignment_turned_in,
     'DevCan': Icons.bolt,
+    'DEV MBODAS': Icons.cake,
     'Historial Entregas DevCan': Icons.history_toggle_off,
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
@@ -84,6 +86,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Carta Porte': HistorialCartaPortePage(),
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
     'DevCan': DevCanPage(usuario: widget.usuario),
+    'DEV MBODAS': DevMbodasPage(usuario: widget.usuario),
     'Historial Entregas DevCan': HistorialEntregasDevCanPage(
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Recogidos': RecogidosPage(usuario: widget.usuario),
@@ -106,6 +109,7 @@ class _HomePageState extends State<HomePage> {
       'Hoja de XD',
       'Historial Hoja de XD',
       'DevCan',
+      'DEV MBODAS',
       'Historial Entregas DevCan',
       'Recogidos',
       'Historial Entregas Recogidos',
