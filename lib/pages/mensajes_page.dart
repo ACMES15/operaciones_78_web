@@ -17,8 +17,11 @@ class _MensajesPageState extends State<MensajesPage> {
   final TextEditingController _mensajeController = TextEditingController();
   String? _usuarioDestino;
   List<String> _tiposUsuario = [];
+  List<Map<String, dynamic>> _usuarios = [];
   bool _cargandoTipos = false;
+  bool _cargandoUsuarios = false;
   bool _enviando = false;
+  bool _importante = false;
 
   bool get _esAdmin => [
         'ADMIN',
@@ -55,12 +58,17 @@ class _MensajesPageState extends State<MensajesPage> {
   Future<void> _enviarMensaje() async {
     if (_mensajeController.text.trim().isEmpty) return;
     setState(() => _enviando = true);
+    String destino = 'ADMIN';
+    if (_esAdmin) {
+      destino = _usuarioDestino ?? 'TODOS';
+    }
     await FirebaseFirestore.instance.collection('mensajes').add({
       'mensaje': _mensajeController.text.trim(),
       'fecha': DateTime.now(),
       'origen': widget.usuario,
-      'destino': _esAdmin ? (_usuarioDestino ?? 'TODOS') : 'ADMIN',
+      'destino': destino,
       'leido': false,
+      'importante': _esAdmin ? _importante : false,
     });
     _mensajeController.clear();
     setState(() => _enviando = false);
@@ -76,7 +84,32 @@ class _MensajesPageState extends State<MensajesPage> {
   @override
   void initState() {
     super.initState();
-    if (_esAdmin) _cargarTiposUsuario();
+    _eliminarMensajesExpirados();
+    if (_esAdmin) {
+      _cargarTiposUsuario();
+      _cargarUsuarios();
+    }
+  }
+
+  Future<void> _eliminarMensajesExpirados() async {
+    final ahora = DateTime.now();
+    final mensajes =
+        await FirebaseFirestore.instance.collection('mensajes').get();
+    for (final doc in mensajes.docs) {
+      final data = doc.data();
+      final fecha = data['fecha'];
+      if (fecha is Timestamp) {
+        final dt = fecha.toDate();
+        final bool importante = data['importante'] == true;
+        final duracion = Duration(hours: importante ? 24 : 12);
+        if (ahora.difference(dt) > duracion) {
+          await FirebaseFirestore.instance
+              .collection('mensajes')
+              .doc(doc.id)
+              .delete();
+        }
+      }
+    }
   }
 
   Future<void> _cargarTiposUsuario() async {
@@ -85,6 +118,15 @@ class _MensajesPageState extends State<MensajesPage> {
     setState(() {
       _tiposUsuario = tipos;
       _cargandoTipos = false;
+    });
+  }
+
+  Future<void> _cargarUsuarios() async {
+    setState(() => _cargandoUsuarios = true);
+    final usuarios = await MensajesUtils.obtenerTodosUsuarios();
+    setState(() {
+      _usuarios = usuarios;
+      _cargandoUsuarios = false;
     });
   }
 
@@ -122,7 +164,15 @@ class _MensajesPageState extends State<MensajesPage> {
                     return Card(
                       color: esLeido ? Colors.white : Colors.red.shade50,
                       child: ListTile(
-                        title: Text(data['mensaje'] ?? ''),
+                        title: Row(
+                          children: [
+                            if (data['importante'] == true)
+                              const Icon(Icons.priority_high,
+                                  color: Colors.red, size: 18),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(data['mensaje'] ?? '')),
+                          ],
+                        ),
                         subtitle: Text(
                             'De: ${data['origen']}  Para: ${data['destino']}'),
                         trailing: Row(
@@ -183,33 +233,43 @@ class _MensajesPageState extends State<MensajesPage> {
                 if (_esAdmin)
                   Expanded(
                     flex: 2,
-                    child: _usuarioDestino != null &&
-                            !_tiposUsuario.contains(_usuarioDestino!) &&
-                            _usuarioDestino != 'TODOS'
-                        ? TextFormField(
-                            initialValue: _usuarioDestino,
-                            enabled: false,
-                            decoration: const InputDecoration(
-                              labelText: 'Destino',
-                              border: OutlineInputBorder(),
-                            ),
-                          )
-                        : (_cargandoTipos
-                            ? const Center(child: CircularProgressIndicator())
-                            : DropdownButtonFormField<String>(
+                    child: _cargandoTipos || _cargandoUsuarios
+                        ? const Center(child: CircularProgressIndicator())
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              DropdownButtonFormField<String>(
                                 value: _usuarioDestino,
                                 hint: const Text('Destino'),
                                 items: [
                                   const DropdownMenuItem(
                                       value: 'TODOS', child: Text('Todos')),
-                                  ..._tiposUsuario
-                                      .map((tipo) => DropdownMenuItem(
-                                          value: tipo, child: Text(tipo)))
-                                      .toList(),
+                                  ..._tiposUsuario.map((tipo) =>
+                                      DropdownMenuItem(
+                                          value: tipo,
+                                          child: Text('Grupo: $tipo'))),
+                                  ..._usuarios.map((u) => DropdownMenuItem(
+                                      value: u['usuario'] ?? u['id'],
+                                      child: Text(
+                                          'Usuario: ${u['nombre'] ?? u['usuario'] ?? u['id']}'))),
                                 ],
                                 onChanged: (v) =>
                                     setState(() => _usuarioDestino = v),
-                              )),
+                              ),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _importante,
+                                    onChanged: _esAdmin
+                                        ? (v) => setState(
+                                            () => _importante = v ?? false)
+                                        : null,
+                                  ),
+                                  const Text('Importante (24h)'),
+                                ],
+                              ),
+                            ],
+                          ),
                   ),
                 Expanded(
                   flex: 5,
