@@ -27,6 +27,7 @@ import '../pages/historial_entregas_cyc_page.dart';
 import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
 import 'mensajes_page.dart';
+import 'transferencias_retornos_page.dart'; // Importar la nueva página TransferenciasRetornosPage
 import '../utils/mensajes_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -89,6 +90,7 @@ class _HomePageState extends State<HomePage> {
     'Historial De Entregas CDR': Icons.history_edu,
     'Paquetería Externa': Icons.local_shipping,
     'Historial Paquetería Externa': Icons.history,
+    'Transferencias y retornos': Icons.swap_horiz,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -128,6 +130,7 @@ class _HomePageState extends State<HomePage> {
     'Paquetería Externa': PaqueteriaExternaPage(usuario: widget.usuario),
     'Historial Paquetería Externa': HistorialPaqueteriaExternaPage(
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
+    'Transferencias y retornos': TransferenciasRetornosPage(),
   };
 
   @override
@@ -161,6 +164,7 @@ class _HomePageState extends State<HomePage> {
       'Historial Entregas CyC', // Solo historial CyC en menú
       'Paquetería Externa',
       'Historial Paquetería Externa',
+      'Transferencias y retornos',
       'Plantilla Ejecutiva',
     ];
     // ...existing code...

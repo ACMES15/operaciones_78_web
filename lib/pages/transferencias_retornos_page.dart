@@ -1,0 +1,388 @@
+import 'package:flutter/material.dart';
+import 'entregas_transferencias_retornos_page.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:typed_data';
+import 'package:excel/excel.dart' as ex;
+import 'dart:html' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/firebase_cache_utils.dart';
+
+class TransferenciasRetornosPage extends StatefulWidget {
+  const TransferenciasRetornosPage({Key? key}) : super(key: key);
+
+  @override
+  State<TransferenciasRetornosPage> createState() =>
+      _TransferenciasRetornosPageState();
+}
+
+class _TransferenciasRetornosPageState
+    extends State<TransferenciasRetornosPage> {
+  final List<String> _headers = [
+    'TRANSFERENCIA',
+    'ORIGEN',
+    'DESTINO',
+    'SECCION',
+    'JEFATURA',
+  ];
+  final List<List<TextEditingController>> _rows = [];
+
+  void _addRow() {
+    setState(() {
+      final ctrls =
+          List.generate(_headers.length, (_) => TextEditingController());
+      _rows.add(ctrls);
+    });
+  }
+
+  @override
+  void dispose() {
+    for (var row in _rows) {
+      for (var ctrl in row) {
+        ctrl.dispose();
+      }
+    }
+    super.dispose();
+  }
+
+  Future<void> _importFromExcel() async {
+    if (!kIsWeb) return;
+    final uploadInput = html.FileUploadInputElement()..accept = '.xlsx';
+    uploadInput.click();
+    uploadInput.onChange.listen((e) {
+      final files = uploadInput.files;
+      if (files == null || files.isEmpty) return;
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(files[0]);
+      reader.onLoadEnd.listen((event) async {
+        await _procesarExcel(reader.result);
+      });
+    });
+  }
+
+  Future<void> _procesarExcel(Object? result) async {
+    final Uint8List bytes =
+        result is ByteBuffer ? result.asUint8List() : (result as Uint8List);
+    final excel = ex.Excel.decodeBytes(bytes);
+    final List<List<String>> datos = [];
+    for (final table in excel.tables.keys) {
+      final sheet = excel.tables[table];
+      if (sheet == null) continue;
+      for (int rowIndex = 1; rowIndex < sheet.maxRows; rowIndex++) {
+        final row = sheet.row(rowIndex);
+        final fila = <String>[];
+        final transferencia = row.length > 0 && row[0] != null
+            ? row[0]?.value?.toString() ?? ''
+            : '';
+        final origen = row.length > 1 && row[1] != null
+            ? row[1]?.value?.toString() ?? ''
+            : '';
+        final destino = row.length > 2 && row[2] != null
+            ? row[2]?.value?.toString() ?? ''
+            : '';
+        final seccion = row.length > 3 && row[3] != null
+            ? row[3]?.value?.toString() ?? ''
+            : '';
+        fila.add(transferencia);
+        fila.add(origen);
+        fila.add(destino);
+        fila.add(seccion);
+        fila.add(''); // JEFATURA vacío, se llenará luego si es necesario
+        datos.add(fila);
+      }
+      break;
+    }
+    List<List<TextEditingController>> nuevasFilas = [];
+    for (final fila in datos) {
+      final List<TextEditingController> ctrls =
+          List.generate(_headers.length, (i) {
+        final ctrl = TextEditingController();
+        ctrl.text = i < fila.length ? fila[i] : '';
+        return ctrl;
+      });
+      nuevasFilas.add(ctrls);
+    }
+    if (nuevasFilas.isEmpty) {
+      nuevasFilas
+          .add(List.generate(_headers.length, (_) => TextEditingController()));
+    }
+    setState(() {
+      for (var row in _rows) {
+        for (var ctrl in row) {
+          ctrl.dispose();
+        }
+      }
+      _rows.clear();
+      _rows.addAll(nuevasFilas);
+    });
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Diagnóstico de importación'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Encabezados detectados:'),
+            SelectableText(_headers.join(', ')),
+            const SizedBox(height: 8),
+            Text('Filas importadas: \\${_rows.length}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _guardarTransferencias() async {
+    final items = <Map<String, dynamic>>[];
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      Map<String, dynamic> map = {};
+      for (int j = 0; j < _headers.length; j++) {
+        map[_headers[j]] = row[j].text;
+      }
+      map['id'] = DateTime.now().millisecondsSinceEpoch.toString() + '_$i';
+      items.add(map);
+    }
+    try {
+      await guardarDatosFirestoreYCache(
+          'entregas', 'transferencias_retornos', {'items': items});
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Información guardada en Transferencias y Retornos.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error guardando en Firestore: $e'),
+            backgroundColor: Colors.red),
+      );
+      return;
+    }
+  }
+
+  void _verEntregasTransferenciasRetornos() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const EntregasTransferenciasRetornosPage(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobileSmall = MediaQuery.of(context).size.shortestSide <= 600;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF4F9F6),
+      appBar: AppBar(
+        title: const Text('Transferencias y Retornos'),
+        backgroundColor: const Color(0xFF2D6A4F),
+      ),
+      body: isMobileSmall
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar fila'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 18),
+                    ),
+                    onPressed: _addRow,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.file_upload),
+                    label: const Text('Importar Excel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _importFromExcel,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _guardarTransferencias,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('Ver Entregas Transferencias y Retornos'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _verEntregasTransferenciasRetornos,
+                  ),
+                ],
+              ),
+            )
+          : Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: _importFromExcel,
+                        child: const Text('Importar Excel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _guardarTransferencias,
+                        child: const Text('Guardar'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _addRow,
+                        child: const Text('Agregar fila'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: _verEntregasTransferenciasRetornos,
+                        child: const Text(
+                            'Ver Entregas Transferencias y Retornos'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: _headers.length * 140,
+                        child: Column(
+                          children: [
+                            Container(
+                              color: const Color(0xFFE9ECEF),
+                              child: Row(
+                                children: List.generate(_headers.length, (i) {
+                                  final isJefatura = _headers[i] == 'JEFATURA';
+                                  return Expanded(
+                                    flex: isJefatura ? 2 : 1,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: const Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          left: i == 0
+                                              ? const BorderSide(
+                                                  color: Color(0xFFBDBDBD),
+                                                  width: 1)
+                                              : BorderSide.none,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          _headers[i],
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            letterSpacing: 0.5,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: _rows.length,
+                                itemBuilder: (context, rowIdx) {
+                                  return Container(
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD), width: 1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: List.generate(_headers.length,
+                                          (colIdx) {
+                                        final isJefatura =
+                                            _headers[colIdx] == 'JEFATURA';
+                                        return Expanded(
+                                          flex: isJefatura ? 2 : 1,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              border: Border(
+                                                right: BorderSide(
+                                                  color:
+                                                      const Color(0xFFBDBDBD),
+                                                  width: 1,
+                                                ),
+                                                left: colIdx == 0
+                                                    ? const BorderSide(
+                                                        color:
+                                                            Color(0xFFBDBDBD),
+                                                        width: 1)
+                                                    : BorderSide.none,
+                                              ),
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 6,
+                                                      horizontal: 2),
+                                              child: TextField(
+                                                controller: _rows[rowIdx]
+                                                    [colIdx],
+                                                textAlign: TextAlign.center,
+                                                decoration:
+                                                    const InputDecoration(
+                                                  border: InputBorder.none,
+                                                  isDense: true,
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                          horizontal: 4),
+                                                ),
+                                                style: const TextStyle(
+                                                    fontSize: 14),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+    );
+  }
+}

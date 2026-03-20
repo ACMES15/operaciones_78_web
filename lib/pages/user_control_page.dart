@@ -68,6 +68,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Historial Entregas CyC',
       'Paquetería Externa',
       'Historial Paquetería Externa',
+      'Transferencias y Retornos',
     ];
   }
 
