@@ -36,11 +36,11 @@ class _MensajesPageState extends State<MensajesPage> {
           .orderBy('fecha', descending: true)
           .snapshots();
     } else {
-      // Recibe mensajes dirigidos a su tipo, a TODOS, o a su nombre de usuario
+      // Solo mensajes dirigidos a su usuario/tipo/TODOS/ADMIN
       return FirebaseFirestore.instance
           .collection('mensajes')
           .where('destino',
-              whereIn: [widget.tipoUsuario, 'TODOS', widget.usuario])
+              whereIn: [widget.tipoUsuario, 'TODOS', widget.usuario, 'ADMIN'])
           .orderBy('fecha', descending: true)
           .snapshots();
     }
@@ -134,8 +134,26 @@ class _MensajesPageState extends State<MensajesPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mensajes'),
+        title: const Text(
+          'Mensajes',
+          style: TextStyle(
+            fontFamily: 'Montserrat',
+            fontWeight: FontWeight.bold,
+            fontSize: 26,
+            letterSpacing: 1.2,
+            color: Color(0xFF1B4332),
+            shadows: [
+              Shadow(
+                color: Colors.black26,
+                offset: Offset(0, 2),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+        ),
         backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 4,
+        centerTitle: true,
       ),
       body: Column(
         children: [
@@ -156,6 +174,23 @@ class _MensajesPageState extends State<MensajesPage> {
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
+                    // Solo mostrar mensajes válidos para no ADMIN
+                    if (!esAdmin) {
+                      final origenAdmin = [
+                        'ADMIN',
+                        'ADMIN OMNICANAL',
+                        'ADMIN ENVIOS'
+                      ].contains(data['origen']);
+                      final destinoValido = [
+                        widget.tipoUsuario,
+                        'TODOS',
+                        widget.usuario,
+                        'ADMIN'
+                      ].contains(data['destino']);
+                      if (!(origenAdmin || destinoValido)) {
+                        return const SizedBox.shrink();
+                      }
+                    }
                     final esLeido = _esAdmin
                         ? data['leido'] == true
                         : (data['leidosPor'] != null &&
@@ -177,7 +212,7 @@ class _MensajesPageState extends State<MensajesPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                                'De: [200~[0m${data['origen']}  Para: ${data['destino']}'),
+                                'De: ${data['origen']}  Para: ${data['destino']}'),
                             if (_esAdmin &&
                                 data['leidosPor'] != null &&
                                 (data['leidosPor'] as List).isNotEmpty)

@@ -51,57 +51,51 @@ class _MensajesDialogState extends State<MensajesDialog> {
     setState(() => _enviando = true);
     final mensaje = _mensajeController.text.trim();
     final fecha = DateTime.now();
+    final esImportante = widget.isAdmin
+        ? _destinatarioUsuario != null || _destinatarioTipo != null
+            ? _importante ?? false
+            : false
+        : false;
     if (!widget.isAdmin) {
-      // Usuario normal: enviar a todos los ADMIN
-      final admins = await FirebaseFirestore.instance
-          .collection('usuarios')
-          .where('tipo', isEqualTo: 'ADMIN')
-          .get();
-      for (var admin in admins.docs) {
-        await FirebaseFirestore.instance.collection('mensajes').add({
-          'mensaje': mensaje,
-          'fecha': fecha,
-          'origen': widget.usuario,
-          'destino': admin['id'],
-          'leido': false,
-          'importante': false,
-        });
-      }
+      // Usuario normal: solo puede enviar mensajes a los ADMIN (tipo)
+      await FirebaseFirestore.instance.collection('mensajes').add({
+        'mensaje': mensaje,
+        'fecha': fecha,
+        'origen': widget.usuario,
+        'destino': 'ADMIN',
+        'leido': false,
+        'importante': false,
+      });
     } else {
-      // ADMIN: puede elegir usuario, grupo o todos
       if (_destinatarioUsuario != null) {
-        // Mensaje a usuario específico
+        // ADMIN: mensaje individual
         await FirebaseFirestore.instance.collection('mensajes').add({
           'mensaje': mensaje,
           'fecha': fecha,
           'origen': widget.usuario,
           'destino': _destinatarioUsuario,
           'leido': false,
-          'importante': true, // O usa un checkbox si lo tienes
+          'importante': _importante ?? false,
         });
       } else if (_destinatarioTipo != null) {
-        // Mensaje grupal por tipo
-        final usuariosTipo =
-            _usuarios.where((u) => u['tipo'] == _destinatarioTipo).toList();
-        for (var u in usuariosTipo) {
-          await FirebaseFirestore.instance.collection('mensajes').add({
-            'mensaje': mensaje,
-            'fecha': fecha,
-            'origen': widget.usuario,
-            'destino': u['id'],
-            'leido': false,
-            'importante': true, // O usa un checkbox si lo tienes
-          });
-        }
+        // ADMIN: mensaje grupal (por tipo de usuario, un solo mensaje)
+        await FirebaseFirestore.instance.collection('mensajes').add({
+          'mensaje': mensaje,
+          'fecha': fecha,
+          'origen': widget.usuario,
+          'destino': _destinatarioTipo,
+          'leido': false,
+          'importante': _importante ?? false,
+        });
       } else {
-        // Mensaje a todos
+        // ADMIN: mensaje a todos
         await FirebaseFirestore.instance.collection('mensajes').add({
           'mensaje': mensaje,
           'fecha': fecha,
           'origen': widget.usuario,
           'destino': 'TODOS',
           'leido': false,
-          'importante': true, // O usa un checkbox si lo tienes
+          'importante': _importante ?? false,
         });
       }
     }
