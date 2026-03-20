@@ -224,7 +224,12 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                   color: Colors.grey[600]),
                                               const SizedBox(width: 4),
                                               Text(
-                                                entrega['fechaFirma'] != null
+                                                (entrega['fechaFirma']
+                                                                ?.toString()
+                                                                .substring(
+                                                                    0, 10) ??
+                                                            '-') !=
+                                                        ''
                                                     ? entrega['fechaFirma']
                                                         .toString()
                                                         .substring(0, 10)
@@ -272,6 +277,8 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                               ),
                                             ],
                                           ),
+                                          const SizedBox(height: 4),
+                                          // ...existing code...
                                           const SizedBox(height: 8),
                                           Text(
                                             'SKU: \\${entrega['SKU'] ?? '-'}',
