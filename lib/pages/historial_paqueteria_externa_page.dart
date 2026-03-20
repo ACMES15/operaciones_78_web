@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'editar_registro_dialog.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:excel/excel.dart';
+import 'dart:html' as html;
 
 class HistorialPaqueteriaExternaPage extends StatefulWidget {
   final String usuario;
@@ -18,6 +22,48 @@ class HistorialPaqueteriaExternaPage extends StatefulWidget {
 class _HistorialPaqueteriaExternaPageState
     extends State<HistorialPaqueteriaExternaPage> {
   String _busqueda = '';
+
+  // Función para descargar Excel
+  void _descargarExcel() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('paqueteria_externa')
+        .orderBy('fecha', descending: true)
+        .get();
+    final excel = Excel.createExcel();
+    final sheet = excel['PaqueteriaExterna'];
+    sheet.appendRow([
+      'Paquetería',
+      'Guía',
+      'Bultos',
+      'Pedido',
+      'Contrarecibo',
+      'Recibió',
+      'Entregó',
+      'Fecha'
+    ]);
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      sheet.appendRow([
+        data['paqueteria'] ?? '',
+        data['guia'] ?? '',
+        data['bultos'] ?? '',
+        data['pedido'] ?? '',
+        data['contrarecibo'] ?? '',
+        data['nombreRecibe'] ?? '',
+        data['usuario'] ?? '',
+        (data['fecha'] as Timestamp?)?.toDate().toString() ?? '',
+      ]);
+    }
+    final fileBytes = excel.encode();
+    if (fileBytes != null) {
+      final blob = html.Blob([fileBytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'historial_paqueteria_externa.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +91,13 @@ class _HistorialPaqueteriaExternaPageState
                 )),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Descargar Excel',
+            onPressed: _descargarExcel,
+          ),
+        ],
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +204,8 @@ class _HistorialPaqueteriaExternaPageState
                                   icon: const Icon(Icons.edit),
                                   label: const Text('Editar'),
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2D6A4F),
+                                    backgroundColor: const Color.fromARGB(
+                                        255, 242, 245, 243),
                                     shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -167,6 +221,22 @@ class _HistorialPaqueteriaExternaPageState
                                 ),
                               ],
                             ),
+                            // Mostrar imagen de la firma si existe
+                            if (data['firma'] != null &&
+                                data['firma'] is Uint8List)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    data['firma'] as Uint8List,
+                                    height: 80,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),

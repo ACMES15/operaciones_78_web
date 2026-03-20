@@ -180,6 +180,18 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
                   onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
                   validator: (v) =>
                       v == null || v.isEmpty ? 'Campo requerido' : null,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: (v) {
+                    final upper = v.toUpperCase();
+                    if (v != upper) {
+                      _nombreRecibeController.value =
+                          _nombreRecibeController.value.copyWith(
+                        text: upper,
+                        selection:
+                            TextSelection.collapsed(offset: upper.length),
+                      );
+                    }
+                  },
                 ),
                 const SizedBox(height: 32),
                 const Text('Firma:',
@@ -236,7 +248,8 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
                           style: TextStyle(
                               fontSize: 20, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2D6A4F),
+                        backgroundColor:
+                            const Color.fromARGB(255, 246, 248, 247),
                         padding: const EdgeInsets.symmetric(vertical: 22),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
