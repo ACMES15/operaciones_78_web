@@ -243,7 +243,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                             Colors.grey[700]),
                                                   ),
                                                   Text(
-                                                    entrega['NUMERO_PEDIDO']
+                                                    entrega['NUMERO DE PEDIDO']
                                                             ?.toString() ??
                                                         '-',
                                                     style: const TextStyle(
@@ -259,14 +259,15 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                       color: Colors.grey[600]),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    (entrega['fechaFirma']
+                                                    (entrega['fechaValidacion']
                                                                     ?.toString()
                                                                     .substring(
                                                                         0,
                                                                         10) ??
                                                                 '-') !=
                                                             ''
-                                                        ? entrega['fechaFirma']
+                                                        ? entrega[
+                                                                'fechaValidacion']
                                                             .toString()
                                                             .substring(0, 10)
                                                         : '-',
@@ -281,7 +282,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                       color: Color(0xFF2D6A4F)),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    entrega['usuarioEntrega']
+                                                    entrega['validadoPor']
                                                             ?.toString() ??
                                                         '-',
                                                     style: const TextStyle(
@@ -307,7 +308,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                             Color(0xFF2D6A4F)),
                                                   ),
                                                   Text(
-                                                    (entrega['nombreRecibe']
+                                                    (entrega['recibidoPor']
                                                                 ?.toString() ??
                                                             '-')
                                                         .toUpperCase(),
@@ -332,12 +333,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                     fontSize: 15,
                                                     color: Color(0xFF495057)),
                                               ),
-                                              Text(
-                                                'Cantidad: ${entrega['CANTIDAD'] ?? '-'}',
-                                                style: const TextStyle(
-                                                    fontSize: 15,
-                                                    color: Color(0xFF495057)),
-                                              ),
+                                              // No hay campo CANTIDAD en tus datos, así que lo omito
                                               Text(
                                                 'Sección: ${entrega['SECCION'] ?? '-'}',
                                                 style: const TextStyle(
@@ -376,7 +372,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     'Entregó: ' +
-                                                        (entrega['usuarioEntrega']
+                                                        (entrega['recibidoPor']
                                                                 ?.toString() ??
                                                             '-'),
                                                     style: const TextStyle(
