@@ -33,9 +33,11 @@ class _MensajesPageState extends State<MensajesPage> {
           .orderBy('fecha', descending: true)
           .snapshots();
     } else {
+      // Recibe mensajes dirigidos a su tipo, a TODOS, o a su nombre de usuario
       return FirebaseFirestore.instance
           .collection('mensajes')
-          .where('destino', whereIn: [widget.tipoUsuario, 'TODOS'])
+          .where('destino',
+              whereIn: [widget.tipoUsuario, 'TODOS', widget.usuario])
           .orderBy('fecha', descending: true)
           .snapshots();
     }
