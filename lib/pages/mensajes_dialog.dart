@@ -14,6 +14,31 @@ class MensajesDialog extends StatefulWidget {
 class _MensajesDialogState extends State<MensajesDialog> {
   final TextEditingController _mensajeController = TextEditingController();
   bool _enviando = false;
+  String? _destinatarioUsuario; // Para admin: usuario específico
+  String? _destinatarioTipo; // Para admin: grupo por tipo
+  List<Map<String, dynamic>> _usuarios = [];
+  List<String> _tiposUsuario = [];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isAdmin) _cargarUsuariosYTipos();
+  }
+
+  Future<void> _cargarUsuariosYTipos() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('usuarios').get();
+    setState(() {
+      _usuarios =
+          snapshot.docs.map((doc) => {...doc.data(), 'id': doc.id}).toList();
+      _tiposUsuario = _usuarios
+          .map((u) => (u['tipo'] ?? '').toString())
+          .where((t) => t.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+    });
+  }
 
   @override
   void dispose() {
@@ -24,16 +49,57 @@ class _MensajesDialogState extends State<MensajesDialog> {
   Future<void> _enviarMensaje() async {
     if (_mensajeController.text.trim().isEmpty) return;
     setState(() => _enviando = true);
-    await FirebaseFirestore.instance.collection('mensajes').add({
-      'mensaje': _mensajeController.text.trim(),
-      'usuario': widget.usuario,
-      'fecha': DateTime.now(),
-      'respondido': false,
-      'paraTodos': false,
-    });
+    final mensaje = _mensajeController.text.trim();
+    final fecha = DateTime.now();
+    if (!widget.isAdmin) {
+      // Usuario normal: enviar a todos los ADMIN
+      final admins = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .where('tipo', isEqualTo: 'ADMIN')
+          .get();
+      for (var admin in admins.docs) {
+        await FirebaseFirestore.instance.collection('mensajes').add({
+          'mensaje': mensaje,
+          'usuario': widget.usuario,
+          'fecha': fecha,
+          'respondido': false,
+          'para': admin['id'],
+          'paraTipo': 'ADMIN',
+        });
+      }
+    } else {
+      // ADMIN: puede elegir usuario, grupo o todos
+      if (_destinatarioUsuario != null) {
+        // Mensaje a usuario específico
+        await FirebaseFirestore.instance.collection('mensajes').add({
+          'mensaje': mensaje,
+          'usuario': widget.usuario,
+          'fecha': fecha,
+          'respondido': false,
+          'para': _destinatarioUsuario,
+          'paraTipo': null,
+        });
+      } else if (_destinatarioTipo != null) {
+        // Mensaje grupal por tipo
+        final usuariosTipo =
+            _usuarios.where((u) => u['tipo'] == _destinatarioTipo).toList();
+        for (var u in usuariosTipo) {
+          await FirebaseFirestore.instance.collection('mensajes').add({
+            'mensaje': mensaje,
+            'usuario': widget.usuario,
+            'fecha': fecha,
+            'respondido': false,
+            'para': u['id'],
+            'paraTipo': _destinatarioTipo,
+          });
+        }
+      }
+    }
     setState(() {
       _enviando = false;
       _mensajeController.clear();
+      _destinatarioUsuario = null;
+      _destinatarioTipo = null;
     });
     Navigator.of(context).pop();
   }
@@ -136,7 +202,7 @@ class _MensajesDialogState extends State<MensajesDialog> {
                 controller: _mensajeController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  labelText: 'Escribe tu mensaje',
+                  labelText: 'Escribe tu mensaje a los administradores',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
@@ -154,7 +220,7 @@ class _MensajesDialogState extends State<MensajesDialog> {
                 label: const Text('Enviar',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 140, 239, 194),
+                  backgroundColor: const Color(0xFF2D6A4F),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -162,6 +228,92 @@ class _MensajesDialogState extends State<MensajesDialog> {
                 ),
               ),
             ] else ...[
+              if (_usuarios.isNotEmpty) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _destinatarioUsuario,
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Selecciona usuario...'),
+                          ),
+                          ..._usuarios.map((u) => DropdownMenuItem<String>(
+                                value: u['id'],
+                                child: Text(
+                                    '${u['nombre'] ?? u['id']} (${u['tipo']})'),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _destinatarioUsuario = val;
+                            _destinatarioTipo = null;
+                          });
+                        },
+                        decoration: const InputDecoration(labelText: 'Usuario'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _destinatarioTipo,
+                        items: [
+                          const DropdownMenuItem<String>(
+                            value: null,
+                            child: Text('Selecciona grupo...'),
+                          ),
+                          ..._tiposUsuario.map((t) => DropdownMenuItem<String>(
+                                value: t,
+                                child: Text('Grupo: $t'),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setState(() {
+                            _destinatarioTipo = val;
+                            _destinatarioUsuario = null;
+                          });
+                        },
+                        decoration: const InputDecoration(labelText: 'Grupo'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextField(
+                controller: _mensajeController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Escribe tu mensaje',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: _enviando ||
+                        (_destinatarioUsuario == null &&
+                            _destinatarioTipo == null)
+                    ? null
+                    : _enviarMensaje,
+                icon: _enviando
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.send, color: Colors.white),
+                label: const Text('Enviar',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D6A4F),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
+              ),
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                     .collection('mensajes')
