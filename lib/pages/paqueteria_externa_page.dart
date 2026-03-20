@@ -67,15 +67,26 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
       _guardando = false;
       _firmaRealizada = false;
       _signatureController.clear();
+      _guiaController.clear();
+      _bultosController.clear();
+      _pedidoController.clear();
+      _contrareciboController.clear();
+      _nombreRecibeController.clear();
+      _paqueteria = null;
     });
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Guardado correctamente')));
     _formKey.currentState!.reset();
-    _paqueteria = null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final horizontalPadding = isMobile ? 8.0 : 24.0;
+    final verticalPadding = isMobile ? 8.0 : 24.0;
+    final formMaxWidth = isMobile ? double.infinity : 500.0;
+    final firmaHeight = isMobile ? 120.0 : 180.0;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF2D6A4F),
@@ -84,186 +95,204 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
           children: [
             const Icon(Icons.local_shipping, color: Colors.white),
             const SizedBox(width: 10),
-            const Text('Paquetería Externa',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      offset: Offset(1, 1),
-                      blurRadius: 4,
-                    ),
-                  ],
-                )),
+            Flexible(
+              child: Text('Paquetería Externa',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        offset: Offset(1, 1),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis),
+            ),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: _paqueteria,
-                  items: _paqueterias
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                      .toList(),
-                  onChanged: (val) => setState(() => _paqueteria = val),
-                  decoration: const InputDecoration(
-                      labelText: 'Paquetería', border: OutlineInputBorder()),
-                  validator: (val) =>
-                      val == null ? 'Seleccione una paquetería' : null,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _guiaController,
-                  decoration: const InputDecoration(
-                      labelText: 'Guía', border: OutlineInputBorder()),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Campo requerido' : null,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _bultosController,
-                  decoration: const InputDecoration(
-                      labelText: 'Bultos', border: OutlineInputBorder()),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Campo requerido' : null,
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _pedidoController,
-                  decoration: const InputDecoration(
-                      labelText: 'Pedido', border: OutlineInputBorder()),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  // No validator para permitir vacío
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _contrareciboController,
-                  decoration: const InputDecoration(
-                      labelText: 'Contrarecibo', border: OutlineInputBorder()),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  // No validator para permitir vacío
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: _nombreRecibeController,
-                  decoration: const InputDecoration(
-                      labelText: 'Nombre de quien recibe',
-                      border: OutlineInputBorder()),
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) => FocusScope.of(context).nextFocus(),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Campo requerido' : null,
-                  textCapitalization: TextCapitalization.characters,
-                  onChanged: (v) {
-                    final upper = v.toUpperCase();
-                    if (v != upper) {
-                      _nombreRecibeController.value =
-                          _nombreRecibeController.value.copyWith(
-                        text: upper,
-                        selection:
-                            TextSelection.collapsed(offset: upper.length),
-                      );
-                    }
-                  },
-                ),
-                const SizedBox(height: 32),
-                const Text('Firma:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey, width: 1.5),
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  height: 180,
-                  child: Listener(
-                    onPointerUp: (_) => setState(() =>
-                        _firmaRealizada = _signatureController.isNotEmpty),
-                    child: Signature(
-                      controller: _signatureController,
-                      backgroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    TextButton.icon(
-                      icon: const Icon(Icons.refresh, color: Colors.blueGrey),
-                      onPressed: () {
-                        _signatureController.clear();
-                        setState(() => _firmaRealizada = false);
-                      },
-                      label: const Text('Limpiar firma'),
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: verticalPadding),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: formMaxWidth),
+            child: Form(
+              key: _formKey,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 16,
+                      offset: Offset(0, 4),
                     ),
                   ],
                 ),
-                const SizedBox(height: 32),
-                if (_firmaRealizada)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      icon: _guardando
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.save, size: 28),
-                      label: const Text('Guardar',
-                          style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            const Color.fromARGB(255, 246, 248, 247),
-                        padding: const EdgeInsets.symmetric(vertical: 22),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        elevation: 6,
-                        shadowColor: Colors.black38,
-                      ),
-                      onPressed: _guardando ? null : _guardarFormulario,
+                padding: EdgeInsets.all(isMobile ? 12 : 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      value: _paqueteria,
+                      items: _paqueterias
+                          .map(
+                              (p) => DropdownMenuItem(value: p, child: Text(p)))
+                          .toList(),
+                      onChanged: (val) => setState(() => _paqueteria = val),
+                      decoration: const InputDecoration(
+                          labelText: 'Paquetería',
+                          border: OutlineInputBorder()),
+                      validator: (val) =>
+                          val == null ? 'Seleccione una paquetería' : null,
                     ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _guiaController,
+                      decoration: const InputDecoration(
+                          labelText: 'Guía', border: OutlineInputBorder()),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).nextFocus(),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Campo requerido' : null,
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _bultosController,
+                      decoration: const InputDecoration(
+                          labelText: 'Bultos', border: OutlineInputBorder()),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).nextFocus(),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Campo requerido' : null,
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _pedidoController,
+                      decoration: const InputDecoration(
+                          labelText: 'Pedido', border: OutlineInputBorder()),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).nextFocus(),
+                      // No validator para permitir vacío
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _contrareciboController,
+                      decoration: const InputDecoration(
+                          labelText: 'Contrarecibo',
+                          border: OutlineInputBorder()),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).nextFocus(),
+                      // No validator para permitir vacío
+                    ),
+                    const SizedBox(height: 20),
+                    TextFormField(
+                      controller: _nombreRecibeController,
+                      decoration: const InputDecoration(
+                          labelText: 'Nombre de quien recibe',
+                          border: OutlineInputBorder()),
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) =>
+                          FocusScope.of(context).nextFocus(),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Campo requerido' : null,
+                      textCapitalization: TextCapitalization.characters,
+                      onChanged: (v) {
+                        final upper = v.toUpperCase();
+                        if (v != upper) {
+                          _nombreRecibeController.value =
+                              _nombreRecibeController.value.copyWith(
+                            text: upper,
+                            selection:
+                                TextSelection.collapsed(offset: upper.length),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 32),
+                    const Text('Firma:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey, width: 1.5),
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 8,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      height: firmaHeight,
+                      child: Listener(
+                        onPointerUp: (_) => setState(() =>
+                            _firmaRealizada = _signatureController.isNotEmpty),
+                        child: Signature(
+                          controller: _signatureController,
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          icon:
+                              const Icon(Icons.refresh, color: Colors.blueGrey),
+                          onPressed: () {
+                            _signatureController.clear();
+                            setState(() => _firmaRealizada = false);
+                          },
+                          label: const Text('Limpiar firma'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+                    if (_firmaRealizada)
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: _guardando
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.save, size: 28),
+                          label: const Text('Guardar',
+                              style: TextStyle(
+                                  fontSize: 20, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 246, 248, 247),
+                            padding: const EdgeInsets.symmetric(vertical: 22),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            elevation: 6,
+                            shadowColor: Colors.black38,
+                          ),
+                          onPressed: _guardando ? null : _guardarFormulario,
+                        ),
+                      ),
+                  ],
+                ), // Column
+              ), // Container
+            ), // Form
+          ), // ConstrainedBox
+        ), // Center
+      ), // SingleChildScrollView
     );
   }
 }

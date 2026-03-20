@@ -157,7 +157,7 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
           label: const Text('Guardar',
               style: TextStyle(fontWeight: FontWeight.bold)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2D6A4F),
+            backgroundColor: const Color.fromARGB(255, 110, 235, 179),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
