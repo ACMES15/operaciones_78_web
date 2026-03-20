@@ -81,10 +81,14 @@ class _MensajesPageState extends State<MensajesPage> {
   }
 
   Future<void> _marcarComoLeido(String id) async {
-    await FirebaseFirestore.instance
-        .collection('mensajes')
-        .doc(id)
-        .update({'leido': true});
+    final docRef = FirebaseFirestore.instance.collection('mensajes').doc(id);
+    final docSnap = await docRef.get();
+    final data = docSnap.data() as Map<String, dynamic>?;
+    final leidosPor = (data?['leidosPor'] ?? []) as List;
+    if (!leidosPor.contains(widget.usuario)) {
+      leidosPor.add(widget.usuario);
+      await docRef.update({'leidosPor': leidosPor});
+    }
   }
 
   int _contarNoLeidos(List<QueryDocumentSnapshot> docs) {
@@ -194,7 +198,7 @@ class _MensajesPageState extends State<MensajesPage> {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
                     if (esAdmin) {
-                      // Mostrar mensajes dirigidos a ADMIN (usuario, grupo o todos los ADMIN) o enviados por el propio ADMIN
+                      // Mostrar mensajes dirigidos a ADMIN (usuario, grupo o todos los ADMIN) o enviados por el propio usuario
                       final destino = (data['destino'] ?? '').toString();
                       final destinoTipo =
                           (data['destinoTipo'] ?? '').toString().toUpperCase();
@@ -208,11 +212,14 @@ class _MensajesPageState extends State<MensajesPage> {
                         return const SizedBox.shrink();
                       }
                     } else {
-                      // Solo mostrar mensajes que NO sean para ADMIN
+                      // Mostrar mensajes que NO sean para ADMIN, o que fueron enviados por el propio usuario
                       final destino = (data['destino'] ?? '').toString();
                       final destinoTipo =
                           (data['destinoTipo'] ?? '').toString().toUpperCase();
-                      if (destino == 'ADMIN' || destinoTipo.contains('ADMIN')) {
+                      final origen = (data['origen'] ?? '').toString();
+                      if ((destino == 'ADMIN' ||
+                              destinoTipo.contains('ADMIN')) &&
+                          origen != widget.usuario) {
                         return const SizedBox.shrink();
                       }
                       String normaliza(String s) =>
@@ -243,7 +250,8 @@ class _MensajesPageState extends State<MensajesPage> {
                       if (!(esMensajeParaGrupo ||
                           esMensajeParaTodos ||
                           esMensajeIndividual ||
-                          esMensajeDeAdmin)) {
+                          esMensajeDeAdmin ||
+                          origen == widget.usuario)) {
                         return const SizedBox.shrink();
                       }
                     }
