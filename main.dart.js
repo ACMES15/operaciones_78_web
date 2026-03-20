@@ -104632,7 +104632,7 @@ A.aFr.prototype={
 $2(a,b){return B.bB},
 $S:77}
 A.aFq.prototype={
-$2(a4,a5){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e=null,d="-",c="fechaValidacion",b=4281166415,a="recibidoPor",a0=this.a[a5],a1=J.S(a0),a2=a1.h(a0,"firma"),a3=null
+$2(a4,a5){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e=null,d="-",c="fechaValidacion",b=4281166415,a="validadoPor",a0=this.a[a5],a1=J.S(a0),a2=a1.h(a0,"firma"),a3=null
 if(a2!=null)try{s=null
 if(t.D.b(a2))s=a2
 else if(t.J.b(a2))s=new Uint8Array(A.bH(a2))
@@ -104655,11 +104655,11 @@ i=a1.h(a0,c)
 i=i==null?e:B.o.aa(J.T(i),0,10)
 h=A.M((i==null?d:i)!==""?B.o.aa(J.T(a1.h(a0,c)),0,10):d,e,e,e,B.hZ,e,e)
 g=A.kl(B.pF,A.bp(b),e,18)
-f=a1.h(a0,"validadoPor")
+f=a1.h(a0,a)
 i=f==null?e:J.T(f)
 n=A.aj(A.a([n,m,B.ek,l,k,B.eO,j,B.fA,h,B.bT,g,B.fA,A.M(i==null?d:i,e,e,e,B.hZ,e,e)],p),B.H,B.B,B.F,e)
 m=A.M("Recibi\xf3: ",e,e,e,A.d9(e,e,A.bp(b),e,e,e,e,e,e,e,e,e,e,e,B.as,e,e,!0,e,e,e,e,e,e,e,e),e,e)
-l=a1.h(a0,a)
+l=a1.h(a0,"recibidoPor")
 l=l==null?e:J.T(l)
 if(l==null)l=d
 l=A.aj(A.a([B.hn,B.c4,m,A.M(l.toUpperCase(),e,e,e,B.i0,e,e)],p),B.H,B.B,B.F,e)

@@ -372,7 +372,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                                   const SizedBox(width: 6),
                                                   Text(
                                                     'Entregó: ' +
-                                                        (entrega['recibidoPor']
+                                                        (entrega['validadoPor']
                                                                 ?.toString() ??
                                                             '-'),
                                                     style: const TextStyle(
