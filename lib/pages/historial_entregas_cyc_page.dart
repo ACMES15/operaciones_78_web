@@ -213,7 +213,179 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              // ...existing code...
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    'LP: ',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.grey[700]),
+                                                  ),
+                                                  Text(
+                                                    entrega['LP']?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 18,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
+                                                  const SizedBox(width: 18),
+                                                  Text(
+                                                    'N° PEDIDO: ',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.grey[700]),
+                                                  ),
+                                                  Text(
+                                                    entrega['NUMERO_PEDIDO']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
+                                                  const Spacer(),
+                                                  Icon(Icons.calendar_today,
+                                                      size: 18,
+                                                      color: Colors.grey[600]),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    (entrega['fechaFirma']
+                                                                    ?.toString()
+                                                                    .substring(
+                                                                        0,
+                                                                        10) ??
+                                                                '-') !=
+                                                            ''
+                                                        ? entrega['fechaFirma']
+                                                            .toString()
+                                                            .substring(0, 10)
+                                                        : '-',
+                                                    style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color:
+                                                            Color(0xFF495057)),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  Icon(Icons.person_outline,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    entrega['usuarioEntrega']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color:
+                                                            Color(0xFF495057)),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.person,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Recibió: ',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
+                                                  Text(
+                                                    (entrega['nombreRecibe']
+                                                                ?.toString() ??
+                                                            '-')
+                                                        .toUpperCase(),
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 16),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'SKU: ${entrega['SKU'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              ),
+                                              Text(
+                                                'Descripción: ${entrega['DESCRIPCION'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              ),
+                                              Text(
+                                                'Cantidad: ${entrega['CANTIDAD'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              ),
+                                              Text(
+                                                'Sección: ${entrega['SECCION'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              ),
+                                              Text(
+                                                'Jefatura: ${entrega['JEFATURA'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    fontSize: 15,
+                                                    color: Color(0xFF495057)),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                      Icons.verified_user,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Validó: ' +
+                                                        (entrega['usuarioValido']
+                                                                ?.toString() ??
+                                                            '-'),
+                                                    style: const TextStyle(
+                                                        fontSize: 15,
+                                                        color:
+                                                            Color(0xFF495057)),
+                                                  ),
+                                                  const SizedBox(width: 16),
+                                                  const Icon(
+                                                      Icons.person_outline,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    'Entregó: ' +
+                                                        (entrega['usuarioEntrega']
+                                                                ?.toString() ??
+                                                            '-'),
+                                                    style: const TextStyle(
+                                                        fontSize: 15,
+                                                        color:
+                                                            Color(0xFF495057)),
+                                                  ),
+                                                ],
+                                              ),
                                             ],
                                           ),
                                         ),
