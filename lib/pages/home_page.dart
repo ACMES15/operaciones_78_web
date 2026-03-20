@@ -192,6 +192,45 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          // Icono de mensajes junto a la campana
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('mensajes')
+                .where('respondido', isEqualTo: false)
+                .snapshots(),
+            builder: (context, snapshot) {
+              final docs = snapshot.data?.docs ?? [];
+              int pendientes = 0;
+              if (widget.tipoUsuario.toLowerCase() == 'admin') {
+                pendientes = docs
+                    .where((d) => (d['paraTipo'] == 'ADMIN' ||
+                        d['para'] == widget.usuario))
+                    .length;
+              } else {
+                pendientes = docs
+                    .where((d) =>
+                        d['para'] == widget.usuario &&
+                        (d['respuestaDeAdmin'] == true ||
+                            d['usuarioTipo'] == 'ADMIN'))
+                    .length;
+              }
+              final iconColor =
+                  pendientes > 0 ? Colors.red.shade700 : Colors.white;
+              return IconButton(
+                icon: Icon(Icons.message, color: iconColor, size: 28),
+                tooltip: 'Mensajes',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => MensajesDialog(
+                      usuario: widget.usuario,
+                      isAdmin: widget.tipoUsuario.toLowerCase() == 'admin',
+                    ),
+                  );
+                },
+              );
+            },
+          ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _notificacionesStream,
