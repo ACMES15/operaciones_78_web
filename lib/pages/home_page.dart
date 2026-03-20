@@ -197,7 +197,8 @@ class _HomePageState extends State<HomePage> {
             icon: Stack(
               alignment: Alignment.topRight,
               children: [
-                const Icon(Icons.message, color: Colors.white, size: 27),
+                const Icon(Icons.message,
+                    color: Colors.white, size: 28), // Igual que la campana
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('mensajes')
@@ -207,13 +208,11 @@ class _HomePageState extends State<HomePage> {
                     final docs = snapshot.data?.docs ?? [];
                     int pendientes = 0;
                     if (widget.tipoUsuario.toLowerCase() == 'admin') {
-                      // ADMIN: mensajes pendientes enviados a admin
                       pendientes = docs
                           .where((d) => (d['paraTipo'] == 'ADMIN' ||
                               d['para'] == widget.usuario))
                           .length;
                     } else {
-                      // Usuario normal: mensajes pendientes enviados por admin a este usuario
                       pendientes = docs
                           .where((d) =>
                               d['para'] == widget.usuario &&
@@ -223,21 +222,29 @@ class _HomePageState extends State<HomePage> {
                     }
                     if (pendientes == 0) return const SizedBox.shrink();
                     return Positioned(
-                      right: 0,
-                      top: 0,
+                      right: 6,
+                      top: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                        padding:
+                            const EdgeInsets.all(6), // Igual que la campana
                         decoration: BoxDecoration(
                           color: Colors.red.shade700,
-                          borderRadius: BorderRadius.circular(12),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Text(
                           pendientes.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 14, // Igual que la campana
                           ),
                         ),
                       ),
