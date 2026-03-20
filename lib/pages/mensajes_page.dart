@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/mensajes_utils.dart';
 
 class MensajesPage extends StatefulWidget {
   final String usuario;
@@ -15,10 +16,18 @@ class MensajesPage extends StatefulWidget {
 class _MensajesPageState extends State<MensajesPage> {
   final TextEditingController _mensajeController = TextEditingController();
   String? _usuarioDestino;
+  List<String> _tiposUsuario = [];
+  bool _cargandoTipos = false;
   bool _enviando = false;
 
+  bool get _esAdmin => [
+        'ADMIN',
+        'ADMIN OMNICANAL',
+        'ADMIN ENVIOS',
+      ].contains(widget.tipoUsuario);
+
   Stream<QuerySnapshot> get _mensajesStream {
-    if (widget.tipoUsuario == 'ADMIN') {
+    if (_esAdmin) {
       return FirebaseFirestore.instance
           .collection('mensajes')
           .orderBy('fecha', descending: true)
@@ -26,7 +35,11 @@ class _MensajesPageState extends State<MensajesPage> {
     } else {
       return FirebaseFirestore.instance
           .collection('mensajes')
-          .where('destino', isEqualTo: 'ADMIN')
+          .where('destino', whereIn: [
+            'ADMIN',
+            'ADMIN OMNICANAL',
+            'ADMIN ENVIOS',
+          ])
           .orderBy('fecha', descending: true)
           .snapshots();
     }
@@ -39,9 +52,7 @@ class _MensajesPageState extends State<MensajesPage> {
       'mensaje': _mensajeController.text.trim(),
       'fecha': DateTime.now(),
       'origen': widget.usuario,
-      'destino': widget.tipoUsuario == 'ADMIN'
-          ? (_usuarioDestino ?? 'TODOS')
-          : 'ADMIN',
+      'destino': _esAdmin ? (_usuarioDestino ?? 'TODOS') : 'ADMIN',
       'leido': false,
     });
     _mensajeController.clear();
@@ -53,6 +64,21 @@ class _MensajesPageState extends State<MensajesPage> {
         .collection('mensajes')
         .doc(id)
         .update({'leido': true});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_esAdmin) _cargarTiposUsuario();
+  }
+
+  Future<void> _cargarTiposUsuario() async {
+    setState(() => _cargandoTipos = true);
+    final tipos = await MensajesUtils.obtenerTiposUsuario();
+    setState(() {
+      _tiposUsuario = tipos;
+      _cargandoTipos = false;
+    });
   }
 
   @override
@@ -80,7 +106,7 @@ class _MensajesPageState extends State<MensajesPage> {
                   itemCount: docs.length,
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
-                    final esAdmin = widget.tipoUsuario == 'ADMIN';
+                    final esAdmin = _esAdmin;
                     final esLeido = data['leido'] == true;
                     return Card(
                       color: esLeido ? Colors.white : Colors.red.shade50,
@@ -135,18 +161,38 @@ class _MensajesPageState extends State<MensajesPage> {
             padding: const EdgeInsets.all(12.0),
             child: Row(
               children: [
-                if (widget.tipoUsuario == 'ADMIN')
+                if (_esAdmin)
                   Expanded(
                     flex: 2,
-                    child: DropdownButtonFormField<String>(
-                      value: _usuarioDestino,
-                      hint: const Text('Destino'),
-                      items: const [
-                        DropdownMenuItem(value: 'TODOS', child: Text('Todos')),
-                        // Aquí podrías cargar usuarios dinámicamente
-                      ],
-                      onChanged: (v) => setState(() => _usuarioDestino = v),
-                    ),
+                    child: _usuarioDestino != null &&
+                            !_tiposUsuario.contains(_usuarioDestino!) &&
+                            _usuarioDestino != 'TODOS'
+                        ? DropdownButtonFormField<String>(
+                            value: _usuarioDestino,
+                            items: [
+                              DropdownMenuItem(
+                                value: _usuarioDestino,
+                                child: Text(_usuarioDestino!),
+                              ),
+                            ],
+                            onChanged: null,
+                          )
+                        : (_cargandoTipos
+                            ? const Center(child: CircularProgressIndicator())
+                            : DropdownButtonFormField<String>(
+                                value: _usuarioDestino,
+                                hint: const Text('Destino'),
+                                items: [
+                                  const DropdownMenuItem(
+                                      value: 'TODOS', child: Text('Todos')),
+                                  ..._tiposUsuario
+                                      .map((tipo) => DropdownMenuItem(
+                                          value: tipo, child: Text(tipo)))
+                                      .toList(),
+                                ],
+                                onChanged: (v) =>
+                                    setState(() => _usuarioDestino = v),
+                              )),
                   ),
                 Expanded(
                   flex: 5,
