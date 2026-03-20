@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
     'Historial De Entregas CDR': Icons.history_edu,
     'Paquetería Externa': Icons.local_shipping,
     'Historial Paquetería Externa': Icons.history,
-    'Transferencias y retornos': Icons.swap_horiz,
+    'Transferencias y Retornos': Icons.swap_horiz,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -130,7 +130,7 @@ class _HomePageState extends State<HomePage> {
     'Paquetería Externa': PaqueteriaExternaPage(usuario: widget.usuario),
     'Historial Paquetería Externa': HistorialPaqueteriaExternaPage(
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
-    'Transferencias y retornos':
+    'Transferencias y Retornos':
         TransferenciasRetornosPage(usuario: widget.usuario),
   };
 
@@ -165,7 +165,7 @@ class _HomePageState extends State<HomePage> {
       'Historial Entregas CyC', // Solo historial CyC en menú
       'Paquetería Externa',
       'Historial Paquetería Externa',
-      'Transferencias y retornos',
+      'Transferencias y Retornos',
       'Plantilla Ejecutiva',
     ];
     // ...existing code...
