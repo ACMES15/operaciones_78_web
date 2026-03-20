@@ -303,164 +303,240 @@ class _TransferenciasRetornosPageState
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: _rows.length,
-                      itemBuilder: (context, rowIdx) {
-                        return Container(
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                  color: Color(0xFFBDBDBD), width: 1),
-                            ),
-                          ),
-                          child: Row(
-                            children: List.generate(_headers.length, (colIdx) {
-                              final isJefatura = _headers[colIdx] == 'JEFATURA';
-                              final isRetorno = _headers[colIdx] == 'RETORNO';
-                              final isSeccion = _headers[colIdx] == 'SECCION';
-                              return Expanded(
-                                flex: isJefatura ? 2 : 1,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      right: BorderSide(
-                                        color: const Color(0xFFBDBDBD),
-                                        width: 1,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: _headers.length * 140,
+                        child: Column(
+                          children: [
+                            Container(
+                              color: const Color(0xFFE9ECEF),
+                              child: Row(
+                                children: List.generate(_headers.length, (i) {
+                                  final isJefatura = _headers[i] == 'JEFATURA';
+                                  final isRetorno = _headers[i] == 'RETORNO';
+                                  return Expanded(
+                                    flex: isJefatura ? 2 : 1,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                      decoration: BoxDecoration(
+                                        border: Border(
+                                          right: BorderSide(
+                                            color: const Color(0xFFBDBDBD),
+                                            width: 1,
+                                          ),
+                                          left: i == 0
+                                              ? const BorderSide(
+                                                  color: Color(0xFFBDBDBD),
+                                                  width: 1)
+                                              : BorderSide.none,
+                                        ),
                                       ),
-                                      left: colIdx == 0
-                                          ? const BorderSide(
-                                              color: Color(0xFFBDBDBD),
-                                              width: 1)
-                                          : BorderSide.none,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 6, horizontal: 2),
-                                    child: isRetorno
-                                        ? Center(
-                                            child: Checkbox(
-                                              value:
-                                                  _rows[rowIdx][colIdx].text ==
-                                                      'true',
-                                              onChanged: (val) {
-                                                setState(() {
-                                                  _rows[rowIdx][colIdx].text =
-                                                      val == true
-                                                          ? 'true'
-                                                          : 'false';
-                                                });
-                                              },
-                                            ),
-                                          )
-                                        : isJefatura
-                                            ? TextField(
-                                                controller: _rows[rowIdx]
-                                                    [colIdx],
-                                                textAlign: TextAlign.center,
-                                                decoration:
-                                                    const InputDecoration(
-                                                  border: InputBorder.none,
-                                                  isDense: true,
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                          vertical: 8,
-                                                          horizontal: 4),
-                                                ),
-                                                style: const TextStyle(
-                                                    fontSize: 14),
+                                      child: Center(
+                                        child: isRetorno
+                                            ? Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: const [
+                                                  Icon(Icons.assignment_return,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  SizedBox(width: 4),
+                                                  Text('RETORNO',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 16)),
+                                                ],
                                               )
-                                            : isSeccion
-                                                ? TextField(
-                                                    controller: _rows[rowIdx]
-                                                        [colIdx],
-                                                    textAlign: TextAlign.center,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      border: InputBorder.none,
-                                                      isDense: true,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                              horizontal: 4),
-                                                    ),
-                                                    style: const TextStyle(
-                                                        fontSize: 14),
-                                                    onChanged: (value) async {
-                                                      final seccion =
-                                                          value.trim();
-                                                      if (seccion.isNotEmpty) {
-                                                        final doc =
-                                                            await FirebaseFirestore
-                                                                .instance
-                                                                .collection(
-                                                                    'plantilla_ejecutiva')
-                                                                .doc('datos')
-                                                                .get();
-                                                        if (doc.exists &&
-                                                            doc.data() !=
-                                                                null) {
-                                                          final datos = doc
-                                                                      .data()![
-                                                                  'datos']
-                                                              as List<dynamic>?;
-                                                          if (datos != null) {
-                                                            for (final fila
-                                                                in datos) {
-                                                              if (fila is Map<
-                                                                      String,
-                                                                      dynamic> &&
-                                                                  fila['SECCION']
-                                                                          .toString()
-                                                                          .trim()
-                                                                          .toUpperCase() ==
-                                                                      seccion
-                                                                          .toUpperCase()) {
-                                                                final jefaturaIdx =
-                                                                    _headers.indexOf(
-                                                                        'JEFATURA');
-                                                                if (jefaturaIdx !=
-                                                                    -1) {
-                                                                  setState(() {
-                                                                    _rows[rowIdx]
+                                            : Text(
+                                                _headers[i],
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: _rows.length,
+                                itemBuilder: (context, rowIdx) {
+                                  return Container(
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(
+                                            color: Color(0xFFBDBDBD), width: 1),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: List.generate(_headers.length,
+                                          (colIdx) {
+                                        final isJefatura =
+                                            _headers[colIdx] == 'JEFATURA';
+                                        final isRetorno =
+                                            _headers[colIdx] == 'RETORNO';
+                                        return Expanded(
+                                          flex: isJefatura ? 2 : 1,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              border: Border(
+                                                right: BorderSide(
+                                                  color:
+                                                      const Color(0xFFBDBDBD),
+                                                  width: 1,
+                                                ),
+                                                left: colIdx == 0
+                                                    ? const BorderSide(
+                                                        color:
+                                                            Color(0xFFBDBDBD),
+                                                        width: 1)
+                                                    : BorderSide.none,
+                                              ),
+                                            ),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 6,
+                                                      horizontal: 2),
+                                              child: isRetorno
+                                                  ? Center(
+                                                      child: Checkbox(
+                                                        value: _rows[rowIdx]
+                                                                    [colIdx]
+                                                                .text ==
+                                                            'true',
+                                                        onChanged: (val) {
+                                                          setState(() {
+                                                            _rows[rowIdx]
+                                                                        [colIdx]
+                                                                    .text =
+                                                                val == true
+                                                                    ? 'true'
+                                                                    : 'false';
+                                                          });
+                                                        },
+                                                      ),
+                                                    )
+                                                  : isJefatura
+                                                      ? TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                          onChanged:
+                                                              (value) async {
+                                                            // Buscar jefatura en Firestore y autollenar si aplica
+                                                            final seccionIdx =
+                                                                _headers.indexOf(
+                                                                    'SECCION');
+                                                            final seccion =
+                                                                seccionIdx != -1
+                                                                    ? _rows[rowIdx]
                                                                             [
-                                                                            jefaturaIdx]
-                                                                        .text = fila['NOMBRE']
-                                                                            ?.toString() ??
-                                                                        '';
-                                                                  });
+                                                                            seccionIdx]
+                                                                        .text
+                                                                        .trim()
+                                                                    : '';
+                                                            if (seccion
+                                                                .isNotEmpty) {
+                                                              final doc = await FirebaseFirestore
+                                                                  .instance
+                                                                  .collection(
+                                                                      'plantilla_ejecutiva')
+                                                                  .doc('datos')
+                                                                  .get();
+                                                              if (doc.exists &&
+                                                                  doc.data() !=
+                                                                      null) {
+                                                                final datos = doc
+                                                                            .data()![
+                                                                        'datos']
+                                                                    as List<
+                                                                        dynamic>?;
+                                                                if (datos !=
+                                                                    null) {
+                                                                  for (final fila
+                                                                      in datos) {
+                                                                    if (fila is Map<
+                                                                            String,
+                                                                            dynamic> &&
+                                                                        fila['SECCION'].toString().trim().toUpperCase() ==
+                                                                            seccion.toUpperCase()) {
+                                                                      setState(
+                                                                          () {
+                                                                        _rows[rowIdx][colIdx]
+                                                                            .text = fila['NOMBRE']
+                                                                                ?.toString() ??
+                                                                            '';
+                                                                      });
+                                                                      break;
+                                                                    }
+                                                                  }
                                                                 }
-                                                                break;
                                                               }
                                                             }
-                                                          }
-                                                        }
-                                                      }
-                                                    },
-                                                  )
-                                                : TextField(
-                                                    controller: _rows[rowIdx]
-                                                        [colIdx],
-                                                    textAlign: TextAlign.center,
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      border: InputBorder.none,
-                                                      isDense: true,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                              horizontal: 4),
-                                                    ),
-                                                    style: const TextStyle(
-                                                        fontSize: 14),
-                                                  ),
-                                  ),
-                                ),
-                              );
-                            }),
-                          ),
-                        );
-                      },
+                                                          },
+                                                        )
+                                                      : TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                        ),
+                                            ),
+                                          ),
+                                        );
+                                      }),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
