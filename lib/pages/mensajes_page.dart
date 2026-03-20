@@ -169,7 +169,7 @@ class _MensajesPageState extends State<MensajesPage> {
             ],
           ),
         ),
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: const Color.fromARGB(255, 129, 234, 187),
         elevation: 4,
         centerTitle: true,
         actions: [],
@@ -193,7 +193,26 @@ class _MensajesPageState extends State<MensajesPage> {
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
-                    if (!esAdmin) {
+                    if (esAdmin) {
+                      // Solo mostrar mensajes dirigidos a ADMIN (usuario, grupo o todos los ADMIN)
+                      final destino = (data['destino'] ?? '').toString();
+                      final destinoTipo =
+                          (data['destinoTipo'] ?? '').toString().toUpperCase();
+                      if (!(destino == widget.usuario ||
+                          destinoTipo.contains('ADMIN') ||
+                          destino == 'ADMIN' ||
+                          destino == 'TODOS' ||
+                          destinoTipo == 'TODOS')) {
+                        return const SizedBox.shrink();
+                      }
+                    } else {
+                      // Solo mostrar mensajes que NO sean para ADMIN
+                      final destino = (data['destino'] ?? '').toString();
+                      final destinoTipo =
+                          (data['destinoTipo'] ?? '').toString().toUpperCase();
+                      if (destino == 'ADMIN' || destinoTipo.contains('ADMIN')) {
+                        return const SizedBox.shrink();
+                      }
                       String normaliza(String s) =>
                           s.toString().toLowerCase().replaceAll(' ', '');
                       final tipoUsuarioNorm = normaliza(widget.tipoUsuario);
@@ -208,8 +227,6 @@ class _MensajesPageState extends State<MensajesPage> {
                               destinoTipoNorm == tipoUsuarioNorm;
                       final esMensajeParaTodos =
                           destinoNorm == 'todos' || destinoTipoNorm == 'todos';
-                      final esMensajeParaAdmin =
-                          destinoNorm == 'admin' || destinoTipoNorm == 'admin';
                       final esMensajeIndividual = destinoNorm == usuarioNorm ||
                           destinoTipoNorm == usuarioNorm;
                       // Solo mostrar mensajes de origen ADMIN si el destino es válido para el usuario
@@ -220,11 +237,9 @@ class _MensajesPageState extends State<MensajesPage> {
                           ].contains(origenTipoNorm) &&
                           (esMensajeParaGrupo ||
                               esMensajeParaTodos ||
-                              esMensajeParaAdmin ||
                               esMensajeIndividual);
                       if (!(esMensajeParaGrupo ||
                           esMensajeParaTodos ||
-                          esMensajeParaAdmin ||
                           esMensajeIndividual ||
                           esMensajeDeAdmin)) {
                         return const SizedBox.shrink();
