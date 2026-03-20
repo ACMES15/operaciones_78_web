@@ -59,14 +59,29 @@ class _MensajesPageState extends State<MensajesPage> {
     if (_mensajeController.text.trim().isEmpty) return;
     setState(() => _enviando = true);
     String destino = 'ADMIN';
+    String destinoTipo = 'ADMIN';
     if (_esAdmin) {
       destino = _usuarioDestino ?? 'TODOS';
+      // Buscar tipo de usuario del destinatario si es individual
+      if (_usuarioDestino != null && _usuarioDestino != 'TODOS') {
+        final usuario = _usuarios.firstWhere(
+          (u) => u['usuario'] == _usuarioDestino || u['id'] == _usuarioDestino,
+          orElse: () => {},
+        );
+        destinoTipo = usuario['tipo'] ?? destino;
+      } else if (_usuarioDestino == 'TODOS') {
+        destinoTipo = 'TODOS';
+      } else {
+        destinoTipo = destino;
+      }
     }
     await FirebaseFirestore.instance.collection('mensajes').add({
       'mensaje': _mensajeController.text.trim(),
       'fecha': DateTime.now(),
       'origen': widget.usuario,
+      'origenTipo': widget.tipoUsuario,
       'destino': destino,
+      'destinoTipo': destinoTipo,
       'leido': false,
       'importante': _esAdmin ? _importante : false,
     });
