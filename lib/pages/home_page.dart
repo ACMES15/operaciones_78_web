@@ -165,7 +165,8 @@ class _HomePageState extends State<HomePage> {
     ];
     // ...existing code...
     final paginasOrdenadas = ordenFijo
-        .where((p) => permitidas.contains(p) || p == 'Bienvenida')
+        .where((p) =>
+            permitidas.contains(p) || p == 'Bienvenida' || p == 'Mensajes')
         .toList();
     final extras = permitidas.difference(ordenFijo.toSet()).toList();
     _paginas = [...paginasOrdenadas, ...extras];

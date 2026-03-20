@@ -107062,7 +107062,7 @@ s.l(0,"id",B.l.ga2(a.b.b.a))
 return s},
 $S:80}
 A.aIY.prototype={
-$1(a){return this.a.p(0,a)||a==="Bienvenida"},
+$1(a){return this.a.p(0,a)||a==="Bienvenida"||a==="Mensajes"},
 $S:12}
 A.aIU.prototype={
 $2(a,b){var s,r,q,p=null,o=b.b
