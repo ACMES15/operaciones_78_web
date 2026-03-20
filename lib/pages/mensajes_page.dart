@@ -30,20 +30,11 @@ class _MensajesPageState extends State<MensajesPage> {
       ].contains(widget.tipoUsuario);
 
   Stream<QuerySnapshot> get _mensajesStream {
-    if (_esAdmin) {
-      return FirebaseFirestore.instance
-          .collection('mensajes')
-          .orderBy('fecha', descending: true)
-          .snapshots();
-    } else {
-      // Solo mensajes dirigidos a su usuario/tipo/TODOS/ADMIN
-      return FirebaseFirestore.instance
-          .collection('mensajes')
-          .where('destino',
-              whereIn: [widget.tipoUsuario, 'TODOS', widget.usuario, 'ADMIN'])
-          .orderBy('fecha', descending: true)
-          .snapshots();
-    }
+    // Siempre traer todos los mensajes y filtrar en el builder
+    return FirebaseFirestore.instance
+        .collection('mensajes')
+        .orderBy('fecha', descending: true)
+        .snapshots();
   }
 
   Future<void> _marcarComoLeidoPorUsuario(
