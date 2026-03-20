@@ -27,7 +27,7 @@ import '../pages/historial_entregas_cyc_page.dart';
 import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
 import 'mensajes_page.dart';
-import 'transferencias_retornos_page.dart'; // Importar la nueva página TransferenciasRetornosPage
+import '../pages/transferencias_retornos_page.dart';
 import '../utils/mensajes_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -130,7 +130,8 @@ class _HomePageState extends State<HomePage> {
     'Paquetería Externa': PaqueteriaExternaPage(usuario: widget.usuario),
     'Historial Paquetería Externa': HistorialPaqueteriaExternaPage(
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
-    'Transferencias y retornos': TransferenciasRetornosPage(),
+    'Transferencias y retornos':
+        TransferenciasRetornosPage(usuario: widget.usuario),
   };
 
   @override

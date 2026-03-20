@@ -8,7 +8,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class TransferenciasRetornosPage extends StatefulWidget {
-  const TransferenciasRetornosPage({Key? key}) : super(key: key);
+  final String usuario;
+  const TransferenciasRetornosPage({Key? key, required this.usuario})
+      : super(key: key);
 
   @override
   State<TransferenciasRetornosPage> createState() =>
