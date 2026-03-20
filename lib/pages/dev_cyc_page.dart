@@ -188,25 +188,46 @@ class _DevCycPageState extends State<DevCycPage> {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
         child: isMobile
-            ? Center(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            EntregasCycPage(usuario: widget.usuario),
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.assignment,
+                          color: Color(0xFF2D6A4F), size: 32),
+                      SizedBox(width: 10),
+                      Text(
+                        'Dev CyC',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 26,
+                          color: Color(0xFF2D6A4F),
+                          letterSpacing: 0.5,
+                        ),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.list_alt),
-                  label: const Text('Ver Entregas CyC'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromARGB(255, 200, 220, 255),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 18),
-                    textStyle: const TextStyle(fontSize: 20),
+                    ],
                   ),
-                ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EntregasCycPage(usuario: widget.usuario),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt),
+                    label: const Text('Ver Entregas CyC'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 18),
+                      textStyle: const TextStyle(fontSize: 20),
+                    ),
+                  ),
+                ],
               )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
