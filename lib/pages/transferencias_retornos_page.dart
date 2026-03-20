@@ -99,6 +99,30 @@ class _TransferenciasRetornosPageState
       }
       break;
     }
+    // Obtener datos de plantilla_ejecutiva una sola vez
+    Map<String, String> seccionToJefatura = {};
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('plantilla_ejecutiva')
+          .doc('datos')
+          .get();
+      if (doc.exists && doc.data() != null) {
+        final datosPlantilla = doc.data()!['datos'] as List<dynamic>?;
+        if (datosPlantilla != null) {
+          for (final fila in datosPlantilla) {
+            if (fila is Map<String, dynamic> &&
+                fila['SECCION'] != null &&
+                fila['NOMBRE'] != null) {
+              seccionToJefatura[fila['SECCION']
+                  .toString()
+                  .trim()
+                  .toUpperCase()] = fila['NOMBRE'].toString();
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
     List<List<TextEditingController>> nuevasFilas = [];
     for (final fila in datos) {
       final List<TextEditingController> ctrls =
@@ -106,6 +130,15 @@ class _TransferenciasRetornosPageState
         if (_headers[i] == 'RETORNO') {
           return TextEditingController(
               text: i < fila.length ? fila[i] : 'false');
+        }
+        if (_headers[i] == 'JEFATURA') {
+          // Buscar jefatura por SECCION
+          final seccionIdx = _headers.indexOf('SECCION');
+          String seccion = seccionIdx != -1 && seccionIdx < fila.length
+              ? fila[seccionIdx].trim().toUpperCase()
+              : '';
+          String jefatura = seccionToJefatura[seccion] ?? '';
+          return TextEditingController(text: jefatura);
         }
         final ctrl = TextEditingController();
         ctrl.text = i < fila.length ? fila[i] : '';
