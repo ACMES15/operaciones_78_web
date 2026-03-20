@@ -26,7 +26,8 @@ import '../pages/entregas_cyc_page.dart';
 import '../pages/historial_entregas_cyc_page.dart';
 import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
-import 'mensajes_dialog.dart';
+import 'mensajes_page.dart';
+import '../utils/mensajes_service.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -64,6 +65,7 @@ class _HomePageState extends State<HomePage> {
   // Mapeo de nombre de página a ícono y tooltip
   final Map<String, IconData> _pageIcons = const {
     'Bienvenida': Icons.home,
+    'Mensajes': Icons.message,
     'Control de usuarios': Icons.admin_panel_settings,
     'Hoja de ruta': Icons.alt_route,
     'Hoja de XD': Icons.description,
@@ -96,6 +98,8 @@ class _HomePageState extends State<HomePage> {
   late final Map<String, Widget> _pageWidgets = {
     'Bienvenida': BienvenidaPage(
         usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
+    'Mensajes':
+        MensajesPage(usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
     'Control de usuarios': UserControlPageBody(),
     'Hoja de ruta': HojaDeRutaPage(),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
@@ -136,6 +140,7 @@ class _HomePageState extends State<HomePage> {
     permitidas.remove('Entregas CyC');
     final ordenFijo = [
       'Bienvenida',
+      'Mensajes',
       'Control de usuarios',
       'Carta Porte',
       'Historial Carta Porte',
@@ -192,45 +197,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
-          // Icono de mensajes junto a la campana
-          StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('mensajes')
-                .where('respondido', isEqualTo: false)
-                .snapshots(),
-            builder: (context, snapshot) {
-              final docs = snapshot.data?.docs ?? [];
-              int pendientes = 0;
-              if (widget.tipoUsuario.toLowerCase() == 'admin') {
-                pendientes = docs
-                    .where((d) => (d['paraTipo'] == 'ADMIN' ||
-                        d['para'] == widget.usuario))
-                    .length;
-              } else {
-                pendientes = docs
-                    .where((d) =>
-                        d['para'] == widget.usuario &&
-                        (d['respuestaDeAdmin'] == true ||
-                            d['usuarioTipo'] == 'ADMIN'))
-                    .length;
-              }
-              final iconColor =
-                  pendientes > 0 ? Colors.red.shade700 : Colors.white;
-              return IconButton(
-                icon: Icon(Icons.message, color: iconColor, size: 28),
-                tooltip: 'Mensajes',
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => MensajesDialog(
-                      usuario: widget.usuario,
-                      isAdmin: widget.tipoUsuario.toLowerCase() == 'admin',
-                    ),
-                  );
-                },
-              );
-            },
-          ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _notificacionesStream,
@@ -516,15 +482,59 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final pageName = _paginas[index];
                         final icon = _pageIcons[pageName] ?? Icons.circle;
+                        Widget leadingIcon = Icon(
+                          icon,
+                          color: _selectedIndex == index
+                              ? Colors.amber
+                              : Colors.white,
+                        );
+                        // Badge rojo para mensajes
+                        if (pageName == 'Mensajes') {
+                          leadingIcon = StreamBuilder<int>(
+                            stream: MensajesService.mensajesNoLeidosStream(
+                                widget.usuario, widget.tipoUsuario),
+                            builder: (context, snapshot) {
+                              final count = snapshot.data ?? 0;
+                              return Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Icon(
+                                    icon,
+                                    color: _selectedIndex == index
+                                        ? Colors.amber
+                                        : Colors.white,
+                                  ),
+                                  if (count > 0)
+                                    Positioned(
+                                      right: -2,
+                                      top: -2,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color: Colors.white, width: 1),
+                                        ),
+                                        child: Text(
+                                          count.toString(),
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          );
+                        }
                         return Tooltip(
                           message: pageName,
                           child: ListTile(
-                            leading: Icon(
-                              icon,
-                              color: _selectedIndex == index
-                                  ? Colors.amber
-                                  : Colors.white,
-                            ),
+                            leading: leadingIcon,
                             title: _menuExpandido
                                 ? Text(
                                     pageName,
