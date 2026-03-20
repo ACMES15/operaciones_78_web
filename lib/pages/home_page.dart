@@ -26,6 +26,7 @@ import '../pages/entregas_cyc_page.dart';
 import '../pages/historial_entregas_cyc_page.dart';
 import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
+import 'mensajes_dialog.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -191,6 +192,57 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
+          // Icono de mensajes
+          IconButton(
+            icon: Stack(
+              alignment: Alignment.topRight,
+              children: [
+                const Icon(Icons.message, color: Colors.white, size: 27),
+                // Aquí va el contador de pendientes de mensajes
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('mensajes')
+                      .where('respondido', isEqualTo: false)
+                      .where('paraTodos', isEqualTo: false)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    final pendientes = snapshot.data?.docs ?? [];
+                    if (pendientes.isEmpty) return const SizedBox.shrink();
+                    return Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade700,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          pendientes.length.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            tooltip: 'Mensajes',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => MensajesDialog(
+                  usuario: widget.usuario,
+                  isAdmin: widget.tipoUsuario.toLowerCase() == 'admin',
+                ),
+              );
+            },
+          ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _notificacionesStream,
