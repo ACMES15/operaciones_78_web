@@ -87,6 +87,18 @@ class _MensajesPageState extends State<MensajesPage> {
         .update({'leido': true});
   }
 
+  int _contarNoLeidos(List<QueryDocumentSnapshot> docs) {
+    if (_esAdmin) return 0;
+    int count = 0;
+    for (final doc in docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final esLeido = data['leidosPor'] != null &&
+          (data['leidosPor'] as List).contains(widget.usuario);
+      if (!esLeido) count++;
+    }
+    return count;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -160,6 +172,32 @@ class _MensajesPageState extends State<MensajesPage> {
         backgroundColor: const Color(0xFF2D6A4F),
         elevation: 4,
         centerTitle: true,
+        actions: [
+          Builder(
+            builder: (context) {
+              return StreamBuilder<QuerySnapshot>(
+                stream: _mensajesStream,
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  final noLeidos = _contarNoLeidos(docs);
+                  if (_esAdmin || noLeidos == 0) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 18.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.red,
+                      radius: 14,
+                      child: Text(
+                        noLeidos.toString(),
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [
