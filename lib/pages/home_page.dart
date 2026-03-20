@@ -24,6 +24,8 @@ import '../pages/historial_entregas_xd_page.dart';
 import '../pages/dev_cyc_page.dart';
 import '../pages/entregas_cyc_page.dart';
 import '../pages/historial_entregas_cyc_page.dart';
+import 'paqueteria_externa_page.dart';
+import 'historial_paqueteria_externa_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -82,6 +84,8 @@ class _HomePageState extends State<HomePage> {
     // 'Entregas XD': Icons.extension, // Eliminado del menú
     'Entregas CDR': Icons.inventory_2,
     'Historial De Entregas CDR': Icons.history_edu,
+    'Paqueteria Externa': Icons.local_shipping,
+    'Historial Paqueteria Externa': Icons.history,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -116,6 +120,9 @@ class _HomePageState extends State<HomePage> {
         historial: const [], tipoUsuarioActual: widget.tipoUsuario),
     'Entregas CDR': EntregasCdrPage(usuario: widget.usuario),
     'Historial De Entregas CDR': HistorialFirmadasCdrPage(),
+    'Paqueteria Externa': PaqueteriaExternaPage(usuario: widget.usuario),
+    'Historial Paqueteria Externa': HistorialPaqueteriaExternaPage(
+        usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
   };
 
   @override
@@ -147,6 +154,8 @@ class _HomePageState extends State<HomePage> {
       'Dev CyC',
       'Historial Entregas CyC', // Solo historial CyC en menú
       'Plantilla Ejecutiva',
+      'Paqueteria Externa',
+      'Historial Paqueteria Externa',
     ];
     // ...existing code...
     final paginasOrdenadas = ordenFijo
