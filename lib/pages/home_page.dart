@@ -24,6 +24,7 @@ import '../pages/historial_entregas_xd_page.dart';
 import '../pages/dev_cyc_page.dart';
 import '../pages/entregas_cyc_page.dart';
 import '../pages/historial_entregas_cyc_page.dart';
+import '../pages/historial_tf_retornos_page.dart';
 import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
 import 'mensajes_page.dart';
@@ -91,6 +92,7 @@ class _HomePageState extends State<HomePage> {
     'Paquetería Externa': Icons.local_shipping,
     'Historial Paquetería Externa': Icons.history,
     'Transferencias y Retornos': Icons.swap_horiz,
+    'Historial TF o Retornos': Icons.history,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -132,6 +134,7 @@ class _HomePageState extends State<HomePage> {
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
     'Transferencias y Retornos':
         TransferenciasRetornosPage(usuario: widget.usuario),
+    'Historial TF o Retornos': HistorialTfRetornosPage(usuario: widget.usuario),
   };
 
   @override
@@ -167,6 +170,7 @@ class _HomePageState extends State<HomePage> {
       'Historial Paquetería Externa',
       'Transferencias y Retornos',
       'Plantilla Ejecutiva',
+      'Historial TF o Retornos',
     ];
     // ...existing code...
     final paginasOrdenadas = ordenFijo
