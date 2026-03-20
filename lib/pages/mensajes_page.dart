@@ -35,14 +35,19 @@ class _MensajesPageState extends State<MensajesPage> {
     } else {
       return FirebaseFirestore.instance
           .collection('mensajes')
-          .where('destino', whereIn: [
-            'ADMIN',
-            'ADMIN OMNICANAL',
-            'ADMIN ENVIOS',
-          ])
+          .where('destino', whereIn: [widget.tipoUsuario, 'TODOS'])
           .orderBy('fecha', descending: true)
           .snapshots();
     }
+  }
+
+  Future<void> _marcarComoLeidoPorUsuario(
+      String id, List<dynamic> leidosPor) async {
+    final nuevosLeidos = Set<String>.from(leidosPor)..add(widget.usuario);
+    await FirebaseFirestore.instance
+        .collection('mensajes')
+        .doc(id)
+        .update({'leidosPor': nuevosLeidos.toList()});
   }
 
   Future<void> _enviarMensaje() async {
@@ -107,7 +112,11 @@ class _MensajesPageState extends State<MensajesPage> {
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
-                    final esLeido = data['leido'] == true;
+                    final esLeido = _esAdmin
+                        ? data['leido'] == true
+                        : (data['leidosPor'] != null &&
+                            (data['leidosPor'] as List)
+                                .contains(widget.usuario));
                     return Card(
                       color: esLeido ? Colors.white : Colors.red.shade50,
                       child: ListTile(
@@ -117,7 +126,15 @@ class _MensajesPageState extends State<MensajesPage> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!esLeido)
+                            if (!esLeido && !_esAdmin)
+                              IconButton(
+                                icon: const Icon(Icons.mark_email_read,
+                                    color: Colors.green),
+                                tooltip: 'Leído',
+                                onPressed: () => _marcarComoLeidoPorUsuario(
+                                    docs[i].id, data['leidosPor'] ?? []),
+                              ),
+                            if (!esLeido && _esAdmin)
                               IconButton(
                                 icon: const Icon(Icons.mark_email_read,
                                     color: Colors.green),
@@ -167,15 +184,13 @@ class _MensajesPageState extends State<MensajesPage> {
                     child: _usuarioDestino != null &&
                             !_tiposUsuario.contains(_usuarioDestino!) &&
                             _usuarioDestino != 'TODOS'
-                        ? DropdownButtonFormField<String>(
-                            value: _usuarioDestino,
-                            items: [
-                              DropdownMenuItem(
-                                value: _usuarioDestino,
-                                child: Text(_usuarioDestino!),
-                              ),
-                            ],
-                            onChanged: null,
+                        ? TextFormField(
+                            initialValue: _usuarioDestino,
+                            enabled: false,
+                            decoration: const InputDecoration(
+                              labelText: 'Destino',
+                              border: OutlineInputBorder(),
+                            ),
                           )
                         : (_cargandoTipos
                             ? const Center(child: CircularProgressIndicator())
