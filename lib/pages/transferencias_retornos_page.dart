@@ -20,18 +20,23 @@ class TransferenciasRetornosPage extends StatefulWidget {
 class _TransferenciasRetornosPageState
     extends State<TransferenciasRetornosPage> {
   final List<String> _headers = [
-    'TRANSFERENCIA',
+    'TF O DEV ',
     'ORIGEN',
     'DESTINO',
     'SECCION',
     'JEFATURA',
+    'RETORNO',
   ];
   final List<List<TextEditingController>> _rows = [];
 
   void _addRow() {
     setState(() {
-      final ctrls =
-          List.generate(_headers.length, (_) => TextEditingController());
+      final ctrls = List.generate(_headers.length, (i) {
+        if (_headers[i] == 'RETORNO') {
+          return TextEditingController(text: 'false');
+        }
+        return TextEditingController();
+      });
       _rows.add(ctrls);
     });
   }
@@ -88,7 +93,8 @@ class _TransferenciasRetornosPageState
         fila.add(origen);
         fila.add(destino);
         fila.add(seccion);
-        fila.add(''); // JEFATURA vacío, se llenará luego si es necesario
+        fila.add(''); // JEFATURA vacío
+        fila.add('false'); // RETORNO por default
         datos.add(fila);
       }
       break;
@@ -97,6 +103,10 @@ class _TransferenciasRetornosPageState
     for (final fila in datos) {
       final List<TextEditingController> ctrls =
           List.generate(_headers.length, (i) {
+        if (_headers[i] == 'RETORNO') {
+          return TextEditingController(
+              text: i < fila.length ? fila[i] : 'false');
+        }
         final ctrl = TextEditingController();
         ctrl.text = i < fila.length ? fila[i] : '';
         return ctrl;
@@ -184,58 +194,50 @@ class _TransferenciasRetornosPageState
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       appBar: AppBar(
-        title: const Text('Transferencias y Retornos'),
         backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 0,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.swap_horiz, color: Colors.white, size: 28),
+            SizedBox(width: 10),
+            Text(
+              'Transferencias y Retornos',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
+        ),
+        centerTitle: true,
       ),
       body: isMobileSmall
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Agregar fila'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 18),
+          ? Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.list_alt),
+                      label:
+                          const Text('Ver Entregas Transferencias y Retornos'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF2D6A4F),
+                        foregroundColor: Colors.white,
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      ),
+                      onPressed: _verEntregasTransferenciasRetornos,
                     ),
-                    onPressed: _addRow,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.file_upload),
-                    label: const Text('Importar Excel'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: _importFromExcel,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.save),
-                    label: const Text('Guardar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: _guardarTransferencias,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.list_alt),
-                    label: const Text('Ver Entregas Transferencias y Retornos'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: _verEntregasTransferenciasRetornos,
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             )
           : Padding(
               padding: const EdgeInsets.all(8.0),
@@ -279,6 +281,7 @@ class _TransferenciasRetornosPageState
                               child: Row(
                                 children: List.generate(_headers.length, (i) {
                                   final isJefatura = _headers[i] == 'JEFATURA';
+                                  final isRetorno = _headers[i] == 'RETORNO';
                                   return Expanded(
                                     flex: isJefatura ? 2 : 1,
                                     child: Container(
@@ -298,15 +301,31 @@ class _TransferenciasRetornosPageState
                                         ),
                                       ),
                                       child: Center(
-                                        child: Text(
-                                          _headers[i],
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                            letterSpacing: 0.5,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
+                                        child: isRetorno
+                                            ? Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: const [
+                                                  Icon(Icons.assignment_return,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  SizedBox(width: 4),
+                                                  Text('RETORNO',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 16)),
+                                                ],
+                                              )
+                                            : Text(
+                                                _headers[i],
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  letterSpacing: 0.5,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
                                       ),
                                     ),
                                   );
@@ -329,6 +348,8 @@ class _TransferenciasRetornosPageState
                                           (colIdx) {
                                         final isJefatura =
                                             _headers[colIdx] == 'JEFATURA';
+                                        final isRetorno =
+                                            _headers[colIdx] == 'RETORNO';
                                         return Expanded(
                                           flex: isJefatura ? 2 : 1,
                                           child: Container(
@@ -352,22 +373,125 @@ class _TransferenciasRetornosPageState
                                                   const EdgeInsets.symmetric(
                                                       vertical: 6,
                                                       horizontal: 2),
-                                              child: TextField(
-                                                controller: _rows[rowIdx]
-                                                    [colIdx],
-                                                textAlign: TextAlign.center,
-                                                decoration:
-                                                    const InputDecoration(
-                                                  border: InputBorder.none,
-                                                  isDense: true,
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                          vertical: 8,
-                                                          horizontal: 4),
-                                                ),
-                                                style: const TextStyle(
-                                                    fontSize: 14),
-                                              ),
+                                              child: isRetorno
+                                                  ? Center(
+                                                      child: Checkbox(
+                                                        value: _rows[rowIdx]
+                                                                    [colIdx]
+                                                                .text ==
+                                                            'true',
+                                                        onChanged: (val) {
+                                                          setState(() {
+                                                            _rows[rowIdx]
+                                                                        [colIdx]
+                                                                    .text =
+                                                                val == true
+                                                                    ? 'true'
+                                                                    : 'false';
+                                                          });
+                                                        },
+                                                      ),
+                                                    )
+                                                  : isJefatura
+                                                      ? TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                          onChanged:
+                                                              (value) async {
+                                                            // Buscar jefatura en Firestore y autollenar si aplica
+                                                            final seccionIdx =
+                                                                _headers.indexOf(
+                                                                    'SECCION');
+                                                            final seccion =
+                                                                seccionIdx != -1
+                                                                    ? _rows[rowIdx]
+                                                                            [
+                                                                            seccionIdx]
+                                                                        .text
+                                                                        .trim()
+                                                                    : '';
+                                                            if (seccion
+                                                                .isNotEmpty) {
+                                                              final doc = await FirebaseFirestore
+                                                                  .instance
+                                                                  .collection(
+                                                                      'plantilla_ejecutiva')
+                                                                  .doc('datos')
+                                                                  .get();
+                                                              if (doc.exists &&
+                                                                  doc.data() !=
+                                                                      null) {
+                                                                final datos = doc
+                                                                            .data()![
+                                                                        'datos']
+                                                                    as List<
+                                                                        dynamic>?;
+                                                                if (datos !=
+                                                                    null) {
+                                                                  for (final fila
+                                                                      in datos) {
+                                                                    if (fila is Map<
+                                                                            String,
+                                                                            dynamic> &&
+                                                                        fila['SECCION'].toString().trim().toUpperCase() ==
+                                                                            seccion.toUpperCase()) {
+                                                                      setState(
+                                                                          () {
+                                                                        _rows[rowIdx][colIdx]
+                                                                            .text = fila['NOMBRE']
+                                                                                ?.toString() ??
+                                                                            '';
+                                                                      });
+                                                                      break;
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                        )
+                                                      : TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                        ),
                                             ),
                                           ),
                                         );
