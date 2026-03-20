@@ -172,32 +172,7 @@ class _MensajesPageState extends State<MensajesPage> {
         backgroundColor: const Color(0xFF2D6A4F),
         elevation: 4,
         centerTitle: true,
-        actions: [
-          Builder(
-            builder: (context) {
-              return StreamBuilder<QuerySnapshot>(
-                stream: _mensajesStream,
-                builder: (context, snapshot) {
-                  final docs = snapshot.data?.docs ?? [];
-                  final noLeidos = _contarNoLeidos(docs);
-                  if (_esAdmin || noLeidos == 0) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 18.0),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.red,
-                      radius: 14,
-                      child: Text(
-                        noLeidos.toString(),
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ],
+        actions: [],
       ),
       body: Column(
         children: [
