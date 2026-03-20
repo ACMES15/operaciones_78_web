@@ -198,16 +198,30 @@ class _HomePageState extends State<HomePage> {
               alignment: Alignment.topRight,
               children: [
                 const Icon(Icons.message, color: Colors.white, size: 27),
-                // Aquí va el contador de pendientes de mensajes
                 StreamBuilder<QuerySnapshot>(
                   stream: FirebaseFirestore.instance
                       .collection('mensajes')
                       .where('respondido', isEqualTo: false)
-                      .where('paraTodos', isEqualTo: false)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    final pendientes = snapshot.data?.docs ?? [];
-                    if (pendientes.isEmpty) return const SizedBox.shrink();
+                    final docs = snapshot.data?.docs ?? [];
+                    int pendientes = 0;
+                    if (widget.tipoUsuario.toLowerCase() == 'admin') {
+                      // ADMIN: mensajes pendientes enviados a admin
+                      pendientes = docs
+                          .where((d) => (d['paraTipo'] == 'ADMIN' ||
+                              d['para'] == widget.usuario))
+                          .length;
+                    } else {
+                      // Usuario normal: mensajes pendientes enviados por admin a este usuario
+                      pendientes = docs
+                          .where((d) =>
+                              d['para'] == widget.usuario &&
+                              (d['respuestaDeAdmin'] == true ||
+                                  d['usuarioTipo'] == 'ADMIN'))
+                          .length;
+                    }
+                    if (pendientes == 0) return const SizedBox.shrink();
                     return Positioned(
                       right: 0,
                       top: 0,
@@ -219,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          pendientes.length.toString(),
+                          pendientes.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
