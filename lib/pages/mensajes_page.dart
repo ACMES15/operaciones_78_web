@@ -141,7 +141,7 @@ class _MensajesPageState extends State<MensajesPage> {
             fontWeight: FontWeight.bold,
             fontSize: 26,
             letterSpacing: 1.2,
-            color: Color(0xFF1B4332),
+            color: Color.fromARGB(255, 238, 247, 243),
             shadows: [
               Shadow(
                 color: Colors.black26,
@@ -181,12 +181,14 @@ class _MensajesPageState extends State<MensajesPage> {
                         'ADMIN OMNICANAL',
                         'ADMIN ENVIOS'
                       ].contains(data['origen']);
+                      String normaliza(String s) =>
+                          s.toString().toLowerCase().replaceAll(' ', '');
                       final destinoValido = [
-                        widget.tipoUsuario,
-                        'TODOS',
-                        widget.usuario,
-                        'ADMIN'
-                      ].contains(data['destino']);
+                        normaliza(widget.tipoUsuario),
+                        'todos',
+                        normaliza(widget.usuario),
+                        'admin'
+                      ].contains(normaliza(data['destino'] ?? ''));
                       if (!(origenAdmin || destinoValido)) {
                         return const SizedBox.shrink();
                       }
