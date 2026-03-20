@@ -107625,7 +107625,8 @@ j=l===o||k===o
 i=l==="todos"||k==="todos"
 h=l==="admin"||k==="admin"
 g=l===n||k===n
-f=B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),p.toUpperCase())
+if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),p.toUpperCase()))f=j||i||h||g
+else f=!1
 if(!(j||i||h||g||f))return B.bF}if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))e=J.e(a3.h(0,"leido"),!0)
 else e=a3.h(0,a1)!=null&&J.t2(t.j.a(a3.h(0,a1)),s.a.c)
 p=e?B.C:B.kJ

@@ -4,6 +4,8 @@ enum UserType {
   usuarioNormal,
   inventarios,
   mesadebodas,
+  staffCyc,
+  staffOperaciones,
 }
 
 extension UserTypeExtension on UserType {
@@ -19,6 +21,10 @@ extension UserTypeExtension on UserType {
         return 'INVENTARIOS';
       case UserType.mesadebodas:
         return 'MESADEBODAS';
+      case UserType.staffCyc:
+        return 'STAFF CYC';
+      case UserType.staffOperaciones:
+        return 'STAFF OPERACIONES';
     }
   }
 }

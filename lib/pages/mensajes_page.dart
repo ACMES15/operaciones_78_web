@@ -199,11 +199,16 @@ class _MensajesPageState extends State<MensajesPage> {
                           destinoNorm == 'admin' || destinoTipoNorm == 'admin';
                       final esMensajeIndividual = destinoNorm == usuarioNorm ||
                           destinoTipoNorm == usuarioNorm;
+                      // Solo mostrar mensajes de origen ADMIN si el destino es válido para el usuario
                       final esMensajeDeAdmin = [
-                        'ADMIN',
-                        'ADMIN OMNICANAL',
-                        'ADMIN ENVIOS'
-                      ].contains(origenTipoNorm);
+                            'ADMIN',
+                            'ADMIN OMNICANAL',
+                            'ADMIN ENVIOS'
+                          ].contains(origenTipoNorm) &&
+                          (esMensajeParaGrupo ||
+                              esMensajeParaTodos ||
+                              esMensajeParaAdmin ||
+                              esMensajeIndividual);
                       if (!(esMensajeParaGrupo ||
                           esMensajeParaTodos ||
                           esMensajeParaAdmin ||
