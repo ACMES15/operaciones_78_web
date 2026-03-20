@@ -180,29 +180,35 @@ class _MensajesPageState extends State<MensajesPage> {
                   itemBuilder: (context, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
-                    // Solo mostrar mensajes válidos para no ADMIN
                     if (!esAdmin) {
-                      final origenAdmin = [
+                      String normaliza(String s) =>
+                          s.toString().toLowerCase().replaceAll(' ', '');
+                      final tipoUsuarioNorm = normaliza(widget.tipoUsuario);
+                      final usuarioNorm = normaliza(widget.usuario);
+                      final destinoNorm = normaliza(data['destino'] ?? '');
+                      final destinoTipoNorm =
+                          normaliza(data['destinoTipo'] ?? '');
+                      final origenTipoNorm =
+                          (data['origenTipo'] ?? '').toString().toUpperCase();
+                      final esMensajeParaGrupo =
+                          destinoNorm == tipoUsuarioNorm ||
+                              destinoTipoNorm == tipoUsuarioNorm;
+                      final esMensajeParaTodos =
+                          destinoNorm == 'todos' || destinoTipoNorm == 'todos';
+                      final esMensajeParaAdmin =
+                          destinoNorm == 'admin' || destinoTipoNorm == 'admin';
+                      final esMensajeIndividual = destinoNorm == usuarioNorm ||
+                          destinoTipoNorm == usuarioNorm;
+                      final esMensajeDeAdmin = [
                         'ADMIN',
                         'ADMIN OMNICANAL',
                         'ADMIN ENVIOS'
-                      ].contains(
-                          (data['origenTipo'] ?? '').toString().toUpperCase());
-                      String normaliza(String s) =>
-                          s.toString().toLowerCase().replaceAll(' ', '');
-                      final destinoValido = [
-                            normaliza(widget.tipoUsuario),
-                            'todos',
-                            normaliza(widget.usuario),
-                            'admin'
-                          ].contains(normaliza(data['destino'] ?? '')) ||
-                          [
-                            normaliza(widget.tipoUsuario),
-                            'todos',
-                            normaliza(widget.usuario),
-                            'admin'
-                          ].contains(normaliza(data['destinoTipo'] ?? ''));
-                      if (!(origenAdmin || destinoValido)) {
+                      ].contains(origenTipoNorm);
+                      if (!(esMensajeParaGrupo ||
+                          esMensajeParaTodos ||
+                          esMensajeParaAdmin ||
+                          esMensajeIndividual ||
+                          esMensajeDeAdmin)) {
                         return const SizedBox.shrink();
                       }
                     }

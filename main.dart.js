@@ -107606,40 +107606,45 @@ if(s===0)return B.RE
 return A.ft(new A.aKI(this.a,r),s,null,!0,!1)},
 $S:154}
 A.aKI.prototype={
-$2(a,b){var s,r,q,p,o,n,m,l,k,j,i,h,g=null,f="leidosPor",e=this.b,d=e[b].fm(0)
-d.toString
-t.P.a(d)
+$2(a4,a5){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0=null,a1="leidosPor",a2=this.b,a3=a2[a5].fm(0)
+a3.toString
+t.P.a(a3)
 s=this.a
 r=t.s
 q=B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)
-if(!q){p=A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r)
-o=d.h(0,"origenTipo")
-n=B.l.p(p,J.R(o==null?"":o).toUpperCase())
-p=new A.aKJ()
-o=A.a([p.$1(s.a.d),"todos",p.$1(s.a.c),"admin"],r)
-m=d.h(0,"destino")
-if(!B.l.p(o,p.$1(m==null?"":m))){o=A.a([p.$1(s.a.d),"todos",p.$1(s.a.c),"admin"],r)
-m=d.h(0,"destinoTipo")
-l=B.l.p(o,p.$1(m==null?"":m))}else l=!0
-if(!(n||l))return B.bF}if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))k=J.e(d.h(0,"leido"),!0)
-else k=d.h(0,f)!=null&&J.t2(t.j.a(d.h(0,f)),s.a.c)
-p=k?B.C:B.kJ
-o=t.p
-m=A.a([],o)
-if(J.e(d.h(0,"importante"),!0))m.push(B.X4)
-m.push(B.eV)
-j=d.h(0,"mensaje")
-m.push(A.aZ(A.K(j==null?"":j,g,g,g,g,g,g),1))
-m=A.ah(m,B.G,B.x,B.D,g)
-j=A.a([A.K("De: "+A.j(d.h(0,"origen"))+"  Para: "+A.j(d.h(0,"destino")),g,g,g,g,g,g)],o)
-if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)&&d.h(0,f)!=null&&J.iH(t.j.a(d.h(0,f))))j.push(new A.ak(B.l4,A.K("Le\xeddo por: "+J.aYd(t.j.a(d.h(0,f)),", "),g,g,g,B.aT7,g,g),g))
-j=A.au(j,B.a3,B.x,B.D)
-i=A.a([],o)
-h=!k
-if(h&&!B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))i.push(A.ce(g,B.wH,g,g,new A.aKC(s,e,b,d),g,"Le\xeddo"))
-if(h&&B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))i.push(A.ce(g,B.wH,g,g,new A.aKD(s,e,b),g,"Marcar como le\xeddo"))
-if(q)B.l.M(i,A.a([A.ce(g,B.XH,g,g,new A.aKE(s,d),g,"Responder"),A.ce(g,B.Xe,g,g,new A.aKF(s),g,"Enviar grupal")],o))
-return A.dS(A.yJ(!1,g,g,g,!0,g,!0,!1,g,g,g,!1,g,g,g,j,g,m,A.ah(i,B.G,B.x,B.aY,g),g),p,g,g,g,g)},
+if(!q){p=new A.aKJ()
+o=p.$1(s.a.d)
+n=p.$1(s.a.c)
+m=a3.h(0,"destino")
+l=p.$1(m==null?"":m)
+m=a3.h(0,"destinoTipo")
+k=p.$1(m==null?"":m)
+p=a3.h(0,"origenTipo")
+p=J.R(p==null?"":p)
+j=l===o||k===o
+i=l==="todos"||k==="todos"
+h=l==="admin"||k==="admin"
+g=l===n||k===n
+f=B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),p.toUpperCase())
+if(!(j||i||h||g||f))return B.bF}if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))e=J.e(a3.h(0,"leido"),!0)
+else e=a3.h(0,a1)!=null&&J.t2(t.j.a(a3.h(0,a1)),s.a.c)
+p=e?B.C:B.kJ
+m=t.p
+d=A.a([],m)
+if(J.e(a3.h(0,"importante"),!0))d.push(B.X4)
+d.push(B.eV)
+c=a3.h(0,"mensaje")
+d.push(A.aZ(A.K(c==null?"":c,a0,a0,a0,a0,a0,a0),1))
+d=A.ah(d,B.G,B.x,B.D,a0)
+c=A.a([A.K("De: "+A.j(a3.h(0,"origen"))+"  Para: "+A.j(a3.h(0,"destino")),a0,a0,a0,a0,a0,a0)],m)
+if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)&&a3.h(0,a1)!=null&&J.iH(t.j.a(a3.h(0,a1))))c.push(new A.ak(B.l4,A.K("Le\xeddo por: "+J.aYd(t.j.a(a3.h(0,a1)),", "),a0,a0,a0,B.aT7,a0,a0),a0))
+c=A.au(c,B.a3,B.x,B.D)
+b=A.a([],m)
+a=!e
+if(a&&!B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))b.push(A.ce(a0,B.wH,a0,a0,new A.aKC(s,a2,a5,a3),a0,"Le\xeddo"))
+if(a&&B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))b.push(A.ce(a0,B.wH,a0,a0,new A.aKD(s,a2,a5),a0,"Marcar como le\xeddo"))
+if(q)B.l.M(b,A.a([A.ce(a0,B.XH,a0,a0,new A.aKE(s,a3),a0,"Responder"),A.ce(a0,B.Xe,a0,a0,new A.aKF(s),a0,"Enviar grupal")],m))
+return A.dS(A.yJ(!1,a0,a0,a0,!0,a0,!0,!1,a0,a0,a0,!1,a0,a0,a0,c,a0,d,A.ah(b,B.G,B.x,B.aY,a0),a0),p,a0,a0,a0,a0)},
 $S:159}
 A.aKJ.prototype={
 $1(a){return A.hj(a.toLowerCase()," ","")},
