@@ -60,11 +60,11 @@ class _MensajesDialogState extends State<MensajesDialog> {
       for (var admin in admins.docs) {
         await FirebaseFirestore.instance.collection('mensajes').add({
           'mensaje': mensaje,
-          'usuario': widget.usuario,
           'fecha': fecha,
-          'respondido': false,
-          'para': admin['id'],
-          'paraTipo': 'ADMIN',
+          'origen': widget.usuario,
+          'destino': admin['id'],
+          'leido': false,
+          'importante': false,
         });
       }
     } else {
@@ -73,11 +73,11 @@ class _MensajesDialogState extends State<MensajesDialog> {
         // Mensaje a usuario específico
         await FirebaseFirestore.instance.collection('mensajes').add({
           'mensaje': mensaje,
-          'usuario': widget.usuario,
           'fecha': fecha,
-          'respondido': false,
-          'para': _destinatarioUsuario,
-          'paraTipo': null,
+          'origen': widget.usuario,
+          'destino': _destinatarioUsuario,
+          'leido': false,
+          'importante': true, // O usa un checkbox si lo tienes
         });
       } else if (_destinatarioTipo != null) {
         // Mensaje grupal por tipo
@@ -86,13 +86,23 @@ class _MensajesDialogState extends State<MensajesDialog> {
         for (var u in usuariosTipo) {
           await FirebaseFirestore.instance.collection('mensajes').add({
             'mensaje': mensaje,
-            'usuario': widget.usuario,
             'fecha': fecha,
-            'respondido': false,
-            'para': u['id'],
-            'paraTipo': _destinatarioTipo,
+            'origen': widget.usuario,
+            'destino': u['id'],
+            'leido': false,
+            'importante': true, // O usa un checkbox si lo tienes
           });
         }
+      } else {
+        // Mensaje a todos
+        await FirebaseFirestore.instance.collection('mensajes').add({
+          'mensaje': mensaje,
+          'fecha': fecha,
+          'origen': widget.usuario,
+          'destino': 'TODOS',
+          'leido': false,
+          'importante': true, // O usa un checkbox si lo tienes
+        });
       }
     }
     setState(() {

@@ -173,8 +173,25 @@ class _MensajesPageState extends State<MensajesPage> {
                             Expanded(child: Text(data['mensaje'] ?? '')),
                           ],
                         ),
-                        subtitle: Text(
-                            'De: ${data['origen']}  Para: ${data['destino']}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                'De: [200~[0m${data['origen']}  Para: ${data['destino']}'),
+                            if (_esAdmin &&
+                                data['leidosPor'] != null &&
+                                (data['leidosPor'] as List).isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4.0),
+                                child: Text(
+                                  'Leído por: ' +
+                                      (data['leidosPor'] as List).join(', '),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.green),
+                                ),
+                              ),
+                          ],
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
