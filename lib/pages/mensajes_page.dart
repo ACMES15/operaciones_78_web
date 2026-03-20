@@ -194,15 +194,17 @@ class _MensajesPageState extends State<MensajesPage> {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final esAdmin = _esAdmin;
                     if (esAdmin) {
-                      // Solo mostrar mensajes dirigidos a ADMIN (usuario, grupo o todos los ADMIN)
+                      // Mostrar mensajes dirigidos a ADMIN (usuario, grupo o todos los ADMIN) o enviados por el propio ADMIN
                       final destino = (data['destino'] ?? '').toString();
                       final destinoTipo =
                           (data['destinoTipo'] ?? '').toString().toUpperCase();
+                      final origen = (data['origen'] ?? '').toString();
                       if (!(destino == widget.usuario ||
                           destinoTipo.contains('ADMIN') ||
                           destino == 'ADMIN' ||
                           destino == 'TODOS' ||
-                          destinoTipo == 'TODOS')) {
+                          destinoTipo == 'TODOS' ||
+                          origen == widget.usuario)) {
                         return const SizedBox.shrink();
                       }
                     } else {

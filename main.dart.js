@@ -107601,54 +107601,57 @@ if(s===0)return B.RE
 return A.ft(new A.aKI(this.a,r),s,null,!0,!1)},
 $S:154}
 A.aKI.prototype={
-$2(a7,a8){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1=null,a2="destino",a3="destinoTipo",a4="leidosPor",a5=this.b,a6=a5[a8].f0(0)
-a6.toString
-t.P.a(a6)
+$2(a8,a9){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2=null,a3="destino",a4="destinoTipo",a5="leidosPor",a6=this.b,a7=a6[a9].f0(0)
+a7.toString
+t.P.a(a7)
 s=this.a
 r=t.s
 q=B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)
-if(q){p=a6.h(0,a2)
+if(q){p=a7.h(0,a3)
 o=J.P(p==null?"":p)
-p=a6.h(0,a3)
+p=a7.h(0,a4)
 n=J.P(p==null?"":p).toUpperCase()
-if(!(o===s.a.c||B.o.p(n,"ADMIN")||o==="ADMIN"||o==="TODOS"||n==="TODOS"))return B.bx}else{p=a6.h(0,a2)
+p=a7.h(0,"origen")
+m=J.P(p==null?"":p)
+p=s.a.c
+if(!(o===p||B.o.p(n,"ADMIN")||o==="ADMIN"||o==="TODOS"||n==="TODOS"||m===p))return B.bx}else{p=a7.h(0,a3)
 o=J.P(p==null?"":p)
-p=a6.h(0,a3)
+p=a7.h(0,a4)
 p=J.P(p==null?"":p)
 if(o==="ADMIN"||B.o.p(p.toUpperCase(),"ADMIN"))return B.bx
 p=new A.aKJ()
-m=p.$1(s.a.d)
-l=p.$1(s.a.c)
-k=a6.h(0,a2)
-j=p.$1(k==null?"":k)
-k=a6.h(0,a3)
-i=p.$1(k==null?"":k)
-p=a6.h(0,"origenTipo")
+l=p.$1(s.a.d)
+k=p.$1(s.a.c)
+j=a7.h(0,a3)
+i=p.$1(j==null?"":j)
+j=a7.h(0,a4)
+h=p.$1(j==null?"":j)
+p=a7.h(0,"origenTipo")
 p=J.P(p==null?"":p)
-h=j===m||i===m
-g=j==="todos"||i==="todos"
-f=j===l||i===l
-if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),p.toUpperCase()))e=h||g||f
-else e=!1
-if(!(h||g||f||e))return B.bx}if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))d=J.e(a6.h(0,"leido"),!0)
-else d=a6.h(0,a4)!=null&&J.pr(t.j.a(a6.h(0,a4)),s.a.c)
-p=d?B.C:B.kJ
-k=t.p
-c=A.a([],k)
-if(J.e(a6.h(0,"importante"),!0))c.push(B.X5)
-c.push(B.eV)
-b=a6.h(0,"mensaje")
-c.push(A.aZ(A.K(b==null?"":b,a1,a1,a1,a1,a1,a1),1))
-c=A.ah(c,B.G,B.x,B.D,a1)
-b=A.a([A.K("De: "+A.j(a6.h(0,"origen"))+"  Para: "+A.j(a6.h(0,a2)),a1,a1,a1,a1,a1,a1)],k)
-if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)&&a6.h(0,a4)!=null&&J.iH(t.j.a(a6.h(0,a4))))b.push(new A.ak(B.l4,A.K("Le\xeddo por: "+J.aYc(t.j.a(a6.h(0,a4)),", "),a1,a1,a1,B.aT8,a1,a1),a1))
-b=A.au(b,B.a3,B.x,B.D)
-a=A.a([],k)
-a0=!d
-if(a0&&!B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))a.push(A.ce(a1,B.wH,a1,a1,new A.aKC(s,a5,a8,a6),a1,"Le\xeddo"))
-if(a0&&B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))a.push(A.ce(a1,B.wH,a1,a1,new A.aKD(s,a5,a8),a1,"Marcar como le\xeddo"))
-if(q)B.l.M(a,A.a([A.ce(a1,B.XI,a1,a1,new A.aKE(s,a6),a1,"Responder"),A.ce(a1,B.Xf,a1,a1,new A.aKF(s),a1,"Enviar grupal")],k))
-return A.dS(A.yJ(!1,a1,a1,a1,!0,a1,!0,!1,a1,a1,a1,!1,a1,a1,a1,b,a1,c,A.ah(a,B.G,B.x,B.aY,a1),a1),p,a1,a1,a1,a1)},
+g=i===l||h===l
+f=i==="todos"||h==="todos"
+e=i===k||h===k
+if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),p.toUpperCase()))d=g||f||e
+else d=!1
+if(!(g||f||e||d))return B.bx}if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))c=J.e(a7.h(0,"leido"),!0)
+else c=a7.h(0,a5)!=null&&J.pr(t.j.a(a7.h(0,a5)),s.a.c)
+p=c?B.C:B.kJ
+j=t.p
+b=A.a([],j)
+if(J.e(a7.h(0,"importante"),!0))b.push(B.X5)
+b.push(B.eV)
+a=a7.h(0,"mensaje")
+b.push(A.aZ(A.K(a==null?"":a,a2,a2,a2,a2,a2,a2),1))
+b=A.ah(b,B.G,B.x,B.D,a2)
+a=A.a([A.K("De: "+A.j(a7.h(0,"origen"))+"  Para: "+A.j(a7.h(0,a3)),a2,a2,a2,a2,a2,a2)],j)
+if(B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d)&&a7.h(0,a5)!=null&&J.iH(t.j.a(a7.h(0,a5))))a.push(new A.ak(B.l4,A.K("Le\xeddo por: "+J.aYc(t.j.a(a7.h(0,a5)),", "),a2,a2,a2,B.aT8,a2,a2),a2))
+a=A.au(a,B.a3,B.x,B.D)
+a0=A.a([],j)
+a1=!c
+if(a1&&!B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))a0.push(A.ce(a2,B.wH,a2,a2,new A.aKC(s,a6,a9,a7),a2,"Le\xeddo"))
+if(a1&&B.l.p(A.a(["ADMIN","ADMIN OMNICANAL","ADMIN ENVIOS"],r),s.a.d))a0.push(A.ce(a2,B.wH,a2,a2,new A.aKD(s,a6,a9),a2,"Marcar como le\xeddo"))
+if(q)B.l.M(a0,A.a([A.ce(a2,B.XI,a2,a2,new A.aKE(s,a7),a2,"Responder"),A.ce(a2,B.Xf,a2,a2,new A.aKF(s),a2,"Enviar grupal")],j))
+return A.dS(A.yJ(!1,a2,a2,a2,!0,a2,!0,!1,a2,a2,a2,!1,a2,a2,a2,a,a2,b,A.ah(a0,B.G,B.x,B.aY,a2),a2),p,a2,a2,a2,a2)},
 $S:159}
 A.aKJ.prototype={
 $1(a){return A.hj(a.toLowerCase()," ","")},
