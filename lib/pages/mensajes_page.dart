@@ -180,15 +180,22 @@ class _MensajesPageState extends State<MensajesPage> {
                         'ADMIN',
                         'ADMIN OMNICANAL',
                         'ADMIN ENVIOS'
-                      ].contains(data['origen']);
+                      ].contains(
+                          (data['origenTipo'] ?? '').toString().toUpperCase());
                       String normaliza(String s) =>
                           s.toString().toLowerCase().replaceAll(' ', '');
                       final destinoValido = [
-                        normaliza(widget.tipoUsuario),
-                        'todos',
-                        normaliza(widget.usuario),
-                        'admin'
-                      ].contains(normaliza(data['destino'] ?? ''));
+                            normaliza(widget.tipoUsuario),
+                            'todos',
+                            normaliza(widget.usuario),
+                            'admin'
+                          ].contains(normaliza(data['destino'] ?? '')) ||
+                          [
+                            normaliza(widget.tipoUsuario),
+                            'todos',
+                            normaliza(widget.usuario),
+                            'admin'
+                          ].contains(normaliza(data['destinoTipo'] ?? ''));
                       if (!(origenAdmin || destinoValido)) {
                         return const SizedBox.shrink();
                       }
