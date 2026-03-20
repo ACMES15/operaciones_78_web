@@ -20,6 +20,7 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
   bool _cargando = true;
   String _filtro = '';
   late TextEditingController _busquedaController;
+  String? _errorCarga;
 
   @override
   void initState() {
@@ -29,26 +30,38 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
   }
 
   Future<void> _cargarFirmadas() async {
-    setState(() => _cargando = true);
-    final firestore = FirebaseFirestore.instance;
-    final doc = await firestore
-        .collection('historial_entregas')
-        .doc('cyc_firmadas')
-        .get();
-    final data = doc.exists ? doc.data() : null;
-    List<Map<String, dynamic>> nuevos = [];
-    if (data != null && data['items'] is List) {
-      for (var e in (data['items'] as List)) {
-        if (e is Map) {
-          nuevos.add(Map<String, dynamic>.from(
-              e.map((k, v) => MapEntry(k.toString(), v))));
+    setState(() {
+      _cargando = true;
+      _errorCarga = null;
+    });
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final doc = await firestore
+          .collection('historial_entregas')
+          .doc('cyc_firmadas')
+          .get();
+      final data = doc.exists ? doc.data() : null;
+      List<Map<String, dynamic>> nuevos = [];
+      if (data != null && data['items'] is List) {
+        for (var e in (data['items'] as List)) {
+          if (e is Map) {
+            nuevos.add(Map<String, dynamic>.from(
+                e.map((k, v) => MapEntry(k.toString(), v))));
+          }
         }
       }
+      setState(() {
+        _firmadas = nuevos;
+        _cargando = false;
+        _errorCarga = null;
+      });
+    } catch (e) {
+      setState(() {
+        _firmadas = [];
+        _cargando = false;
+        _errorCarga = 'Error al cargar datos: ' + e.toString();
+      });
     }
-    setState(() {
-      _firmadas = nuevos;
-      _cargando = false;
-    });
   }
 
   void _filtrar(String value) {
@@ -122,235 +135,94 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
             Expanded(
               child: _cargando
                   ? const Center(child: CircularProgressIndicator())
-                  : resultados.isEmpty
-                      ? const Center(child: Text('No hay entregas firmadas.'))
-                      : ListView.separated(
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 12),
-                          itemCount: resultados.length,
-                          itemBuilder: (context, index) {
-                            final entrega = resultados[index];
-                            final dynamic firmaData = entrega['firma'];
-                            Widget? firmaWidget;
-                            if (firmaData != null) {
-                              try {
-                                Uint8List? bytes;
-                                if (firmaData is Uint8List) {
-                                  bytes = firmaData;
-                                } else if (firmaData is List<int>) {
-                                  bytes = Uint8List.fromList(firmaData);
-                                } else if (firmaData is String) {
-                                  bytes = Uint8List.fromList(
-                                      const Base64Decoder().convert(firmaData));
-                                }
-                                if (bytes != null && bytes.isNotEmpty) {
-                                  firmaWidget = Padding(
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.memory(
-                                        bytes,
-                                        width: 70,
-                                        height: 40,
-                                        fit: BoxFit.contain,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (_) {}
-                            }
-                            return Card(
-                              elevation: 6,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                              color: Colors.white,
-                              child: Padding(
-                                padding: const EdgeInsets.all(18),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Column(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor:
-                                              const Color(0xFF2D6A4F),
-                                          child: const Icon(Icons.fact_check,
-                                              color: Colors.white),
+                  : _errorCarga != null
+                      ? Center(
+                          child: Text(
+                            _errorCarga!,
+                            style: const TextStyle(
+                                color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                        )
+                      : resultados.isEmpty
+                          ? const Center(
+                              child: Text('No hay entregas firmadas.'))
+                          : ListView.separated(
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemCount: resultados.length,
+                              itemBuilder: (context, index) {
+                                final entrega = resultados[index];
+                                final dynamic firmaData = entrega['firma'];
+                                Widget? firmaWidget;
+                                if (firmaData != null) {
+                                  try {
+                                    Uint8List? bytes;
+                                    if (firmaData is Uint8List) {
+                                      bytes = firmaData;
+                                    } else if (firmaData is List<int>) {
+                                      bytes = Uint8List.fromList(firmaData);
+                                    } else if (firmaData is String) {
+                                      bytes = Uint8List.fromList(
+                                          const Base64Decoder()
+                                              .convert(firmaData));
+                                    }
+                                    if (bytes != null && bytes.isNotEmpty) {
+                                      firmaWidget = Padding(
+                                        padding: const EdgeInsets.only(top: 10),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          child: Image.memory(
+                                            bytes,
+                                            width: 70,
+                                            height: 40,
+                                            fit: BoxFit.contain,
+                                          ),
                                         ),
-                                        if (firmaWidget != null) firmaWidget,
+                                      );
+                                    }
+                                  } catch (_) {}
+                                }
+                                return Card(
+                                  elevation: 6,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16)),
+                                  color: Colors.white,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(18),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Column(
+                                          children: [
+                                            CircleAvatar(
+                                              backgroundColor:
+                                                  const Color(0xFF2D6A4F),
+                                              child: const Icon(
+                                                  Icons.fact_check,
+                                                  color: Colors.white),
+                                            ),
+                                            if (firmaWidget != null)
+                                              firmaWidget,
+                                          ],
+                                        ),
+                                        const SizedBox(width: 18),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              // ...existing code...
+                                            ],
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                    const SizedBox(width: 18),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                'LP: ',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.grey[700]),
-                                              ),
-                                              Text(
-                                                entrega['LP']?.toString() ??
-                                                    '-',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 18,
-                                                    color: Color(0xFF2D6A4F)),
-                                              ),
-                                              const SizedBox(width: 18),
-                                              Text(
-                                                'N° PEDIDO: ',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.grey[700]),
-                                              ),
-                                              Text(
-                                                entrega['NUMERO_PEDIDO']
-                                                        ?.toString() ??
-                                                    '-',
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                    color: Color(0xFF2D6A4F)),
-                                              ),
-                                              const Spacer(),
-                                              Icon(Icons.calendar_today,
-                                                  size: 18,
-                                                  color: Colors.grey[600]),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                (entrega['fechaFirma']
-                                                                ?.toString()
-                                                                .substring(
-                                                                    0, 10) ??
-                                                            '-') !=
-                                                        ''
-                                                    ? entrega['fechaFirma']
-                                                        .toString()
-                                                        .substring(0, 10)
-                                                    : '-',
-                                                style: const TextStyle(
-                                                    fontSize: 14,
-                                                    color: Color(0xFF495057)),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Icon(Icons.person_outline,
-                                                  size: 18,
-                                                  color: Color(0xFF2D6A4F)),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                entrega['usuarioEntrega']
-                                                        ?.toString() ??
-                                                    '-',
-                                                style: const TextStyle(
-                                                    fontSize: 14,
-                                                    color: Color(0xFF495057)),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.person,
-                                                  size: 18,
-                                                  color: Color(0xFF2D6A4F)),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'Recibió: ',
-                                                style: TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Color(0xFF2D6A4F)),
-                                              ),
-                                              Text(
-                                                (entrega['nombreRecibe']
-                                                            ?.toString() ??
-                                                        '-')
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.w600,
-                                                    fontSize: 16),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 4),
-                                          // ...existing code...
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'SKU: \\${entrega['SKU'] ?? '-'}',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          Text(
-                                            'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          Text(
-                                            'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          Text(
-                                            'Sección: \\${entrega['SECCION'] ?? '-'}',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          Text(
-                                            'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.verified_user,
-                                                  size: 18,
-                                                  color: Color(0xFF2D6A4F)),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                  'Validó: ' +
-                                                      (entrega['usuarioValido']
-                                                              ?.toString() ??
-                                                          '-'),
-                                                  style: const TextStyle(
-                                                      fontSize: 15,
-                                                      color:
-                                                          Color(0xFF495057))),
-                                              const SizedBox(width: 16),
-                                              const Icon(Icons.person_outline,
-                                                  size: 18,
-                                                  color: Color(0xFF2D6A4F)),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                  'Entregó: ' +
-                                                      (entrega['usuarioEntrega']
-                                                              ?.toString() ??
-                                                          '-'),
-                                                  style: const TextStyle(
-                                                      fontSize: 15,
-                                                      color:
-                                                          Color(0xFF495057))),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                  ),
+                                );
+                              },
+                            ),
             ),
           ],
         ),
