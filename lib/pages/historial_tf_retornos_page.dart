@@ -34,8 +34,8 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
     try {
       final firestore = FirebaseFirestore.instance;
       final doc = await firestore
-          .collection('historial_tf_retornos')
-          .doc('items')
+          .collection('historial_entregas')
+          .doc('transferencias_retornos_firmadas')
           .get();
       final data = doc.exists ? doc.data() : null;
       List<HistorialTfRetorno> nuevos = [];

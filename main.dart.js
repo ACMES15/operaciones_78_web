@@ -106212,7 +106212,7 @@ g=(h==null?$.X=$.aE():h).au("[DEFAULT]")
 A.av(g,$.aO(),!0)
 n=A.aR(new A.az(g))
 s=6
-return A.m(n.az("historial_tf_retornos").b2("items").bx(0),$async$vW)
+return A.m(n.az("historial_entregas").b2("transferencias_retornos_firmadas").bx(0),$async$vW)
 case 6:m=a7
 l=m.gdl()?J.f0(m):null
 k=A.a([],t.aY)
@@ -107642,7 +107642,7 @@ s=this.a.e
 r=A.mz(s,A.J(s).c)
 r.I(0,"Entregas XD")
 r.I(0,"Entregas CyC")
-q=A.a(["Bienvenida","Mensajes","Control de usuarios","Carta Porte","Historial Carta Porte","Hoja de ruta","Hoja de XD","Historial Hoja de XD","DevCan","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Dev Mbodas","Historial Entregas Dev Mbodas","Dev XD","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos","Plantilla Ejecutiva","Historial TF o Retornos"],t.s)
+q=A.a(["Bienvenida","Mensajes","Control de usuarios","Carta Porte","Historial Carta Porte","Hoja de ruta","Hoja de XD","Historial Hoja de XD","DevCan","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Dev Mbodas","Historial Entregas Dev Mbodas","Dev XD","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos","Historial TF o Retornos","Plantilla Ejecutiva"],t.s)
 s=t.Hd
 p=A.w(new A.aa(q,new A.aJS(r),s),!0,s.i("f.E"))
 s=t.N
