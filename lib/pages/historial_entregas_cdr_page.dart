@@ -514,21 +514,28 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                         },
                                         title: Row(
                                           children: [
-                                            _infoChip('HOJA RUTA',
-                                                entrega['HOJA DE RUTA']),
-                                            _infoChip('TIPO DOCTO',
-                                                entrega['TIPO DOCTO']),
-                                            _infoChip(
-                                                'DOCTO', entrega['DOCUMENTO']),
-                                            _infoChip('SKU', entrega['SKU']),
-                                            _infoChip(
-                                                'CANT', entrega['CANTIDAD']),
-                                            _infoChip(
-                                                'SECC', entrega['SECCION']),
-                                            _infoChip(
-                                                'JEF', entrega['JEFATURA']),
-                                            _infoChip(
-                                                'DESC', entrega['DESCRIPCION']),
+                                            Wrap(
+                                              spacing: 4,
+                                              runSpacing: 4,
+                                              children: [
+                                                _infoChip('HOJA RUTA',
+                                                    entrega['HOJA DE RUTA']),
+                                                _infoChip('TIPO DOCTO',
+                                                    entrega['TIPO DOCTO']),
+                                                _infoChip('DOCTO',
+                                                    entrega['DOCUMENTO']),
+                                                _infoChip(
+                                                    'SKU', entrega['SKU']),
+                                                _infoChip('CANT',
+                                                    entrega['CANTIDAD']),
+                                                _infoChip(
+                                                    'SECC', entrega['SECCION']),
+                                                _infoChip(
+                                                    'JEF', entrega['JEFATURA']),
+                                                _infoChip('DESC',
+                                                    entrega['DESCRIPCION']),
+                                              ],
+                                            ),
                                           ],
                                         ),
                                         subtitle: Column(
