@@ -394,6 +394,8 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                             itemCount: _resultados.length,
                             itemBuilder: (context, index) {
                               final entrega = _resultados[index];
+                              // DEPURACIÓN: mostrar las claves de cada registro en consola
+                              print('ENTREGA KEYS: ' + entrega.keys.join(', '));
                               final seleccionado =
                                   _seleccionados.contains(index);
                               final isFaltante = entrega['BOX'] == true ||
