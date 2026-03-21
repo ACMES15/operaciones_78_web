@@ -192,6 +192,7 @@ class _TransferenciasRetornosPageState
         map[_headers[j]] = row[j].text;
       }
       map['id'] = DateTime.now().millisecondsSinceEpoch.toString() + '_$i';
+      map['usuarioValido'] = widget.usuario;
       items.add(map);
     }
     try {
@@ -448,83 +449,103 @@ class _TransferenciasRetornosPageState
                                                           style:
                                                               const TextStyle(
                                                                   fontSize: 14),
-                                                          onChanged:
-                                                              (value) async {
-                                                            // Buscar jefatura en Firestore y autollenar si aplica
-                                                            final seccionIdx =
-                                                                _headers.indexOf(
-                                                                    'SECCION');
-                                                            final seccion =
-                                                                seccionIdx != -1
-                                                                    ? _rows[rowIdx]
-                                                                            [
-                                                                            seccionIdx]
-                                                                        .text
-                                                                        .trim()
-                                                                    : '';
-                                                            if (seccion
-                                                                .isNotEmpty) {
-                                                              final doc = await FirebaseFirestore
-                                                                  .instance
-                                                                  .collection(
-                                                                      'plantilla_ejecutiva')
-                                                                  .doc('datos')
-                                                                  .get();
-                                                              if (doc.exists &&
-                                                                  doc.data() !=
-                                                                      null) {
-                                                                final datos = doc
-                                                                            .data()![
-                                                                        'datos']
-                                                                    as List<
-                                                                        dynamic>?;
-                                                                if (datos !=
-                                                                    null) {
-                                                                  for (final fila
-                                                                      in datos) {
-                                                                    if (fila is Map<
-                                                                            String,
-                                                                            dynamic> &&
-                                                                        fila['SECCION'].toString().trim().toUpperCase() ==
-                                                                            seccion.toUpperCase()) {
-                                                                      setState(
-                                                                          () {
-                                                                        _rows[rowIdx][colIdx]
-                                                                            .text = fila['NOMBRE']
-                                                                                ?.toString() ??
-                                                                            '';
-                                                                      });
-                                                                      break;
-                                                                    }
-                                                                  }
-                                                                }
-                                                              }
-                                                            }
-                                                          },
                                                         )
-                                                      : TextField(
-                                                          controller:
-                                                              _rows[rowIdx]
-                                                                  [colIdx],
-                                                          textAlign:
-                                                              TextAlign.center,
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            border: InputBorder
-                                                                .none,
-                                                            isDense: true,
-                                                            contentPadding:
-                                                                EdgeInsets
-                                                                    .symmetric(
+                                                      : (_headers[colIdx] ==
+                                                              'SECCION'
+                                                          ? TextField(
+                                                              controller:
+                                                                  _rows[rowIdx]
+                                                                      [colIdx],
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
                                                                         vertical:
                                                                             8,
                                                                         horizontal:
                                                                             4),
-                                                          ),
-                                                          style:
-                                                              const TextStyle(
-                                                                  fontSize: 14),
-                                                        ),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                              onChanged:
+                                                                  (value) async {
+                                                                final seccion =
+                                                                    value
+                                                                        .trim();
+                                                                if (seccion
+                                                                    .isNotEmpty) {
+                                                                  final doc = await FirebaseFirestore
+                                                                      .instance
+                                                                      .collection(
+                                                                          'plantilla_ejecutiva')
+                                                                      .doc(
+                                                                          'datos')
+                                                                      .get();
+                                                                  if (doc.exists &&
+                                                                      doc.data() !=
+                                                                          null) {
+                                                                    final datos = doc
+                                                                            .data()!['datos']
+                                                                        as List<
+                                                                            dynamic>?;
+                                                                    if (datos !=
+                                                                        null) {
+                                                                      for (final fila
+                                                                          in datos) {
+                                                                        if (fila is Map<String,
+                                                                                dynamic> &&
+                                                                            fila['SECCION'].toString().trim().toUpperCase() ==
+                                                                                seccion.toUpperCase()) {
+                                                                          final jefaturaIdx =
+                                                                              _headers.indexOf('JEFATURA');
+                                                                          if (jefaturaIdx !=
+                                                                              -1) {
+                                                                            setState(() {
+                                                                              _rows[rowIdx][jefaturaIdx].text = fila['NOMBRE']?.toString() ?? '';
+                                                                            });
+                                                                          }
+                                                                          break;
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              },
+                                                            )
+                                                          : TextField(
+                                                              controller:
+                                                                  _rows[rowIdx]
+                                                                      [colIdx],
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                            )),
                                             ),
                                           ),
                                         );

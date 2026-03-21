@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/historial_tf_retornos.dart';
+import 'dart:typed_data';
+import 'dart:convert';
 
 class HistorialTfRetornosPage extends StatefulWidget {
   final String usuario;
@@ -14,6 +16,7 @@ class HistorialTfRetornosPage extends StatefulWidget {
 
 class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
   List<HistorialTfRetorno> _items = [];
+  List<Map<String, dynamic>> _rawItems = [];
   bool _cargando = true;
   String _filtro = '';
   late TextEditingController _busquedaController;
@@ -39,24 +42,28 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
           .get();
       final data = doc.exists ? doc.data() : null;
       List<HistorialTfRetorno> nuevos = [];
+      List<Map<String, dynamic>> rawNuevos = [];
       if (data != null && data['items'] is List) {
         for (var e in (data['items'] as List)) {
           if (e is Map) {
-            nuevos.add(HistorialTfRetorno.fromMap(
-                Map<String, dynamic>.from(
-                    e.map((k, v) => MapEntry(k.toString(), v))),
-                e['id']?.toString() ?? ''));
+            final map = Map<String, dynamic>.from(
+                e.map((k, v) => MapEntry(k.toString(), v)));
+            nuevos.add(
+                HistorialTfRetorno.fromMap(map, map['id']?.toString() ?? ''));
+            rawNuevos.add(map);
           }
         }
       }
       setState(() {
         _items = nuevos;
+        _rawItems = rawNuevos;
         _cargando = false;
         _errorCarga = null;
       });
     } catch (e) {
       setState(() {
         _items = [];
+        _rawItems = [];
         _cargando = false;
         _errorCarga = 'Error al cargar datos: ' + e.toString();
       });
@@ -78,15 +85,27 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
   @override
   Widget build(BuildContext context) {
     final resultados = _filtro.isEmpty
-        ? _items
-        : _items
-            .where((e) =>
-                e.tfOdev.toLowerCase().contains(_filtro) ||
+        ? List.generate(_items.length, (i) => MapEntry(_items[i], _rawItems[i]))
+        : List.generate(_items.length, (i) => MapEntry(_items[i], _rawItems[i]))
+            .where((pair) {
+            final e = pair.key;
+            final raw = pair.value;
+            return e.tfOdev.toLowerCase().contains(_filtro) ||
                 e.origen.toLowerCase().contains(_filtro) ||
-                e.valido.toLowerCase().contains(_filtro) ||
-                e.entrego.toLowerCase().contains(_filtro) ||
-                (e.observaciones?.toLowerCase().contains(_filtro) ?? false))
-            .toList();
+                (raw['SECCION']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['JEFATURA']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['nombreRecibe']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['VALIDO']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['ENTREGO']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (e.valido.toLowerCase().contains(_filtro)) ||
+                (e.entrego.toLowerCase().contains(_filtro)) ||
+                (e.observaciones?.toLowerCase().contains(_filtro) ?? false);
+          }).toList();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -145,7 +164,17 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                   const SizedBox(height: 12),
                               itemCount: resultados.length,
                               itemBuilder: (context, index) {
-                                final item = resultados[index];
+                                final item = resultados[index].key;
+                                final raw = resultados[index].value;
+                                Uint8List? firmaBytes;
+                                if (raw['firma'] != null &&
+                                    raw['firma'] is String &&
+                                    raw['firma'].isNotEmpty) {
+                                  try {
+                                    firmaBytes = Uint8List.fromList(
+                                        base64Decode(raw['firma']));
+                                  } catch (_) {}
+                                }
                                 return Card(
                                   elevation: 6,
                                   shape: RoundedRectangleBorder(
@@ -167,6 +196,22 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                   color: Colors.white),
                                             ),
                                             const SizedBox(height: 10),
+                                            if (firmaBytes != null &&
+                                                firmaBytes.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 8.0),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  child: Image.memory(
+                                                    firmaBytes,
+                                                    width: 70,
+                                                    height: 40,
+                                                    fit: BoxFit.contain,
+                                                  ),
+                                                ),
+                                              ),
                                             if (item.retorno)
                                               Container(
                                                 padding:
@@ -208,13 +253,33 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                           color: Color(
                                                               0xFF2D6A4F))),
                                                   const SizedBox(width: 18),
-                                                  Text('Origen: ',
+                                                  Text('Sección: ',
                                                       style: TextStyle(
                                                           fontWeight:
                                                               FontWeight.bold,
                                                           color: Colors
                                                               .grey[700])),
-                                                  Text(item.origen,
+                                                  Text(
+                                                      raw['SECCION']
+                                                              ?.toString() ??
+                                                          '-',
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          fontSize: 16,
+                                                          color: Color(
+                                                              0xFF2D6A4F))),
+                                                  const SizedBox(width: 18),
+                                                  Text('Jefatura: ',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Colors
+                                                              .grey[700])),
+                                                  Text(
+                                                      raw['JEFATURA']
+                                                              ?.toString() ??
+                                                          '-',
                                                       style: const TextStyle(
                                                           fontWeight:
                                                               FontWeight.bold,
@@ -246,12 +311,45 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                               const SizedBox(height: 8),
                                               Row(
                                                 children: [
+                                                  const Icon(Icons.person,
+                                                      size: 18,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  const SizedBox(width: 6),
+                                                  Text('Recibió: ',
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: Color(
+                                                              0xFF2D6A4F))),
+                                                  Text(
+                                                      raw['nombreRecibe']
+                                                              ?.toString() ??
+                                                          '-',
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 16)),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Row(
+                                                children: [
                                                   const Icon(
                                                       Icons.verified_user,
                                                       size: 18,
                                                       color: Color(0xFF2D6A4F)),
                                                   const SizedBox(width: 6),
-                                                  Text('Validó: ${item.valido}',
+                                                  Text('Validó: ',
+                                                      style: const TextStyle(
+                                                          fontSize: 15,
+                                                          color: Color(
+                                                              0xFF495057))),
+                                                  Text(
+                                                      raw['usuarioValido']
+                                                              ?.toString() ??
+                                                          raw['VALIDO']
+                                                              ?.toString() ??
+                                                          '-',
                                                       style: const TextStyle(
                                                           fontSize: 15,
                                                           color: Color(
@@ -262,8 +360,17 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                       size: 18,
                                                       color: Color(0xFF2D6A4F)),
                                                   const SizedBox(width: 6),
+                                                  Text('Entregó: ',
+                                                      style: const TextStyle(
+                                                          fontSize: 15,
+                                                          color: Color(
+                                                              0xFF495057))),
                                                   Text(
-                                                      'Entregó: ${item.entrego}',
+                                                      raw['usuarioEntrega']
+                                                              ?.toString() ??
+                                                          raw['ENTREGO']
+                                                              ?.toString() ??
+                                                          '-',
                                                       style: const TextStyle(
                                                           fontSize: 15,
                                                           color: Color(

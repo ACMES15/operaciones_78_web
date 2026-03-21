@@ -331,6 +331,9 @@ class _EntregasTransferenciasRetornosPageState
               'nombreRecibe': resultado['nombre'],
               'firma': resultado['firma'],
               'fechaFirma': DateTime.now().toIso8601String(),
+              'usuarioEntrega': e['usuarioEntrega'] ??
+                  (ModalRoute.of(context)?.settings.arguments as String?) ??
+                  '',
               'id':
                   e['id']?.toString() ?? (e['TRANSFERENCIA']?.toString() ?? ''),
             })
