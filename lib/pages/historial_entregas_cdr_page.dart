@@ -367,10 +367,6 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                       ),
                       const SizedBox(width: 12),
                       DropdownButton<String>(
-                        value: _jefaturaSeleccionada.isEmpty
-                            ? null
-                            : _jefaturaSeleccionada,
-                        hint: const Text('Jefatura'),
                         isExpanded: false,
                         items: [
                           const DropdownMenuItem<String>(
@@ -519,9 +515,9 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                         title: Row(
                                           children: [
                                             _infoChip('HOJA RUTA',
-                                                entrega['HOJA_DE_RUTA']),
+                                                entrega['HOJA DE RUTA']),
                                             _infoChip('TIPO DOCTO',
-                                                entrega['TIPO_DOCTO']),
+                                                entrega['TIPO DOCTO']),
                                             _infoChip(
                                                 'DOCTO', entrega['DOCUMENTO']),
                                             _infoChip('SKU', entrega['SKU']),
