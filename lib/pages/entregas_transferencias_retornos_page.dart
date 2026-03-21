@@ -325,15 +325,19 @@ class _EntregasTransferenciasRetornosPageState
     signatureController.dispose();
     if (resultado == null) return;
     // Guardar en historial
+    // Obtener el usuario autenticado desde el contexto del widget principal si es posible
+    String usuarioEntrega = '';
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs is String && routeArgs.isNotEmpty) {
+      usuarioEntrega = routeArgs;
+    }
     final nuevasFirmadas = seleccionadas
         .map((e) => {
               ...e,
               'nombreRecibe': resultado['nombre'],
               'firma': resultado['firma'],
               'fechaFirma': DateTime.now().toIso8601String(),
-              'usuarioEntrega': e['usuarioEntrega'] ??
-                  (ModalRoute.of(context)?.settings.arguments as String?) ??
-                  '',
+              'usuarioEntrega': usuarioEntrega,
               'id':
                   e['id']?.toString() ?? (e['TRANSFERENCIA']?.toString() ?? ''),
             })

@@ -217,7 +217,8 @@ class _TransferenciasRetornosPageState
   void _verEntregasTransferenciasRetornos() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => const EntregasTransferenciasRetornosPage(),
+        builder: (_) => EntregasTransferenciasRetornosPage(),
+        settings: RouteSettings(arguments: widget.usuario),
       ),
     );
   }
