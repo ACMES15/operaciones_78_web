@@ -29,6 +29,7 @@ import 'paqueteria_externa_page.dart';
 import 'historial_paqueteria_externa_page.dart';
 import 'mensajes_page.dart';
 import '../pages/transferencias_retornos_page.dart';
+import '../pages/consulta_global_page.dart';
 import '../utils/mensajes_service.dart';
 
 class HomePage extends StatefulWidget {
@@ -93,6 +94,7 @@ class _HomePageState extends State<HomePage> {
     'Historial Paquetería Externa': Icons.history,
     'Transferencias y Retornos': Icons.swap_horiz,
     'Historial TF o Retornos': Icons.history,
+    'Consulta Global': Icons.public,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -135,6 +137,7 @@ class _HomePageState extends State<HomePage> {
     'Transferencias y Retornos':
         TransferenciasRetornosPage(usuario: widget.usuario),
     'Historial TF o Retornos': HistorialTfRetornosPage(usuario: widget.usuario),
+    'Consulta Global': ConsultaGlobalPage(),
   };
 
   @override
@@ -170,6 +173,7 @@ class _HomePageState extends State<HomePage> {
       'Historial Paquetería Externa',
       'Transferencias y Retornos',
       'Historial TF o Retornos',
+      'Consulta Global',
       'Plantilla Ejecutiva',
     ];
     // ...existing code...
