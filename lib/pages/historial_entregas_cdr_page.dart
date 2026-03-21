@@ -433,9 +433,9 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                               CrossAxisAlignment.start,
                                           children: [
                                             _mobileField('Hoja de Ruta',
-                                                entrega['HOJA_DE_RUTA']),
+                                                entrega['HOJA DE RUTA']),
                                             _mobileField('Tipo Docto',
-                                                entrega['TIPO_DOCTO']),
+                                                entrega['TIPO DOCTO']),
                                             _mobileField('Documento',
                                                 entrega['DOCUMENTO']),
                                             _mobileField('SKU', entrega['SKU']),

@@ -105527,21 +105527,21 @@ if(s==null)s=""
 return this.a.w=s},
 $S:0}
 A.aGG.prototype={
-$2(a2,a3){var s,r,q=null,p="HOJA_DE_RUTA",o="TIPO_DOCTO",n="DOCUMENTO",m="SKU",l="CANTIDAD",k="JEFATURA",j="DESCRIPCION",i="firma",h="nombreRecibe",g="fechaFirma",f=this.a,e=f.d[a3],d=f.y.p(0,a3),c=J.P(e),b=J.e(c.h(e,"BOX"),!0)||J.e(c.h(e,"BOX"),"true"),a=A.b6(14),a0=b?B.eO:B.C,a1=t.p
-if(this.b){s=A.a([f.of("Hoja de Ruta",c.h(e,p)),f.of("Tipo Docto",c.h(e,o)),f.of("Documento",c.h(e,n)),f.of(m,c.h(e,m)),f.of("Cantidad",c.h(e,l)),f.of("Secci\xf3n",c.h(e,"SECCION")),f.of("Jefatura",c.h(e,k)),f.of("Descripci\xf3n",c.h(e,j))],a1)
-if(c.h(e,i)!=null)s.push(new A.ai(B.da,A.ap(A.a([B.nY,A.ch(typeof c.h(e,i)=="string"?A.qj(B.eJ.bd(c.h(e,i)),B.ec,q,q):B.NM,80,q)],a1),B.a1,B.w,B.x),q))
-if(c.h(e,h)!=null)s.push(new A.ai(B.l7,A.H("Recibi\xf3: "+A.j(c.h(e,h)),q,q,q,B.bk,q,q),q))
-if(c.h(e,g)!=null)s.push(new A.ai(B.vY,A.H("Fecha: "+A.j(c.h(e,g)),q,q,q,q,q,q),q))
-c=A.ap(s,B.a1,B.w,B.x)
-c=A.nG(B.ej,B.dU,new A.aGw(f,a3),new A.bV(A.b6(12),B.K),q,c,d)
-f=c}else{s=A.aa(A.a([f.oe("HOJA RUTA",c.h(e,p)),f.oe("TIPO DOCTO",c.h(e,o)),f.oe("DOCTO",c.h(e,n)),f.oe(m,c.h(e,m)),f.oe("CANT",c.h(e,l)),f.oe("SECC",c.h(e,"SECCION")),f.oe("JEF",c.h(e,k)),f.oe("DESC",c.h(e,j))],a1),B.G,B.w,B.x,q)
-r=A.a([],a1)
-if(c.h(e,i)!=null)r.push(new A.ai(B.da,A.ap(A.a([B.nY,A.ch(typeof c.h(e,i)=="string"?A.qj(B.eJ.bd(c.h(e,i)),B.ec,q,q):B.NM,80,q)],a1),B.a1,B.w,B.x),q))
-if(c.h(e,h)!=null)r.push(new A.ai(B.l7,A.H("Recibi\xf3: "+A.j(c.h(e,h)),q,q,q,B.bk,q,q),q))
-if(c.h(e,g)!=null)r.push(new A.ai(B.vY,A.H("Fecha: "+A.j(c.h(e,g)),q,q,q,q,q,q),q))
-c=A.ap(r,B.a1,B.w,B.x)
-s=A.nG(B.ej,B.dU,new A.aGx(f,a3),new A.bV(A.b6(12),B.K),c,s,d)
-f=s}return A.dv(f,a0,4,q,B.eT,new A.bV(a,B.hh))},
+$2(a1,a2){var s,r,q=null,p="TIPO DOCTO",o="DOCUMENTO",n="SKU",m="CANTIDAD",l="JEFATURA",k="DESCRIPCION",j="firma",i="nombreRecibe",h="fechaFirma",g=this.a,f=g.d[a2],e=g.y.p(0,a2),d=J.P(f),c=J.e(d.h(f,"BOX"),!0)||J.e(d.h(f,"BOX"),"true"),b=A.b6(14),a=c?B.eO:B.C,a0=t.p
+if(this.b){s=A.a([g.of("Hoja de Ruta",d.h(f,"HOJA DE RUTA")),g.of("Tipo Docto",d.h(f,p)),g.of("Documento",d.h(f,o)),g.of(n,d.h(f,n)),g.of("Cantidad",d.h(f,m)),g.of("Secci\xf3n",d.h(f,"SECCION")),g.of("Jefatura",d.h(f,l)),g.of("Descripci\xf3n",d.h(f,k))],a0)
+if(d.h(f,j)!=null)s.push(new A.ai(B.da,A.ap(A.a([B.nY,A.ch(typeof d.h(f,j)=="string"?A.qj(B.eJ.bd(d.h(f,j)),B.ec,q,q):B.NM,80,q)],a0),B.a1,B.w,B.x),q))
+if(d.h(f,i)!=null)s.push(new A.ai(B.l7,A.H("Recibi\xf3: "+A.j(d.h(f,i)),q,q,q,B.bk,q,q),q))
+if(d.h(f,h)!=null)s.push(new A.ai(B.vY,A.H("Fecha: "+A.j(d.h(f,h)),q,q,q,q,q,q),q))
+d=A.ap(s,B.a1,B.w,B.x)
+d=A.nG(B.ej,B.dU,new A.aGw(g,a2),new A.bV(A.b6(12),B.K),q,d,e)
+g=d}else{s=A.aa(A.a([g.oe("HOJA RUTA",d.h(f,"HOJA_DE_RUTA")),g.oe(p,d.h(f,"TIPO_DOCTO")),g.oe("DOCTO",d.h(f,o)),g.oe(n,d.h(f,n)),g.oe("CANT",d.h(f,m)),g.oe("SECC",d.h(f,"SECCION")),g.oe("JEF",d.h(f,l)),g.oe("DESC",d.h(f,k))],a0),B.G,B.w,B.x,q)
+r=A.a([],a0)
+if(d.h(f,j)!=null)r.push(new A.ai(B.da,A.ap(A.a([B.nY,A.ch(typeof d.h(f,j)=="string"?A.qj(B.eJ.bd(d.h(f,j)),B.ec,q,q):B.NM,80,q)],a0),B.a1,B.w,B.x),q))
+if(d.h(f,i)!=null)r.push(new A.ai(B.l7,A.H("Recibi\xf3: "+A.j(d.h(f,i)),q,q,q,B.bk,q,q),q))
+if(d.h(f,h)!=null)r.push(new A.ai(B.vY,A.H("Fecha: "+A.j(d.h(f,h)),q,q,q,q,q,q),q))
+d=A.ap(r,B.a1,B.w,B.x)
+s=A.nG(B.ej,B.dU,new A.aGx(g,a2),new A.bV(A.b6(12),B.K),d,s,e)
+g=s}return A.dv(g,a,4,q,B.eT,new A.bV(b,B.hh))},
 $S:14}
 A.aGw.prototype={
 $1(a){var s=this.a
