@@ -269,13 +269,13 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   Future<void> _cargarDesdeFirestore() async {
     setState(() => _cargando = true);
     final firestore = FirebaseFirestore.instance;
-    final snapshot = await firestore.collection('entregas_cdr').get();
-    final docs = snapshot.docs;
+    final doc = await firestore
+        .collection('historial_entregas')
+        .doc('cdr_firmadas')
+        .get();
     List<Map<String, dynamic>> nuevos = [];
-    for (final doc in docs) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      nuevos.add(data);
+    if (doc.exists && doc.data() != null && doc.data()!['items'] is List) {
+      nuevos = List<Map<String, dynamic>>.from(doc.data()!['items']);
     }
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _aplicarFiltro();
