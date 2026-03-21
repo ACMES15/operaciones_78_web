@@ -109678,7 +109678,7 @@ A.O5.prototype={
 ag(){this.aE()
 this.mR()
 this.rI()},
-ga1t(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Dev Mbodas","Dev XD","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Historial Entregas Dev Mbodas","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos"],t.s)},
+ga1t(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Dev Mbodas","Dev XD","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Historial Entregas Dev Mbodas","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos","Historial TF o Retornos"],t.s)},
 mR(){var s=0,r=A.t(t.H),q=this,p,o,n,m,l,k,j
 var $async$mR=A.u(function(a,b){if(a===1)return A.p(b,r)
 while(true)switch(s){case 0:k=$.X

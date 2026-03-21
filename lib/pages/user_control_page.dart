@@ -69,6 +69,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Paquetería Externa',
       'Historial Paquetería Externa',
       'Transferencias y Retornos',
+      'Historial TF o Retornos'
     ];
   }
 
