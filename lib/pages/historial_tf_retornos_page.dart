@@ -245,13 +245,38 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                               FontWeight.bold,
                                                           color: Colors
                                                               .grey[700])),
-                                                  Text(item.tfOdev,
-                                                      style: const TextStyle(
+                                                  Text(
+                                                    raw['TF O DEV']
+                                                            ?.toString() ??
+                                                        raw['TF O DEV ']
+                                                            ?.toString() ??
+                                                        raw['TRANSFERENCIA']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 18,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
+                                                  const SizedBox(width: 18),
+                                                  Text('Origen: ',
+                                                      style: TextStyle(
                                                           fontWeight:
                                                               FontWeight.bold,
-                                                          fontSize: 18,
-                                                          color: Color(
-                                                              0xFF2D6A4F))),
+                                                          color: Colors
+                                                              .grey[700])),
+                                                  Text(
+                                                    raw['ORIGEN']?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
                                                   const SizedBox(width: 18),
                                                   Text('Sección: ',
                                                       style: TextStyle(
@@ -260,15 +285,16 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                           color: Colors
                                                               .grey[700])),
                                                   Text(
-                                                      raw['SECCION']
-                                                              ?.toString() ??
-                                                          '-',
-                                                      style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 16,
-                                                          color: Color(
-                                                              0xFF2D6A4F))),
+                                                    raw['SECCION']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
                                                   const SizedBox(width: 18),
                                                   Text('Jefatura: ',
                                                       style: TextStyle(
@@ -277,15 +303,40 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                           color: Colors
                                                               .grey[700])),
                                                   Text(
-                                                      raw['JEFATURA']
-                                                              ?.toString() ??
-                                                          '-',
-                                                      style: const TextStyle(
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                          fontSize: 16,
-                                                          color: Color(
-                                                              0xFF2D6A4F))),
+                                                    raw['JEFATURA']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 16,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                  ),
+                                                  const SizedBox(width: 18),
+                                                  if (raw['RETORNO'] == true ||
+                                                      raw['RETORNO'] == 'true')
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8,
+                                                          vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors
+                                                            .orange.shade100,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                      ),
+                                                      child: const Text(
+                                                          'RETORNO',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.orange,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold)),
+                                                    ),
                                                   const Spacer(),
                                                   if (item.fecha != null)
                                                     Row(
@@ -366,15 +417,18 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                           color: Color(
                                                               0xFF495057))),
                                                   Text(
-                                                      raw['usuarioEntrega']
-                                                              ?.toString() ??
-                                                          raw['ENTREGO']
-                                                              ?.toString() ??
-                                                          '-',
-                                                      style: const TextStyle(
-                                                          fontSize: 15,
-                                                          color: Color(
-                                                              0xFF495057))),
+                                                    raw['usuarioEntrega']
+                                                            ?.toString() ??
+                                                        raw['ENTREGO']
+                                                            ?.toString() ??
+                                                        raw['usuario']
+                                                            ?.toString() ??
+                                                        '-',
+                                                    style: const TextStyle(
+                                                        fontSize: 15,
+                                                        color:
+                                                            Color(0xFF495057)),
+                                                  ),
                                                 ],
                                               ),
                                               if (item.observaciones != null &&
