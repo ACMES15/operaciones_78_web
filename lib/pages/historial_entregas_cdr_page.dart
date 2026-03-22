@@ -641,6 +641,10 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   }
 
   Widget _mobileField(String label, dynamic value) {
+    final displayValue =
+        (value == null || (value is String && value.trim().isEmpty))
+            ? '-'
+            : value;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Row(
@@ -650,14 +654,18 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
               style:
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
+              child:
+                  Text('$displayValue', style: const TextStyle(fontSize: 16))),
         ],
       ),
     );
   }
 
   Widget _infoChip(String label, dynamic value) {
+    final displayValue =
+        (value == null || (value is String && value.trim().isEmpty))
+            ? '-'
+            : value;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -666,7 +674,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2D6A4F)),
       ),
-      child: Text('$label: ${value ?? '-'}',
+      child: Text('$label: $displayValue',
           style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }

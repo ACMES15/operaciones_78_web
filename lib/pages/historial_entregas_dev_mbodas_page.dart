@@ -298,6 +298,11 @@ class _HistorialEntregasDevMbodasPageState
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
                                       Text(
+                                          'MBODAS: \\${entrega['MBODAS'] == null || (entrega['MBODAS'] is String && entrega['MBODAS'].trim().isEmpty) ? '-' : entrega['MBODAS']}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFF495057))),
+                                      Text(
                                           'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
