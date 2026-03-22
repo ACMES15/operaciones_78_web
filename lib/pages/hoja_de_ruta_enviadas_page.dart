@@ -17,6 +17,11 @@ class HojaDeRutaEnviadasPage extends StatefulWidget {
 }
 
 class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
+  Future<void> _forzarRecarga() async {
+    await invalidateCache('hoja_ruta', 'sentHojaRutas');
+    setState(() {}); // Forzar rebuild para que FutureBuilder recargue
+  }
+
   Future<void> _printSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     try {
@@ -484,8 +489,16 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
 
                 return Scaffold(
                   appBar: AppBar(
-                      title: const Text('Hoja de ruta enviadas'),
-                      backgroundColor: const Color.fromARGB(184, 69, 70, 69)),
+                    title: const Text('Hoja de ruta enviadas'),
+                    backgroundColor: const Color.fromARGB(184, 69, 70, 69),
+                    actions: [
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Forzar recarga',
+                        onPressed: _forzarRecarga,
+                      ),
+                    ],
+                  ),
                   body: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Column(

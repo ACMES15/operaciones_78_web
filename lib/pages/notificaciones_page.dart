@@ -28,10 +28,11 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
         .set({'items': notificaciones});
     // Resetear contraseña si usuario es válido
     if (usuario != null && usuario.isNotEmpty) {
+      final usuarioNormalizado = usuario.trim().toLowerCase();
       await FirebaseFirestore.instance
           .collection('usuarios')
-          .doc(usuario)
-          .update({'password': usuario});
+          .doc(usuarioNormalizado)
+          .update({'password': usuarioNormalizado});
     }
     setState(() {});
   }
