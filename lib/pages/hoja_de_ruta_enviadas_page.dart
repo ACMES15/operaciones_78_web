@@ -124,22 +124,21 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   }
 
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
+    // Alinear los datos de cada fila al orden de headers
     List<List<String>> rows = [];
-    if (sheet['rows'] != null && sheet['rows'] is List) {
+    final List<String> columns =
+        sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
+    if (sheet['rows'] != null && sheet['rows'] is List && columns.isNotEmpty) {
       final rawRows = sheet['rows'] as List;
-      if (rawRows.isNotEmpty && rawRows.first is Map) {
-        rows = rawRows
-            .map((e) => (e as Map).values.map((v) => v.toString()).toList())
-            .toList();
-      } else {
-        rows = rawRows.map((e) => List<String>.from(e)).toList();
+      for (final row in rawRows) {
+        if (row is Map) {
+          // Ordenar los valores según headers
+          rows.add(columns.map((h) => row[h]?.toString() ?? '').toList());
+        } else if (row is List) {
+          rows.add(List<String>.from(row.map((e) => e.toString())));
+        }
       }
     }
-    final List<String> columns = sheet['headers'] != null
-        ? List<String>.from(sheet['headers'])
-        : (rows.isNotEmpty
-            ? List.generate(rows[0].length, (i) => 'Col${i + 1}')
-            : []);
     final List<List<TextEditingController>> rowControllers = List.generate(
         rows.length,
         (i) => List.generate(
@@ -408,249 +407,297 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   @override
   Widget build(BuildContext context) {
     final searchController = TextEditingController();
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('hoja_ruta')
-          .doc('sentHojaRutas')
-          .snapshots(),
-      builder: (context, snapshot) {
+    // 1. Cargar primero del caché local
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: leerDatosConCache('hoja_ruta', 'sentHojaRutas'),
+      builder: (context, cacheSnapshot) {
         List<Map<String, dynamic>> sent = [];
-        final data = snapshot.data?.data();
-        if (snapshot.hasData && data != null && data['items'] != null) {
-          sent = List<Map<String, dynamic>>.from((data['items'] as List)
-              .map((e) => Map<String, dynamic>.from(e))).reversed.toList();
+        if (cacheSnapshot.hasData &&
+            cacheSnapshot.data != null &&
+            cacheSnapshot.data!['items'] != null) {
+          sent = List<Map<String, dynamic>>.from(
+              (cacheSnapshot.data!['items'] as List)
+                  .map((e) => Map<String, dynamic>.from(e))).reversed.toList();
         }
         List<Map<String, dynamic>> filtered = List.from(sent);
 
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            void filterSheets(String query) {
-              final q = query.toLowerCase();
-              filtered = sent.where((sheet) {
-                bool match = (sheet['numeroControl']
-                            ?.toString()
-                            .toLowerCase()
-                            .contains(q) ??
-                        false) ||
-                    (sheet['origen']?.toString().toLowerCase().contains(q) ??
-                        false) ||
-                    (sheet['tipo']?.toString().toLowerCase().contains(q) ??
-                        false) ||
-                    (sheet['caja']?.toString().toLowerCase().contains(q) ??
-                        false) ||
-                    (sheet['fecha']?.toString().toLowerCase().contains(q) ??
-                        false);
-                if (!match && sheet['rows'] != null) {
-                  for (final row in (sheet['rows'] as List)) {
-                    for (final cell in (row is Map ? row.values : row)) {
-                      if (cell.toString().toLowerCase().contains(q)) {
-                        match = true;
-                        break;
-                      }
-                    }
-                    if (match) break;
-                  }
-                }
-                return match;
-              }).toList();
-              setModalState(() {});
+        // 2. Luego, actualizar con Firestore y refrescar caché si hay cambios
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('hoja_ruta')
+              .doc('sentHojaRutas')
+              .snapshots(),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data();
+            if (snapshot.hasData && data != null && data['items'] != null) {
+              final firestoreSent = List<Map<String, dynamic>>.from(
+                      (data['items'] as List)
+                          .map((e) => Map<String, dynamic>.from(e)))
+                  .reversed
+                  .toList();
+              // Si hay diferencia, actualizar caché y la lista
+              if (firestoreSent.length != sent.length ||
+                  firestoreSent.toString() != sent.toString()) {
+                guardarDatosFirestoreYCache(
+                    'hoja_ruta', 'sentHojaRutas', {'items': firestoreSent});
+                sent = firestoreSent;
+                filtered = List.from(sent);
+              }
             }
 
-            return Scaffold(
-              appBar: AppBar(
-                  title: const Text('Hoja de ruta enviadas'),
-                  backgroundColor: const Color.fromARGB(184, 69, 70, 69)),
-              body: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: searchController,
-                      decoration: const InputDecoration(
-                          labelText: 'Buscar hoja de ruta',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder()),
-                      onChanged: filterSheets,
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? const Center(
-                              child: Text('No hay hojas de ruta enviadas'))
-                          : ListView.builder(
-                              itemCount: filtered.length,
-                              itemBuilder: (context, idx) {
-                                final sheet = filtered[idx];
-                                return Card(
-                                  child: ListTile(
-                                    title: Text('Hoja: ${sheet['createdAt']}'),
-                                    subtitle: Text(
-                                        'Fecha: ${sheet['fecha']}  •  No. Control: ${sheet['numeroControl']}'),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.print),
-                                          onPressed: () async {
-                                            try {
-                                              await _printSheet(context, sheet);
-                                            } catch (e) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(SnackBar(
-                                                      content: Text(
-                                                          'Error al imprimir: $e')));
-                                            }
-                                          },
-                                        ),
-                                        IconButton(
-                                            icon: const Icon(Icons.visibility),
-                                            onPressed: () => _showSheetDetail(
-                                                context, sheet)),
-                                        if (HojaDeRutaExtraPage.isAdmin)
-                                          IconButton(
-                                            icon: const Icon(Icons.delete,
-                                                color: Colors.red),
-                                            tooltip: 'Eliminar',
-                                            onPressed: () async {
-                                              final confirm =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  title: const Text(
-                                                      'Eliminar hoja de ruta'),
-                                                  content: const Text(
-                                                      '¿Estás seguro de eliminar esta hoja de ruta? Esta acción no se puede deshacer.'),
-                                                  actions: [
-                                                    TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(ctx)
-                                                                .pop(false),
-                                                        child: const Text(
-                                                            'Cancelar')),
-                                                    ElevatedButton(
-                                                      style: ElevatedButton
-                                                          .styleFrom(
-                                                              backgroundColor:
-                                                                  Colors.red),
-                                                      onPressed: () =>
-                                                          Navigator.of(ctx)
-                                                              .pop(true),
-                                                      child: const Text(
-                                                          'Eliminar'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (confirm != true) return;
+            return StatefulBuilder(
+              builder: (context, setModalState) {
+                void filterSheets(String query) {
+                  final q = query.toLowerCase();
+                  filtered = sent.where((sheet) {
+                    bool match = (sheet['numeroControl']
+                                ?.toString()
+                                .toLowerCase()
+                                .contains(q) ??
+                            false) ||
+                        (sheet['origen']
+                                ?.toString()
+                                .toLowerCase()
+                                .contains(q) ??
+                            false) ||
+                        (sheet['tipo']?.toString().toLowerCase().contains(q) ??
+                            false) ||
+                        (sheet['caja']?.toString().toLowerCase().contains(q) ??
+                            false) ||
+                        (sheet['fecha']?.toString().toLowerCase().contains(q) ??
+                            false);
+                    if (!match && sheet['rows'] != null) {
+                      for (final row in (sheet['rows'] as List)) {
+                        for (final cell in (row is Map ? row.values : row)) {
+                          if (cell.toString().toLowerCase().contains(q)) {
+                            match = true;
+                            break;
+                          }
+                        }
+                        if (match) break;
+                      }
+                    }
+                    return match;
+                  }).toList();
+                  setModalState(() {});
+                }
 
-                                              // Optimistic delete with undo
-                                              final removed =
-                                                  HojaDeRutaExtraPage
-                                                      .sentHojaRutas
-                                                      .where((s) {
+                return Scaffold(
+                  appBar: AppBar(
+                      title: const Text('Hoja de ruta enviadas'),
+                      backgroundColor: const Color.fromARGB(184, 69, 70, 69)),
+                  body: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: searchController,
+                          decoration: const InputDecoration(
+                              labelText: 'Buscar hoja de ruta',
+                              prefixIcon: Icon(Icons.search),
+                              border: OutlineInputBorder()),
+                          onChanged: filterSheets,
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: filtered.isEmpty
+                              ? const Center(
+                                  child: Text('No hay hojas de ruta enviadas'))
+                              : ListView.builder(
+                                  itemCount: filtered.length,
+                                  itemBuilder: (context, idx) {
+                                    final sheet = filtered[idx];
+                                    return Card(
+                                      child: ListTile(
+                                        title:
+                                            Text('Hoja: ${sheet['createdAt']}'),
+                                        subtitle: Text(
+                                            'Fecha: ${sheet['fecha']}  •  No. Control: ${sheet['numeroControl']}'),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              icon: const Icon(Icons.print),
+                                              onPressed: () async {
                                                 try {
-                                                  return s['createdAt'] ==
-                                                          sheet['createdAt'] &&
-                                                      s['numeroControl'] ==
-                                                          sheet[
-                                                              'numeroControl'];
-                                                } catch (_) {
-                                                  return false;
-                                                }
-                                              }).toList();
-
-                                              HojaDeRutaExtraPage.sentHojaRutas
-                                                  .removeWhere((s) {
-                                                try {
-                                                  return s['createdAt'] ==
-                                                          sheet['createdAt'] &&
-                                                      s['numeroControl'] ==
-                                                          sheet[
-                                                              'numeroControl'];
-                                                } catch (_) {
-                                                  return false;
-                                                }
-                                              });
-
-                                              setModalState(() {});
-
-                                              bool undone = false;
-                                              late final Timer commitTimer;
-                                              commitTimer = Timer(
-                                                  const Duration(seconds: 5),
-                                                  () async {
-                                                if (undone) return;
-                                                try {
-                                                  await guardarDatosFirestoreYCache(
-                                                      'hoja_ruta',
-                                                      'sentHojaRutas', {
-                                                    'items': HojaDeRutaExtraPage
-                                                        .sentHojaRutas
-                                                  });
-                                                  try {
-                                                    await invalidateCache(
-                                                        'hoja_ruta',
-                                                        'sentHojaRutas');
-                                                  } catch (_) {}
+                                                  await _printSheet(
+                                                      context, sheet);
                                                 } catch (e) {
                                                   ScaffoldMessenger.of(context)
                                                       .showSnackBar(SnackBar(
                                                           content: Text(
-                                                              'Error eliminando: $e')));
+                                                              'Error al imprimir: $e')));
                                                 }
-                                              });
+                                              },
+                                            ),
+                                            IconButton(
+                                                icon: const Icon(
+                                                    Icons.visibility),
+                                                onPressed: () =>
+                                                    _showSheetDetail(
+                                                        context, sheet)),
+                                            if (HojaDeRutaExtraPage.isAdmin)
+                                              IconButton(
+                                                icon: const Icon(Icons.delete,
+                                                    color: Colors.red),
+                                                tooltip: 'Eliminar',
+                                                onPressed: () async {
+                                                  final confirm =
+                                                      await showDialog<bool>(
+                                                    context: context,
+                                                    builder: (ctx) =>
+                                                        AlertDialog(
+                                                      title: const Text(
+                                                          'Eliminar hoja de ruta'),
+                                                      content: const Text(
+                                                          '¿Estás seguro de eliminar esta hoja de ruta? Esta acción no se puede deshacer.'),
+                                                      actions: [
+                                                        TextButton(
+                                                            onPressed: () =>
+                                                                Navigator.of(
+                                                                        ctx)
+                                                                    .pop(false),
+                                                            child: const Text(
+                                                                'Cancelar')),
+                                                        ElevatedButton(
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                                  backgroundColor:
+                                                                      Colors
+                                                                          .red),
+                                                          onPressed: () =>
+                                                              Navigator.of(ctx)
+                                                                  .pop(true),
+                                                          child: const Text(
+                                                              'Eliminar'),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                  if (confirm != true) return;
 
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                SnackBar(
-                                                  content: const Text(
-                                                      'Hoja de ruta eliminada'),
-                                                  action: SnackBarAction(
-                                                    label: 'Deshacer',
-                                                    onPressed: () async {
-                                                      undone = true;
-                                                      if (commitTimer.isActive)
-                                                        commitTimer.cancel();
+                                                  // Optimistic delete with undo
+                                                  final removed =
+                                                      HojaDeRutaExtraPage
+                                                          .sentHojaRutas
+                                                          .where((s) {
+                                                    try {
+                                                      return s['createdAt'] ==
+                                                              sheet[
+                                                                  'createdAt'] &&
+                                                          s['numeroControl'] ==
+                                                              sheet[
+                                                                  'numeroControl'];
+                                                    } catch (_) {
+                                                      return false;
+                                                    }
+                                                  }).toList();
+
+                                                  HojaDeRutaExtraPage
+                                                      .sentHojaRutas
+                                                      .removeWhere((s) {
+                                                    try {
+                                                      return s['createdAt'] ==
+                                                              sheet[
+                                                                  'createdAt'] &&
+                                                          s['numeroControl'] ==
+                                                              sheet[
+                                                                  'numeroControl'];
+                                                    } catch (_) {
+                                                      return false;
+                                                    }
+                                                  });
+
+                                                  setModalState(() {});
+
+                                                  bool undone = false;
+                                                  late final Timer commitTimer;
+                                                  commitTimer = Timer(
+                                                      const Duration(
+                                                          seconds: 5),
+                                                      () async {
+                                                    if (undone) return;
+                                                    try {
+                                                      await guardarDatosFirestoreYCache(
+                                                          'hoja_ruta',
+                                                          'sentHojaRutas', {
+                                                        'items':
+                                                            HojaDeRutaExtraPage
+                                                                .sentHojaRutas
+                                                      });
                                                       try {
-                                                        HojaDeRutaExtraPage
-                                                            .sentHojaRutas
-                                                            .addAll(removed);
-                                                        setModalState(() {});
-                                                        await guardarDatosFirestoreYCache(
+                                                        await invalidateCache(
                                                             'hoja_ruta',
-                                                            'sentHojaRutas', {
-                                                          'items':
-                                                              HojaDeRutaExtraPage
-                                                                  .sentHojaRutas
-                                                        });
-                                                        try {
-                                                          await invalidateCache(
-                                                              'hoja_ruta',
-                                                              'sentHojaRutas');
-                                                        } catch (_) {}
-                                                      } catch (e) {
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(SnackBar(
-                                                                content: Text(
-                                                                    'Error deshaciendo: $e')));
-                                                      }
-                                                    },
-                                                  ),
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                                                            'sentHojaRutas');
+                                                      } catch (_) {}
+                                                    } catch (e) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(SnackBar(
+                                                              content: Text(
+                                                                  'Error eliminando: $e')));
+                                                    }
+                                                  });
+
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: const Text(
+                                                          'Hoja de ruta eliminada'),
+                                                      action: SnackBarAction(
+                                                        label: 'Deshacer',
+                                                        onPressed: () async {
+                                                          undone = true;
+                                                          if (commitTimer
+                                                              .isActive)
+                                                            commitTimer
+                                                                .cancel();
+                                                          try {
+                                                            HojaDeRutaExtraPage
+                                                                .sentHojaRutas
+                                                                .addAll(
+                                                                    removed);
+                                                            setModalState(
+                                                                () {});
+                                                            await guardarDatosFirestoreYCache(
+                                                                'hoja_ruta',
+                                                                'sentHojaRutas',
+                                                                {
+                                                                  'items':
+                                                                      HojaDeRutaExtraPage
+                                                                          .sentHojaRutas
+                                                                });
+                                                            try {
+                                                              await invalidateCache(
+                                                                  'hoja_ruta',
+                                                                  'sentHojaRutas');
+                                                            } catch (_) {}
+                                                          } catch (e) {
+                                                            ScaffoldMessenger
+                                                                    .of(context)
+                                                                .showSnackBar(
+                                                                    SnackBar(
+                                                                        content:
+                                                                            Text('Error deshaciendo: $e')));
+                                                          }
+                                                        },
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             );
           },
         );

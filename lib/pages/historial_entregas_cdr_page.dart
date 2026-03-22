@@ -516,27 +516,39 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                         },
                                         title: Row(
                                           children: [
-                                            Wrap(
-                                              spacing: 4,
-                                              runSpacing: 4,
-                                              children: [
-                                                _infoChip('HOJA RUTA',
-                                                    entrega['HOJA DE RUTA']),
-                                                _infoChip('TIPO DOCTO',
-                                                    entrega['TIPO DOCTO']),
-                                                _infoChip('DOCTO',
-                                                    entrega['DOCUMENTO']),
-                                                _infoChip(
-                                                    'SKU', entrega['SKU']),
-                                                _infoChip('CANT',
-                                                    entrega['CANTIDAD']),
-                                                _infoChip(
-                                                    'SECC', entrega['SECCION']),
-                                                _infoChip(
-                                                    'JEF', entrega['JEFATURA']),
-                                                _infoChip('DESC',
-                                                    entrega['DESCRIPCION']),
-                                              ],
+                                            Builder(
+                                              builder: (context) {
+                                                print(
+                                                    'DEBUG PC - HOJA DE RUTA: \\${entrega['HOJA DE RUTA']}');
+                                                print(
+                                                    'DEBUG PC - TIPO DOCTO: \\${entrega['TIPO DOCTO']}');
+                                                print(
+                                                    'DEBUG PC - DOCUMENTO: \\${entrega['DOCUMENTO']}');
+                                                return Wrap(
+                                                  spacing: 4,
+                                                  runSpacing: 4,
+                                                  children: [
+                                                    _infoChip(
+                                                        'HOJA DE RUTA',
+                                                        entrega[
+                                                            'HOJA DE RUTA']),
+                                                    _infoChip('TIPO DOCTO',
+                                                        entrega['TIPO DOCTO']),
+                                                    _infoChip('DOCUMENTO',
+                                                        entrega['DOCUMENTO']),
+                                                    _infoChip(
+                                                        'SKU', entrega['SKU']),
+                                                    _infoChip('CANT',
+                                                        entrega['CANTIDAD']),
+                                                    _infoChip('SECC',
+                                                        entrega['SECCION']),
+                                                    _infoChip('JEF',
+                                                        entrega['JEFATURA']),
+                                                    _infoChip('DESC',
+                                                        entrega['DESCRIPCION']),
+                                                  ],
+                                                );
+                                              },
                                             ),
                                           ],
                                         ),

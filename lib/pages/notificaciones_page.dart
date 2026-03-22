@@ -19,13 +19,20 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
     return items.cast<Map<String, dynamic>>();
   }
 
-  Future<void> _marcarAtendido(
-      int idx, List<Map<String, dynamic>> notificaciones) async {
+  Future<void> _marcarAtendidoYResetear(int idx,
+      List<Map<String, dynamic>> notificaciones, String? usuario) async {
     notificaciones[idx]['atendido'] = true;
     await FirebaseFirestore.instance
         .collection('notificaciones')
         .doc('password')
         .set({'items': notificaciones});
+    // Resetear contraseña si usuario es válido
+    if (usuario != null && usuario.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(usuario)
+          .update({'password': usuario});
+    }
     setState(() {});
   }
 
@@ -62,7 +69,26 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
                   trailing: ElevatedButton(
                     onPressed: () async {
                       final indexInAll = notificaciones.indexOf(notif);
-                      await _marcarAtendido(indexInAll, notificaciones);
+                      // Extraer usuario del mensaje o detalle
+                      String? usuario;
+                      // Buscar en campos comunes
+                      if (notif['usuario'] != null) {
+                        usuario = notif['usuario'];
+                      } else {
+                        // Intentar extraer del mensaje si está en formato conocido
+                        final msg = (notif['mensaje'] ?? '').toString();
+                        final match = RegExp(r"'([^']+)' solicita reseteo")
+                            .firstMatch(msg);
+                        if (match != null) {
+                          usuario = match.group(1);
+                        }
+                      }
+                      await _marcarAtendidoYResetear(
+                          indexInAll, notificaciones, usuario);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('Contraseña de $usuario reseteada.')),
+                      );
                     },
                     style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.green),
