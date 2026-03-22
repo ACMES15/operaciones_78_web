@@ -396,6 +396,8 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                               final entrega = _resultados[index];
                               // DEPURACIÓN: mostrar las claves de cada registro en consola
                               print('ENTREGA KEYS: ' + entrega.keys.join(', '));
+                              print(
+                                  'VALORES - HOJA DE RUTA: \\${entrega['HOJA DE RUTA']}, TIPO DOCTO: \\${entrega['TIPO DOCTO']}, DOCUMENTO: \\${entrega['DOCUMENTO']}');
                               final seleccionado =
                                   _seleccionados.contains(index);
                               final isFaltante = entrega['BOX'] == true ||
