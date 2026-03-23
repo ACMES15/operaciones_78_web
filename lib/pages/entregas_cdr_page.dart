@@ -6,6 +6,7 @@ import 'package:excel/excel.dart' as ex;
 import 'dart:html' as html;
 // import 'dart:js' as js; // Eliminado: no se usa
 import 'package:flutter/foundation.dart';
+import 'historial_firmadas_cdr_page.dart';
 
 class EntregasCdrPage extends StatefulWidget {
   final String usuario;
@@ -251,8 +252,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            HistorialEntregasCdrPage(usuario: widget.usuario),
+                        builder: (_) => HistorialFirmadasCdrPage(),
                       ),
                     );
                   },
@@ -300,8 +300,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) =>
-                              HistorialEntregasCdrPage(usuario: widget.usuario),
+                          builder: (_) => HistorialFirmadasCdrPage(),
                         ),
                       );
                     },
@@ -602,4 +601,4 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
 }
 
 // Importa la nueva página al inicio del archivo:
-// import 'historial_entregas_cdr_page.dart';
+// import 'historial_firmadas_cdr_page.dart';
