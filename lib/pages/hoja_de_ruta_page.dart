@@ -390,6 +390,9 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
             })
         .where((m) => m.values.any((v) => v.isNotEmpty))
         .toList();
+    // Obtener usuario firmado desde HomePage
+    final homeState = context.findAncestorWidgetOfExactType<HomePage>();
+    final usuario = homeState?.usuario ?? '';
     final sheet = <String, dynamic>{
       'origen': _origen,
       'fecha': _fechaEnvio,
@@ -400,6 +403,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       'headers': _columns,
       'rows': rowsAsMap,
       'createdAt': DateTime.now().toIso8601String(),
+      'usuario': usuario,
     };
     // Validar antes de guardar
     final vr = validateSheet(sheet);
