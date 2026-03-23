@@ -241,6 +241,26 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
                                             ],
                                           ),
                                           const SizedBox(height: 8),
+                                          // Campos solicitados
+                                          Text(
+                                            'HOJA DE RUTA: \\${entrega['HOJA DE RUTA'] ?? entrega['hojaDeRuta'] ?? entrega['hoja_de_ruta'] ?? entrega['hojaderuta'] ?? '-'}',
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFF495057)),
+                                          ),
+                                          Text(
+                                            'TIPO DOCTO: \\${entrega['TIPO DOCTO'] ?? entrega['tipoDocto'] ?? entrega['tipo_docto'] ?? entrega['tipodocto'] ?? '-'}',
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFF495057)),
+                                          ),
+                                          Text(
+                                            'DOCUMENTO: \\${entrega['DOCUMENTO'] ?? entrega['documento'] ?? '-'}',
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFF495057)),
+                                          ),
+                                          // Campos previos
                                           Text(
                                             'SKU: \\${entrega['SKU'] ?? '-'}',
                                             style: const TextStyle(

@@ -285,17 +285,18 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   Future<void> _cargarDesdeFirestore() async {
     setState(() => _cargando = true);
     final firestore = FirebaseFirestore.instance;
-    final doc = await firestore
-        .collection('historial_entregas')
-        .doc('cdr_firmadas')
-        .get();
-    List<Map<String, dynamic>> nuevos = [];
-    if (doc.exists && doc.data() != null && doc.data()!['items'] is List) {
-      nuevos = List<Map<String, dynamic>>.from(doc.data()!['items']);
-      print('DEBUG: Registros obtenidos de Firestore: \\${nuevos.length}');
-      if (nuevos.isNotEmpty) {
-        print('DEBUG: Primer registro: \\${nuevos[0]}');
-      }
+    final querySnapshot = await firestore.collection('entregas_cdr').get();
+    List<Map<String, dynamic>> nuevos = querySnapshot.docs.map((doc) {
+      final data = doc.data();
+      // Asegura que cada registro tenga el id del documento
+      return {
+        ...data,
+        'id': doc.id,
+      };
+    }).toList();
+    print('DEBUG: Registros obtenidos de entregas_cdr: \\${nuevos.length}');
+    if (nuevos.isNotEmpty) {
+      print('DEBUG: Primer registro: \\${nuevos[0]}');
     }
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _aplicarFiltro();

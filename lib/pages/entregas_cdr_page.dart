@@ -252,7 +252,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => HistorialFirmadasCdrPage(),
+                        builder: (_) =>
+                            HistorialEntregasCdrPage(usuario: widget.usuario),
                       ),
                     );
                   },
@@ -300,7 +301,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => HistorialFirmadasCdrPage(),
+                          builder: (_) =>
+                              HistorialEntregasCdrPage(usuario: widget.usuario),
                         ),
                       );
                     },
