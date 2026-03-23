@@ -31,6 +31,7 @@ import 'mensajes_page.dart';
 import '../pages/transferencias_retornos_page.dart';
 import '../pages/consulta_global_page.dart';
 import '../utils/mensajes_service.dart';
+import 'notificaciones_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -363,16 +364,15 @@ class _HomePageState extends State<HomePage> {
                                                           ),
                                                           label: const Text(
                                                               'Atender reseteo'),
-                                                          onPressed: () async {
-                                                            await FirebaseFirestore
-                                                                .instance
-                                                                .collection(
-                                                                    'notificaciones')
-                                                                .doc(
-                                                                    notif['id'])
-                                                                .update({
-                                                              'leida': true
-                                                            });
+                                                          onPressed: () {
+                                                            Navigator.of(
+                                                                    context)
+                                                                .push(
+                                                              MaterialPageRoute(
+                                                                builder: (_) =>
+                                                                    NotificacionesPage(),
+                                                              ),
+                                                            );
                                                           },
                                                         )
                                                       : ElevatedButton.icon(

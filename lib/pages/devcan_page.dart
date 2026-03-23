@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/firebase_cache_utils.dart';
 
 class DevCanPage extends StatefulWidget {
   final String usuario;
@@ -70,7 +71,35 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   Future<void> _guardarEntregasYNotificar() async {
-    // Implementación de guardado y notificación (placeholder)
+    final items = _rows.map((row) {
+      Map<String, dynamic> map = {};
+      for (int i = 0; i < _headers.length; i++) {
+        map[_headers[i]] = row[i].text;
+      }
+      map['usuarioValido'] = widget.usuario;
+      return map;
+    }).toList();
+
+    try {
+      await guardarDatosFirestoreYCache(
+        'entregas',
+        'devcan',
+        {'items': items},
+      );
+      setState(() {
+        _ultimaEntregaGuardada = {'items': items};
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Información guardada en DevCan.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error guardando en Firestore: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _buscarYMarcarLP(String codigo) {
