@@ -63,21 +63,84 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       print('Valor de escaneo: "$escaneo"');
       if (escaneo.isEmpty) return;
 
-      // 1. Buscar en Firestore: hoja_ruta
+      // Buscar en hoja_ruta (todas las coincidencias)
       final hojaRutaSnap = await FirebaseFirestore.instance
           .collection('hoja_ruta')
           .where('caja', isEqualTo: escaneo)
           .orderBy('fecha', descending: true)
-          .limit(1)
           .get();
-      print(
-          'Consulta hoja_ruta para $escaneo: ${hojaRutaSnap.docs.length} resultados');
-      for (var doc in hojaRutaSnap.docs) {
-        print('Documento hoja_ruta encontrado: ${doc.data()}');
-        print('Comparando caja: "${doc.data()['caja']}" == "$escaneo"');
+      final hojaRutaDocs = hojaRutaSnap.docs;
+
+      // Buscar en hoja_de_xd_historial (todas las coincidencias)
+      final xdSnap = await FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .where('CONTENEDOR O TARIMA', isEqualTo: escaneo)
+          .orderBy('fecha', descending: true)
+          .get();
+      List<HojaDeXDHistorial> xd = xdSnap.docs
+          .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
+          .where(
+              (h) => (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo)
+          .toList();
+
+      // Si no hay resultados directos, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs de hoja_de_xd_historial
+      if (xd.isEmpty) {
+        final allDocs = await FirebaseFirestore.instance
+            .collection('hoja_de_xd_historial')
+            .orderBy('fecha', descending: true)
+            .get();
+        xd = allDocs.docs
+            .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
+            .where((h) =>
+                ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
+                    (h.datos['TARIMA'] ?? '').trim() == escaneo))
+            .toList();
       }
-      if (hojaRutaSnap.docs.isNotEmpty) {
-        final ruta = hojaRutaSnap.docs.first.data();
+
+      // Unificar todos los resultados en una lista con tipo y fecha
+      final List<Map<String, dynamic>> resultados = [];
+      for (final doc in hojaRutaDocs) {
+        final data = doc.data();
+        if (data['fecha'] != null) {
+          resultados.add({
+            'tipo': 'hoja_ruta',
+            'fecha': data['fecha'],
+            'data': data,
+          });
+        }
+      }
+      for (final h in xd) {
+        resultados.add({
+          'tipo': 'xd',
+          'fecha': h.fecha,
+          'data': h,
+        });
+      }
+
+      if (resultados.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'No se encontró información para "$escaneo" en Firestore.')),
+        );
+        print('No se encontró información para "$escaneo" en ninguna fuente.');
+        return;
+      }
+
+      // Elegir el resultado más reciente
+      resultados.sort((a, b) {
+        final fa = a['fecha'] is DateTime
+            ? a['fecha']
+            : (a['fecha'] as Timestamp).toDate();
+        final fb = b['fecha'] is DateTime
+            ? b['fecha']
+            : (b['fecha'] as Timestamp).toDate();
+        return fb.compareTo(fa);
+      });
+      final masReciente = resultados.first;
+
+      if (masReciente['tipo'] == 'hoja_ruta') {
+        final ruta = masReciente['data'];
         print('Datos hoja_ruta usados: $ruta');
         _controllers[rowIdx][2].text = ruta['tipo'] ?? '';
         _controllers[rowIdx][3].text = 'SAP';
@@ -155,42 +218,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
         return;
-      }
-
-      // 2. Buscar en Firestore: hoja_de_xd_historial
-      // 1. Buscar por 'CONTENEDOR O TARIMA'
-      final xdSnap = await FirebaseFirestore.instance
-          .collection('hoja_de_xd_historial')
-          .where('CONTENEDOR O TARIMA', isEqualTo: escaneo)
-          .orderBy('fecha', descending: true)
-          .limit(1)
-          .get();
-      print('Consulta hoja_de_xd_historial: ${xdSnap.docs.length} documentos');
-      List<HojaDeXDHistorial> xd = xdSnap.docs
-          .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-          .where(
-              (h) => (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo)
-          .toList();
-      print(
-          'Coincidencias en hoja_de_xd_historial (CONTENEDOR O TARIMA): ${xd.length}');
-      if (xd.isEmpty) {
-        // 2. Si no hay resultados, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs
-        final allDocs = await FirebaseFirestore.instance
-            .collection('hoja_de_xd_historial')
-            .orderBy('fecha', descending: true)
-            .get();
-        xd = allDocs.docs
-            .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-            .where((h) =>
-                ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
-                    (h.datos['TARIMA'] ?? '').trim() == escaneo))
-            .toList();
-        print(
-            'Coincidencias en hoja_de_xd_historial (CONTENEDOR/TARIMA): ${xd.length}');
-      }
-      xd.sort((a, b) => b.fecha.compareTo(a.fecha));
-      if (xd.isNotEmpty) {
-        final h = xd.first;
+      } else if (masReciente['tipo'] == 'xd') {
+        final HojaDeXDHistorial h = masReciente['data'];
         print('Datos hoja_de_xd_historial encontrados: ${h.datos}');
         _controllers[rowIdx][2].text = 'PAQ';
         // Lógica SYS según TU
@@ -211,14 +240,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         setState(() {});
         return;
       }
-
-      // Si no encontró nada en ninguna fuente
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                'No se encontró información para "$escaneo" en Firestore.')),
-      );
-      print('No se encontró información para "$escaneo" en ninguna fuente.');
     } catch (e, stack) {
       print('ERROR en autocompletarFilaPorEscaneo: $e\n$stack');
       ScaffoldMessenger.of(context).showSnackBar(
