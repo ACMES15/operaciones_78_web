@@ -195,6 +195,9 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
         'caja': 'Caja de Control',
         'rows': rowsAsMap,
         'createdAt': DateTime.now().toString(),
+        'usuario':
+            (ModalRoute.of(context)?.settings.arguments as Map?)?['usuario'] ??
+                '',
       };
       // Validar hoja antes de guardar
       final vr = validateSheet(hoja);
