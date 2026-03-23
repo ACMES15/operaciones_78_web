@@ -7,6 +7,9 @@ import '../utils/sheet_validator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HojaDeRutaExtraPage extends StatefulWidget {
+  final String usuario;
+  const HojaDeRutaExtraPage({Key? key, required this.usuario})
+      : super(key: key);
   // Claves para almacenamiento local
   static const String tiendasKey = 'tiendasCache';
   static const String proveedoresKey = 'proveedoresCache';
@@ -93,8 +96,6 @@ class HojaDeRutaExtraPage extends StatefulWidget {
     }
   }
 
-  const HojaDeRutaExtraPage({super.key});
-
   // Caché en memoria (temporal)
   static List<List<String>> tiendasCache = [];
   static List<List<String>> proveedoresCache = [];
@@ -127,6 +128,24 @@ class HojaDeRutaExtraPage extends StatefulWidget {
 }
 
 class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
+  String? _usuarioNombre;
+
+  // Reemplaza esta variable por la fuente real del nombre del usuario firmado en tu app
+  String get _nombreUsuarioFirmado => widget.usuario;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarUsuarioActual();
+  }
+
+  Future<void> _cargarUsuarioActual() async {
+    // Solo asigna el nombre del usuario firmado
+    setState(() {
+      _usuarioNombre = _nombreUsuarioFirmado;
+    });
+  }
+
   final List<List<TextEditingController>> _tiendasControllers = [];
   final List<List<TextEditingController>> _proveedoresControllers = [];
   bool _localDirtyTiendas = false;
@@ -195,9 +214,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
         'caja': 'Caja de Control',
         'rows': rowsAsMap,
         'createdAt': DateTime.now().toString(),
-        'usuario':
-            (ModalRoute.of(context)?.settings.arguments as Map?)?['usuario'] ??
-                '',
+        'usuario': _nombreUsuarioFirmado,
       };
       // Validar hoja antes de guardar
       final vr = validateSheet(hoja);
@@ -606,7 +623,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                             const SizedBox(width: 8),
                             Text(
                               'Usuario de creación: '
-                              '${HojaDeRutaExtraPage.sentHojaRutas.last['usuario'] ?? 'Desconocido'}',
+                              '${HojaDeRutaExtraPage.sentHojaRutas.last['usuario']?.toString().isNotEmpty == true ? HojaDeRutaExtraPage.sentHojaRutas.last['usuario'] : 'Desconocido'}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF2D6A4F),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'hoja_de_ruta_extra_page.dart';
+import '../home_page.dart';
 import 'hoja_de_ruta_enviadas_page.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -136,9 +137,13 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () {
+                      // Obtener usuario firmado desde HomePage usando ModalRoute
+                      final homeState =
+                          context.findAncestorWidgetOfExactType<HomePage>();
+                      final usuario = homeState?.usuario ?? '';
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => const HojaDeRutaExtraPage(),
+                          builder: (_) => HojaDeRutaExtraPage(usuario: usuario),
                         ),
                       );
                     },
