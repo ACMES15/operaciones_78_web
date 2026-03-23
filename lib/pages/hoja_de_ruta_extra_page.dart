@@ -589,6 +589,33 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                         ),
                       ],
                     ),
+                    // Mostrar usuario de creación de la hoja enviada más reciente
+                    if (HojaDeRutaExtraPage.sentHojaRutas.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 16),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Color(0xFF2D6A4F)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.person, color: Color(0xFF2D6A4F)),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Usuario de creación: '
+                              '${HojaDeRutaExtraPage.sentHojaRutas.last['usuario'] ?? 'Desconocido'}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2D6A4F),
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 );
               },
