@@ -80,6 +80,22 @@ class _DevCanPageState extends State<DevCanPage> {
       return map;
     }).toList();
 
+    // Buscar filas con FALTANTE o X en BOX
+    final idxBox = _headers.indexOf('BOX');
+    final filasFaltantes = <Map<String, dynamic>>[];
+    for (final row in _rows) {
+      if (idxBox != -1 &&
+          (row[idxBox].text.trim().toUpperCase() == 'FALTANTE' ||
+              row[idxBox].text.trim().toUpperCase() == 'X')) {
+        Map<String, dynamic> map = {};
+        for (int i = 0; i < _headers.length; i++) {
+          map[_headers[i]] = row[i].text;
+        }
+        map['usuarioValido'] = widget.usuario;
+        filasFaltantes.add(map);
+      }
+    }
+
     try {
       await guardarDatosFirestoreYCache(
         'entregas',
@@ -99,6 +115,37 @@ class _DevCanPageState extends State<DevCanPage> {
           backgroundColor: Colors.red,
         ),
       );
+      return;
+    }
+
+    // Notificación de faltantes: crear documento individual para cada fila faltante y para ambos usuarios
+    if (filasFaltantes.isNotEmpty) {
+      try {
+        final firestore = FirebaseFirestore.instance;
+        for (final map in filasFaltantes) {
+          for (final destino in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            final notifRef = await firestore.collection('notificaciones').add({
+              'mensaje': 'FALTANTE DevCan',
+              'fecha': DateTime.now(),
+              'leida': false,
+              'para': destino,
+              'detalle': map,
+            });
+            await notifRef.update({'id': notifRef.id});
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Notificación de faltantes enviada a la campana para ambos usuarios.')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error notificando faltantes: $e'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

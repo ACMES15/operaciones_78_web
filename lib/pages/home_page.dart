@@ -364,15 +364,87 @@ class _HomePageState extends State<HomePage> {
                                                           ),
                                                           label: const Text(
                                                               'Atender reseteo'),
-                                                          onPressed: () {
-                                                            Navigator.of(
-                                                                    context)
-                                                                .push(
-                                                              MaterialPageRoute(
-                                                                builder: (_) =>
-                                                                    NotificacionesPage(),
-                                                              ),
-                                                            );
+                                                          onPressed: () async {
+                                                            // Extraer usuario del mensaje o detalle
+                                                            String? usuario;
+                                                            if (notif[
+                                                                    'usuario'] !=
+                                                                null) {
+                                                              usuario = notif[
+                                                                  'usuario'];
+                                                            } else {
+                                                              final msg =
+                                                                  (notif['mensaje'] ??
+                                                                          '')
+                                                                      .toString();
+                                                              final match = RegExp(
+                                                                      r"'([^']+)' solicita reseteo")
+                                                                  .firstMatch(
+                                                                      msg);
+                                                              if (match !=
+                                                                  null) {
+                                                                usuario = match
+                                                                    .group(1);
+                                                              }
+                                                            }
+                                                            if (usuario !=
+                                                                    null &&
+                                                                usuario
+                                                                    .isNotEmpty) {
+                                                              final usuarioNormalizado =
+                                                                  usuario
+                                                                      .trim()
+                                                                      .toLowerCase();
+                                                              try {
+                                                                await FirebaseFirestore
+                                                                    .instance
+                                                                    .collection(
+                                                                        'usuarios')
+                                                                    .doc(
+                                                                        usuarioNormalizado)
+                                                                    .update({
+                                                                  'password':
+                                                                      usuarioNormalizado
+                                                                });
+                                                                await FirebaseFirestore
+                                                                    .instance
+                                                                    .collection(
+                                                                        'notificaciones')
+                                                                    .doc(notif[
+                                                                        'id'])
+                                                                    .update({
+                                                                  'leida': true
+                                                                });
+                                                                if (mounted) {
+                                                                  ScaffoldMessenger.of(
+                                                                          context)
+                                                                      .showSnackBar(
+                                                                    SnackBar(
+                                                                        content:
+                                                                            Text('Contraseña de $usuario reseteada.')),
+                                                                  );
+                                                                }
+                                                              } catch (e) {
+                                                                ScaffoldMessenger.of(
+                                                                        context)
+                                                                    .showSnackBar(
+                                                                  SnackBar(
+                                                                      content: Text(
+                                                                          'Error al resetear: $e'),
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .red),
+                                                                );
+                                                              }
+                                                            } else {
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                const SnackBar(
+                                                                    content: Text(
+                                                                        'No se pudo identificar el usuario a resetear.')),
+                                                              );
+                                                            }
                                                           },
                                                         )
                                                       : ElevatedButton.icon(
