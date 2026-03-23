@@ -128,13 +128,22 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       }
 
       // Elegir el resultado más reciente
+      DateTime _toDate(dynamic f) {
+        if (f is DateTime) return f;
+        if (f is Timestamp) return f.toDate();
+        if (f is String) {
+          try {
+            return DateTime.parse(f);
+          } catch (_) {
+            return DateTime(1970);
+          }
+        }
+        return DateTime(1970);
+      }
+
       resultados.sort((a, b) {
-        final fa = a['fecha'] is DateTime
-            ? a['fecha']
-            : (a['fecha'] as Timestamp).toDate();
-        final fb = b['fecha'] is DateTime
-            ? b['fecha']
-            : (b['fecha'] as Timestamp).toDate();
+        final fa = _toDate(a['fecha']);
+        final fb = _toDate(b['fecha']);
         return fb.compareTo(fa);
       });
       final masReciente = resultados.first;
