@@ -17,6 +17,22 @@ class HistorialEntregasCdrPage extends StatefulWidget {
 }
 
 class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
+  // Busca el valor de un campo por variantes de nombre
+  dynamic _getCampoFlexible(
+      Map<String, dynamic> entrega, List<String> variantes) {
+    for (final key in entrega.keys) {
+      final keyNorm = key.replaceAll(' ', '').replaceAll('_', '').toLowerCase();
+      for (final variante in variantes) {
+        final varianteNorm =
+            variante.replaceAll(' ', '').replaceAll('_', '').toLowerCase();
+        if (keyNorm == varianteNorm) {
+          return entrega[key];
+        }
+      }
+    }
+    return null;
+  }
+
   List<Map<String, dynamic>> _resultados = [];
   List<Map<String, dynamic>> _datosOriginales = [];
   late TextEditingController _lpController;
@@ -276,6 +292,10 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     List<Map<String, dynamic>> nuevos = [];
     if (doc.exists && doc.data() != null && doc.data()!['items'] is List) {
       nuevos = List<Map<String, dynamic>>.from(doc.data()!['items']);
+      print('DEBUG: Registros obtenidos de Firestore: \\${nuevos.length}');
+      if (nuevos.isNotEmpty) {
+        print('DEBUG: Primer registro: \\${nuevos[0]}');
+      }
     }
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _aplicarFiltro();
@@ -432,12 +452,28 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _mobileField('Hoja de Ruta',
-                                                entrega['HOJA DE RUTA']),
-                                            _mobileField('Tipo Docto',
-                                                entrega['TIPO DOCTO']),
-                                            _mobileField('Documento',
-                                                entrega['DOCUMENTO']),
+                                            _mobileField(
+                                                'HOJA DE RUTA',
+                                                _getCampoFlexible(entrega, [
+                                                  'HOJA DE RUTA',
+                                                  'hojaDeRuta',
+                                                  'hoja_de_ruta',
+                                                  'hojaderuta'
+                                                ])),
+                                            _mobileField(
+                                                'TIPO DOCTO',
+                                                _getCampoFlexible(entrega, [
+                                                  'TIPO DOCTO',
+                                                  'tipoDocto',
+                                                  'tipo_docto',
+                                                  'tipodocto'
+                                                ])),
+                                            _mobileField(
+                                                'DOCUMENTO',
+                                                _getCampoFlexible(entrega, [
+                                                  'DOCUMENTO',
+                                                  'documento'
+                                                ])),
                                             _mobileField('SKU', entrega['SKU']),
                                             _mobileField('Cantidad',
                                                 entrega['CANTIDAD']),
@@ -532,12 +568,29 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                                   children: [
                                                     _infoChip(
                                                         'HOJA DE RUTA',
-                                                        entrega[
-                                                            'HOJA DE RUTA']),
-                                                    _infoChip('TIPO DOCTO',
-                                                        entrega['TIPO DOCTO']),
-                                                    _infoChip('DOCUMENTO',
-                                                        entrega['DOCUMENTO']),
+                                                        _getCampoFlexible(
+                                                            entrega, [
+                                                          'HOJA DE RUTA',
+                                                          'hojaDeRuta',
+                                                          'hoja_de_ruta',
+                                                          'hojaderuta'
+                                                        ])),
+                                                    _infoChip(
+                                                        'TIPO DOCTO',
+                                                        _getCampoFlexible(
+                                                            entrega, [
+                                                          'TIPO DOCTO',
+                                                          'tipoDocto',
+                                                          'tipo_docto',
+                                                          'tipodocto'
+                                                        ])),
+                                                    _infoChip(
+                                                        'DOCUMENTO',
+                                                        _getCampoFlexible(
+                                                            entrega, [
+                                                          'DOCUMENTO',
+                                                          'documento'
+                                                        ])),
                                                     _infoChip(
                                                         'SKU', entrega['SKU']),
                                                     _infoChip('CANT',
