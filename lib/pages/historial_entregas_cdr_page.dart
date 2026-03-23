@@ -258,6 +258,25 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
       nuevaEntrega.remove('id');
       await docRef.delete();
 
+      // Notificar a ADMIN OMNICANAL y ADMIN ENVIOS si es faltante (BOX)
+      if (entrega['BOX'] == true || entrega['BOX'] == 'true') {
+        final mensaje =
+            'Faltante en Entregas CDR: DOC \\${entrega['DOCUMENTO'] ?? ''}, SKU \\${entrega['SKU'] ?? ''}, SECCION \\${entrega['SECCION'] ?? ''}';
+        for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+          await FirebaseFirestore.instance.collection('notificaciones').add({
+            'mensaje': mensaje,
+            'fecha': DateTime.now(),
+            'destinoTipo': tipo,
+            'tipo': 'FALTANTE CDR',
+            'leido': false,
+            'documento': entrega['DOCUMENTO'] ?? '',
+            'sku': entrega['SKU'] ?? '',
+            'seccion': entrega['SECCION'] ?? '',
+            'usuario': widget.usuario,
+          });
+        }
+      }
+
       // 2. Agregar al historial de firmadas
       final historialDoc =
           firestore.collection('historial_entregas').doc('cdr_firmadas');
