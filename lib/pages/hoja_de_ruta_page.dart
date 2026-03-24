@@ -739,8 +739,8 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                 }),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
-                                icon: const Icon(Icons.download),
-                                label: const Text('Descargar Word'),
+                                icon: const Icon(Icons.print),
+                                label: const Text('Imprimir'),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.indigo,
                                     foregroundColor: Colors.white),

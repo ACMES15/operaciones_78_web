@@ -424,6 +424,41 @@ class _RecogidosPageState extends State<RecogidosPage> {
                         ),
                       ],
                     ),
+                    if (_scanSeccion.isNotEmpty ||
+                        _scanDepartamento.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_scanSeccion.isNotEmpty)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Text(
+                                'SECCIÓN: ${_scanSeccion}',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1B4332),
+                                ),
+                              ),
+                            ),
+                          if (_scanDepartamento.isNotEmpty)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Text(
+                                'JEFATURA: ${_scanDepartamento}',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFB68900),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     // Botones de proceso Recogidos
                     Row(

@@ -5,6 +5,7 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'package:excel/excel.dart' hide Border;
 
 class DevCanPage extends StatefulWidget {
   final String usuario;
@@ -15,6 +16,8 @@ class DevCanPage extends StatefulWidget {
 }
 
 class _DevCanPageState extends State<DevCanPage> {
+  String? _seccionActual;
+  String? _jefaturaActual;
   // Variables y métodos requeridos
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
@@ -63,10 +66,63 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   Future<void> _importFromExcel() async {
-    // Implementación de importación desde Excel (placeholder)
-    // Aquí deberías poner la lógica real de importación
-    setState(() {
-      _rows.add(List.generate(_headers.length, (_) => TextEditingController()));
+    // Lógica real de importación desde Excel usando el paquete excel
+    final uploadInput = html.FileUploadInputElement();
+    uploadInput.accept = '.xlsx';
+    uploadInput.click();
+
+    uploadInput.onChange.listen((event) async {
+      final files = uploadInput.files;
+      if (files == null || files.isEmpty) return;
+      final file = files.first;
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onLoadEnd.listen((e) async {
+        final data = reader.result;
+        if (data is! Uint8List && data is! List<int>) return;
+        try {
+          final excel = Excel.decodeBytes(
+              data is Uint8List ? data : Uint8List.fromList(data as List<int>));
+          final sheet = excel.tables.values.first;
+          final rows = sheet.rows;
+          if (rows.isEmpty) return;
+          // Asumimos que la primera fila es encabezado
+          final headerMap = <int, int>{};
+          for (int i = 0; i < _headers.length; i++) {
+            final idx = rows[0].indexWhere((cell) =>
+                cell != null &&
+                (cell.value.toString().trim().toUpperCase()) ==
+                    _headers[i].toUpperCase());
+            if (idx != -1) headerMap[i] = idx;
+          }
+          final newRows = <List<TextEditingController>>[];
+          for (int i = 1; i < rows.length; i++) {
+            final row = rows[i];
+            final controllers =
+                List<TextEditingController>.generate(_headers.length, (j) {
+              final idx = headerMap[j];
+              return TextEditingController(
+                  text: idx != null && idx < row.length
+                      ? row[idx]?.value?.toString() ?? ''
+                      : '');
+            });
+            newRows.add(controllers);
+          }
+          setState(() {
+            _rows.clear();
+            _rows.addAll(newRows);
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Importación desde Excel exitosa.')),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Error importando Excel: $e'),
+                backgroundColor: Colors.red),
+          );
+        }
+      });
     });
   }
 
@@ -154,6 +210,8 @@ class _DevCanPageState extends State<DevCanPage> {
     final idxValidacion = _headers.indexOf('VALIDACION');
     String normalizarLP(String lp) => lp.replaceFirst(RegExp(r'^0+'), '');
     final codigoNorm = normalizarLP(codigo);
+    String? seccion;
+    String? jefatura;
     setState(() {
       for (final row in _rows) {
         if (idxLP != -1 &&
@@ -162,9 +220,15 @@ class _DevCanPageState extends State<DevCanPage> {
           if (idxValidacion != -1) {
             row[idxValidacion].text = '✔️';
           }
+          final idxSeccion = _headers.indexOf('SECCION');
+          final idxJefatura = _headers.indexOf('JEFATURA');
+          seccion = idxSeccion != -1 ? row[idxSeccion].text : null;
+          jefatura = idxJefatura != -1 ? row[idxJefatura].text : null;
           break;
         }
       }
+      _seccionActual = seccion;
+      _jefaturaActual = jefatura;
     });
     Future.delayed(const Duration(milliseconds: 100), () {
       _scanController.clear();
@@ -317,6 +381,41 @@ class _DevCanPageState extends State<DevCanPage> {
                         ),
                       ],
                     ),
+                    if ((_seccionActual?.isNotEmpty ?? false) ||
+                        (_jefaturaActual?.isNotEmpty ?? false)) ...[
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (_seccionActual?.isNotEmpty ?? false)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Text(
+                                'SECCIÓN: ${_seccionActual ?? ''}',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1B4332),
+                                ),
+                              ),
+                            ),
+                          if (_jefaturaActual?.isNotEmpty ?? false)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16.0),
+                              child: Text(
+                                'JEFATURA: ${_jefaturaActual ?? ''}',
+                                style: const TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFFB68900),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     // Botones de proceso DevCan
                     Row(
