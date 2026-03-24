@@ -417,6 +417,8 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
 
   Future<void> _printXDCaratula(Map<String, String> data) async {
     final pdf = pw.Document();
+    final destino = data['DESTINO'] ?? '';
+    final otherEntries = data.entries.where((e) => e.key != 'DESTINO');
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -430,11 +432,23 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                       fontSize: 28, fontWeight: pw.FontWeight.bold),
                   textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 24),
+              // DESTINO destacado
+              pw.Text('DESTINO:',
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
+              pw.Text(destino,
+                  style: pw.TextStyle(
+                      fontSize: 38,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800),
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 18),
               pw.Table(
                 border:
                     pw.TableBorder.all(width: 0.5, color: PdfColors.grey600),
                 children: [
-                  ...data.entries.map((e) => pw.TableRow(children: [
+                  ...otherEntries.map((e) => pw.TableRow(children: [
                         pw.Container(
                           padding: const pw.EdgeInsets.symmetric(
                               vertical: 8, horizontal: 12),

@@ -89,7 +89,6 @@ class _DevCanPageState extends State<DevCanPage> {
           final newRows = <List<TextEditingController>>[];
           for (int i = 1; i < rows.length; i++) {
             final row = rows[i];
-            // Asignar cada columna del Excel a la columna correspondiente en la tabla, hasta el máximo de columnas
             final controllers =
                 List<TextEditingController>.generate(_headers.length, (j) {
               if (j < row.length) {
@@ -99,7 +98,16 @@ class _DevCanPageState extends State<DevCanPage> {
                 return TextEditingController();
               }
             });
-            // Solo agregar si hay al menos un campo con datos en toda la fila
+            // Buscar y asignar JEFATURA si hay SECCION
+            final idxSeccion = _headers.indexOf('SECCION');
+            final idxJefatura = _headers.indexOf('JEFATURA');
+            if (idxSeccion != -1 && idxJefatura != -1) {
+              final seccion = controllers[idxSeccion].text.trim();
+              if (seccion.isNotEmpty) {
+                final nombre = await _buscarJefaturaFirestore(seccion);
+                controllers[idxJefatura].text = nombre;
+              }
+            }
             if (controllers.any((c) => c.text.trim().isNotEmpty)) {
               newRows.add(controllers);
             }

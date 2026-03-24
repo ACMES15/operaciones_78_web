@@ -112,75 +112,79 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                 const SizedBox(width: 10),
                 const Text(
                   'Hoja de Ruta',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 26,
-                    color: Color(0xFF2D6A4F),
-                    letterSpacing: 0.5,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+                ),
+                SizedBox(width: 24),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.print),
+                  label:
+                      Text('Imprimir', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(220, 48),
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
                   ),
+                  onPressed: () async {
+                    FocusScope.of(context).unfocus();
+                    await _printCaratulaHojaRuta();
+                  },
+                ),
+                SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.store),
+                  label: Text('Tiendas y Proveedores',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(220, 48),
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    // Obtener usuario firmado desde HomePage usando ModalRoute
+                    final homeState =
+                        context.findAncestorWidgetOfExactType<HomePage>();
+                    final usuario = homeState?.usuario ?? '';
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => HojaDeRutaExtraPage(usuario: usuario),
+                      ),
+                    );
+                  },
+                ),
+                SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.send),
+                  label: Text('Hojas de ruta enviadas',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(220, 48),
+                    backgroundColor: Colors.blueGrey,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const HojaDeRutaEnviadasPage(),
+                      ),
+                    );
+                  },
+                ),
+                SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.add),
+                  label: Text('Nueva hoja de ruta',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(220, 48),
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => _showHojaRutaDialog(context),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.store),
-                    label: const Text('Tiendas y Proveedores',
-                        style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      // Obtener usuario firmado desde HomePage usando ModalRoute
-                      final homeState =
-                          context.findAncestorWidgetOfExactType<HomePage>();
-                      final usuario = homeState?.usuario ?? '';
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => HojaDeRutaExtraPage(usuario: usuario),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.send),
-                    label: const Text('Hojas de ruta enviadas',
-                        style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.blueGrey,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const HojaDeRutaEnviadasPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Nueva hoja de ruta',
-                        style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(220, 48),
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () => _showHojaRutaDialog(context),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 24),
+            // ...resto del contenido...
           ],
         ),
       ),
@@ -328,6 +332,84 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   }
 
   // Modificado: impresión usando compute y enviando a impresora seleccionada (si existe)
+  Future<void> _printCaratulaHojaRuta() async {
+    // Obtener datos principales
+    final origen = _origen;
+    final destino = _controllers.isNotEmpty &&
+            _idxNombreAlm >= 0 &&
+            _controllers[0].length > _idxNombreAlm
+        ? _controllers[0][_idxNombreAlm].text.trim()
+        : '';
+    final tipo =
+        _opcionSeleccionada != null ? _opciones[_opcionSeleccionada!] : '';
+    final numeroControl = _numeroControlActual ?? '';
+    final fechaEnvio = _fechaEnvio;
+    final caja = _cajaController.text.trim();
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.SizedBox(height: 16),
+              pw.Text('ORIGEN:',
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
+              pw.Text(origen,
+                  style: pw.TextStyle(
+                      fontSize: 32,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.green800),
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 18),
+              pw.Text('DESTINO:',
+                  style: pw.TextStyle(
+                      fontSize: 18, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
+              pw.Text(destino,
+                  style: pw.TextStyle(
+                      fontSize: 32,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue800),
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 18),
+              pw.Text('Tipo de hoja:',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(tipo,
+                  style: pw.TextStyle(
+                      fontSize: tipo == 'Zona especial' ? 28 : 18,
+                      fontWeight: pw.FontWeight.bold,
+                      color: tipo == 'Zona especial'
+                          ? PdfColors.red800
+                          : PdfColors.black)),
+              pw.SizedBox(height: 12),
+              pw.Text('N° de control:',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(numeroControl, style: pw.TextStyle(fontSize: 18)),
+              pw.SizedBox(height: 8),
+              pw.Text('Fecha de Envío:',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(fechaEnvio, style: pw.TextStyle(fontSize: 18)),
+              pw.SizedBox(height: 8),
+              pw.Text('N° de Caja:',
+                  style: pw.TextStyle(
+                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
+              pw.Text(caja, style: pw.TextStyle(fontSize: 18)),
+            ],
+          );
+        },
+      ),
+    );
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  }
+
   Future<void> _printHojaRuta({Map<String, dynamic>? sheet}) async {
     final headers = _columns;
     final data = (sheet == null)
@@ -746,7 +828,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                     foregroundColor: Colors.white),
                                 onPressed: () async {
                                   FocusScope.of(context).unfocus();
-                                  await _printHojaRuta();
+                                  await _printCaratulaHojaRuta();
                                 }),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
