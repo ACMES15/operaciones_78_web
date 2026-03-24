@@ -740,30 +740,13 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
                                 icon: const Icon(Icons.print),
-                                label: const Text('Imprimir'),
+                                label: const Text('Imprimir caratula'),
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.indigo,
                                     foregroundColor: Colors.white),
-                                onPressed: () {
-                                  final destino = _controllers.isNotEmpty
-                                      ? _controllers[0][_idxNombreAlm]
-                                          .text
-                                          .trim()
-                                      : '';
-                                  final wordData = <String, String>{
-                                    'ORIGEN': _origen,
-                                    'N° DE CAJA': _cajaController.text.trim(),
-                                    'FECHA': _fechaEnvio,
-                                    'N° DE CONTROL': _numeroControlActual ?? '',
-                                    'TIPO DE HOJA': _opcionSeleccionada != null
-                                        ? _opciones[_opcionSeleccionada!]
-                                        : '',
-                                    'DESTINO': destino,
-                                  };
-                                  WordExporter.exportCaratula(
-                                    wordData,
-                                    'Hoja_de_Ruta_${_numeroControlActual ?? ''}.docx',
-                                  );
+                                onPressed: () async {
+                                  FocusScope.of(context).unfocus();
+                                  await _printHojaRuta();
                                 }),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(

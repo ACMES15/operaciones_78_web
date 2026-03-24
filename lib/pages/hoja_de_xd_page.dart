@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import '../utils/word_exporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
+import 'package:printing/printing.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/sheet_validator.dart';
@@ -366,24 +369,21 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                             data[_columns[i]] =
                                                 rowCtrls[i].text;
                                           }
+                                          await _printXDCaratula(data);
+                                          // Guardar registro en historial XD (Firestore/cache)
                                           final now = DateTime.now();
                                           final fechaStr =
                                               DateFormat('yyyyMMdd_HHmmss')
                                                   .format(now);
                                           final fileName =
-                                              'caratula_${rowCtrls[1].text}_$fechaStr.docx';
-                                          await WordExporter.exportCaratula(
-                                              data, fileName);
-                                          // Guardar registro en historial XD (Firestore/cache)
+                                              'caratula_${rowCtrls[1].text}_$fechaStr.pdf';
                                           await agregarRegistroHistorialXD(
                                             usuario: _usuario,
                                             fecha: now,
                                             datos: data,
                                             fileName: fileName,
                                           );
-                                          // Guardar la tabla completa en Firestore y caché
                                           await guardarTablaHojaXD();
-                                          // Guardar el último docId usado para poder cargarlo después
                                           final prefs = await SharedPreferences
                                               .getInstance();
                                           final docId =
@@ -413,5 +413,50 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _printXDCaratula(Map<String, String> data) async {
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.SizedBox(height: 16),
+              pw.Text('ENVIOS GALERIAS 78',
+                  style: pw.TextStyle(
+                      fontSize: 28, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 24),
+              pw.Table(
+                border:
+                    pw.TableBorder.all(width: 0.5, color: PdfColors.grey600),
+                children: [
+                  ...data.entries.map((e) => pw.TableRow(children: [
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          child: pw.Text(e.key,
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: 14)),
+                        ),
+                        pw.Container(
+                          padding: const pw.EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 12),
+                          child: pw.Text(e.value,
+                              style: pw.TextStyle(fontSize: 14)),
+                        ),
+                      ])),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 }

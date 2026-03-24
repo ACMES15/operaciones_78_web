@@ -66,7 +66,7 @@ class _DevCanPageState extends State<DevCanPage> {
   }
 
   Future<void> _importFromExcel() async {
-    // Lógica real de importación desde Excel usando el paquete excel
+    // Importar desde Excel: tomar siempre desde la segunda fila y solo los primeros 6 campos
     final uploadInput = html.FileUploadInputElement();
     uploadInput.accept = '.xlsx';
     uploadInput.click();
@@ -85,28 +85,24 @@ class _DevCanPageState extends State<DevCanPage> {
               data is Uint8List ? data : Uint8List.fromList(data as List<int>));
           final sheet = excel.tables.values.first;
           final rows = sheet.rows;
-          if (rows.isEmpty) return;
-          // Asumimos que la primera fila es encabezado
-          final headerMap = <int, int>{};
-          for (int i = 0; i < _headers.length; i++) {
-            final idx = rows[0].indexWhere((cell) =>
-                cell != null &&
-                (cell.value.toString().trim().toUpperCase()) ==
-                    _headers[i].toUpperCase());
-            if (idx != -1) headerMap[i] = idx;
-          }
+          if (rows.length < 2) return;
           final newRows = <List<TextEditingController>>[];
           for (int i = 1; i < rows.length; i++) {
             final row = rows[i];
+            // Asignar cada columna del Excel a la columna correspondiente en la tabla, hasta el máximo de columnas
             final controllers =
                 List<TextEditingController>.generate(_headers.length, (j) {
-              final idx = headerMap[j];
-              return TextEditingController(
-                  text: idx != null && idx < row.length
-                      ? row[idx]?.value?.toString() ?? ''
-                      : '');
+              if (j < row.length) {
+                return TextEditingController(
+                    text: row[j]?.value?.toString() ?? '');
+              } else {
+                return TextEditingController();
+              }
             });
-            newRows.add(controllers);
+            // Solo agregar si hay al menos un campo con datos en toda la fila
+            if (controllers.any((c) => c.text.trim().isNotEmpty)) {
+              newRows.add(controllers);
+            }
           }
           setState(() {
             _rows.clear();
