@@ -16,6 +16,146 @@ class HojaDeRutaEnviadasPage extends StatefulWidget {
 }
 
 class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
+  Future<void> _printCaratulaFromSheet(
+      BuildContext context, Map<String, dynamic> sheet) async {
+    final origen = sheet['origen'] ?? '';
+    final destino = (sheet['rows'] != null &&
+            sheet['rows'] is List &&
+            (sheet['rows'] as List).isNotEmpty &&
+            sheet['headers'] != null)
+        ? ((sheet['rows'][0] is Map)
+            ? (sheet['rows'][0]['Nombre Alm. destino'] ?? '')
+            : (sheet['rows'][0] is List &&
+                    sheet['headers'] is List &&
+                    (sheet['headers'] as List).contains('Nombre Alm. destino')
+                ? (sheet['rows'][0][(sheet['headers'] as List)
+                        .indexOf('Nombre Alm. destino')] ??
+                    '')
+                : ''))
+        : '';
+    final tipo = sheet['tipo'] ?? '';
+    final numeroControl = sheet['numeroControl'] ?? '';
+    final fechaEnvio = sheet['fecha'] ?? '';
+    final caja = sheet['caja'] ?? '';
+
+    final pdf = pw.Document();
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.SizedBox(height: 16),
+              pw.Text('Hoja de Ruta',
+                  style: pw.TextStyle(
+                      fontSize: 24, fontWeight: pw.FontWeight.bold),
+                  textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 18),
+              pw.Table(
+                border:
+                    pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
+                defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+                children: [
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('ORIGEN:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(origen,
+                          style: pw.TextStyle(
+                              fontSize: 16, color: PdfColors.green800)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('DESTINO:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(destino,
+                          style: pw.TextStyle(
+                              fontSize: 16, color: PdfColors.blue800)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Tipo de hoja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(tipo,
+                          style: pw.TextStyle(
+                              fontSize: tipo == 'Zona especial' ? 22 : 16,
+                              color: tipo == 'Zona especial'
+                                  ? PdfColors.red800
+                                  : PdfColors.black)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de control:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(numeroControl,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Fecha de Envío:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(fechaEnvio,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de Caja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(caja, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+  }
+
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
     // Alinear los datos de cada fila al orden de headers
     List<List<String>> rows = [];
@@ -490,6 +630,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                                       children: [
                                         IconButton(
                                           icon: const Icon(Icons.print),
+                                          tooltip: 'Imprimir hoja',
                                           onPressed: () async {
                                             try {
                                               await _printSheet(context, sheet);
@@ -498,6 +639,22 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                                                   .showSnackBar(SnackBar(
                                                       content: Text(
                                                           'Error al imprimir: $e')));
+                                            }
+                                          },
+                                        ),
+                                        IconButton(
+                                          icon:
+                                              const Icon(Icons.picture_as_pdf),
+                                          tooltip: 'Imprimir carátula',
+                                          onPressed: () async {
+                                            try {
+                                              await _printCaratulaFromSheet(
+                                                  context, sheet);
+                                            } catch (e) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(SnackBar(
+                                                      content: Text(
+                                                          'Error al imprimir carátula: $e')));
                                             }
                                           },
                                         ),

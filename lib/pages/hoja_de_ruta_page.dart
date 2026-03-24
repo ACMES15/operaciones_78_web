@@ -894,8 +894,8 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                     foregroundColor: Colors.white),
                                 onPressed: () async {
                                   await _guardarHojaRuta();
-                                  // Mostrar el diálogo de impresión gris automáticamente
-                                  await _printCaratulaHojaRuta();
+                                  // Mostrar el diálogo de impresión de la hoja (no carátula) y NO cerrar el diálogo
+                                  await _printHojaRuta();
                                 }),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
