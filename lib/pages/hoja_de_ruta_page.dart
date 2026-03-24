@@ -103,9 +103,10 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.map_outlined,
                     color: Color(0xFF2D6A4F), size: 32),
@@ -114,22 +115,12 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                   'Hoja de Ruta',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
                 ),
-                SizedBox(width: 24),
-                ElevatedButton.icon(
-                  icon: Icon(Icons.print),
-                  label:
-                      Text('Imprimir', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(220, 48),
-                    backgroundColor: Colors.indigo,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () async {
-                    FocusScope.of(context).unfocus();
-                    await _printCaratulaHojaRuta();
-                  },
-                ),
-                SizedBox(width: 16),
+              ],
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 ElevatedButton.icon(
                   icon: Icon(Icons.store),
                   label: Text('Tiendas y Proveedores',
@@ -140,7 +131,6 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () {
-                    // Obtener usuario firmado desde HomePage usando ModalRoute
                     final homeState =
                         context.findAncestorWidgetOfExactType<HomePage>();
                     final usuario = homeState?.usuario ?? '';
@@ -352,56 +342,110 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
         pageFormat: PdfPageFormat.a4,
         build: (context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.SizedBox(height: 16),
-              pw.Text('ORIGEN:',
+              pw.Text('Hoja de Ruta',
                   style: pw.TextStyle(
-                      fontSize: 18, fontWeight: pw.FontWeight.bold),
-                  textAlign: pw.TextAlign.center),
-              pw.Text(origen,
-                  style: pw.TextStyle(
-                      fontSize: 32,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.green800),
+                      fontSize: 24, fontWeight: pw.FontWeight.bold),
                   textAlign: pw.TextAlign.center),
               pw.SizedBox(height: 18),
-              pw.Text('DESTINO:',
-                  style: pw.TextStyle(
-                      fontSize: 18, fontWeight: pw.FontWeight.bold),
-                  textAlign: pw.TextAlign.center),
-              pw.Text(destino,
-                  style: pw.TextStyle(
-                      fontSize: 32,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.blue800),
-                  textAlign: pw.TextAlign.center),
-              pw.SizedBox(height: 18),
-              pw.Text('Tipo de hoja:',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.Text(tipo,
-                  style: pw.TextStyle(
-                      fontSize: tipo == 'Zona especial' ? 28 : 18,
-                      fontWeight: pw.FontWeight.bold,
-                      color: tipo == 'Zona especial'
-                          ? PdfColors.red800
-                          : PdfColors.black)),
-              pw.SizedBox(height: 12),
-              pw.Text('N° de control:',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.Text(numeroControl, style: pw.TextStyle(fontSize: 18)),
-              pw.SizedBox(height: 8),
-              pw.Text('Fecha de Envío:',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.Text(fechaEnvio, style: pw.TextStyle(fontSize: 18)),
-              pw.SizedBox(height: 8),
-              pw.Text('N° de Caja:',
-                  style: pw.TextStyle(
-                      fontSize: 16, fontWeight: pw.FontWeight.bold)),
-              pw.Text(caja, style: pw.TextStyle(fontSize: 18)),
+              pw.Table(
+                border:
+                    pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
+                defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+                children: [
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('ORIGEN:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(origen,
+                          style: pw.TextStyle(
+                              fontSize: 16, color: PdfColors.green800)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('DESTINO:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(destino,
+                          style: pw.TextStyle(
+                              fontSize: 16, color: PdfColors.blue800)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Tipo de hoja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(tipo,
+                          style: pw.TextStyle(
+                              fontSize: tipo == 'Zona especial' ? 22 : 16,
+                              color: tipo == 'Zona especial'
+                                  ? PdfColors.red800
+                                  : PdfColors.black)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de control:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(numeroControl,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Fecha de Envío:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(fechaEnvio,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de Caja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(caja, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                ],
+              ),
             ],
           );
         },
@@ -848,14 +892,10 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                 style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF0B6623),
                                     foregroundColor: Colors.white),
-                                onPressed: () {
-                                  _guardarHojaRuta();
-                                  Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Hoja de ruta guardada en Enviadas'),
-                                          duration: Duration(seconds: 2)));
+                                onPressed: () async {
+                                  await _guardarHojaRuta();
+                                  // Mostrar el diálogo de impresión gris automáticamente
+                                  await _printCaratulaHojaRuta();
                                 }),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(
