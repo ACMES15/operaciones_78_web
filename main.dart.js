@@ -29396,7 +29396,8 @@ aIc:function aIc(a){this.a=a},
 aI7:function aI7(a){this.a=a},
 aI6:function aI6(a){this.a=a},
 aI9:function aI9(){},
-aI8:function aI8(a){this.a=a},
+aI8:function aI8(a,b){this.a=a
+this.b=b},
 aI5:function aI5(a,b,c){this.a=a
 this.b=b
 this.c=c},
@@ -106775,14 +106776,15 @@ A.aIa.prototype={
 $0(){return this.a.d=B.o.V(this.b).toLowerCase()},
 $S:0}
 A.aIc.prototype={
-$2(a,b){var s,r,q
+$2(a,b){var s,r,q,p
 if(b.a===B.l2)return B.cr
 s=b.b
 if(s==null||s.gd1().length===0)return B.uW
 s=s.gd1()
-r=A.J(s).i("ab<1>")
-q=A.x(new A.ab(s,new A.aI7(this.a),r),!0,r.i("f.E"))
-return A.uN(new A.aI8(q),q.length,B.bJ,new A.aI9())},
+r=this.a
+q=A.J(s).i("ab<1>")
+p=A.x(new A.ab(s,new A.aI7(r),q),!0,q.i("f.E"))
+return A.uN(new A.aI8(r,p),p.length,B.bJ,new A.aI9())},
 $S:156}
 A.aI7.prototype={
 $1(a){var s,r=a.eD(0)
@@ -106799,32 +106801,35 @@ A.aI9.prototype={
 $2(a,b){return B.at},
 $S:58}
 A.aI8.prototype={
-$2(a,b){var s,r,q,p,o,n,m,l,k,j,i=null,h="firma",g=this.a[b],f=g.eD(0)
-f.toString
-t.P.a(f)
-s=t.Cc.a(f.h(0,"fecha"))
-r=s==null?i:A.aVN(s.gN3())
+$2(a,b){var s,r,q,p,o,n,m,l,k,j,i,h=null,g="firma",f=this.b[b],e=f.eD(0)
+e.toString
+t.P.a(e)
+s=t.Cc.a(e.h(0,"fecha"))
+r=s==null?h:A.aVN(s.gN3())
 s=A.b5(12)
-q=f.h(0,"paqueteria")
+q=e.h(0,"paqueteria")
 p=t.p
-q=A.a([A.D(q==null?"":q,i,i,i,B.NP,i,i),B.e3],p)
-if(r!=null)q.push(A.D(A.E5("dd/MM/yyyy HH:mm").np(r),i,i,i,B.aSb,i,i))
-q=A.aa(q,B.E,B.w,B.x,i)
-o=f.h(0,"guia")
-o=A.D("Gu\xeda: "+A.j(o==null?"":o),i,i,i,B.d5,i,i)
-n=f.h(0,"bultos")
-n=A.D("Bultos: "+A.j(n==null?"":n),i,i,i,B.d5,i,i)
-m=f.h(0,"pedido")
-m=A.D("Pedido: "+A.j(m==null?"":m),i,i,i,B.d5,i,i)
-l=f.h(0,"contrarecibo")
-l=A.D("Contrarecibo: "+A.j(l==null?"":l),i,i,i,B.d5,i,i)
-k=f.h(0,"nombreRecibe")
-k=A.D("Recibi\xf3: "+A.j(k==null?"":k),i,i,i,B.d5,i,i)
-j=f.h(0,"usuario")
-q=A.a([q,B.aG,o,n,m,l,k,A.D("Entreg\xf3: "+A.j(j==null?"":j),i,i,i,B.aST,i,i),B.aG,A.aa(A.a([A.cx(B.x4,B.aWg,new A.aI5(a,g,f),A.cE(i,i,B.SZ,i,i,i,i,i,i,i,i,i,i,i,new A.bW(A.b5(8),B.K),i,i,i,i))],p),B.E,B.w,B.x,i)],p)
-if(f.h(0,h)!=null&&t.D.b(f.h(0,h)))q.push(new A.ae(B.c_,A.tz(A.b5(8),A.ql(t.D.a(f.h(0,h)),B.ed,80,i),B.cG),i))
+q=A.a([A.D(q==null?"":q,h,h,h,B.NP,h,h),B.e3],p)
+if(r!=null)q.push(A.D(A.E5("dd/MM/yyyy HH:mm").np(r),h,h,h,B.aSb,h,h))
+q=A.aa(q,B.E,B.w,B.x,h)
+o=e.h(0,"guia")
+o=A.D("Gu\xeda: "+A.j(o==null?"":o),h,h,h,B.d5,h,h)
+n=e.h(0,"bultos")
+n=A.D("Bultos: "+A.j(n==null?"":n),h,h,h,B.d5,h,h)
+m=e.h(0,"pedido")
+m=A.D("Pedido: "+A.j(m==null?"":m),h,h,h,B.d5,h,h)
+l=e.h(0,"contrarecibo")
+l=A.D("Contrarecibo: "+A.j(l==null?"":l),h,h,h,B.d5,h,h)
+k=e.h(0,"nombreRecibe")
+k=A.D("Recibi\xf3: "+A.j(k==null?"":k),h,h,h,B.d5,h,h)
+j=e.h(0,"usuario")
+j=A.D("Entreg\xf3: "+A.j(j==null?"":j),h,h,h,B.aST,h,h)
+i=A.a([],p)
+if(B.l.p(A.a(["ADMIN OMNICANAL","ADMIN ENVIOS","ADMIN","STAFF ENVIOS","STAFF XD"],t.s),this.a.a.d))i.push(A.cx(B.x4,B.aWg,new A.aI5(a,f,e),A.cE(h,h,B.SZ,h,h,h,h,h,h,h,h,h,h,h,new A.bW(A.b5(8),B.K),h,h,h,h)))
+q=A.a([q,B.aG,o,n,m,l,k,j,B.aG,A.aa(i,B.E,B.w,B.x,h)],p)
+if(e.h(0,g)!=null&&t.D.b(e.h(0,g)))q.push(new A.ae(B.c_,A.tz(A.b5(8),A.ql(t.D.a(e.h(0,g)),B.ed,80,h),B.cG),h))
 q.push(B.aG)
-return A.dx(new A.ae(B.bJ,A.ap(q,B.a2,B.w,B.x),i),i,4,i,i,new A.bW(s,B.K))},
+return A.dx(new A.ae(B.bJ,A.ap(q,B.a2,B.w,B.x),h),h,4,h,h,new A.bW(s,B.K))},
 $S:14}
 A.aI5.prototype={
 $0(){var s=0,r=A.u(t.H),q=this

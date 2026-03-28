@@ -200,25 +200,33 @@ class _HistorialPaqueteriaExternaPageState
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.edit),
-                                  label: const Text('Editar'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color.fromARGB(
-                                        255, 242, 245, 243),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8)),
+                                if ([
+                                  'ADMIN OMNICANAL',
+                                  'ADMIN ENVIOS',
+                                  'ADMIN',
+                                  'STAFF ENVIOS',
+                                  'STAFF XD'
+                                ].contains(widget.tipoUsuarioActual))
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.edit),
+                                    label: const Text('Editar'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color.fromARGB(
+                                          255, 242, 245, 243),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
+                                    ),
+                                    onPressed: () async {
+                                      await showDialog(
+                                        context: context,
+                                        builder: (ctx) => EditarRegistroDialog(
+                                          docId: doc.id,
+                                          data: data,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  onPressed: () async {
-                                    await showDialog(
-                                      context: context,
-                                      builder: (ctx) => EditarRegistroDialog(
-                                        docId: doc.id,
-                                        data: data,
-                                      ),
-                                    );
-                                  },
-                                ),
                               ],
                             ),
                             // Mostrar imagen de la firma si existe
