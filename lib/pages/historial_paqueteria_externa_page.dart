@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:excel/excel.dart';
 import 'dart:html' as html;
+import 'dart:convert';
 
 class HistorialPaqueteriaExternaPage extends StatefulWidget {
   final String usuario;
@@ -229,18 +230,49 @@ class _HistorialPaqueteriaExternaPageState
                                   ),
                               ],
                             ),
-                            // Mostrar imagen de la firma si existe
-                            if (data['firma'] != null &&
-                                data['firma'] is Uint8List)
+                            // Mostrar imagen de la firma si existe (Uint8List, base64 o URL)
+                            if (data['firma'] != null)
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 8),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.memory(
-                                    data['firma'] as Uint8List,
-                                    height: 80,
-                                    fit: BoxFit.contain,
+                                  child: Builder(
+                                    builder: (context) {
+                                      final firma = data['firma'];
+                                      if (firma is Uint8List) {
+                                        return Image.memory(
+                                          firma,
+                                          height: 80,
+                                          fit: BoxFit.contain,
+                                        );
+                                      } else if (firma is String) {
+                                        if (firma.startsWith('http')) {
+                                          // Es una URL
+                                          return Image.network(
+                                            firma,
+                                            height: 80,
+                                            fit: BoxFit.contain,
+                                          );
+                                        } else {
+                                          // Intentar decodificar base64
+                                          try {
+                                            final bytes = Uint8List.fromList(
+                                                base64Decode(firma));
+                                            return Image.memory(
+                                              bytes,
+                                              height: 80,
+                                              fit: BoxFit.contain,
+                                            );
+                                          } catch (_) {
+                                            return const Text(
+                                                'Firma no válida');
+                                          }
+                                        }
+                                      } else {
+                                        return const Text('Firma no soportada');
+                                      }
+                                    },
                                   ),
                                 ),
                               ),

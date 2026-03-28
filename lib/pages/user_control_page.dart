@@ -321,8 +321,17 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                     ],
                     rows: _usuariosFiltrados.map((u) {
                       return DataRow(cells: [
-                        DataCell(Text(u['nombre'] ?? '',
-                            style: TextStyle(fontSize: fontSize))),
+                        DataCell(
+                          SizedBox(
+                            width: 180, // Ajusta este valor según tu diseño
+                            child: Text(
+                              u['nombre'] ?? '',
+                              style: TextStyle(fontSize: fontSize),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        ),
                         DataCell(Text(u['usuario'] ?? '',
                             style: TextStyle(fontSize: fontSize))),
                         DataCell(Text(u['correo'] ?? '',
