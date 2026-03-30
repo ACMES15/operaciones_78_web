@@ -302,23 +302,8 @@ class _HistorialPaqueteriaExternaPageState
                                         },
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Builder(
-                                      builder: (context) {
-                                        final firma = data['firma'];
-                                        String tipo =
-                                            firma.runtimeType.toString();
-                                        String valor = firma.toString();
-                                        if (valor.length > 60)
-                                          valor =
-                                              valor.substring(0, 60) + '...';
-                                        return Text(
-                                          'Firma ($tipo): $valor',
-                                          style: const TextStyle(
-                                              fontSize: 10, color: Colors.grey),
-                                        );
-                                      },
-                                    ),
+                                    // const SizedBox(height: 4),
+                                    // Widget de depuración de firma oculto
                                   ],
                                 ),
                               ),
