@@ -235,45 +235,78 @@ class _HistorialPaqueteriaExternaPageState
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 8),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Builder(
-                                    builder: (context) {
-                                      final firma = data['firma'];
-                                      if (firma is Uint8List) {
-                                        return Image.memory(
-                                          firma,
-                                          height: 80,
-                                          fit: BoxFit.contain,
-                                        );
-                                      } else if (firma is String) {
-                                        if (firma.startsWith('http')) {
-                                          // Es una URL
-                                          return Image.network(
-                                            firma,
-                                            height: 80,
-                                            fit: BoxFit.contain,
-                                          );
-                                        } else {
-                                          // Intentar decodificar base64
-                                          try {
-                                            final bytes = Uint8List.fromList(
-                                                base64Decode(firma));
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Builder(
+                                        builder: (context) {
+                                          final firma = data['firma'];
+                                          // Mostrar valor de la firma para depuración (truncado)
+                                          // Puedes quitar este Text cuando ya no lo necesites
+                                          // Si la firma es muy larga, solo muestra los primeros 60 caracteres
+                                          // y el tipo de dato
+                                          //
+                                          // Ejemplo: "Firma (String): iVBORw0KGgoAAAANSUhEUgAA..."
+                                          //
+                                          // Si no quieres mostrarlo al usuario final, puedes envolverlo en un Visibility
+                                          //
+                                          // Mostrar imagen de la firma
+                                          if (firma is Uint8List) {
                                             return Image.memory(
-                                              bytes,
+                                              firma,
                                               height: 80,
                                               fit: BoxFit.contain,
                                             );
-                                          } catch (_) {
-                                            return const Text(
-                                                'Firma no válida');
+                                          } else if (firma is String) {
+                                            if (firma.startsWith('http')) {
+                                              // Es una URL
+                                              return Image.network(
+                                                firma,
+                                                height: 80,
+                                                fit: BoxFit.contain,
+                                              );
+                                            } else {
+                                              // Intentar decodificar base64
+                                              try {
+                                                final bytes =
+                                                    base64Decode(firma);
+                                                return Image.memory(
+                                                  Uint8List.fromList(bytes),
+                                                  height: 80,
+                                                  fit: BoxFit.contain,
+                                                );
+                                              } catch (e) {
+                                                return Text(
+                                                    'Firma no válida: ${e.toString()}');
+                                              }
+                                            }
+                                          } else {
+                                            return Text(
+                                                'Firma no soportada. Tipo: "+firma.runtimeType.toString()+"');
                                           }
-                                        }
-                                      } else {
-                                        return const Text('Firma no soportada');
-                                      }
-                                    },
-                                  ),
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Builder(
+                                      builder: (context) {
+                                        final firma = data['firma'];
+                                        String tipo =
+                                            firma.runtimeType.toString();
+                                        String valor = firma.toString();
+                                        if (valor.length > 60)
+                                          valor =
+                                              valor.substring(0, 60) + '...';
+                                        return Text(
+                                          'Firma ($tipo): $valor',
+                                          style: const TextStyle(
+                                              fontSize: 10, color: Colors.grey),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                             const SizedBox(height: 8),
