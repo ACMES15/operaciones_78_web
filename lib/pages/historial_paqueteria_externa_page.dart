@@ -49,7 +49,7 @@ class _HistorialPaqueteriaExternaPageState
         pedidosExcel = (data['pedido'] as List)
             .where((p) => p != null && p.toString().trim().isNotEmpty)
             .map((p) => p.toString())
-            .join('\n');
+            .join('\r\n');
       } else {
         pedidosExcel = data['pedido']?.toString() ?? '';
       }
