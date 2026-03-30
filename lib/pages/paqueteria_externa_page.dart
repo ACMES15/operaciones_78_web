@@ -50,6 +50,14 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
     if (!_formKey.currentState!.validate() || !_firmaRealizada) return;
     setState(() => _guardando = true);
     final signatureBytes = await _signatureController.toPngBytes();
+    if (signatureBytes == null || signatureBytes.isEmpty) {
+      setState(() => _guardando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Por favor realiza la firma antes de guardar.')),
+      );
+      return;
+    }
     final data = {
       'paqueteria': _paqueteria,
       'guia': _guiaController.text.trim(),
@@ -57,7 +65,8 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
       'pedido': _pedidoController.text.trim(),
       'contrarecibo': _contrareciboController.text.trim(),
       'nombreRecibe': _nombreRecibeController.text.trim(),
-      'firma': signatureBytes,
+      'firma':
+          signatureBytes.toList(), // Guardar como List<int> para compatibilidad
       'usuario': widget.usuario,
       'fecha': DateTime.now(),
     };
