@@ -259,6 +259,13 @@ class _HistorialPaqueteriaExternaPageState
                                               height: 80,
                                               fit: BoxFit.contain,
                                             );
+                                          } else if (firma is List<int>) {
+                                            // Si es un array de enteros, convertir a Uint8List
+                                            return Image.memory(
+                                              Uint8List.fromList(firma),
+                                              height: 80,
+                                              fit: BoxFit.contain,
+                                            );
                                           } else if (firma is String) {
                                             if (firma.startsWith('http')) {
                                               // Es una URL
@@ -284,7 +291,7 @@ class _HistorialPaqueteriaExternaPageState
                                             }
                                           } else {
                                             return Text(
-                                                'Firma no soportada. Tipo: "+firma.runtimeType.toString()+"');
+                                                'Firma no soportada. Tipo: ${firma.runtimeType}');
                                           }
                                         },
                                       ),
