@@ -44,11 +44,20 @@ class _HistorialPaqueteriaExternaPageState
     ]);
     for (final doc in snapshot.docs) {
       final data = doc.data();
+      String pedidosExcel = '';
+      if (data['pedido'] is List) {
+        pedidosExcel = (data['pedido'] as List)
+            .where((p) => p != null && p.toString().trim().isNotEmpty)
+            .map((p) => p.toString())
+            .join('\n');
+      } else {
+        pedidosExcel = data['pedido']?.toString() ?? '';
+      }
       sheet.appendRow([
         data['paqueteria'] ?? '',
         data['guia'] ?? '',
         data['bultos'] ?? '',
-        data['pedido'] ?? '',
+        pedidosExcel,
         data['contrarecibo'] ?? '',
         data['nombreRecibe'] ?? '',
         data['usuario'] ?? '',
@@ -187,8 +196,23 @@ class _HistorialPaqueteriaExternaPageState
                                 style: const TextStyle(fontSize: 16)),
                             Text('Bultos: ${data['bultos'] ?? ''}',
                                 style: const TextStyle(fontSize: 16)),
-                            Text('Pedido: ${data['pedido'] ?? ''}',
-                                style: const TextStyle(fontSize: 16)),
+                            if (data['pedido'] is List)
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Pedidos:',
+                                      style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold)),
+                                  ...List.from(data['pedido'])
+                                      .map<Widget>((p) => Text(p.toString(),
+                                          style: const TextStyle(fontSize: 16)))
+                                      .toList(),
+                                ],
+                              )
+                            else
+                              Text('Pedido: ${data['pedido'] ?? ''}',
+                                  style: const TextStyle(fontSize: 16)),
                             Text('Contrarecibo: ${data['contrarecibo'] ?? ''}',
                                 style: const TextStyle(fontSize: 16)),
                             Text('Recibió: ${data['nombreRecibe'] ?? ''}',
@@ -198,6 +222,13 @@ class _HistorialPaqueteriaExternaPageState
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
                                     color: Color(0xFF2D6A4F))),
+                            if (data['usuarioEdito'] != null &&
+                                data['usuarioEdito'].toString().isNotEmpty)
+                              Text('Editó: ${data['usuarioEdito']}',
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w400,
+                                      color: Color(0xFF6C757D))),
                             const SizedBox(height: 8),
                             Row(
                               children: [
@@ -224,6 +255,7 @@ class _HistorialPaqueteriaExternaPageState
                                         builder: (ctx) => EditarRegistroDialog(
                                           docId: doc.id,
                                           data: data,
+                                          usuarioActual: widget.usuario,
                                         ),
                                       );
                                     },

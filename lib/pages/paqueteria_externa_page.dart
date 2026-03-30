@@ -27,7 +27,9 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
   String? _paqueteria;
   final TextEditingController _guiaController = TextEditingController();
   final TextEditingController _bultosController = TextEditingController();
-  final TextEditingController _pedidoController = TextEditingController();
+  final List<TextEditingController> _pedidoControllers = [
+    TextEditingController()
+  ];
   final TextEditingController _contrareciboController = TextEditingController();
   final TextEditingController _nombreRecibeController = TextEditingController();
   final SignatureController _signatureController =
@@ -39,7 +41,9 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
   void dispose() {
     _guiaController.dispose();
     _bultosController.dispose();
-    _pedidoController.dispose();
+    for (final c in _pedidoControllers) {
+      c.dispose();
+    }
     _contrareciboController.dispose();
     _nombreRecibeController.dispose();
     _signatureController.dispose();
@@ -58,15 +62,18 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
       );
       return;
     }
+    final pedidos = _pedidoControllers
+        .map((c) => c.text.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
     final data = {
       'paqueteria': _paqueteria,
       'guia': _guiaController.text.trim(),
       'bultos': _bultosController.text.trim(),
-      'pedido': _pedidoController.text.trim(),
+      'pedido': pedidos,
       'contrarecibo': _contrareciboController.text.trim(),
       'nombreRecibe': _nombreRecibeController.text.trim(),
-      'firma':
-          signatureBytes.toList(), // Guardar como List<int> para compatibilidad
+      'firma': signatureBytes.toList(),
       'usuario': widget.usuario,
       'fecha': DateTime.now(),
     };
@@ -78,7 +85,12 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
       _signatureController.clear();
       _guiaController.clear();
       _bultosController.clear();
-      _pedidoController.clear();
+      for (final c in _pedidoControllers) {
+        c.clear();
+      }
+      _pedidoControllers
+        ..clear()
+        ..add(TextEditingController());
       _contrareciboController.clear();
       _nombreRecibeController.clear();
       _paqueteria = null;
@@ -184,14 +196,52 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
                           v == null || v.isEmpty ? 'Campo requerido' : null,
                     ),
                     const SizedBox(height: 20),
-                    TextFormField(
-                      controller: _pedidoController,
-                      decoration: const InputDecoration(
-                          labelText: 'Pedido', border: OutlineInputBorder()),
-                      textInputAction: TextInputAction.next,
-                      onFieldSubmitted: (_) =>
-                          FocusScope.of(context).nextFocus(),
-                      // No validator para permitir vacío
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ..._pedidoControllers.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final controller = entry.value;
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: controller,
+                                  decoration: InputDecoration(
+                                    labelText: 'Pedido',
+                                    border: const OutlineInputBorder(),
+                                  ),
+                                  textInputAction: TextInputAction.next,
+                                  onFieldSubmitted: (_) =>
+                                      FocusScope.of(context).nextFocus(),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              if (_pedidoControllers.length > 1)
+                                IconButton(
+                                  icon: const Icon(Icons.remove_circle,
+                                      color: Colors.red),
+                                  onPressed: () {
+                                    setState(() {
+                                      _pedidoControllers.removeAt(i).dispose();
+                                    });
+                                  },
+                                ),
+                              if (i == _pedidoControllers.length - 1)
+                                IconButton(
+                                  icon: const Icon(Icons.add_circle,
+                                      color: Colors.green),
+                                  onPressed: () {
+                                    setState(() {
+                                      _pedidoControllers
+                                          .add(TextEditingController());
+                                    });
+                                  },
+                                ),
+                            ],
+                          );
+                        }).toList(),
+                      ],
                     ),
                     const SizedBox(height: 20),
                     TextFormField(

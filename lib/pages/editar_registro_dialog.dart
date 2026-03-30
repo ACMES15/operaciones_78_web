@@ -4,7 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class EditarRegistroDialog extends StatefulWidget {
   final String docId;
   final Map<String, dynamic> data;
-  const EditarRegistroDialog({required this.docId, required this.data});
+  final String usuarioActual;
+  const EditarRegistroDialog(
+      {required this.docId, required this.data, required this.usuarioActual});
 
   @override
   State<EditarRegistroDialog> createState() => _EditarRegistroDialogState();
@@ -49,6 +51,7 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
       'pedido': pedidoController.text.trim(),
       'contrarecibo': contrareciboController.text.trim(),
       'nombreRecibe': nombreRecibeController.text.trim(),
+      'usuarioEdito': widget.usuarioActual,
     });
     Navigator.of(context).pop();
   }
