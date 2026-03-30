@@ -15,17 +15,15 @@ class EditarRegistroDialog extends StatefulWidget {
 class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
   late TextEditingController guiaController;
   late TextEditingController bultosController;
-  late TextEditingController contrareciboController;
   late TextEditingController nombreRecibeController;
   late List<TextEditingController> pedidoControllers;
+  late List<TextEditingController> contrareciboControllers;
 
   @override
   void initState() {
     super.initState();
     guiaController = TextEditingController(text: widget.data['guia'] ?? '');
     bultosController = TextEditingController(text: widget.data['bultos'] ?? '');
-    contrareciboController =
-        TextEditingController(text: widget.data['contrarecibo'] ?? '');
     nombreRecibeController =
         TextEditingController(text: widget.data['nombreRecibe'] ?? '');
     // Soportar lista o string para pedidos
@@ -42,15 +40,31 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
         TextEditingController(text: pedidos?.toString() ?? '')
       ];
     }
+    // Soportar lista o string para contrarecibos
+    final contras = widget.data['contrarecibo'];
+    if (contras is List) {
+      contrareciboControllers = contras
+          .map<TextEditingController>(
+              (c) => TextEditingController(text: c?.toString() ?? ''))
+          .toList();
+      if (contrareciboControllers.isEmpty)
+        contrareciboControllers.add(TextEditingController());
+    } else {
+      contrareciboControllers = [
+        TextEditingController(text: contras?.toString() ?? '')
+      ];
+    }
   }
 
   @override
   void dispose() {
     guiaController.dispose();
     bultosController.dispose();
-    contrareciboController.dispose();
     nombreRecibeController.dispose();
     for (final c in pedidoControllers) {
+      c.dispose();
+    }
+    for (final c in contrareciboControllers) {
       c.dispose();
     }
     super.dispose();
@@ -61,6 +75,10 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
         .map((c) => c.text.trim())
         .where((p) => p.isNotEmpty)
         .toList();
+    final contras = contrareciboControllers
+        .map((c) => c.text.trim())
+        .where((c) => c.isNotEmpty)
+        .toList();
     await FirebaseFirestore.instance
         .collection('paqueteria_externa')
         .doc(widget.docId)
@@ -68,7 +86,7 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
       'guia': guiaController.text.trim(),
       'bultos': bultosController.text.trim(),
       'pedido': pedidos,
-      'contrarecibo': contrareciboController.text.trim(),
+      'contrarecibo': contras,
       'nombreRecibe': nombreRecibeController.text.trim(),
       'usuarioEdito': widget.usuarioActual,
     });
@@ -79,7 +97,6 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
       contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       title: Row(
         children: [
@@ -89,7 +106,6 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
             'Editar registro',
             style: TextStyle(
               fontSize: 24,
-              fontWeight: FontWeight.bold,
               color: Color(0xFF2D6A4F),
             ),
           ),
@@ -171,15 +187,52 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
                 ],
               ),
               const SizedBox(height: 16),
-              TextField(
-                controller: contrareciboController,
-                decoration: InputDecoration(
-                  labelText: 'Contrarecibo',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
+              // Contrarecibos múltiples
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Contrarecibos:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  ...contrareciboControllers.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final controller = entry.value;
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: controller,
+                            decoration: InputDecoration(
+                              labelText: 'Contrarecibo',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        if (contrareciboControllers.length > 1)
+                          IconButton(
+                            icon: const Icon(Icons.remove_circle,
+                                color: Colors.red),
+                            onPressed: () {
+                              setState(() {
+                                contrareciboControllers.removeAt(i).dispose();
+                              });
+                            },
+                          ),
+                        if (i == contrareciboControllers.length - 1)
+                          IconButton(
+                            icon: const Icon(Icons.add_circle,
+                                color: Colors.green),
+                            onPressed: () {
+                              setState(() {
+                                contrareciboControllers
+                                    .add(TextEditingController());
+                              });
+                            },
+                          ),
+                      ],
+                    );
+                  }).toList(),
+                ],
               ),
               const SizedBox(height: 16),
               TextField(
@@ -192,6 +245,7 @@ class _EditarRegistroDialogState extends State<EditarRegistroDialog> {
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
