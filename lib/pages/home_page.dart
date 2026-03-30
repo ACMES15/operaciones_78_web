@@ -564,8 +564,35 @@ class _HomePageState extends State<HomePage> {
                   ),
                   Expanded(
                     child: ListView.builder(
-                      itemCount: _paginas.length,
-                      itemBuilder: (context, index) {
+                      itemCount: _paginas.length * 2 - 1,
+                      itemBuilder: (context, i) {
+                        if (i.isOdd) {
+                          // Divisor estilizado entre páginas
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 2),
+                            child: Container(
+                              height: 3,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(8),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFB7E4C7),
+                                    Color(0xFF40916C),
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 2,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        final index = i ~/ 2;
                         final pageName = _paginas[index];
                         final icon = _pageIcons[pageName] ?? Icons.circle;
                         Widget leadingIcon = Icon(
