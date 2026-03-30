@@ -259,13 +259,19 @@ class _HistorialPaqueteriaExternaPageState
                                               height: 80,
                                               fit: BoxFit.contain,
                                             );
-                                          } else if (firma is List<int>) {
-                                            // Si es un array de enteros, convertir a Uint8List
-                                            return Image.memory(
-                                              Uint8List.fromList(firma),
-                                              height: 80,
-                                              fit: BoxFit.contain,
-                                            );
+                                          } else if (firma is List) {
+                                            // Si es una lista dinámica, intentar convertir a List<int>
+                                            try {
+                                              final lista = firma.cast<int>();
+                                              return Image.memory(
+                                                Uint8List.fromList(lista),
+                                                height: 80,
+                                                fit: BoxFit.contain,
+                                              );
+                                            } catch (e) {
+                                              return Text(
+                                                  'Firma no válida (lista): ${e.toString()}');
+                                            }
                                           } else if (firma is String) {
                                             if (firma.startsWith('http')) {
                                               // Es una URL
