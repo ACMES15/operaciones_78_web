@@ -10,12 +10,21 @@ class GuiasMkpPage extends StatefulWidget {
 }
 
 class _GuiasMkpPageState extends State<GuiasMkpPage> {
+  final TextEditingController _busquedaController = TextEditingController();
+  String _filtro = '';
   List<Map<String, dynamic>> _registros = [];
   bool _cargando = true;
   bool _guardando = false;
 
   @override
   void initState() {
+    _busquedaController.addListener(() {
+      setState(() {
+        _filtro = _busquedaController.text.trim().toLowerCase();
+      });
+    });
+    _busquedaController.dispose();
+    super.dispose();
     super.initState();
     _cargarRegistros();
   }
@@ -103,6 +112,16 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final registrosFiltrados = _filtro.isEmpty
+        ? _registros
+        : _registros
+            .where((r) =>
+                (r['devolucion'] ?? '')
+                    .toString()
+                    .toLowerCase()
+                    .contains(_filtro) ||
+                (r['guia'] ?? '').toString().toLowerCase().contains(_filtro))
+            .toList();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registro de Guías MKP'),
@@ -115,8 +134,20 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
           fontSize: 22,
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6F7FB),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        margin: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(24),
         child: _cargando
             ? const Center(child: CircularProgressIndicator())
             : Column(
@@ -131,9 +162,34 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2D6A4F),
                           foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 18),
+                      Expanded(
+                        child: TextField(
+                          controller: _busquedaController,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar por devolución o guía...',
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0, horizontal: 16),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 18),
                       ElevatedButton.icon(
                         icon: _guardando
                             ? const SizedBox(
@@ -148,39 +204,67 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber.shade700,
                           foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          textStyle: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 24),
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
+                        headingRowColor:
+                            MaterialStateProperty.all(const Color(0xFF2D6A4F)),
+                        headingTextStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16),
+                        dataRowColor:
+                            MaterialStateProperty.resolveWith<Color?>((states) {
+                          if (states.contains(MaterialState.selected)) {
+                            return Colors.amber.shade100;
+                          }
+                          return Colors.white;
+                        }),
                         columns: const [
                           DataColumn(label: Text('Devolución')),
                           DataColumn(label: Text('Guía')),
                           DataColumn(label: Text('Fecha')),
                         ],
-                        rows: List.generate(_registros.length, (idx) {
-                          final reg = _registros[idx];
+                        rows: List.generate(registrosFiltrados.length, (idx) {
+                          final reg = registrosFiltrados[idx];
                           return DataRow(cells: [
                             DataCell(
                               TextFormField(
                                 initialValue: reg['devolucion'] ?? '',
                                 decoration: const InputDecoration(
-                                    border: InputBorder.none),
-                                onChanged: (v) =>
-                                    _actualizarCampo(idx, 'devolucion', v),
+                                  border: InputBorder.none,
+                                  hintText: 'Devolución',
+                                ),
+                                style: const TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w500),
+                                onChanged: (v) => _actualizarCampo(
+                                    _registros.indexOf(reg), 'devolucion', v),
                               ),
                             ),
                             DataCell(
                               TextFormField(
                                 initialValue: reg['guia'] ?? '',
                                 decoration: const InputDecoration(
-                                    border: InputBorder.none),
-                                onChanged: (v) =>
-                                    _actualizarCampo(idx, 'guia', v),
+                                  border: InputBorder.none,
+                                  hintText: 'Guía',
+                                ),
+                                style: const TextStyle(
+                                    fontSize: 15, fontWeight: FontWeight.w500),
+                                onChanged: (v) => _actualizarCampo(
+                                    _registros.indexOf(reg), 'guia', v),
                               ),
                             ),
                             DataCell(
@@ -191,6 +275,8 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                         .toString()
                                         .replaceFirst('T', ' ')
                                         .substring(0, 19),
+                                style: const TextStyle(
+                                    fontSize: 15, color: Color(0xFF2D6A4F)),
                               ),
                             ),
                           ]);
