@@ -1,3 +1,4 @@
+import 'mkp_page.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -98,6 +99,7 @@ class _HomePageState extends State<HomePage> {
     'Historial TF o Retornos': Icons.history,
     'Consulta Global': Icons.public,
     'Entregas MKP': Icons.shopping_cart_checkout,
+    'MKP': Icons.store_mall_directory,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -142,6 +144,7 @@ class _HomePageState extends State<HomePage> {
     'Historial TF o Retornos': HistorialTfRetornosPage(usuario: widget.usuario),
     'Consulta Global': ConsultaGlobalPage(),
     'Entregas MKP': EntregasMkpPage(usuario: widget.usuario),
+    'MKP': const MkpPage(),
   };
 
   @override
@@ -178,6 +181,7 @@ class _HomePageState extends State<HomePage> {
       'Transferencias y Retornos',
       'Historial TF o Retornos',
       'Entregas MKP',
+      'MKP',
       'Consulta Global',
       'Plantilla Ejecutiva',
     ];
