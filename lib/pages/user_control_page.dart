@@ -71,6 +71,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Transferencias y Retornos',
       'Historial TF o Retornos',
       'Consulta Global',
+      'Entregas MKP',
     ];
   }
 

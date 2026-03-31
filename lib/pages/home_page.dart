@@ -17,6 +17,7 @@ import '../pages/recogidos/recogidos_page.dart';
 import '../pages/recogidos/historial_entregas_recogidos_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/entregas_cdr_page.dart';
+import '../pages/entregas_mkp_page.dart';
 import '../pages/historial_firmadas_cdr_page.dart';
 import '../pages/historial_entregas_dev_mbodas_page.dart';
 import '../pages/dev_xd_page.dart';
@@ -96,6 +97,7 @@ class _HomePageState extends State<HomePage> {
     'Transferencias y Retornos': Icons.swap_horiz,
     'Historial TF o Retornos': Icons.history,
     'Consulta Global': Icons.public,
+    'Entregas MKP': Icons.shopping_cart_checkout,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -139,6 +141,7 @@ class _HomePageState extends State<HomePage> {
         TransferenciasRetornosPage(usuario: widget.usuario),
     'Historial TF o Retornos': HistorialTfRetornosPage(usuario: widget.usuario),
     'Consulta Global': ConsultaGlobalPage(),
+    'Entregas MKP': EntregasMkpPage(usuario: widget.usuario),
   };
 
   @override
@@ -174,6 +177,7 @@ class _HomePageState extends State<HomePage> {
       'Historial Paquetería Externa',
       'Transferencias y Retornos',
       'Historial TF o Retornos',
+      'Entregas MKP',
       'Consulta Global',
       'Plantilla Ejecutiva',
     ];
