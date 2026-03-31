@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
-import 'package:excel/excel.dart';
-import 'dart:typed_data';
-import 'dart:html' as html;
+// imports eliminados porque ya no se usan aquí
+import 'entregas_mkp_registros_page.dart';
 
 class EntregasMkpPage extends StatefulWidget {
   final String usuario;
@@ -19,8 +18,8 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
   final List<TextEditingController> _skuControllers = [TextEditingController()];
   int _cantidad = 1;
   bool _guardando = false;
-  List<Map<String, dynamic>> _registros = [];
-  bool _cargando = true;
+  // List<Map<String, dynamic>> _registros = [];
+  // bool _cargando = true;
 
   @override
   void initState() {
@@ -29,58 +28,11 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
   }
 
   Future<void> _cargarRegistros() async {
-    setState(() => _cargando = true);
-    final cache = await leerDatosConCache('entregas', 'mkp');
-    List<Map<String, dynamic>> registros = [];
-    if (cache != null && cache['items'] is List) {
-      registros = List<Map<String, dynamic>>.from(
-        (cache['items'] as List).whereType<Map<String, dynamic>>(),
-      );
-    }
-    setState(() {
-      _registros = registros;
-      _cargando = false;
-    });
+    // setState(() => _cargando = true);
+    // Ya no se requiere cargar registros aquí
   }
 
-  Future<void> _exportarAExcel() async {
-    if (_registros.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay registros para exportar.')),
-      );
-      return;
-    }
-    final excel = Excel.createExcel();
-    final sheet = excel['Entregas MKP'];
-    // Encabezados
-    final headers = [
-      'Empleado',
-      'Devolución MKP',
-      'SKU(s)',
-      'Cantidad',
-      'Usuario',
-      'Fecha'
-    ];
-    sheet.appendRow(headers);
-    for (final reg in _registros) {
-      sheet.appendRow([
-        reg['empleado'] ?? '',
-        reg['devolucion_mkp'] ?? '',
-        (reg['skus'] as List?)?.join(', ') ?? '',
-        reg['cantidad']?.toString() ?? '',
-        reg['usuario'] ?? '',
-        reg['fecha'] ?? '',
-      ]);
-    }
-    final bytes = excel.encode()!;
-    final blob = html.Blob([Uint8List.fromList(bytes)],
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', 'entregas_mkp.xlsx')
-      ..click();
-    html.Url.revokeObjectUrl(url);
-  }
+  // _exportarAExcel eliminado, ahora la exportación está en la página de registros
 
   Future<void> _guardarRegistro() async {
     if (_empleadoController.text.trim().isEmpty ||
@@ -290,47 +242,27 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                       ),
                     ),
                     SizedBox(height: isMobile ? 16 : 32),
-                    const Text('Registros recientes:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    SizedBox(height: isMobile ? 8 : 16),
-                    ConstrainedBox(
-                      constraints:
-                          BoxConstraints(maxHeight: isMobile ? 350 : 500),
-                      child: _cargando
-                          ? const Center(child: CircularProgressIndicator())
-                          : _registros.isEmpty
-                              ? const Center(
-                                  child: Text('No hay registros aún.'))
-                              : ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: _registros.length,
-                                  itemBuilder: (context, idx) {
-                                    final reg =
-                                        _registros[_registros.length - 1 - idx];
-                                    return Card(
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: ListTile(
-                                        title: Text(
-                                            'Empleado: ${reg['empleado'] ?? '-'} | Devolución: ${reg['devolucion_mkp'] ?? '-'}'),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                                'SKU(s): ${(reg['skus'] as List?)?.join(', ') ?? '-'}'),
-                                            Text(
-                                                'Cantidad: ${reg['cantidad'] ?? '-'}'),
-                                            Text(
-                                                'Usuario: ${reg['usuario'] ?? '-'}'),
-                                            Text(
-                                                'Fecha: ${reg['fecha'] != null ? reg['fecha'].toString().substring(0, 19).replaceFirst('T', ' ') : '-'}'),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                    SizedBox(height: isMobile ? 16 : 32),
+                    Center(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.list_alt),
+                        label: const Text('Ver registros recientes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2D6A4F),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 14),
+                          textStyle: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const EntregasMkpRegistrosPage(),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ],
                 ),
