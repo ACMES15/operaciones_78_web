@@ -82,9 +82,38 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   void _agregarFila() {
     setState(() {
+      // Solo mostrar la nueva fila vacía para edición
       _registros.insert(0, {'devolucion': '', 'guia': '', 'fecha': ''});
-      _editando = true;
+      // Filtrar para mostrar solo filas vacías
+      _soloFilaNueva = true;
     });
+  }
+
+  bool _soloFilaNueva = false;
+
+  Future<void> _guardar() async {
+    setState(() => _guardando = true);
+    // Guardar solo los registros completos
+    final items = _registros
+        .where((r) =>
+            (r['devolucion'] ?? '').toString().isNotEmpty &&
+            (r['guia'] ?? '').toString().isNotEmpty)
+        .toList();
+    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
+    setState(() {
+      _guardando = false;
+      // Solo los registros completos quedan bloqueados
+      _registros = [
+        ...items,
+        ..._registros.where((r) =>
+            (r['devolucion'] ?? '').toString().isEmpty ||
+            (r['guia'] ?? '').toString().isEmpty)
+      ];
+      _soloFilaNueva = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registros guardados.')),
+    );
   }
 
   void _actualizarCampo(int idx, String campo, String valor) {
@@ -96,27 +125,16 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     });
   }
 
-  Future<void> _guardar() async {
-    setState(() => _guardando = true);
-    // Guardar en Firestore y cache
-    final items = _registros
-        .where((r) => (r['devolucion'] ?? '').toString().isNotEmpty)
-        .toList();
-    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
-    setState(() {
-      _guardando = false;
-      _editando = false;
-    });
-    await _cargarRegistros();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registros guardados.')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final registrosFiltrados = _filtro.isEmpty
-        ? _registros
+        ? (_soloFilaNueva
+            ? _registros
+                .where((r) =>
+                    (r['devolucion'] ?? '').isEmpty &&
+                    (r['guia'] ?? '').isEmpty)
+                .toList()
+            : _registros)
         : _registros.where((r) {
             final dev = (r['devolucion'] ?? '').toString().toLowerCase();
             final guia = (r['guia'] ?? '').toString().toLowerCase();
@@ -199,9 +217,13 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                           ],
                           rows: List.generate(registrosFiltrados.length, (idx) {
                             final reg = registrosFiltrados[idx];
+                            final esCompleto = (reg['devolucion'] ?? '')
+                                    .toString()
+                                    .isNotEmpty &&
+                                (reg['guia'] ?? '').toString().isNotEmpty;
                             return DataRow(cells: [
                               DataCell(
-                                _editando
+                                !esCompleto
                                     ? TextFormField(
                                         initialValue: reg['devolucion'] ?? '',
                                         decoration: const InputDecoration(
@@ -220,7 +242,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                         style: const TextStyle(fontSize: 15)),
                               ),
                               DataCell(
-                                _editando
+                                !esCompleto
                                     ? TextFormField(
                                         initialValue: reg['guia'] ?? '',
                                         decoration: const InputDecoration(
