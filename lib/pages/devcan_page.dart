@@ -157,13 +157,29 @@ class _DevCanPageState extends State<DevCanPage> {
     }
 
     try {
+      // Leer los items actuales de Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('devcan')
+          .get();
+      List<dynamic> existentes = [];
+      if (doc.exists &&
+          doc.data() != null &&
+          doc.data()!.containsKey('items')) {
+        final data = doc.data()!['items'];
+        if (data is List) {
+          existentes = List.from(data);
+        }
+      }
+      // Agregar los nuevos items
+      final nuevosItems = [...existentes, ...items];
       await guardarDatosFirestoreYCache(
         'entregas',
         'devcan',
-        {'items': items},
+        {'items': nuevosItems},
       );
       setState(() {
-        _ultimaEntregaGuardada = {'items': items};
+        _ultimaEntregaGuardada = {'items': nuevosItems};
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Información guardada en DevCan.')),
