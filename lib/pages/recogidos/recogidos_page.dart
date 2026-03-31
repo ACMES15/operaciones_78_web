@@ -267,10 +267,27 @@ class _RecogidosPageState extends State<RecogidosPage> {
       }
     }
 
-    // Guardar recogidos
+    // Guardar recogidos agregando a los existentes
     try {
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('recogidos')
+          .get();
+      List<dynamic> existentes = [];
+      if (doc.exists &&
+          doc.data() != null &&
+          doc.data()!.containsKey('items')) {
+        final data = doc.data()!['items'];
+        if (data is List) {
+          existentes = List.from(data);
+        }
+      }
+      final nuevosItems = [...existentes, ...items];
       await guardarDatosFirestoreYCache(
-          'entregas', 'recogidos', {'items': items});
+        'entregas',
+        'recogidos',
+        {'items': nuevosItems},
+      );
       setState(() {
         _ultimaFechaEntrega = DateTime.now();
       });

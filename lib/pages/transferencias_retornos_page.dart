@@ -196,8 +196,25 @@ class _TransferenciasRetornosPageState
       items.add(map);
     }
     try {
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('transferencias_retornos')
+          .get();
+      List<dynamic> existentes = [];
+      if (doc.exists &&
+          doc.data() != null &&
+          doc.data()!.containsKey('items')) {
+        final data = doc.data()!['items'];
+        if (data is List) {
+          existentes = List.from(data);
+        }
+      }
+      final nuevosItems = [...existentes, ...items];
       await guardarDatosFirestoreYCache(
-          'entregas', 'transferencias_retornos', {'items': items});
+        'entregas',
+        'transferencias_retornos',
+        {'items': nuevosItems},
+      );
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

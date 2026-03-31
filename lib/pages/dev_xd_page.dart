@@ -197,7 +197,25 @@ class _DevXdPageState extends State<DevXdPage> {
       items.add(map);
     }
     try {
-      await guardarDatosFirestoreYCache('entregas', 'xd', {'items': items});
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('xd')
+          .get();
+      List<dynamic> existentes = [];
+      if (doc.exists &&
+          doc.data() != null &&
+          doc.data()!.containsKey('items')) {
+        final data = doc.data()!['items'];
+        if (data is List) {
+          existentes = List.from(data);
+        }
+      }
+      final nuevosItems = [...existentes, ...items];
+      await guardarDatosFirestoreYCache(
+        'entregas',
+        'xd',
+        {'items': nuevosItems},
+      );
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Información guardada en XD.')),

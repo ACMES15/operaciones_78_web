@@ -302,9 +302,27 @@ class _DevMbodasPageState extends State<DevMbodasPage> {
       }
     }
 
-    // Guardar MBODAS
+    // Guardar MBODAS agregando a los existentes
     try {
-      await guardarDatosFirestoreYCache('entregas', 'mbodas', {'items': items});
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('mbodas')
+          .get();
+      List<dynamic> existentes = [];
+      if (doc.exists &&
+          doc.data() != null &&
+          doc.data()!.containsKey('items')) {
+        final data = doc.data()!['items'];
+        if (data is List) {
+          existentes = List.from(data);
+        }
+      }
+      final nuevosItems = [...existentes, ...items];
+      await guardarDatosFirestoreYCache(
+        'entregas',
+        'mbodas',
+        {'items': nuevosItems},
+      );
       setState(() {
         _ultimaFechaEntrega = DateTime.now();
       });
