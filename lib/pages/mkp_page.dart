@@ -23,33 +23,37 @@ class MkpPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Stack(
-              alignment: Alignment.centerRight,
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.assignment),
-                  label: const Text('Registro de Guías MKP'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D6A4F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 18),
-                    textStyle: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+            SizedBox(
+              width: 320,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.assignment),
+                    label: const Text('Registro de Guías MKP'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D6A4F),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 18),
+                      textStyle: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const GuiasMkpPage()),
+                      );
+                    },
                   ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const GuiasMkpPage()),
-                    );
-                  },
-                ),
-                Positioned(
-                  right: 8,
-                  child: MkpBadgeCounter(
-                    child: const SizedBox(width: 0, height: 0),
+                  Positioned(
+                    right: 18,
+                    top: 10,
+                    child: MkpBadgeCounter(
+                      child: const SizedBox(width: 0, height: 0),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
