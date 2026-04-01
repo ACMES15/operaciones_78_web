@@ -26,6 +26,28 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
         .collection('notificaciones')
         .doc('password')
         .set({'items': notificaciones});
+
+    // Marcar como leída la notificación correspondiente en la colección principal (campana)
+    final notif = notificaciones[idx];
+    final mensaje = notif['mensaje'] ?? '';
+    final detalle = notif['detalle'] ?? '';
+    final fecha = notif['fecha'] ?? '';
+    final para = notif['usuario'] ?? '';
+    if (mensaje.isNotEmpty && para.isNotEmpty && fecha.isNotEmpty) {
+      // Buscar la notificación correspondiente y marcarla como leída
+      final query = await FirebaseFirestore.instance
+          .collection('notificaciones')
+          .where('mensaje', isEqualTo: mensaje)
+          .where('detalle', isEqualTo: detalle)
+          .where('fecha', isEqualTo: fecha)
+          .where('para', isEqualTo: para)
+          .where('leida', isEqualTo: false)
+          .get();
+      for (final doc in query.docs) {
+        await doc.reference.update({'leida': true});
+      }
+    }
+
     // Resetear contraseña si usuario es válido
     if (usuario != null && usuario.isNotEmpty) {
       final usuarioNormalizado = usuario.trim().toLowerCase();

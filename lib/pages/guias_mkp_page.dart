@@ -38,7 +38,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     final detalle = 'Devoluciones sin guía con más de 24h: ${sinGuia24h.map((r) => r['devolucion']).join(', ')}';
     final fecha = ahora.toIso8601String();
 
-    // Leer notificaciones existentes
+    // Leer notificaciones existentes (para compatibilidad con notificaciones_page)
     final doc = await FirebaseFirestore.instance.collection('notificaciones').doc('password').get();
     List items = [];
     if (doc.exists && doc.data() != null) {
@@ -58,7 +58,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     });
     if (yaEnviada) return;
 
-    // Agregar notificación para cada admin
+    // Agregar notificación para cada admin en el array (para notificaciones_page)
     for (final admin in admins) {
       items.add({
         'mensaje': mensaje,
@@ -69,6 +69,18 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
       });
     }
     await FirebaseFirestore.instance.collection('notificaciones').doc('password').set({'items': items});
+
+    // Agregar notificación para cada admin como documento individual (para campana principal)
+    for (final admin in admins) {
+      await FirebaseFirestore.instance.collection('notificaciones').add({
+        'mensaje': mensaje,
+        'detalle': detalle,
+        'fecha': fecha,
+        'para': admin,
+        'leida': false,
+        'tipo': 'devolucion_sin_guia',
+      });
+    }
   }
     void _exportarAExcel(List<Map<String, dynamic>> registros) async {
       if (registros.isEmpty) {
