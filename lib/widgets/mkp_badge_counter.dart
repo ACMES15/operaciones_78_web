@@ -40,12 +40,17 @@ class _MkpBadgeCounterState extends State<MkpBadgeCounter> {
         (guiasDoc.data()!['items'] as List).whereType<Map<String, dynamic>>(),
       );
     }
-    final Set<String> devoluciones = entregas
-        .map((e) => e['devolucion_mkp']?.toString() ?? '')
-        .where((d) => d.isNotEmpty)
-        .toSet();
+    // Unir devoluciones de ambos orígenes
+    final Set<String> devoluciones = {
+      ...entregas
+          .map((e) => e['devolucion_mkp']?.toString() ?? '')
+          .where((d) => d.isNotEmpty),
+      ...guias
+          .map((g) => g['devolucion']?.toString() ?? '')
+          .where((d) => d.isNotEmpty),
+    };
     final Map<String, Map<String, dynamic>> guiasMap = {
-      for (var g in guias) g['devolucion'] ?? '': g
+      for (var g in guias) g['devolucion']?.toString() ?? '': g
     };
     int count = 0;
     for (final dev in devoluciones) {
