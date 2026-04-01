@@ -142,7 +142,13 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   void _agregarFila(List<Map<String, dynamic>> registros) async {
     final nuevaLista = List<Map<String, dynamic>>.from(registros);
-    nuevaLista.add({'devolucion': '', 'guia': '', 'fecha': ''});
+    nuevaLista.insert(0, {'devolucion': '', 'guia': '', 'fecha': ''});
+    // Ordenar: sin guía arriba, con guía abajo
+    nuevaLista.sort((a, b) {
+      final aGuia = (a['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
+      final bGuia = (b['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
+      return aGuia - bGuia;
+    });
     await guardarDatosFirestoreYCache('guias', 'mkp', {'items': nuevaLista});
   }
 
@@ -193,16 +199,19 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
           items.whereType<Map<String, dynamic>>(),
         );
         final registrosFiltrados = _filtro.isEmpty
-            ? registros
+            ? List<Map<String, dynamic>>.from(registros)
             : registros.where((r) {
                 final dev = (r['devolucion'] ?? '').toString().toLowerCase();
-                final devMkp =
-                    (r['devolucion_mkp'] ?? '').toString().toLowerCase();
+                final devMkp = (r['devolucion_mkp'] ?? '').toString().toLowerCase();
                 final guia = (r['guia'] ?? '').toString().toLowerCase();
-                return dev.contains(_filtro) ||
-                    devMkp.contains(_filtro) ||
-                    guia.contains(_filtro);
+                return dev.contains(_filtro) || devMkp.contains(_filtro) || guia.contains(_filtro);
               }).toList();
+        // Ordenar: sin guía arriba, con guía abajo
+        registrosFiltrados.sort((a, b) {
+          final aGuia = (a['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
+          final bGuia = (b['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
+          return aGuia - bGuia;
+        });
         final int devolucionesSinGuia = registros
             .where((r) =>
                 (r['devolucion'] ?? '').toString().isNotEmpty &&
