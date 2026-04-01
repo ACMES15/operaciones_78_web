@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class GuiasMkpPage extends StatefulWidget {
@@ -82,14 +81,10 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   void _agregarFila() {
     setState(() {
-      // Solo mostrar la nueva fila vacía para edición
-      _registros.insert(0, {'devolucion': '', 'guia': '', 'fecha': ''});
-      // Filtrar para mostrar solo filas vacías
-      _soloFilaNueva = true;
+      // Agrega una nueva fila vacía al final, sin eliminar ni filtrar otras filas
+      _registros.add({'devolucion': '', 'guia': '', 'fecha': ''});
     });
   }
-
-  bool _soloFilaNueva = false;
 
   Future<void> _guardar() async {
     setState(() => _guardando = true);
@@ -109,7 +104,6 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
             (r['devolucion'] ?? '').toString().isEmpty ||
             (r['guia'] ?? '').toString().isEmpty)
       ];
-      _soloFilaNueva = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registros guardados.')),
@@ -128,13 +122,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   @override
   Widget build(BuildContext context) {
     final registrosFiltrados = _filtro.isEmpty
-        ? (_soloFilaNueva
-            ? _registros
-                .where((r) =>
-                    (r['devolucion'] ?? '').isEmpty &&
-                    (r['guia'] ?? '').isEmpty)
-                .toList()
-            : _registros)
+        ? _registros
         : _registros.where((r) {
             final dev = (r['devolucion'] ?? '').toString().toLowerCase();
             final guia = (r['guia'] ?? '').toString().toLowerCase();
@@ -157,16 +145,23 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
       ),
       body: Center(
         child: Card(
-          elevation: 6,
+          elevation: 8,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          margin: const EdgeInsets.all(24),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 0),
           child: Container(
-            width: 900,
-            padding: const EdgeInsets.all(32),
+            constraints: const BoxConstraints(maxWidth: 1100),
+            padding: const EdgeInsets.all(36),
             decoration: BoxDecoration(
               color: const Color(0xFFF6F7FB),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
             child: _cargando
                 ? const Center(child: CircularProgressIndicator())
@@ -175,7 +170,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       SizedBox(
-                        width: 400,
+                        width: 420,
                         child: TextField(
                           controller: _busquedaController,
                           decoration: InputDecoration(
@@ -223,8 +218,10 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                 (reg['guia'] ?? '').toString().isNotEmpty;
                             return DataRow(cells: [
                               DataCell(
-                                !esCompleto
-                                    ? TextFormField(
+                                esCompleto
+                                    ? Text(reg['devolucion'] ?? '',
+                                        style: const TextStyle(fontSize: 15))
+                                    : TextFormField(
                                         initialValue: reg['devolucion'] ?? '',
                                         decoration: const InputDecoration(
                                           border: InputBorder.none,
@@ -237,13 +234,14 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                             _registros.indexOf(reg),
                                             'devolucion',
                                             v),
-                                      )
-                                    : Text(reg['devolucion'] ?? '',
-                                        style: const TextStyle(fontSize: 15)),
+                                        enabled: true,
+                                      ),
                               ),
                               DataCell(
-                                !esCompleto
-                                    ? TextFormField(
+                                esCompleto
+                                    ? Text(reg['guia'] ?? '',
+                                        style: const TextStyle(fontSize: 15))
+                                    : TextFormField(
                                         initialValue: reg['guia'] ?? '',
                                         decoration: const InputDecoration(
                                           border: InputBorder.none,
@@ -254,9 +252,8 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                             fontWeight: FontWeight.w500),
                                         onChanged: (v) => _actualizarCampo(
                                             _registros.indexOf(reg), 'guia', v),
-                                      )
-                                    : Text(reg['guia'] ?? '',
-                                        style: const TextStyle(fontSize: 15)),
+                                        enabled: true,
+                                      ),
                               ),
                               DataCell(
                                 Text(

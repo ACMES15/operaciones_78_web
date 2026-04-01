@@ -136,6 +136,11 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
             tooltip: 'Exportar a Excel',
             onPressed: _exportarAExcel,
           ),
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
+            tooltip: 'Forzar recarga',
+            onPressed: _cargarRegistros,
+          ),
         ],
       ),
       body: Padding(
