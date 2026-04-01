@@ -213,12 +213,13 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   @override
   Widget build(BuildContext context) {
     final registrosFiltrados = _filtro.isEmpty
-      ? _registros
-      : _registros.where((r) {
-        final dev = (r['devolucion'] ?? '').toString().toLowerCase();
-        final guia = (r['guia'] ?? '').toString().toLowerCase();
-        return dev.contains(_filtro) || guia.contains(_filtro);
-        }).toList();
+        ? _registros
+        : _registros.where((r) {
+            final dev = (r['devolucion'] ?? '').toString().toLowerCase();
+            final devMkp = (r['devolucion_mkp'] ?? '').toString().toLowerCase();
+            final guia = (r['guia'] ?? '').toString().toLowerCase();
+            return dev.contains(_filtro) || devMkp.contains(_filtro) || guia.contains(_filtro);
+          }).toList();
     // Contador de devoluciones sin guía
     final int devolucionesSinGuia = _registros.where((r) => (r['devolucion'] ?? '').toString().isNotEmpty && (r['guia'] ?? '').toString().isEmpty).length;
     return Scaffold(

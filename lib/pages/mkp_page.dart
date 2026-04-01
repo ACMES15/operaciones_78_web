@@ -23,37 +23,24 @@ class MkpPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(
-              width: 320,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.assignment),
-                    label: const Text('Registro de Guías MKP'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 32, vertical: 18),
-                      textStyle: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const GuiasMkpPage()),
-                      );
-                    },
-                  ),
-                  Positioned(
-                    right: 18,
-                    top: 10,
-                    child: MkpBadgeCounter(
-                      child: const SizedBox(width: 0, height: 0),
-                    ),
-                  ),
-                ],
+            ElevatedButton.icon(
+              icon: MkpBadgeCounter(
+                child: const Icon(Icons.assignment),
               ),
+              label: const Text('Registro de Guías MKP'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2D6A4F),
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+                textStyle:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GuiasMkpPage()),
+                );
+              },
             ),
             const SizedBox(height: 32),
             ElevatedButton.icon(
