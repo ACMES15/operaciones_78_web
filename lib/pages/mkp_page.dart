@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'guias_mkp_page.dart';
+import '../widgets/mkp_badge_counter.dart';
 
 class MkpPage extends StatelessWidget {
   const MkpPage({Key? key}) : super(key: key);
@@ -23,7 +24,9 @@ class MkpPage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton.icon(
-              icon: const Icon(Icons.assignment),
+              icon: MkpBadgeCounter(
+                child: const Icon(Icons.assignment),
+              ),
               label: const Text('Registro de Guías MKP'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2D6A4F),

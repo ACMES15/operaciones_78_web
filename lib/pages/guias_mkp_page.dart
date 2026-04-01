@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:excel/excel.dart';
+import 'dart:typed_data';
+import 'dart:html' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';// import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class GuiasMkpPage extends StatefulWidget {
@@ -8,7 +12,95 @@ class GuiasMkpPage extends StatefulWidget {
   State<GuiasMkpPage> createState() => _GuiasMkpPageState();
 }
 
+
+
 class _GuiasMkpPageState extends State<GuiasMkpPage> {
+  // Notifica a admins si hay devoluciones sin guía con más de 24h
+  Future<void> _notificarDevolucionesSinGuia() async {
+    final ahora = DateTime.now();
+    // Buscar devoluciones sin guía y con fecha > 24h
+    final sinGuia24h = _registros.where((r) {
+      if ((r['devolucion'] ?? '').toString().isEmpty || (r['guia'] ?? '').toString().isNotEmpty) return false;
+      final fechaStr = r['fecha'] ?? '';
+      if (fechaStr.isEmpty) return false;
+      DateTime? fecha;
+      try {
+        fecha = DateTime.parse(fechaStr);
+      } catch (_) {
+        return false;
+      }
+      return ahora.difference(fecha).inHours >= 24;
+    }).toList();
+    if (sinGuia24h.isEmpty) return;
+
+    final admins = ['ADMIN OMNICANAL', 'ADMIN ENVIOS'];
+    final mensaje = 'Se tienen Devoluciones sin tratar un total de: ${sinGuia24h.length}';
+    final detalle = 'Devoluciones sin guía con más de 24h: ${sinGuia24h.map((r) => r['devolucion']).join(', ')}';
+    final fecha = ahora.toIso8601String();
+
+    // Leer notificaciones existentes
+    final doc = await FirebaseFirestore.instance.collection('notificaciones').doc('password').get();
+    List items = [];
+    if (doc.exists && doc.data() != null) {
+      items = (doc.data()!['items'] ?? []) as List;
+    }
+    // Revisar si ya se envió una notificación igual en las últimas 24h
+    final yaEnviada = items.any((n) {
+      if (n is! Map) return false;
+      if (n['mensaje'] != mensaje) return false;
+      if (n['fecha'] == null) return false;
+      try {
+        final f = DateTime.parse(n['fecha']);
+        return ahora.difference(f).inHours < 24;
+      } catch (_) {
+        return false;
+      }
+    });
+    if (yaEnviada) return;
+
+    // Agregar notificación para cada admin
+    for (final admin in admins) {
+      items.add({
+        'mensaje': mensaje,
+        'detalle': detalle,
+        'fecha': fecha,
+        'usuario': admin,
+        'atendido': false,
+      });
+    }
+    await FirebaseFirestore.instance.collection('notificaciones').doc('password').set({'items': items});
+  }
+    void _exportarAExcel(List<Map<String, dynamic>> registros) async {
+      if (registros.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay registros para exportar.')),
+        );
+        return;
+      }
+      final excel = Excel.createExcel();
+      final sheet = excel['Guías MKP'];
+      final headers = [
+        'Devolución',
+        'Guía',
+        'Fecha',
+      ];
+      sheet.appendRow(headers);
+      for (final reg in registros) {
+        sheet.appendRow([
+          reg['devolucion'] ?? '',
+          reg['guia'] ?? '',
+          reg['fecha'] ?? '',
+        ]);
+      }
+      final bytes = excel.encode()!;
+      final blob = html.Blob([Uint8List.fromList(bytes)],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', 'guias_mkp.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    }
   final TextEditingController _busquedaController = TextEditingController();
   String _filtro = '';
   bool _editando = true;
@@ -24,7 +116,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
       });
     });
     super.initState();
-    _cargarRegistros();
+    _cargarRegistros().then((_) => _notificarDevolucionesSinGuia());
   }
 
   Future<void> _cargarRegistros() async {
@@ -88,7 +180,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   Future<void> _guardar() async {
     setState(() => _guardando = true);
-    // Guardar solo los registros completos y márcalos como bloqueados
+    // Guardar TODOS los registros (incluyendo incompletos) y bloquear solo los completos
     final items = _registros.map((r) {
       final completo = (r['devolucion'] ?? '').toString().isNotEmpty &&
           (r['guia'] ?? '').toString().isNotEmpty &&
@@ -99,10 +191,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
         return {...r, 'bloqueado': false};
       }
     }).toList();
-    // Solo guarda los completos en Firestore
-    final itemsCompletos = items.where((r) => r['bloqueado'] == true).toList();
-    await guardarDatosFirestoreYCache(
-        'guias', 'mkp', {'items': itemsCompletos});
+    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
     setState(() {
       _guardando = false;
       _registros = items;
@@ -124,18 +213,53 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   @override
   Widget build(BuildContext context) {
     final registrosFiltrados = _filtro.isEmpty
-        ? _registros
-        : _registros.where((r) {
-            final dev = (r['devolucion'] ?? '').toString().toLowerCase();
-            final guia = (r['guia'] ?? '').toString().toLowerCase();
-            final fecha = (r['fecha'] ?? '').toString().toLowerCase();
-            return dev.contains(_filtro) ||
-                guia.contains(_filtro) ||
-                fecha.contains(_filtro);
-          }).toList();
+      ? _registros
+      : _registros.where((r) {
+        final dev = (r['devolucion'] ?? '').toString().toLowerCase();
+        final guia = (r['guia'] ?? '').toString().toLowerCase();
+        return dev.contains(_filtro) || guia.contains(_filtro);
+        }).toList();
+    // Contador de devoluciones sin guía
+    final int devolucionesSinGuia = _registros.where((r) => (r['devolucion'] ?? '').toString().isNotEmpty && (r['guia'] ?? '').toString().isEmpty).length;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Registro de Guías MKP'),
+        title: Row(
+          children: [
+            Stack(
+              alignment: Alignment.topRight,
+              children: [
+                const Icon(Icons.assignment, color: Color(0xFF2D6A4F), size: 30),
+                if (devolucionesSinGuia > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 20,
+                        minHeight: 20,
+                      ),
+                      child: Text(
+                        devolucionesSinGuia.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            const Text('Registro de Guías MKP'),
+          ],
+        ),
         backgroundColor: Colors.white,
         elevation: 2,
         iconTheme: const IconThemeData(color: Color(0xFF2D6A4F)),
@@ -144,7 +268,15 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
           fontWeight: FontWeight.bold,
           fontSize: 22,
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
+            tooltip: 'Exportar a Excel',
+            onPressed: () => _exportarAExcel(registrosFiltrados),
+          ),
+        ],
       ),
+        // ...existing code...
       body: Center(
         child: Card(
           elevation: 8,
@@ -170,6 +302,59 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
+                      // Botones en la parte superior derecha
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          SizedBox(
+                            width: 180,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: const Text('Agregar fila'),
+                              onPressed: _agregarFila,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade600,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                textStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 14),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          SizedBox(
+                            width: 180,
+                            child: ElevatedButton.icon(
+                              icon: _guardando
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.save),
+                              label: const Text('Guardar'),
+                              onPressed: _editando && !_guardando ? _guardar : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.amber.shade700,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                textStyle: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 14),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
                       SizedBox(
                         width: 420,
                         child: TextField(
@@ -189,84 +374,96 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          headingRowColor: MaterialStateProperty.all(
-                              const Color(0xFF2D6A4F)),
-                          headingTextStyle: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
-                          dataRowColor:
-                              MaterialStateProperty.resolveWith<Color?>(
-                                  (states) {
-                            if (states.contains(MaterialState.selected)) {
-                              return Colors.amber.shade100;
-                            }
-                            return Colors.white;
-                          }),
-                          columns: const [
-                            DataColumn(label: Text('Devolución')),
-                            DataColumn(label: Text('Guía')),
-                            DataColumn(label: Text('Fecha')),
-                          ],
-                          rows: List.generate(registrosFiltrados.length, (idx) {
-                            final reg = registrosFiltrados[idx];
-                            final bloqueado = reg['bloqueado'] == true;
-                            return DataRow(cells: [
-                              DataCell(
-                                bloqueado
-                                    ? Text(reg['devolucion'] ?? '',
-                                        style: const TextStyle(fontSize: 15))
-                                    : TextFormField(
-                                        initialValue: reg['devolucion'] ?? '',
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          hintText: 'Devolución',
-                                        ),
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500),
-                                        onChanged: (v) => _actualizarCampo(
-                                            _registros.indexOf(reg),
-                                            'devolucion',
-                                            v),
-                                        enabled: true,
-                                      ),
-                              ),
-                              DataCell(
-                                bloqueado
-                                    ? Text(reg['guia'] ?? '',
-                                        style: const TextStyle(fontSize: 15))
-                                    : TextFormField(
-                                        initialValue: reg['guia'] ?? '',
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          hintText: 'Guía',
-                                        ),
-                                        style: const TextStyle(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w500),
-                                        onChanged: (v) => _actualizarCampo(
-                                            _registros.indexOf(reg), 'guia', v),
-                                        enabled: true,
-                                      ),
-                              ),
-                              DataCell(
-                                Text(
-                                  (reg['fecha'] ?? '').toString().isEmpty
-                                      ? ''
-                                      : reg['fecha']
-                                          .toString()
-                                          .replaceFirst('T', ' ')
-                                          .substring(0, 19),
-                                  style: const TextStyle(
-                                      fontSize: 15, color: Color(0xFF2D6A4F)),
-                                ),
-                              ),
-                            ]);
-                          }),
+                      SizedBox(
+                        height: 400, // Altura fija para la tabla
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowColor: MaterialStateProperty.all(
+                                const Color(0xFF2D6A4F)),
+                            headingTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16),
+                            dataRowColor:
+                                MaterialStateProperty.resolveWith<Color?>(
+                                    (states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return Colors.amber.shade100;
+                              }
+                              return Colors.white;
+                            }),
+                            columns: const [
+                              DataColumn(label: Text('Devolución')),
+                              DataColumn(label: Text('Guía')),
+                              DataColumn(label: Text('Fecha')),
+                            ],
+                            rows: List.generate(registrosFiltrados.length > 8 ? registrosFiltrados.length : 8, (idx) {
+                              if (idx < registrosFiltrados.length) {
+                                final reg = registrosFiltrados[idx];
+                                final bloqueado = reg['bloqueado'] == true;
+                                return DataRow(cells: [
+                                  DataCell(
+                                    bloqueado
+                                        ? Text(reg['devolucion'] ?? '',
+                                            style: const TextStyle(fontSize: 15))
+                                        : TextFormField(
+                                            initialValue: reg['devolucion'] ?? '',
+                                            decoration: const InputDecoration(
+                                              border: InputBorder.none,
+                                              hintText: 'Devolución',
+                                            ),
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500),
+                                            onChanged: (v) => _actualizarCampo(
+                                                _registros.indexOf(reg),
+                                                'devolucion',
+                                                v),
+                                            enabled: true,
+                                          ),
+                                  ),
+                                  DataCell(
+                                    bloqueado
+                                        ? Text(reg['guia'] ?? '',
+                                            style: const TextStyle(fontSize: 15))
+                                        : TextFormField(
+                                            initialValue: reg['guia'] ?? '',
+                                            decoration: const InputDecoration(
+                                              border: InputBorder.none,
+                                              hintText: 'Guía',
+                                            ),
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w500),
+                                            onChanged: (v) => _actualizarCampo(
+                                                _registros.indexOf(reg), 'guia', v),
+                                            enabled: true,
+                                          ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      (reg['fecha'] ?? '').toString().isEmpty
+                                          ? ''
+                                          : reg['fecha']
+                                              .toString()
+                                              .replaceFirst('T', ' ')
+                                              .substring(0, 19),
+                                      style: const TextStyle(
+                                          fontSize: 15, color: Color(0xFF2D6A4F)),
+                                    ),
+                                  ),
+                                ]);
+                              } else {
+                                // Fila vacía para mantener el tamaño
+                                return const DataRow(cells: [
+                                  DataCell(Text('')),
+                                  DataCell(Text('')),
+                                  DataCell(Text('')),
+                                ]);
+                              }
+                            }),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
