@@ -379,15 +379,12 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: DataTable(
-                            headingRowColor: MaterialStateProperty.all(
-                                const Color(0xFF2D6A4F)),
+                            headingRowColor: MaterialStateProperty.all(const Color(0xFF2D6A4F)),
                             headingTextStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16),
-                            dataRowColor:
-                                MaterialStateProperty.resolveWith<Color?>(
-                                    (states) {
+                            dataRowColor: MaterialStateProperty.resolveWith<Color?>((states) {
                               if (states.contains(MaterialState.selected)) {
                                 return Colors.amber.shade100;
                               }
@@ -398,121 +395,64 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                               DataColumn(label: Text('Guía')),
                               DataColumn(label: Text('Fecha')),
                             ],
-                            rows: List.generate(registrosFiltrados.length > 8 ? registrosFiltrados.length : 8, (idx) {
-                              if (idx < registrosFiltrados.length) {
-                                final reg = registrosFiltrados[idx];
-                                final bloqueado = reg['bloqueado'] == true;
-                                return DataRow(cells: [
-                                  DataCell(
-                                    bloqueado
-                                        ? Text(reg['devolucion'] ?? '',
-                                            style: const TextStyle(fontSize: 15))
-                                        : TextFormField(
-                                            initialValue: reg['devolucion'] ?? '',
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              hintText: 'Devolución',
+                            rows: List.generate(
+                              (_registros.length > 8 ? _registros.length : 8),
+                              (idx) {
+                                if (idx < registrosFiltrados.length) {
+                                  final reg = registrosFiltrados[idx];
+                                  final bloqueado = reg['bloqueado'] == true;
+                                  return DataRow(cells: [
+                                    DataCell(
+                                      bloqueado
+                                          ? Text(reg['devolucion'] ?? '', style: const TextStyle(fontSize: 15))
+                                          : TextFormField(
+                                              initialValue: reg['devolucion'] ?? '',
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                hintText: 'Devolución',
+                                              ),
+                                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                              onChanged: (v) => _actualizarCampo(_registros.indexOf(reg), 'devolucion', v),
+                                              enabled: true,
                                             ),
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w500),
-                                            onChanged: (v) => _actualizarCampo(
-                                                _registros.indexOf(reg),
-                                                'devolucion',
-                                                v),
-                                            enabled: true,
-                                          ),
-                                  ),
-                                  DataCell(
-                                    bloqueado
-                                        ? Text(reg['guia'] ?? '',
-                                            style: const TextStyle(fontSize: 15))
-                                        : TextFormField(
-                                            initialValue: reg['guia'] ?? '',
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              hintText: 'Guía',
-                                            ),
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w500),
-                                            onChanged: (v) => _actualizarCampo(
-                                                _registros.indexOf(reg), 'guia', v),
-                                            enabled: true,
-                                          ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      (reg['fecha'] ?? '').toString().isEmpty
-                                          ? ''
-                                          : reg['fecha']
-                                              .toString()
-                                              .replaceFirst('T', ' ')
-                                              .substring(0, 19),
-                                      style: const TextStyle(
-                                          fontSize: 15, color: Color(0xFF2D6A4F)),
                                     ),
-                                  ),
-                                ]);
-                              } else {
-                                // Fila vacía para mantener el tamaño
-                                return const DataRow(cells: [
-                                  DataCell(Text('')),
-                                  DataCell(Text('')),
-                                  DataCell(Text('')),
-                                ]);
-                              }
-                            }),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 180,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.add),
-                          label: const Text('Agregar fila'),
-                          onPressed: _agregarFila,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade600,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                                    DataCell(
+                                      bloqueado
+                                          ? Text(reg['guia'] ?? '', style: const TextStyle(fontSize: 15))
+                                          : TextFormField(
+                                              initialValue: reg['guia'] ?? '',
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                hintText: 'Guía',
+                                              ),
+                                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                                              onChanged: (v) => _actualizarCampo(_registros.indexOf(reg), 'guia', v),
+                                              enabled: true,
+                                            ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        (reg['fecha'] ?? '').toString().isEmpty
+                                            ? ''
+                                            : reg['fecha'].toString().replaceFirst('T', ' ').substring(0, 19),
+                                        style: const TextStyle(fontSize: 15, color: Color(0xFF2D6A4F)),
+                                      ),
+                                    ),
+                                  ]);
+                                } else {
+                                  // Fila vacía para mantener el tamaño
+                                  return const DataRow(cells: [
+                                    DataCell(Text('')),
+                                    DataCell(Text('')),
+                                    DataCell(Text('')),
+                                  ]);
+                                }
+                              },
                             ),
-                            textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 14),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 180,
-                        child: ElevatedButton.icon(
-                          icon: _guardando
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                )
-                              : const Icon(Icons.save),
-                          label: const Text('Guardar'),
-                          onPressed: _editando && !_guardando ? _guardar : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber.shade700,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            textStyle: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 14),
-                          ),
-                        ),
-                      ),
+                      // ... Botones duplicados eliminados ...
                     ],
                   ),
           ),

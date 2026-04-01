@@ -20,21 +20,38 @@ class _MkpBadgeCounterState extends State<MkpBadgeCounter> {
   }
 
   Future<void> _loadCount() async {
-    final doc = await FirebaseFirestore.instance
+    // Leer devoluciones de Entregas MKP y guías guardadas para contar igual que en guias_mkp_page.dart
+    final entregasDoc = await FirebaseFirestore.instance
         .collection('entregas')
         .doc('mkp')
         .get();
+    final guiasDoc =
+        await FirebaseFirestore.instance.collection('guias').doc('mkp').get();
+    List<Map<String, dynamic>> entregas = [];
+    List<Map<String, dynamic>> guias = [];
+    if (entregasDoc.exists && entregasDoc.data()?['items'] is List) {
+      entregas = List<Map<String, dynamic>>.from(
+        (entregasDoc.data()!['items'] as List)
+            .whereType<Map<String, dynamic>>(),
+      );
+    }
+    if (guiasDoc.exists && guiasDoc.data()?['items'] is List) {
+      guias = List<Map<String, dynamic>>.from(
+        (guiasDoc.data()!['items'] as List).whereType<Map<String, dynamic>>(),
+      );
+    }
+    final Set<String> devoluciones = entregas
+        .map((e) => e['devolucion_mkp']?.toString() ?? '')
+        .where((d) => d.isNotEmpty)
+        .toSet();
+    final Map<String, Map<String, dynamic>> guiasMap = {
+      for (var g in guias) g['devolucion'] ?? '': g
+    };
     int count = 0;
-    if (doc.exists) {
-      final data = doc.data() ?? {};
-      if (data['items'] is List) {
-        for (final reg in data['items']) {
-          if (reg is Map &&
-              (reg['devolucion_mkp'] ?? '').toString().isNotEmpty &&
-              (reg['guia'] ?? '').toString().isEmpty) {
-            count++;
-          }
-        }
+    for (final dev in devoluciones) {
+      final reg = guiasMap[dev];
+      if (reg == null || (reg['guia'] ?? '').toString().isEmpty) {
+        count++;
       }
     }
     setState(() {
