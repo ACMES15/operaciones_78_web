@@ -88,22 +88,24 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   Future<void> _guardar() async {
     setState(() => _guardando = true);
-    // Guardar solo los registros completos
-    final items = _registros
-        .where((r) =>
-            (r['devolucion'] ?? '').toString().isNotEmpty &&
-            (r['guia'] ?? '').toString().isNotEmpty)
-        .toList();
-    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
+    // Guardar solo los registros completos y márcalos como bloqueados
+    final items = _registros.map((r) {
+      final completo = (r['devolucion'] ?? '').toString().isNotEmpty &&
+          (r['guia'] ?? '').toString().isNotEmpty &&
+          (r['fecha'] ?? '').toString().isNotEmpty;
+      if (completo) {
+        return {...r, 'bloqueado': true};
+      } else {
+        return {...r, 'bloqueado': false};
+      }
+    }).toList();
+    // Solo guarda los completos en Firestore
+    final itemsCompletos = items.where((r) => r['bloqueado'] == true).toList();
+    await guardarDatosFirestoreYCache(
+        'guias', 'mkp', {'items': itemsCompletos});
     setState(() {
       _guardando = false;
-      // Solo los registros completos quedan bloqueados
-      _registros = [
-        ...items,
-        ..._registros.where((r) =>
-            (r['devolucion'] ?? '').toString().isEmpty ||
-            (r['guia'] ?? '').toString().isEmpty)
-      ];
+      _registros = items;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registros guardados.')),
@@ -146,8 +148,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
       body: Center(
         child: Card(
           elevation: 8,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 0),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 1100),
@@ -212,13 +213,10 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                           ],
                           rows: List.generate(registrosFiltrados.length, (idx) {
                             final reg = registrosFiltrados[idx];
-                            final esCompleto = (reg['devolucion'] ?? '')
-                                    .toString()
-                                    .isNotEmpty &&
-                                (reg['guia'] ?? '').toString().isNotEmpty;
+                            final bloqueado = reg['bloqueado'] == true;
                             return DataRow(cells: [
                               DataCell(
-                                esCompleto
+                                bloqueado
                                     ? Text(reg['devolucion'] ?? '',
                                         style: const TextStyle(fontSize: 15))
                                     : TextFormField(
@@ -238,7 +236,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                       ),
                               ),
                               DataCell(
-                                esCompleto
+                                bloqueado
                                     ? Text(reg['guia'] ?? '',
                                         style: const TextStyle(fontSize: 15))
                                     : TextFormField(
@@ -271,58 +269,52 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                           }),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 180,
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.add),
-                              label: const Text('Agregar fila'),
-                              onPressed: _editando ? _agregarFila : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2D6A4F),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                textStyle: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 14),
-                              ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: 180,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: const Text('Agregar fila'),
+                          onPressed: _agregarFila,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade600,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                            textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
                           ),
-                          const SizedBox(width: 32),
-                          SizedBox(
-                            width: 180,
-                            child: ElevatedButton.icon(
-                              icon: _guardando
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.save),
-                              label: const Text('Guardar'),
-                              onPressed:
-                                  _editando && !_guardando ? _guardar : null,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.amber.shade700,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                textStyle: const TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 16),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 24, vertical: 14),
-                              ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: 180,
+                        child: ElevatedButton.icon(
+                          icon: _guardando
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.save),
+                          label: const Text('Guardar'),
+                          onPressed: _editando && !_guardando ? _guardar : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.amber.shade700,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                            textStyle: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 14),
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),

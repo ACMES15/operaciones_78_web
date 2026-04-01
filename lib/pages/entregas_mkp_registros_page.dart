@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:excel/excel.dart';
 import 'dart:typed_data';
 import 'dart:html' as html;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import '../utils/firebase_cache_utils.dart';
 
 class EntregasMkpRegistrosPage extends StatefulWidget {
@@ -27,11 +30,23 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
 
   Future<void> _cargarRegistros() async {
     setState(() => _cargando = true);
-    final cache = await leerDatosConCache('entregas', 'mkp');
+    // Leer SIEMPRE desde Firestore y actualizar el cache local
+    final doc = await FirebaseFirestore.instance
+        .collection('entregas')
+        .doc('mkp')
+        .get();
+    Map<String, dynamic> data = {};
+    if (doc.exists) {
+      data = doc.data() ?? {};
+      // Actualiza el cache local
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = 'entregas_mkp';
+      await prefs.setString(cacheKey, jsonEncode(data));
+    }
     List<Map<String, dynamic>> registros = [];
-    if (cache != null && cache['items'] is List) {
+    if (data['items'] is List) {
       registros = List<Map<String, dynamic>>.from(
-        (cache['items'] as List).whereType<Map<String, dynamic>>(),
+        (data['items'] as List).whereType<Map<String, dynamic>>(),
       );
     }
     setState(() {
