@@ -262,49 +262,69 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                   ))
                               .toList(),
                         ),
-                        ...List.generate(
-                            _controllers.isEmpty ? 1 : _controllers.length,
-                            (rowIdx) {
-                          final rowCtrls = _controllers.isEmpty
-                              ? List.generate(_headers.length,
-                                  (i) => TextEditingController())
-                              : _controllers[rowIdx];
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: rowIdx % 2 == 0
-                                  ? Colors.white
-                                  : Colors.grey.shade50,
-                            ),
-                            children: List.generate(_headers.length, (colIdx) {
-                              final isEditable = colIdx <
-                                  _headers.length - 1; // JEFATURA no editable
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 2, horizontal: 2),
-                                child: isEditable
-                                    ? TextField(
-                                        controller: rowCtrls[colIdx],
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 8, horizontal: 4),
-                                        ),
-                                        style: const TextStyle(fontSize: 13),
-                                        onChanged: (_) {
-                                          if (_headers[colIdx] == 'SECCION') {
-                                            _actualizarJefatura(rowIdx);
-                                          }
-                                        },
-                                      )
-                                    : Text(rowCtrls[colIdx].text,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13)),
-                              );
-                            }),
-                          );
-                        }),
+                        if (_controllers.isEmpty)
+                          TableRow(
+                            children: [
+                              TableCell(
+                                verticalAlignment:
+                                    TableCellVerticalAlignment.middle,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: Text(
+                                      'Sin datos. Usa "Importar Excel" o "Agregar fila".',
+                                      style: TextStyle(
+                                          color: Colors.grey.shade600,
+                                          fontSize: 16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              ...List.generate(
+                                  _headers.length - 1, (i) => const SizedBox()),
+                            ],
+                          )
+                        else
+                          ...List.generate(_controllers.length, (rowIdx) {
+                            final rowCtrls = _controllers[rowIdx];
+                            return TableRow(
+                              decoration: BoxDecoration(
+                                color: rowIdx % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50,
+                              ),
+                              children:
+                                  List.generate(_headers.length, (colIdx) {
+                                final isEditable = colIdx <
+                                    _headers.length - 1; // JEFATURA no editable
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 2, horizontal: 2),
+                                  child: isEditable
+                                      ? TextField(
+                                          controller: rowCtrls[colIdx],
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 4),
+                                          ),
+                                          style: const TextStyle(fontSize: 13),
+                                          onChanged: (_) {
+                                            if (_headers[colIdx] == 'SECCION') {
+                                              _actualizarJefatura(rowIdx);
+                                            }
+                                          },
+                                        )
+                                      : Text(rowCtrls[colIdx].text,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13)),
+                                );
+                              }),
+                            );
+                          }),
                       ],
                     ),
                   ),
