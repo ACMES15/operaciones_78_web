@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:excel/excel.dart' as excel;
@@ -12,44 +11,8 @@ class ReporteMkpPage extends StatefulWidget {
 }
 
 class _ReporteMkpPageState extends State<ReporteMkpPage> {
-  // Mapa de SECCION -> JEFATURA (NOMBRE)
-  Map<String, String> _seccionToJefatura = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarJefaturas();
-  }
-
-  Future<void> _cargarJefaturas() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('plantilla_ejecutiva')
-        .doc('datos')
-        .get();
-    if (doc.exists && doc.data() != null && doc.data()!['datos'] != null) {
-      final raw = doc.data()!['datos'] as List;
-      for (final fila in raw) {
-        if (fila is Map && fila['SECCION'] != null && fila['NOMBRE'] != null) {
-          _seccionToJefatura[fila['SECCION'].toString().trim()] =
-              fila['NOMBRE'].toString().trim();
-        }
-      }
-    }
-  }
-
-  void _actualizarJefatura(int rowIdx) {
-    final seccionIdx = _headers.indexOf('SECCION');
-    final jefaturaIdx = _headers.indexOf('JEFATURA');
-    if (seccionIdx == -1 || jefaturaIdx == -1) return;
-    final seccion = _controllers[rowIdx][seccionIdx].text.trim();
-    final jefatura = _seccionToJefatura[seccion] ?? '';
-    setState(() {
-      _controllers[rowIdx][jefaturaIdx].text = jefatura;
-    });
-  }
-
-  // Columnas de la tabla
-  static const List<String> columnas = [
+  // Encabezados ejecutivos
+  final List<String> _headers = [
     'NOMBRE CENTRO',
     'REmision',
     'ARTICULO',
@@ -61,13 +24,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
     'JEFATURA',
   ];
 
-  // Datos de la tabla
-  List<List<String>> filas = [];
   // Controladores para edición
   final List<List<TextEditingController>> _controllers = [];
-
-  // Encabezados esperados
-  List<String> get _headers => columnas;
 
   // Importar desde Excel
   Future<void> _importarExcel() async {
@@ -93,77 +51,25 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             );
             return;
           }
-          final headers = rows.first
-              .map((e) => (e?.value ?? '').toString().trim())
-              .toList();
-          // Mapear encabezados a índice
-          final headerMap = <String, int>{};
-          for (int i = 0; i < headers.length; i++) {
-            headerMap[headers[i]] = i;
-          }
-          // Solo requerimos encabezados hasta SECCION
-          final idxSeccion = _headers.indexOf('SECCION');
-          final requiredHeaders = _headers.sublist(0, idxSeccion + 1);
-          if (!requiredHeaders.every((h) => headerMap.containsKey(h))) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'El archivo debe tener los encabezados hasta SECCION.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-          final newFilas = <List<String>>[];
-          for (var i = 1; i < rows.length; i++) {
-            final row = rows[i];
-            if (row.every((c) => (c?.value ?? '').toString().trim().isEmpty))
-              continue;
-            // Construir la fila solo hasta SECCION
-            final fila = <String>[];
-            for (int j = 0; j <= idxSeccion; j++) {
-              final idx = headerMap[_headers[j]]!;
-              fila.add(
-                  idx < row.length ? (row[idx]?.value ?? '').toString() : '');
-            }
-            // Calcular JEFATURA
-            final seccion = fila[idxSeccion].trim();
-            fila.add(_seccionToJefatura[seccion] ?? '');
-            // Rellenar el resto de columnas si hay más después de JEFATURA
-            while (fila.length < _headers.length) {
-              fila.add('');
-            }
-            newFilas.add(fila);
-          }
           setState(() {
-            // Limpiar controladores previos
-            for (final row in _controllers) {
-              for (final ctrl in row) {
-                ctrl.dispose();
-              }
-            }
             _controllers.clear();
-            filas = newFilas;
-            for (final fila in filas) {
-              _controllers.add(List.generate(_headers.length,
-                  (i) => TextEditingController(text: fila[i])));
+            for (int i = 1; i < rows.length; i++) {
+              final row = rows[i];
+              final ctrls = List.generate(_headers.length, (colIdx) {
+                final val = colIdx < row.length && row[colIdx] != null
+                    ? row[colIdx]!.value.toString()
+                    : '';
+                return TextEditingController(text: val);
+              });
+              _controllers.add(ctrls);
             }
           });
-          if (newFilas.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('No se encontraron filas válidas en el archivo.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Importación exitosa: ${newFilas.length} filas.'),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Importación exitosa: ${rows.length - 1} filas.'),
+              backgroundColor: Colors.green,
+            ),
+          );
         });
       }
     });
@@ -171,8 +77,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
 
   void _agregarFila() {
     setState(() {
-      final nueva = List<String>.filled(_headers.length, '');
-      filas.add(nueva);
       _controllers
           .add(List.generate(_headers.length, (i) => TextEditingController()));
     });
@@ -243,8 +147,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                         for (int i = 0; i < _headers.length; i++)
                           i: const FlexColumnWidth(),
                       },
-                      defaultVerticalAlignment:
-                          TableCellVerticalAlignment.middle,
                       children: [
                         TableRow(
                           decoration:
@@ -262,31 +164,13 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                   ))
                               .toList(),
                         ),
-                        if (_controllers.isEmpty)
-                          TableRow(
-                            children: [
-                              TableCell(
-                                verticalAlignment:
-                                    TableCellVerticalAlignment.middle,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Center(
-                                    child: Text(
-                                      'Sin datos. Usa "Importar Excel" o "Agregar fila".',
-                                      style: TextStyle(
-                                          color: Colors.grey.shade600,
-                                          fontSize: 16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              ...List.generate(
-                                  _headers.length - 1, (i) => const SizedBox()),
-                            ],
-                          )
-                        else
-                          ...List.generate(_controllers.length, (rowIdx) {
-                            final rowCtrls = _controllers[rowIdx];
+                        ...List.generate(
+                          _controllers.isEmpty ? 1 : _controllers.length,
+                          (rowIdx) {
+                            final rowCtrls = _controllers.isEmpty
+                                ? List.generate(_headers.length,
+                                    (i) => TextEditingController())
+                                : _controllers[rowIdx];
                             return TableRow(
                               decoration: BoxDecoration(
                                 color: rowIdx % 2 == 0
@@ -295,8 +179,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                               ),
                               children:
                                   List.generate(_headers.length, (colIdx) {
-                                final isEditable = colIdx <
-                                    _headers.length - 1; // JEFATURA no editable
+                                final isEditable = colIdx < _headers.length - 1;
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 2, horizontal: 2),
@@ -311,11 +194,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                                     vertical: 8, horizontal: 4),
                                           ),
                                           style: const TextStyle(fontSize: 13),
-                                          onChanged: (_) {
-                                            if (_headers[colIdx] == 'SECCION') {
-                                              _actualizarJefatura(rowIdx);
-                                            }
-                                          },
                                         )
                                       : Text(rowCtrls[colIdx].text,
                                           style: const TextStyle(
@@ -324,7 +202,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                 );
                               }),
                             );
-                          }),
+                          },
+                        ),
                       ],
                     ),
                   ),
