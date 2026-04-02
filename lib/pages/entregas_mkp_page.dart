@@ -224,6 +224,19 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade700,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16),
+                                    textStyle: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
                                   onPressed:
                                       _guardando ? null : _guardarRegistro,
                                   child: _guardando
@@ -231,7 +244,8 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                                           width: 20,
                                           height: 20,
                                           child: CircularProgressIndicator(
-                                              strokeWidth: 2),
+                                              strokeWidth: 2,
+                                              color: Colors.white),
                                         )
                                       : const Text('Guardar'),
                                 ),

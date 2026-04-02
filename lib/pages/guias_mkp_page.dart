@@ -195,8 +195,13 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     );
   }
 
-  void _actualizarCampo(List<Map<String, dynamic>> registros, int idx,
-      String campo, String valor) async {
+  void _actualizarCampoPorClave(List<Map<String, dynamic>> registros,
+      Map<String, dynamic> reg, String campo, String valor) async {
+    // Buscar el índice real en la lista original por devolución y fecha
+    final idx = registros.indexWhere((r) =>
+        (r['devolucion'] ?? '') == (reg['devolucion'] ?? '') &&
+        (r['fecha'] ?? '') == (reg['fecha'] ?? ''));
+    if (idx == -1) return;
     final nuevaLista = List<Map<String, dynamic>>.from(registros);
     nuevaLista[idx][campo] = valor;
     if (campo == 'guia' && valor.trim().isNotEmpty) {
@@ -486,10 +491,9 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                           fontWeight:
                                                               FontWeight.w500),
                                                       onChanged: (v) =>
-                                                          _actualizarCampo(
+                                                          _actualizarCampoPorClave(
                                                               registros,
-                                                              registros
-                                                                  .indexOf(reg),
+                                                              reg,
                                                               'devolucion',
                                                               v),
                                                       enabled: true,
@@ -514,10 +518,9 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                           fontWeight:
                                                               FontWeight.w500),
                                                       onChanged: (v) =>
-                                                          _actualizarCampo(
+                                                          _actualizarCampoPorClave(
                                                               registros,
-                                                              registros
-                                                                  .indexOf(reg),
+                                                              reg,
                                                               'guia',
                                                               v),
                                                       enabled: true,
