@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/sincronizar_devoluciones_mkp.dart';
+import 'reporte_mkp_page.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class GuiasMkpPage extends StatefulWidget {
@@ -360,6 +361,32 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                             onPressed: () => _agregarFila(registros),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green.shade600,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              textStyle: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 16),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 14),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 180,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.assignment),
+                            label: const Text('Reporte MKP'),
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const ReporteMkpPage(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey.shade800,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
