@@ -373,32 +373,6 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        SizedBox(
-                          width: 180,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.assignment),
-                            label: const Text('Reporte MKP'),
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const ReporteMkpPage(),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blueGrey.shade800,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              textStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         IconButton(
                           icon: _sincronizando
                               ? const SizedBox(

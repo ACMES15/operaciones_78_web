@@ -1,4 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import 'package:excel/excel.dart' as excel;
+import 'dart:html' as html;
 
 class ReporteMkpPage extends StatefulWidget {
   const ReporteMkpPage({Key? key}) : super(key: key);
@@ -8,6 +12,42 @@ class ReporteMkpPage extends StatefulWidget {
 }
 
 class _ReporteMkpPageState extends State<ReporteMkpPage> {
+  // Mapa de SECCION -> JEFATURA (NOMBRE)
+  Map<String, String> _seccionToJefatura = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarJefaturas();
+  }
+
+  Future<void> _cargarJefaturas() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('plantilla_ejecutiva')
+        .doc('datos')
+        .get();
+    if (doc.exists && doc.data() != null && doc.data()!['datos'] != null) {
+      final raw = doc.data()!['datos'] as List;
+      for (final fila in raw) {
+        if (fila is Map && fila['SECCION'] != null && fila['NOMBRE'] != null) {
+          _seccionToJefatura[fila['SECCION'].toString().trim()] =
+              fila['NOMBRE'].toString().trim();
+        }
+      }
+    }
+  }
+
+  void _actualizarJefatura(int rowIdx) {
+    final seccionIdx = _headers.indexOf('SECCION');
+    final jefaturaIdx = _headers.indexOf('JEFATURA');
+    if (seccionIdx == -1 || jefaturaIdx == -1) return;
+    final seccion = _controllers[rowIdx][seccionIdx].text.trim();
+    final jefatura = _seccionToJefatura[seccion] ?? '';
+    setState(() {
+      _controllers[rowIdx][jefaturaIdx].text = jefatura;
+    });
+  }
+
   // Columnas de la tabla
   static const List<String> columnas = [
     'NOMBRE CENTRO',
@@ -23,6 +63,88 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
 
   // Datos de la tabla
   List<List<String>> filas = [];
+  // Controladores para edición
+  final List<List<TextEditingController>> _controllers = [];
+
+  // Encabezados esperados
+  List<String> get _headers => columnas;
+
+  // Importar desde Excel
+  Future<void> _importarExcel() async {
+    final uploadInput = html.FileUploadInputElement();
+    uploadInput.accept = '.xlsx';
+    uploadInput.click();
+    uploadInput.onChange.listen((e) async {
+      final files = uploadInput.files;
+      if (files != null && files.isNotEmpty) {
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(files[0]);
+        reader.onLoadEnd.listen((event) async {
+          final bytes = reader.result as Uint8List;
+          final excelFile = excel.Excel.decodeBytes(bytes);
+          final sheet = excelFile.tables.values.first;
+          final rows = sheet.rows;
+          if (rows.isEmpty) return;
+          final headers = rows.first
+              .map((e) => (e?.value ?? '').toString().trim())
+              .toList();
+          if (!_headers.every((h) => headers.contains(h))) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content:
+                    Text('El archivo no tiene los encabezados requeridos.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+          final newFilas = <List<String>>[];
+          for (var i = 1; i < rows.length; i++) {
+            final row = rows[i];
+            if (row.every((c) => (c?.value ?? '').toString().trim().isEmpty))
+              continue;
+            final fila = List<String>.generate(_headers.length, (j) {
+              final idx = headers.indexOf(_headers[j]);
+              return idx >= 0 && idx < row.length
+                  ? (row[idx]?.value ?? '').toString()
+                  : '';
+            });
+            // Buscar JEFATURA por SECCION
+            final seccionIdx = _headers.indexOf('SECCION');
+            final jefaturaIdx = _headers.indexOf('JEFATURA');
+            if (seccionIdx != -1 && jefaturaIdx != -1) {
+              final seccion = fila[seccionIdx].trim();
+              fila[jefaturaIdx] = _seccionToJefatura[seccion] ?? '';
+            }
+            newFilas.add(fila);
+          }
+          setState(() {
+            filas = newFilas;
+            _controllers.clear();
+            for (final fila in filas) {
+              _controllers.add(List.generate(_headers.length,
+                  (i) => TextEditingController(text: fila[i])));
+            }
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Importación exitosa: ${newFilas.length} filas.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        });
+      }
+    });
+  }
+
+  void _agregarFila() {
+    setState(() {
+      final nueva = List<String>.filled(_headers.length, '');
+      filas.add(nueva);
+      _controllers
+          .add(List.generate(_headers.length, (i) => TextEditingController()));
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +170,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Importar Excel'),
-                  onPressed: () {}, // Implementar importación
+                  onPressed: _importarExcel,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
                     foregroundColor: Colors.white,
@@ -58,7 +180,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add),
                   label: const Text('Agregar fila'),
-                  onPressed: () {}, // Implementar agregar fila
+                  onPressed: _agregarFila,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
                       foregroundColor: Colors.white),
@@ -67,30 +189,101 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: columnas
-                      .map((col) => DataColumn(
-                          label: Text(col,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold))))
-                      .toList(),
-                  rows: filas.isEmpty
-                      ? [
-                          DataRow(
-                              cells: List.generate(columnas.length,
-                                  (i) => const DataCell(Text('')))),
-                        ]
-                      : filas
-                          .map((fila) => DataRow(
-                                cells: List.generate(
-                                  columnas.length,
-                                  (i) => DataCell(
-                                      Text(fila.length > i ? fila[i] : '')),
-                                ),
-                              ))
-                          .toList(),
+              child: Center(
+                child: Container(
+                  width: 1100,
+                  height: 420,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: BoxBorder.lerp(
+                        Border.all(color: Colors.grey.shade300),
+                        Border.all(color: Colors.grey.shade300),
+                        1)!,
+                  ),
+                  child: Scrollbar(
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: 1100,
+                        child: ListView(
+                          padding: EdgeInsets.zero,
+                          children: [
+                            DataTable(
+                              headingRowColor: MaterialStateProperty.all(
+                                  const Color(0xFF2D6A4F)),
+                              headingTextStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
+                              dataRowColor:
+                                  MaterialStateProperty.resolveWith<Color?>(
+                                      (states) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return Colors.amber.shade100;
+                                }
+                                return Colors.white;
+                              }),
+                              columns: _headers
+                                  .map((col) => DataColumn(
+                                      label: Text(col,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold))))
+                                  .toList(),
+                              rows: _controllers.isEmpty
+                                  ? [
+                                      DataRow(
+                                          cells: List.generate(_headers.length,
+                                              (i) => const DataCell(Text('')))),
+                                    ]
+                                  : List.generate(_controllers.length,
+                                      (rowIdx) {
+                                      final rowCtrls = _controllers[rowIdx];
+                                      return DataRow(
+                                        cells: List.generate(_headers.length,
+                                            (colIdx) {
+                                          final isEditable = colIdx <
+                                              _headers.length -
+                                                  1; // JEFATURA no editable
+                                          return DataCell(
+                                            isEditable
+                                                ? TextField(
+                                                    controller:
+                                                        rowCtrls[colIdx],
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      border: InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                              horizontal: 4),
+                                                    ),
+                                                    style: const TextStyle(
+                                                        fontSize: 15),
+                                                    onChanged: (_) {
+                                                      if (_headers[colIdx] ==
+                                                          'SECCION') {
+                                                        _actualizarJefatura(
+                                                            rowIdx);
+                                                      }
+                                                    },
+                                                  )
+                                                : Text(rowCtrls[colIdx].text,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold)),
+                                          );
+                                        }),
+                                      );
+                                    }),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
