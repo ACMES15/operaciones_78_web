@@ -101,11 +101,14 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
           for (int i = 0; i < headers.length; i++) {
             headerMap[headers[i]] = i;
           }
-          if (!_headers.every((h) => headerMap.containsKey(h))) {
+          // Solo requerimos encabezados hasta SECCION
+          final idxSeccion = _headers.indexOf('SECCION');
+          final requiredHeaders = _headers.sublist(0, idxSeccion + 1);
+          if (!requiredHeaders.every((h) => headerMap.containsKey(h))) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content:
-                    Text('El archivo no tiene los encabezados requeridos.'),
+                content: Text(
+                    'El archivo debe tener los encabezados hasta SECCION.'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -116,16 +119,19 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             final row = rows[i];
             if (row.every((c) => (c?.value ?? '').toString().trim().isEmpty))
               continue;
-            final fila = List<String>.generate(_headers.length, (j) {
+            // Construir la fila solo hasta SECCION
+            final fila = <String>[];
+            for (int j = 0; j <= idxSeccion; j++) {
               final idx = headerMap[_headers[j]]!;
-              return idx < row.length ? (row[idx]?.value ?? '').toString() : '';
-            });
-            // Buscar JEFATURA por SECCION
-            final seccionIdx = _headers.indexOf('SECCION');
-            final jefaturaIdx = _headers.indexOf('JEFATURA');
-            if (seccionIdx != -1 && jefaturaIdx != -1) {
-              final seccion = fila[seccionIdx].trim();
-              fila[jefaturaIdx] = _seccionToJefatura[seccion] ?? '';
+              fila.add(
+                  idx < row.length ? (row[idx]?.value ?? '').toString() : '');
+            }
+            // Calcular JEFATURA
+            final seccion = fila[idxSeccion].trim();
+            fila.add(_seccionToJefatura[seccion] ?? '');
+            // Rellenar el resto de columnas si hay más después de JEFATURA
+            while (fila.length < _headers.length) {
+              fila.add('');
             }
             newFilas.add(fila);
           }
@@ -215,48 +221,64 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: DataTable(
-                  columnSpacing: 12,
-                  headingRowColor:
-                      MaterialStateProperty.all(const Color(0xFF2D6A4F)),
-                  headingTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15),
-                  dataRowColor:
-                      MaterialStateProperty.resolveWith<Color?>((states) {
-                    if (states.contains(MaterialState.selected)) {
-                      return Colors.amber.shade100;
-                    }
-                    return Colors.white;
-                  }),
-                  columns: _headers
-                      .map((col) => DataColumn(
-                          label: Text(col,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 13))))
-                      .toList(),
-                  rows: _controllers.isEmpty
-                      ? [
-                          DataRow(
-                              cells: List.generate(_headers.length,
-                                  (i) => const DataCell(Text('')))),
-                        ]
-                      : List.generate(_controllers.length, (rowIdx) {
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 1400),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Table(
+                    border: TableBorder(
+                      horizontalInside:
+                          BorderSide(color: Colors.grey.shade300, width: 1),
+                      verticalInside:
+                          BorderSide(color: Colors.grey.shade400, width: 1),
+                    ),
+                    columnWidths: {
+                      for (int i = 0; i < _headers.length; i++)
+                        i: const FlexColumnWidth(),
+                    },
+                    children: [
+                      TableRow(
+                        decoration:
+                            const BoxDecoration(color: Color(0xFF2D6A4F)),
+                        children: _headers
+                            .map((col) => Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 10, horizontal: 4),
+                                  child: Center(
+                                    child: Text(col,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15)),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                      if (_controllers.isEmpty)
+                        TableRow(
+                          children: List.generate(_headers.length,
+                              (i) => const SizedBox(height: 36)),
+                        )
+                      else
+                        ...List.generate(_controllers.length, (rowIdx) {
                           final rowCtrls = _controllers[rowIdx];
-                          return DataRow(
-                            cells: List.generate(_headers.length, (colIdx) {
+                          return TableRow(
+                            decoration: BoxDecoration(
+                              color: rowIdx % 2 == 0
+                                  ? Colors.white
+                                  : Colors.grey.shade50,
+                            ),
+                            children: List.generate(_headers.length, (colIdx) {
                               final isEditable = colIdx <
                                   _headers.length - 1; // JEFATURA no editable
-                              return DataCell(
-                                isEditable
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 2, horizontal: 2),
+                                child: isEditable
                                     ? TextField(
                                         controller: rowCtrls[colIdx],
                                         decoration: const InputDecoration(
@@ -280,6 +302,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                             }),
                           );
                         }),
+                    ],
+                  ),
                 ),
               ),
             ),
