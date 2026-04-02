@@ -14,6 +14,25 @@ class GuiasMkpPage extends StatefulWidget {
 }
 
 class _GuiasMkpPageState extends State<GuiasMkpPage> {
+  // Controladores para cada celda editable
+  final Map<String, TextEditingController> _devolucionControllers = {};
+  final Map<String, TextEditingController> _guiaControllers = {};
+
+  // Genera una clave única para cada fila
+  String _rowKey(Map<String, dynamic> reg) =>
+      '${reg['devolucion'] ?? ''}_${reg['fecha'] ?? ''}';
+
+  @override
+  void dispose() {
+    for (final c in _devolucionControllers.values) {
+      c.dispose();
+    }
+    for (final c in _guiaControllers.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
   bool _sincronizando = false;
   Future<void> _sincronizarDevoluciones(
       BuildContext context, List<Map<String, dynamic>> registros) async {
@@ -476,27 +495,55 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                       reg['devolucion'] ?? '',
                                                       style: const TextStyle(
                                                           fontSize: 15))
-                                                  : TextFormField(
-                                                      initialValue:
-                                                          reg['devolucion'] ??
-                                                              '',
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        hintText: 'Devolución',
-                                                      ),
-                                                      style: const TextStyle(
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w500),
-                                                      onChanged: (v) =>
-                                                          _actualizarCampoPorClave(
-                                                              registros,
-                                                              reg,
-                                                              'devolucion',
-                                                              v),
-                                                      enabled: true,
+                                                  : Builder(
+                                                      builder: (context) {
+                                                        final key =
+                                                            _rowKey(reg);
+                                                        if (!_devolucionControllers
+                                                            .containsKey(key)) {
+                                                          _devolucionControllers[
+                                                                  key] =
+                                                              TextEditingController(
+                                                                  text:
+                                                                      reg['devolucion'] ??
+                                                                          '');
+                                                        } else {
+                                                          final ctrl =
+                                                              _devolucionControllers[
+                                                                  key]!;
+                                                          if (ctrl.text !=
+                                                              (reg['devolucion'] ??
+                                                                  '')) {
+                                                            ctrl.text =
+                                                                reg['devolucion'] ??
+                                                                    '';
+                                                          }
+                                                        }
+                                                        return TextField(
+                                                          controller:
+                                                              _devolucionControllers[
+                                                                  key],
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            hintText:
+                                                                'Devolución',
+                                                          ),
+                                                          style: const TextStyle(
+                                                              fontSize: 15,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500),
+                                                          onChanged: (v) =>
+                                                              _actualizarCampoPorClave(
+                                                                  registros,
+                                                                  reg,
+                                                                  'devolucion',
+                                                                  v),
+                                                          enabled: true,
+                                                        );
+                                                      },
                                                     ),
                                             ),
                                             DataCell(
@@ -504,26 +551,54 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                   ? Text(reg['guia'] ?? '',
                                                       style: const TextStyle(
                                                           fontSize: 15))
-                                                  : TextFormField(
-                                                      initialValue:
-                                                          reg['guia'] ?? '',
-                                                      decoration:
-                                                          const InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        hintText: 'Guía',
-                                                      ),
-                                                      style: const TextStyle(
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w500),
-                                                      onChanged: (v) =>
-                                                          _actualizarCampoPorClave(
-                                                              registros,
-                                                              reg,
-                                                              'guia',
-                                                              v),
-                                                      enabled: true,
+                                                  : Builder(
+                                                      builder: (context) {
+                                                        final key =
+                                                            _rowKey(reg);
+                                                        if (!_guiaControllers
+                                                            .containsKey(key)) {
+                                                          _guiaControllers[
+                                                                  key] =
+                                                              TextEditingController(
+                                                                  text:
+                                                                      reg['guia'] ??
+                                                                          '');
+                                                        } else {
+                                                          final ctrl =
+                                                              _guiaControllers[
+                                                                  key]!;
+                                                          if (ctrl.text !=
+                                                              (reg['guia'] ??
+                                                                  '')) {
+                                                            ctrl.text =
+                                                                reg['guia'] ??
+                                                                    '';
+                                                          }
+                                                        }
+                                                        return TextField(
+                                                          controller:
+                                                              _guiaControllers[
+                                                                  key],
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            hintText: 'Guía',
+                                                          ),
+                                                          style: const TextStyle(
+                                                              fontSize: 15,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w500),
+                                                          onChanged: (v) =>
+                                                              _actualizarCampoPorClave(
+                                                                  registros,
+                                                                  reg,
+                                                                  'guia',
+                                                                  v),
+                                                          enabled: true,
+                                                        );
+                                                      },
                                                     ),
                                             ),
                                             DataCell(
