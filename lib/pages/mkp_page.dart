@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'guias_mkp_page.dart';
+import 'reporte_mkp_page.dart';
 import '../widgets/mkp_badge_counter.dart';
 
 class MkpPage extends StatelessWidget {
@@ -55,7 +56,9 @@ class MkpPage extends StatelessWidget {
                     const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               onPressed: () {
-                // Navegación a Reporte MKP (pendiente)
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ReporteMkpPage()),
+                );
               },
             ),
           ],
