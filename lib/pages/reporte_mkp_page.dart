@@ -221,88 +221,95 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: Center(
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 1400),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Table(
-                    border: TableBorder(
-                      horizontalInside:
-                          BorderSide(color: Colors.grey.shade300, width: 1),
-                      verticalInside:
-                          BorderSide(color: Colors.grey.shade400, width: 1),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 1400),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
                     ),
-                    columnWidths: {
-                      for (int i = 0; i < _headers.length; i++)
-                        i: const FlexColumnWidth(),
-                    },
-                    children: [
-                      TableRow(
-                        decoration:
-                            const BoxDecoration(color: Color(0xFF2D6A4F)),
-                        children: _headers
-                            .map((col) => Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 10, horizontal: 4),
-                                  child: Center(
+                    child: Table(
+                      border: TableBorder(
+                        horizontalInside:
+                            BorderSide(color: Colors.grey.shade300, width: 1),
+                        verticalInside:
+                            BorderSide(color: Colors.grey.shade400, width: 1),
+                      ),
+                      columnWidths: {
+                        for (int i = 0; i < _headers.length; i++)
+                          i: const FlexColumnWidth(),
+                      },
+                      defaultVerticalAlignment:
+                          TableCellVerticalAlignment.middle,
+                      children: [
+                        TableRow(
+                          decoration:
+                              const BoxDecoration(color: Color(0xFF2D6A4F)),
+                          children: _headers
+                              .map((col) => Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10, horizontal: 4),
                                     child: Text(col,
+                                        textAlign: TextAlign.center,
                                         style: const TextStyle(
                                             color: Colors.white,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 15)),
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                      if (_controllers.isEmpty)
-                        TableRow(
-                          children: List.generate(_headers.length,
-                              (i) => const SizedBox(height: 36)),
-                        )
-                      else
-                        ...List.generate(_controllers.length, (rowIdx) {
-                          final rowCtrls = _controllers[rowIdx];
-                          return TableRow(
-                            decoration: BoxDecoration(
-                              color: rowIdx % 2 == 0
-                                  ? Colors.white
-                                  : Colors.grey.shade50,
-                            ),
-                            children: List.generate(_headers.length, (colIdx) {
-                              final isEditable = colIdx <
-                                  _headers.length - 1; // JEFATURA no editable
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 2, horizontal: 2),
-                                child: isEditable
-                                    ? TextField(
-                                        controller: rowCtrls[colIdx],
-                                        decoration: const InputDecoration(
-                                          border: InputBorder.none,
-                                          isDense: true,
-                                          contentPadding: EdgeInsets.symmetric(
-                                              vertical: 8, horizontal: 4),
-                                        ),
-                                        style: const TextStyle(fontSize: 13),
-                                        onChanged: (_) {
-                                          if (_headers[colIdx] == 'SECCION') {
-                                            _actualizarJefatura(rowIdx);
-                                          }
-                                        },
-                                      )
-                                    : Text(rowCtrls[colIdx].text,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13)),
-                              );
-                            }),
-                          );
-                        }),
-                    ],
+                                  ))
+                              .toList(),
+                        ),
+                        if (_controllers.isEmpty)
+                          TableRow(
+                            children: List.generate(_headers.length,
+                                (i) => const SizedBox(height: 36)),
+                          )
+                        else
+                          ...List.generate(_controllers.length, (rowIdx) {
+                            final rowCtrls = _controllers[rowIdx];
+                            return TableRow(
+                              decoration: BoxDecoration(
+                                color: rowIdx % 2 == 0
+                                    ? Colors.white
+                                    : Colors.grey.shade50,
+                              ),
+                              children:
+                                  List.generate(_headers.length, (colIdx) {
+                                final isEditable = colIdx <
+                                    _headers.length - 1; // JEFATURA no editable
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 2, horizontal: 2),
+                                  child: isEditable
+                                      ? TextField(
+                                          controller: rowCtrls[colIdx],
+                                          decoration: const InputDecoration(
+                                            border: InputBorder.none,
+                                            isDense: true,
+                                            contentPadding:
+                                                EdgeInsets.symmetric(
+                                                    vertical: 8, horizontal: 4),
+                                          ),
+                                          style: const TextStyle(fontSize: 13),
+                                          onChanged: (_) {
+                                            if (_headers[colIdx] == 'SECCION') {
+                                              _actualizarJefatura(rowIdx);
+                                            }
+                                          },
+                                        )
+                                      : Text(rowCtrls[colIdx].text,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13)),
+                                );
+                              }),
+                            );
+                          }),
+                      ],
+                    ),
                   ),
                 ),
               ),
