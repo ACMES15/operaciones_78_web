@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:typed_data';
 import 'dart:html' as html;
-import 'package:cloud_firestore/cloud_firestore.dart'; // import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/sincronizar_devoluciones_mkp.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class GuiasMkpPage extends StatefulWidget {
@@ -13,6 +14,27 @@ class GuiasMkpPage extends StatefulWidget {
 }
 
 class _GuiasMkpPageState extends State<GuiasMkpPage> {
+  bool _sincronizando = false;
+  Future<void> _sincronizarDevoluciones(
+      BuildContext context, List<Map<String, dynamic>> registros) async {
+    setState(() => _sincronizando = true);
+    try {
+      final count = await sincronizarDevolucionesMKP();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(count > 0
+                ? 'Se agregaron $count devoluciones nuevas.'
+                : 'No hay devoluciones nuevas para agregar.')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al sincronizar: $e')),
+      );
+    } finally {
+      setState(() => _sincronizando = false);
+    }
+  }
+
   // Notifica a admins si hay devoluciones sin guía con más de 24h
   Future<void> _notificarDevolucionesSinGuia(
       List<Map<String, dynamic>> registros) async {
@@ -202,9 +224,12 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
             ? List<Map<String, dynamic>>.from(registros)
             : registros.where((r) {
                 final dev = (r['devolucion'] ?? '').toString().toLowerCase();
-                final devMkp = (r['devolucion_mkp'] ?? '').toString().toLowerCase();
+                final devMkp =
+                    (r['devolucion_mkp'] ?? '').toString().toLowerCase();
                 final guia = (r['guia'] ?? '').toString().toLowerCase();
-                return dev.contains(_filtro) || devMkp.contains(_filtro) || guia.contains(_filtro);
+                return dev.contains(_filtro) ||
+                    devMkp.contains(_filtro) ||
+                    guia.contains(_filtro);
               }).toList();
         // Ordenar: sin guía arriba, con guía abajo
         registrosFiltrados.sort((a, b) {
@@ -322,7 +347,23 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: _sincronizando
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.sync),
+                          tooltip: 'Sincronizar devoluciones',
+                          onPressed: _sincronizando
+                              ? null
+                              : () =>
+                                  _sincronizarDevoluciones(context, registros),
+                        ),
+                        const SizedBox(width: 8),
                         SizedBox(
                           width: 180,
                           child: ElevatedButton.icon(
