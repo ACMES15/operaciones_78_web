@@ -84,11 +84,24 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
           final excelFile = excel.Excel.decodeBytes(bytes);
           final sheet = excelFile.tables.values.first;
           final rows = sheet.rows;
-          if (rows.isEmpty) return;
+          if (rows.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('El archivo está vacío.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
           final headers = rows.first
               .map((e) => (e?.value ?? '').toString().trim())
               .toList();
-          if (!_headers.every((h) => headers.contains(h))) {
+          // Mapear encabezados a índice
+          final headerMap = <String, int>{};
+          for (int i = 0; i < headers.length; i++) {
+            headerMap[headers[i]] = i;
+          }
+          if (!_headers.every((h) => headerMap.containsKey(h))) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content:
@@ -104,10 +117,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             if (row.every((c) => (c?.value ?? '').toString().trim().isEmpty))
               continue;
             final fila = List<String>.generate(_headers.length, (j) {
-              final idx = headers.indexOf(_headers[j]);
-              return idx >= 0 && idx < row.length
-                  ? (row[idx]?.value ?? '').toString()
-                  : '';
+              final idx = headerMap[_headers[j]]!;
+              return idx < row.length ? (row[idx]?.value ?? '').toString() : '';
             });
             // Buscar JEFATURA por SECCION
             final seccionIdx = _headers.indexOf('SECCION');
@@ -126,12 +137,21 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                   (i) => TextEditingController(text: fila[i])));
             }
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Importación exitosa: ${newFilas.length} filas.'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          if (newFilas.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('No se encontraron filas válidas en el archivo.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Importación exitosa: ${newFilas.length} filas.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         });
       }
     });
@@ -189,97 +209,90 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: Center(
-                child: Container(
-                  width: 1100,
-                  height: 420,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: BoxBorder.lerp(
-                        Border.all(color: Colors.grey.shade300),
-                        Border.all(color: Colors.grey.shade300),
-                        1)!,
-                  ),
-                  child: Scrollbar(
-                    thumbVisibility: true,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(
-                        width: 1100,
-                        child: ListView(
-                          padding: EdgeInsets.zero,
-                          children: [
-                            DataTable(
-                              headingRowColor: MaterialStateProperty.all(
-                                  const Color(0xFF2D6A4F)),
-                              headingTextStyle: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16),
-                              dataRowColor:
-                                  MaterialStateProperty.resolveWith<Color?>(
-                                      (states) {
-                                if (states.contains(MaterialState.selected)) {
-                                  return Colors.amber.shade100;
-                                }
-                                return Colors.white;
-                              }),
-                              columns: _headers
-                                  .map((col) => DataColumn(
-                                      label: Text(col,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.bold))))
-                                  .toList(),
-                              rows: _controllers.isEmpty
-                                  ? [
-                                      DataRow(
-                                          cells: List.generate(_headers.length,
-                                              (i) => const DataCell(Text('')))),
-                                    ]
-                                  : List.generate(_controllers.length,
-                                      (rowIdx) {
-                                      final rowCtrls = _controllers[rowIdx];
-                                      return DataRow(
-                                        cells: List.generate(_headers.length,
-                                            (colIdx) {
-                                          final isEditable = colIdx <
-                                              _headers.length -
-                                                  1; // JEFATURA no editable
-                                          return DataCell(
-                                            isEditable
-                                                ? TextField(
-                                                    controller:
-                                                        rowCtrls[colIdx],
-                                                    decoration:
-                                                        const InputDecoration(
-                                                      border: InputBorder.none,
-                                                      isDense: true,
-                                                      contentPadding:
-                                                          EdgeInsets.symmetric(
-                                                              vertical: 8,
-                                                              horizontal: 4),
-                                                    ),
-                                                    style: const TextStyle(
-                                                        fontSize: 15),
-                                                    onChanged: (_) {
-                                                      if (_headers[colIdx] ==
-                                                          'SECCION') {
-                                                        _actualizarJefatura(
-                                                            rowIdx);
-                                                      }
-                                                    },
-                                                  )
-                                                : Text(rowCtrls[colIdx].text,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold)),
-                                          );
-                                        }),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: Scrollbar(
+                  thumbVisibility: true,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 1100),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: DataTable(
+                          headingRowColor: MaterialStateProperty.all(
+                              const Color(0xFF2D6A4F)),
+                          headingTextStyle: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16),
+                          dataRowColor:
+                              MaterialStateProperty.resolveWith<Color?>(
+                                  (states) {
+                            if (states.contains(MaterialState.selected)) {
+                              return Colors.amber.shade100;
+                            }
+                            return Colors.white;
+                          }),
+                          columns: _headers
+                              .map((col) => DataColumn(
+                                      label: Container(
+                                    constraints:
+                                        const BoxConstraints(minWidth: 140),
+                                    child: Text(col,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                  )))
+                              .toList(),
+                          rows: _controllers.isEmpty
+                              ? [
+                                  DataRow(
+                                      cells: List.generate(_headers.length,
+                                          (i) => const DataCell(Text('')))),
+                                ]
+                              : List.generate(_controllers.length, (rowIdx) {
+                                  final rowCtrls = _controllers[rowIdx];
+                                  return DataRow(
+                                    cells: List.generate(_headers.length,
+                                        (colIdx) {
+                                      final isEditable = colIdx <
+                                          _headers.length -
+                                              1; // JEFATURA no editable
+                                      return DataCell(
+                                        isEditable
+                                            ? TextField(
+                                                controller: rowCtrls[colIdx],
+                                                decoration:
+                                                    const InputDecoration(
+                                                  border: InputBorder.none,
+                                                  isDense: true,
+                                                  contentPadding:
+                                                      EdgeInsets.symmetric(
+                                                          vertical: 8,
+                                                          horizontal: 4),
+                                                ),
+                                                style: const TextStyle(
+                                                    fontSize: 15),
+                                                onChanged: (_) {
+                                                  if (_headers[colIdx] ==
+                                                      'SECCION') {
+                                                    _actualizarJefatura(rowIdx);
+                                                  }
+                                                },
+                                              )
+                                            : Text(rowCtrls[colIdx].text,
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold)),
                                       );
                                     }),
-                            ),
-                          ],
+                                  );
+                                }),
                         ),
                       ),
                     ),
