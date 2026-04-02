@@ -130,8 +130,14 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             newFilas.add(fila);
           }
           setState(() {
-            filas = newFilas;
+            // Limpiar controladores previos
+            for (final row in _controllers) {
+              for (final ctrl in row) {
+                ctrl.dispose();
+              }
+            }
             _controllers.clear();
+            filas = newFilas;
             for (final fila in filas) {
               _controllers.add(List.generate(_headers.length,
                   (i) => TextEditingController(text: fila[i])));
@@ -215,88 +221,65 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: Scrollbar(
-                  thumbVisibility: true,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minWidth: 1100),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: DataTable(
-                          headingRowColor: MaterialStateProperty.all(
-                              const Color(0xFF2D6A4F)),
-                          headingTextStyle: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16),
-                          dataRowColor:
-                              MaterialStateProperty.resolveWith<Color?>(
-                                  (states) {
-                            if (states.contains(MaterialState.selected)) {
-                              return Colors.amber.shade100;
-                            }
-                            return Colors.white;
-                          }),
-                          columns: _headers
-                              .map((col) => DataColumn(
-                                      label: Container(
-                                    constraints:
-                                        const BoxConstraints(minWidth: 140),
-                                    child: Text(col,
-                                        textAlign: TextAlign.center,
+                child: DataTable(
+                  columnSpacing: 12,
+                  headingRowColor:
+                      MaterialStateProperty.all(const Color(0xFF2D6A4F)),
+                  headingTextStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15),
+                  dataRowColor:
+                      MaterialStateProperty.resolveWith<Color?>((states) {
+                    if (states.contains(MaterialState.selected)) {
+                      return Colors.amber.shade100;
+                    }
+                    return Colors.white;
+                  }),
+                  columns: _headers
+                      .map((col) => DataColumn(
+                          label: Text(col,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13))))
+                      .toList(),
+                  rows: _controllers.isEmpty
+                      ? [
+                          DataRow(
+                              cells: List.generate(_headers.length,
+                                  (i) => const DataCell(Text('')))),
+                        ]
+                      : List.generate(_controllers.length, (rowIdx) {
+                          final rowCtrls = _controllers[rowIdx];
+                          return DataRow(
+                            cells: List.generate(_headers.length, (colIdx) {
+                              final isEditable = colIdx <
+                                  _headers.length - 1; // JEFATURA no editable
+                              return DataCell(
+                                isEditable
+                                    ? TextField(
+                                        controller: rowCtrls[colIdx],
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.symmetric(
+                                              vertical: 8, horizontal: 4),
+                                        ),
+                                        style: const TextStyle(fontSize: 13),
+                                        onChanged: (_) {
+                                          if (_headers[colIdx] == 'SECCION') {
+                                            _actualizarJefatura(rowIdx);
+                                          }
+                                        },
+                                      )
+                                    : Text(rowCtrls[colIdx].text,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                  )))
-                              .toList(),
-                          rows: _controllers.isEmpty
-                              ? [
-                                  DataRow(
-                                      cells: List.generate(_headers.length,
-                                          (i) => const DataCell(Text('')))),
-                                ]
-                              : List.generate(_controllers.length, (rowIdx) {
-                                  final rowCtrls = _controllers[rowIdx];
-                                  return DataRow(
-                                    cells: List.generate(_headers.length,
-                                        (colIdx) {
-                                      final isEditable = colIdx <
-                                          _headers.length -
-                                              1; // JEFATURA no editable
-                                      return DataCell(
-                                        isEditable
-                                            ? TextField(
-                                                controller: rowCtrls[colIdx],
-                                                decoration:
-                                                    const InputDecoration(
-                                                  border: InputBorder.none,
-                                                  isDense: true,
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                          vertical: 8,
-                                                          horizontal: 4),
-                                                ),
-                                                style: const TextStyle(
-                                                    fontSize: 15),
-                                                onChanged: (_) {
-                                                  if (_headers[colIdx] ==
-                                                      'SECCION') {
-                                                    _actualizarJefatura(rowIdx);
-                                                  }
-                                                },
-                                              )
-                                            : Text(rowCtrls[colIdx].text,
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.bold)),
-                                      );
-                                    }),
-                                  );
-                                }),
-                        ),
-                      ),
-                    ),
-                  ),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13)),
+                              );
+                            }),
+                          );
+                        }),
                 ),
               ),
             ),
