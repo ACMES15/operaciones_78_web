@@ -75,6 +75,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
     setState(() {
       _seccionToJefatura = map;
       _jefaturasCargadas = true;
+      print('DEBUG: Jefaturas cargadas:');
+      _seccionToJefatura.forEach((k, v) => print('  [$k] => $v'));
     });
   }
 
@@ -136,8 +138,10 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
               final jefaturaIdx = _headers.indexOf('JEFATURA');
               if (seccionIdx != -1 && jefaturaIdx != -1) {
                 final seccion = ctrls[seccionIdx].text;
-                final nuevaJefatura =
-                    _seccionToJefatura[_normalizeSeccion(seccion)] ?? '';
+                final clave = _normalizeSeccion(seccion);
+                final nuevaJefatura = _seccionToJefatura[clave] ?? '';
+                print(
+                    'DEBUG IMPORT: Buscando SECCION "$clave" => "$nuevaJefatura"');
                 ctrls[jefaturaIdx].text = nuevaJefatura;
               }
             }
@@ -276,10 +280,11 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                       onChanged: (value) {
                                         final jefaturaIdx =
                                             _headers.indexOf('JEFATURA');
+                                        final clave = _normalizeSeccion(value);
                                         final nuevaJefatura =
-                                            _seccionToJefatura[
-                                                    _normalizeSeccion(value)] ??
-                                                '';
+                                            _seccionToJefatura[clave] ?? '';
+                                        print(
+                                            'DEBUG EDIT: Buscando SECCION "$clave" => "$nuevaJefatura"');
                                         rowCtrls[jefaturaIdx].text =
                                             nuevaJefatura;
                                         setState(() {});
@@ -292,9 +297,11 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                   final seccionIdx =
                                       _headers.indexOf('SECCION');
                                   final seccion = rowCtrls[seccionIdx].text;
-                                  final jefatura = _seccionToJefatura[
-                                          _normalizeSeccion(seccion)] ??
-                                      '';
+                                  final clave = _normalizeSeccion(seccion);
+                                  final jefatura =
+                                      _seccionToJefatura[clave] ?? '';
+                                  print(
+                                      'DEBUG RENDER: Buscando SECCION "$clave" => "$jefatura"');
                                   if (rowCtrls[colIdx].text != jefatura) {
                                     rowCtrls[colIdx].text = jefatura;
                                   }
