@@ -45,6 +45,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
 
   // Mapa SECCION -> NOMBRE (JEFATURA) desde Plantilla Ejecutiva
   Map<String, String> _seccionToJefatura = {};
+  String _normalizeSeccion(String s) => s.trim().toUpperCase();
   bool _jefaturasCargadas = false;
 
   @override
@@ -64,7 +65,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
       final seccion = data['SECCION']?.toString() ?? '';
       final nombre = data['NOMBRE']?.toString() ?? '';
       if (seccion.isNotEmpty) {
-        map[seccion] = nombre;
+        map[_normalizeSeccion(seccion)] = nombre;
       }
     }
     setState(() {
@@ -125,13 +126,14 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
               });
               _controllers.add(ctrls);
             }
-            // Forzar actualización de JEFATURA después de importar
+            // Forzar actualización de JEFATURA después de importar (normalizando SECCION)
             for (final ctrls in _controllers) {
               final seccionIdx = _headers.indexOf('SECCION');
               final jefaturaIdx = _headers.indexOf('JEFATURA');
               if (seccionIdx != -1 && jefaturaIdx != -1) {
                 final seccion = ctrls[seccionIdx].text;
-                final nuevaJefatura = _seccionToJefatura[seccion] ?? '';
+                final nuevaJefatura =
+                    _seccionToJefatura[_normalizeSeccion(seccion)] ?? '';
                 ctrls[jefaturaIdx].text = nuevaJefatura;
               }
             }
@@ -271,8 +273,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                         final jefaturaIdx =
                                             _headers.indexOf('JEFATURA');
                                         final nuevaJefatura =
-                                            _seccionToJefatura[value] ?? '';
-                                        // Actualizar JEFATURA en caliente
+                                            _seccionToJefatura[
+                                                    _normalizeSeccion(value)] ??
+                                                '';
                                         rowCtrls[jefaturaIdx].text =
                                             nuevaJefatura;
                                         setState(() {});
@@ -285,9 +288,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                   final seccionIdx =
                                       _headers.indexOf('SECCION');
                                   final seccion = rowCtrls[seccionIdx].text;
-                                  final jefatura =
-                                      _seccionToJefatura[seccion] ?? '';
-                                  // Sincronizar el valor del controlador (por si cambia SECCION)
+                                  final jefatura = _seccionToJefatura[
+                                          _normalizeSeccion(seccion)] ??
+                                      '';
                                   if (rowCtrls[colIdx].text != jefatura) {
                                     rowCtrls[colIdx].text = jefatura;
                                   }

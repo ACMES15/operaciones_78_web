@@ -112010,7 +112010,7 @@ if(k==null)k=""
 l=m.h(0,"NOMBRE")
 j=l==null?null:J.y(l)
 if(j==null)j=""
-if(k.length!==0)p.l(0,k,j)
+if(k.length!==0)p.l(0,B.n.S(k).toUpperCase(),j)
 case 4:i.length===o||(0,A.D)(i),++n
 s=3
 break
@@ -112074,7 +112074,7 @@ for(s=i.length,r=j.r,p=0;p<i.length;i.length===s||(0,A.D)(i),++p){o=i[p]
 n=B.l.b0(r,"SECCION")
 m=B.l.b0(r,"JEFATURA")
 if(n!==-1&&m!==-1){l=o[n].a.a
-k=j.e.h(0,l)
+k=j.e.h(0,B.n.S(l).toUpperCase())
 if(k==null)k=""
 o[m].saL(0,k)}}},
 $S:0}
@@ -112107,7 +112107,7 @@ $1(a){var s,r,q=this,p=null,o=q.a,n=o.r,m=n[a]
 if(m==="SECCION"){n=q.b
 return new A.ac(B.jb,A.b4(!0,B.a2,!1,p,!0,B.H,p,A.b6(),n[a],p,p,p,p,p,2,B.bN,B.U,!0,p,!0,p,!1,p,B.a0,p,p,p,p,p,p,p,1,p,p,!1,"\u2022",p,new A.aR3(o,n),p,p,p,!1,p,!1,p,!0,p,B.a3,p,p,B.Z,B.Y,p,p,p,p,p,p,B.fg,B.X,p,B.a5,p,p,p,p),p)}if(m==="JEFATURA"){m=q.b
 s=m[B.l.b0(n,"SECCION")].a.a
-r=o.e.h(0,s)
+r=o.e.h(0,B.n.S(s).toUpperCase())
 if(r==null)r=""
 o=m[a]
 if(o.a.a!==r)o.saL(0,r)
@@ -112117,7 +112117,7 @@ o=q.b
 return new A.ac(B.jb,a<8?A.b4(!0,B.a2,!1,p,!0,B.H,p,A.b6(),o[a],p,p,p,p,p,2,B.bN,B.U,!0,p,!0,p,!1,p,B.a0,p,p,p,p,p,p,p,1,p,p,!1,"\u2022",p,p,p,p,p,!1,p,!1,p,!0,p,B.a3,p,p,B.Z,B.Y,p,p,p,p,p,p,B.fg,B.X,p,B.a5,p,p,p,p):A.B(o[a].a.a,p,p,p,B.aSZ,p,p),p)},
 $S:695}
 A.aR3.prototype={
-$1(a){var s=this.a,r=B.l.b0(s.r,"JEFATURA"),q=s.e.h(0,a)
+$1(a){var s=this.a,r=B.l.b0(s.r,"JEFATURA"),q=s.e.h(0,B.n.S(a).toUpperCase())
 if(q==null)q=""
 this.b[r].saL(0,q)
 s.F(new A.aR2())},
