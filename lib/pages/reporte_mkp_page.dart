@@ -121,36 +121,19 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 String val = colIdx < row.length && row[colIdx] != null
                     ? row[colIdx]!.value.toString()
                     : '';
-                // Si es la columna JEFATURA, buscar por SECCION
-                if (_headers[colIdx] == 'JEFATURA') {
-                  final seccionIdx = _headers.indexOf('SECCION');
-                  final seccion =
-                      seccionIdx < row.length && row[seccionIdx] != null
-                          ? row[seccionIdx]!.value.toString()
-                          : '';
-                  val = _seccionToJefatura[seccion] ?? '';
-                }
-                // Si es la columna ESTATUS ACTUAL, validar entregado
-                if (_headers[colIdx] == 'ESTATUS ACTUAL') {
-                  final remisionIdx = _headers.indexOf('REmision');
-                  final articuloIdx = _headers.indexOf('ARTICULO');
-                  final remision =
-                      remisionIdx < row.length && row[remisionIdx] != null
-                          ? row[remisionIdx]!.value.toString()
-                          : '';
-                  final articulo =
-                      articuloIdx < row.length && row[articuloIdx] != null
-                          ? row[articuloIdx]!.value.toString()
-                          : '';
-                  final key =
-                      '${_normalizeKey(remision)}|${_normalizeKey(articulo)}';
-                  if (_entregados.contains(key)) {
-                    val = 'ENTREGADO';
-                  }
-                }
                 return TextEditingController(text: val);
               });
               _controllers.add(ctrls);
+            }
+            // Forzar actualización de JEFATURA después de importar
+            for (final ctrls in _controllers) {
+              final seccionIdx = _headers.indexOf('SECCION');
+              final jefaturaIdx = _headers.indexOf('JEFATURA');
+              if (seccionIdx != -1 && jefaturaIdx != -1) {
+                final seccion = ctrls[seccionIdx].text;
+                final nuevaJefatura = _seccionToJefatura[seccion] ?? '';
+                ctrls[jefaturaIdx].text = nuevaJefatura;
+              }
             }
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -166,8 +149,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
 
   void _agregarFila() {
     setState(() {
-      _controllers
-          .add(List.generate(_headers.length, (i) => TextEditingController()));
+      final ctrls =
+          List.generate(_headers.length, (i) => TextEditingController());
+      _controllers.add(ctrls);
     });
   }
 
@@ -288,11 +272,35 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             _headers.indexOf('JEFATURA');
                                         final nuevaJefatura =
                                             _seccionToJefatura[value] ?? '';
-                                        setState(() {
-                                          rowCtrls[jefaturaIdx].text =
-                                              nuevaJefatura;
-                                        });
+                                        // Actualizar JEFATURA en caliente
+                                        rowCtrls[jefaturaIdx].text =
+                                            nuevaJefatura;
+                                        setState(() {});
                                       },
+                                    ),
+                                  );
+                                }
+                                // Si es JEFATURA, mostrar siempre el valor actualizado y no editable
+                                if (_headers[colIdx] == 'JEFATURA') {
+                                  final seccionIdx =
+                                      _headers.indexOf('SECCION');
+                                  final seccion = rowCtrls[seccionIdx].text;
+                                  final jefatura =
+                                      _seccionToJefatura[seccion] ?? '';
+                                  // Sincronizar el valor del controlador (por si cambia SECCION)
+                                  if (rowCtrls[colIdx].text != jefatura) {
+                                    rowCtrls[colIdx].text = jefatura;
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: Text(
+                                      jefatura,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   );
                                 }
