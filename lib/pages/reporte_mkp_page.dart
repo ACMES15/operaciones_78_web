@@ -102,6 +102,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
     'FECHA',
     'SECCION',
     'JEFATURA',
+    'DIAS',
   ];
 
   // Controladores para edición
@@ -136,6 +137,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             for (int i = 1; i < rows.length; i++) {
               final row = rows[i];
               final ctrls = List.generate(_headers.length, (colIdx) {
+                // Para la columna DIAS, inicializar vacío, se calculará en el build
+                if (_headers[colIdx] == 'DIAS')
+                  return TextEditingController(text: '');
                 String val = colIdx < row.length && row[colIdx] != null
                     ? row[colIdx]!.value.toString()
                     : '';
@@ -341,6 +345,59 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                         fontWeight: FontWeight.bold,
                                         fontSize: 13,
                                         color: Colors.black,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                // Si es DIAS, calcular días transcurridos desde FECHA y colorear
+                                if (_headers[colIdx] == 'DIAS') {
+                                  final fechaIdx = _headers.indexOf('FECHA');
+                                  String fechaStr = rowCtrls[fechaIdx].text;
+                                  int dias = 0;
+                                  Color color = Colors.grey.shade200;
+                                  if (fechaStr.isNotEmpty) {
+                                    try {
+                                      // Intentar parsear dd/MM/yyyy HH:mm:ss
+                                      final partes = fechaStr.split(' ');
+                                      final fechaSolo = partes[0];
+                                      final formato =
+                                          RegExp(r'^(\d{2})/(\d{2})/(\d{4})$');
+                                      if (formato.hasMatch(fechaSolo)) {
+                                        final f = fechaSolo.split('/');
+                                        final dia = int.parse(f[0]);
+                                        final mes = int.parse(f[1]);
+                                        final anio = int.parse(f[2]);
+                                        final fecha = DateTime(anio, mes, dia);
+                                        final ahora = DateTime.now();
+                                        dias = ahora.difference(fecha).inDays;
+                                        if (dias < 0) dias = 0;
+                                        if (dias == 1) {
+                                          color = Colors.green.shade200;
+                                        } else if (dias >= 2 && dias <= 3) {
+                                          color = Colors.orange.shade200;
+                                        } else if (dias >= 4) {
+                                          color = Colors.red.shade200;
+                                        } else {
+                                          color = Colors.grey.shade200;
+                                        }
+                                      }
+                                    } catch (e) {
+                                      // Si hay error, dejar en gris
+                                    }
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: Container(
+                                      color: color,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        dias > 0 ? dias.toString() : '',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: Colors.black,
+                                        ),
                                       ),
                                     ),
                                   );
