@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:typed_data';
 import 'package:excel/excel.dart' as excel;
 import 'dart:html' as html;
@@ -11,6 +12,61 @@ class ReporteMkpPage extends StatefulWidget {
 }
 
 class _ReporteMkpPageState extends State<ReporteMkpPage> {
+  // Set de pares (REmision, ARTICULO) que están entregados
+  Set<String> _entregados = {};
+
+  // Cargar entregas MKP para validación
+  Future<void> _cargarEntregasMKP() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('entregas')
+        .doc('mkp')
+        .get();
+    final items = (doc.data()?['items'] ?? []) as List;
+    final entregados = <String>{};
+    for (final item in items) {
+      final dev = (item['devolucion_mkp'] ?? '').toString();
+      final skus = (item['skus'] ?? []) as List?;
+      if (skus != null) {
+        for (final sku in skus) {
+          entregados.add('$dev|$sku');
+        }
+      }
+    }
+    setState(() {
+      _entregados = entregados;
+    });
+  }
+
+  // Mapa SECCION -> NOMBRE (JEFATURA) desde Plantilla Ejecutiva
+  Map<String, String> _seccionToJefatura = {};
+  bool _jefaturasCargadas = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarJefaturas();
+    _cargarEntregasMKP();
+  }
+
+  Future<void> _cargarJefaturas() async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('Plantilla Ejecutiva')
+        .get();
+    final map = <String, String>{};
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final seccion = data['SECCION']?.toString() ?? '';
+      final nombre = data['NOMBRE']?.toString() ?? '';
+      if (seccion.isNotEmpty) {
+        map[seccion] = nombre;
+      }
+    }
+    setState(() {
+      _seccionToJefatura = map;
+      _jefaturasCargadas = true;
+    });
+  }
+
   // Encabezados ejecutivos
   final List<String> _headers = [
     'NOMBRE CENTRO',
@@ -56,9 +112,35 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
             for (int i = 1; i < rows.length; i++) {
               final row = rows[i];
               final ctrls = List.generate(_headers.length, (colIdx) {
-                final val = colIdx < row.length && row[colIdx] != null
+                String val = colIdx < row.length && row[colIdx] != null
                     ? row[colIdx]!.value.toString()
                     : '';
+                // Si es la columna JEFATURA, buscar por SECCION
+                if (_headers[colIdx] == 'JEFATURA') {
+                  final seccionIdx = _headers.indexOf('SECCION');
+                  final seccion =
+                      seccionIdx < row.length && row[seccionIdx] != null
+                          ? row[seccionIdx]!.value.toString()
+                          : '';
+                  val = _seccionToJefatura[seccion] ?? '';
+                }
+                // Si es la columna ESTATUS ACTUAL, validar entregado
+                if (_headers[colIdx] == 'ESTATUS ACTUAL') {
+                  final remisionIdx = _headers.indexOf('REmision');
+                  final articuloIdx = _headers.indexOf('ARTICULO');
+                  final remision =
+                      remisionIdx < row.length && row[remisionIdx] != null
+                          ? row[remisionIdx]!.value.toString()
+                          : '';
+                  final articulo =
+                      articuloIdx < row.length && row[articuloIdx] != null
+                          ? row[articuloIdx]!.value.toString()
+                          : '';
+                  final key = '$remision|$articulo';
+                  if (_entregados.contains(key)) {
+                    val = 'ENTREGADO';
+                  }
+                }
                 return TextEditingController(text: val);
               });
               _controllers.add(ctrls);
@@ -180,6 +262,94 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                               children:
                                   List.generate(_headers.length, (colIdx) {
                                 final isEditable = colIdx < _headers.length - 1;
+                                // Si es SECCION, actualizar JEFATURA al editar
+                                if (_headers[colIdx] == 'SECCION') {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: TextField(
+                                      controller: rowCtrls[colIdx],
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 4),
+                                      ),
+                                      style: const TextStyle(fontSize: 13),
+                                      onChanged: (value) {
+                                        final jefaturaIdx =
+                                            _headers.indexOf('JEFATURA');
+                                        final nuevaJefatura =
+                                            _seccionToJefatura[value] ?? '';
+                                        setState(() {
+                                          rowCtrls[jefaturaIdx].text =
+                                              nuevaJefatura;
+                                        });
+                                      },
+                                    ),
+                                  );
+                                }
+                                // Si es REmision o ARTICULO, actualizar ESTATUS ACTUAL al editar
+                                if (_headers[colIdx] == 'REmision' ||
+                                    _headers[colIdx] == 'ARTICULO') {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: TextField(
+                                      controller: rowCtrls[colIdx],
+                                      decoration: const InputDecoration(
+                                        border: InputBorder.none,
+                                        isDense: true,
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 8, horizontal: 4),
+                                      ),
+                                      style: const TextStyle(fontSize: 13),
+                                      onChanged: (_) {
+                                        final remisionIdx =
+                                            _headers.indexOf('REmision');
+                                        final articuloIdx =
+                                            _headers.indexOf('ARTICULO');
+                                        final estatusIdx =
+                                            _headers.indexOf('ESTATUS ACTUAL');
+                                        final remision =
+                                            rowCtrls[remisionIdx].text;
+                                        final articulo =
+                                            rowCtrls[articuloIdx].text;
+                                        final key = '$remision|$articulo';
+                                        setState(() {
+                                          if (_entregados.contains(key)) {
+                                            rowCtrls[estatusIdx].text =
+                                                'ENTREGADO';
+                                          } else if (rowCtrls[estatusIdx]
+                                                  .text ==
+                                              'ENTREGADO') {
+                                            rowCtrls[estatusIdx].text = '';
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  );
+                                }
+                                // Si es ESTATUS ACTUAL y es ENTREGADO, pintar verde
+                                if (_headers[colIdx] == 'ESTATUS ACTUAL' &&
+                                    rowCtrls[colIdx].text == 'ENTREGADO') {
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 2, horizontal: 2),
+                                    child: Container(
+                                      color: Colors.green.shade200,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        rowCtrls[colIdx].text,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
                                 return Padding(
                                   padding: const EdgeInsets.symmetric(
                                       vertical: 2, horizontal: 2),
