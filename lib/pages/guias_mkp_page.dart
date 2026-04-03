@@ -552,6 +552,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                       builder: (context) {
                                                         final key =
                                                             _rowKey(reg);
+                                                        // Solo inicializar el controlador si no existe
                                                         if (!_guiaControllers
                                                             .containsKey(key)) {
                                                           _guiaControllers[
@@ -560,17 +561,6 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                                   text:
                                                                       reg['guia'] ??
                                                                           '');
-                                                        } else {
-                                                          final ctrl =
-                                                              _guiaControllers[
-                                                                  key]!;
-                                                          if (ctrl.text !=
-                                                              (reg['guia'] ??
-                                                                  '')) {
-                                                            ctrl.text =
-                                                                reg['guia'] ??
-                                                                    '';
-                                                          }
                                                         }
                                                         return TextField(
                                                           controller:
