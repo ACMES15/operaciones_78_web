@@ -61,15 +61,26 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
         .collection('plantilla_ejecutiva')
         .doc('datos')
         .get();
+    print('DEBUG FIRESTORE: doc.data = ' + doc.data().toString());
     final map = <String, String>{};
     final items = (doc.data()?['items'] ?? []) as List?;
+    print('DEBUG FIRESTORE: items = ' + items.toString());
     if (items != null) {
       for (final item in items) {
-        final seccion = item['SECCION']?.toString() ?? '';
-        final nombre = item['NOMBRE']?.toString() ?? '';
-        if (seccion.isNotEmpty) {
-          map[_normalizeSeccion(seccion)] = nombre;
+        print('DEBUG FIRESTORE: item = ' + item.toString());
+        final seccionRaw = item['SECCION'];
+        final nombreRaw = item['NOMBRE'];
+        if (seccionRaw == null || nombreRaw == null) {
+          print('ADVERTENCIA: item sin SECCION o NOMBRE: ' + item.toString());
+          continue;
         }
+        final seccion = seccionRaw.toString().trim().toUpperCase();
+        final nombre = nombreRaw.toString().trim();
+        if (seccion.isEmpty || nombre.isEmpty) {
+          print('ADVERTENCIA: SECCION o NOMBRE vacío en: ' + item.toString());
+          continue;
+        }
+        map[seccion] = nombre;
       }
     }
     setState(() {
