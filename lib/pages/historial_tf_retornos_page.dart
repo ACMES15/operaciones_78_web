@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/historial_tf_retornos.dart';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:excel/excel.dart';
+import 'dart:html' as html;
 
 class HistorialTfRetornosPage extends StatefulWidget {
   final String usuario;
@@ -15,6 +17,76 @@ class HistorialTfRetornosPage extends StatefulWidget {
 }
 
 class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
+  Future<void> _exportarAExcel() async {
+    // Usar package:excel y dart:html para exportar
+    // Solo exportar los registros actualmente filtrados
+    final resultados = _filtro.isEmpty
+        ? List.generate(_items.length, (i) => MapEntry(_items[i], _rawItems[i]))
+        : List.generate(_items.length, (i) => MapEntry(_items[i], _rawItems[i]))
+            .where((pair) {
+            final e = pair.key;
+            final raw = pair.value;
+            return e.tfOdev.toLowerCase().contains(_filtro) ||
+                e.origen.toLowerCase().contains(_filtro) ||
+                (raw['SECCION']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['JEFATURA']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['nombreRecibe']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['VALIDO']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (raw['ENTREGO']?.toString().toLowerCase() ?? '')
+                    .contains(_filtro) ||
+                (e.valido.toLowerCase().contains(_filtro)) ||
+                (e.entrego.toLowerCase().contains(_filtro)) ||
+                (e.observaciones?.toLowerCase().contains(_filtro) ?? false);
+          }).toList();
+
+    if (resultados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay registros para exportar.')),
+      );
+      return;
+    }
+    // Usar package:excel
+    final excel = Excel.createExcel();
+    final sheet = excel['Historial TF Retornos'];
+    // Encabezados
+    final headers = [
+      'ID',
+      'TF O DEV',
+      'ORIGEN',
+      'DESTINO',
+      'SECCION',
+      'JEFATURA',
+      'RETORNO',
+      'usuarioValido'
+    ];
+    sheet.appendRow(headers);
+    for (final pair in resultados) {
+      final raw = pair.value;
+      sheet.appendRow([
+        raw['id'] ?? '',
+        raw['TF O DEV'] ?? '',
+        raw['ORIGEN'] ?? '',
+        raw['DESTINO'] ?? '',
+        raw['SECCION'] ?? '',
+        raw['JEFATURA'] ?? '',
+        raw['RETORNO'] ?? '',
+        raw['usuarioValido'] ?? '',
+      ]);
+    }
+    final bytes = excel.encode()!;
+    final blob = html.Blob([Uint8List.fromList(bytes)],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.AnchorElement(href: url)
+      ..setAttribute('download', 'historial_tf_retornos.xlsx')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
   List<HistorialTfRetorno> _items = [];
   List<Map<String, dynamic>> _rawItems = [];
   bool _cargando = true;
@@ -125,6 +197,11 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
+            tooltip: 'Exportar a Excel',
+            onPressed: _exportarAExcel,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
             onPressed: _cargarItems,

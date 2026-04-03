@@ -20,11 +20,21 @@ class HistorialTfRetorno {
   });
 
   factory HistorialTfRetorno.fromMap(Map<String, dynamic> map, String id) {
+    // Aceptar RETORNO como bool, string 'true'/'false', o numérico
+    bool retornoParsed = false;
+    final rawRetorno = map['RETORNO'];
+    if (rawRetorno is bool) {
+      retornoParsed = rawRetorno;
+    } else if (rawRetorno is String) {
+      retornoParsed = rawRetorno.trim().toLowerCase() == 'true';
+    } else if (rawRetorno is num) {
+      retornoParsed = rawRetorno != 0;
+    }
     return HistorialTfRetorno(
       id: id,
       tfOdev: map['TF O DEV']?.toString() ?? '-',
       origen: map['ORIGEN']?.toString() ?? '-',
-      retorno: map['RETORNO'] == true,
+      retorno: retornoParsed,
       valido: map['VALIDO']?.toString() ?? '-',
       entrego: map['ENTREGO']?.toString() ?? '-',
       observaciones: map['OBSERVACIONES']?.toString(),
