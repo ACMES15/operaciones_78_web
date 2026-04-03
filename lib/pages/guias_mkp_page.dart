@@ -227,6 +227,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     if (campo == 'guia' && valor.trim().isNotEmpty) {
       nuevaLista[idx]['fecha'] = DateTime.now().toIso8601String();
     }
+    // No reordenar aquí, solo guardar
     await guardarDatosFirestoreYCache('guias', 'mkp', {'items': nuevaLista});
   }
 
@@ -256,12 +257,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                     devMkp.contains(_filtro) ||
                     guia.contains(_filtro);
               }).toList();
-        // Ordenar: sin guía arriba, con guía abajo
-        registrosFiltrados.sort((a, b) {
-          final aGuia = (a['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
-          final bGuia = (b['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
-          return aGuia - bGuia;
-        });
+        // No ordenar aquí para evitar que la fila se mueva al editar
         final int devolucionesSinGuia = registros
             .where((r) =>
                 (r['devolucion'] ?? '').toString().isNotEmpty &&
