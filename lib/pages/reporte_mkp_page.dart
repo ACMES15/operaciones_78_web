@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'recolectar_page.dart';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:excel/excel.dart' as excel;
 import 'dart:html' as html;
@@ -12,6 +14,37 @@ class ReporteMkpPage extends StatefulWidget {
 }
 
 class _ReporteMkpPageState extends State<ReporteMkpPage> {
+  // Guardar registros NO ENTREGADO en Firestore y cache local
+  Future<void> _guardarNoEntregado() async {
+    final noEntregados = <Map<String, dynamic>>[];
+    for (final ctrls in _controllers) {
+      final estatusIdx = _headers.indexOf('ESTATUS ACTUAL');
+      if (estatusIdx != -1 &&
+          ctrls[estatusIdx].text.trim().toUpperCase() != 'ENTREGADO') {
+        final row = <String, dynamic>{};
+        for (int i = 0; i < _headers.length; i++) {
+          if (_headers[i] != 'DIAS') {
+            row[_headers[i]] = ctrls[i].text;
+          }
+        }
+        noEntregados.add(row);
+      }
+    }
+    // Guardar en Firestore
+    await FirebaseFirestore.instance
+        .collection('reporte_mkp_no_entregado')
+        .doc('pendientes')
+        .set({'items': noEntregados});
+    // Guardar en cache local (localStorage) como JSON
+    try {
+      html.window.localStorage['reporte_mkp_no_entregado'] =
+          jsonEncode(noEntregados);
+    } catch (e) {}
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registros NO ENTREGADO guardados.')),
+    );
+  }
+
   // Set de pares (REmision, ARTICULO) que están entregados
   Set<String> _entregados = {};
 
@@ -46,7 +79,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
   // Mapa SECCION -> NOMBRE (JEFATURA) desde Plantilla Ejecutiva
   Map<String, String> _seccionToJefatura = {};
   String _normalizeSeccion(String s) => s.trim().toUpperCase();
-  bool _jefaturasCargadas = false;
 
   @override
   void initState() {
@@ -85,7 +117,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
     }
     setState(() {
       _seccionToJefatura = map;
-      _jefaturasCargadas = true;
       print('DEBUG: Jefaturas cargadas:');
       _seccionToJefatura.forEach((k, v) => print('  [$k] => $v'));
     });
@@ -233,6 +264,28 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                   onPressed: _agregarFila,
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber.shade700,
+                      foregroundColor: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar'),
+                  onPressed: _guardarNoEntregado,
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade700,
+                      foregroundColor: Colors.white),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.assignment_turned_in),
+                  label: const Text('Recolectar'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RecolectarPage()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple.shade700,
                       foregroundColor: Colors.white),
                 ),
               ],
