@@ -143,10 +143,14 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
               });
               _controllers.add(ctrls);
             }
-            // Forzar actualización de JEFATURA después de importar (normalizando SECCION)
+            // Forzar actualización de JEFATURA y ESTATUS ACTUAL después de importar
             for (final ctrls in _controllers) {
               final seccionIdx = _headers.indexOf('SECCION');
               final jefaturaIdx = _headers.indexOf('JEFATURA');
+              final remisionIdx = _headers.indexOf('REmision');
+              final articuloIdx = _headers.indexOf('ARTICULO');
+              final estatusIdx = _headers.indexOf('ESTATUS ACTUAL');
+              // JEFATURA
               if (seccionIdx != -1 && jefaturaIdx != -1) {
                 final seccion = ctrls[seccionIdx].text;
                 final clave = _normalizeSeccion(seccion);
@@ -154,6 +158,18 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 print(
                     'DEBUG IMPORT: Buscando SECCION "$clave" => "$nuevaJefatura"');
                 ctrls[jefaturaIdx].text = nuevaJefatura;
+              }
+              // ESTATUS ACTUAL
+              if (remisionIdx != -1 && articuloIdx != -1 && estatusIdx != -1) {
+                final remision = ctrls[remisionIdx].text;
+                final articulo = ctrls[articuloIdx].text;
+                final key =
+                    '${_normalizeKey(remision)}|${_normalizeKey(articulo)}';
+                if (_entregados.contains(key)) {
+                  ctrls[estatusIdx].text = 'ENTREGADO';
+                } else if (ctrls[estatusIdx].text == 'ENTREGADO') {
+                  ctrls[estatusIdx].text = '';
+                }
               }
             }
           });
