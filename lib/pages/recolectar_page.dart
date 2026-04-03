@@ -73,43 +73,54 @@ class _RecolectarPageState extends State<RecolectarPage> {
                         prefixIcon: Icon(Icons.person),
                       ),
                       controller: entregoController,
+                      textCapitalization: TextCapitalization.characters,
                       onChanged: (v) {
+                        final upper = v.toUpperCase();
+                        if (v != upper) {
+                          entregoController.value =
+                              entregoController.value.copyWith(
+                            text: upper,
+                            selection:
+                                TextSelection.collapsed(offset: upper.length),
+                          );
+                        }
                         setStateDialog(() {
-                          entrego = v.toUpperCase();
+                          entrego = upper;
                         });
                       },
                     ),
                     const SizedBox(height: 18),
                     const Text('Firma (dibuje en el recuadro):',
                         style: TextStyle(fontWeight: FontWeight.bold)),
-                    GestureDetector(
-                      onPanUpdate: (details) {
-                        setStateDialog(() {
-                          RenderBox? box = ctx.findRenderObject() as RenderBox?;
-                          if (box != null) {
-                            final local =
-                                box.globalToLocal(details.globalPosition);
-                            firma.add(local);
-                          }
-                        });
-                      },
-                      onPanEnd: (_) {
-                        setStateDialog(() {
-                          firma.add(null);
-                        });
-                      },
-                      child: Container(
-                        width: 370,
-                        height: 130,
-                        margin: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.blueGrey, width: 2),
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black12, blurRadius: 2)
-                          ],
-                        ),
+                    Container(
+                      width: 370,
+                      height: 130,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueGrey, width: 2),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black12, blurRadius: 2)
+                        ],
+                      ),
+                      child: GestureDetector(
+                        onPanUpdate: (details) {
+                          setStateDialog(() {
+                            RenderBox? box =
+                                ctx.findRenderObject() as RenderBox?;
+                            if (box != null) {
+                              final local =
+                                  box.globalToLocal(details.globalPosition);
+                              firma.add(local);
+                            }
+                          });
+                        },
+                        onPanEnd: (_) {
+                          setStateDialog(() {
+                            firma.add(null);
+                          });
+                        },
                         child: CustomPaint(
                           painter: FirmaPainter(firma),
                           child: Container(),
@@ -157,13 +168,16 @@ class _RecolectarPageState extends State<RecolectarPage> {
                   ),
                   onPressed: guardando ||
                           entregoController.text.trim().isEmpty ||
-                          firma.isEmpty
+                          firma.where((p) => p != null).length < 2
                       ? null
                       : () async {
                           setStateDialog(() {
                             guardando = true;
                           });
                           final firmaBase64 = await _firmaToBase64(firma);
+                          final now = DateTime.now();
+                          final usuario = html.window.localStorage['usuario'] ??
+                              'STAFF DEVOLUCION';
                           final registros = seleccionados
                               .map((e) => {
                                     ...e,
@@ -171,9 +185,14 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                         .trim()
                                         .toUpperCase(),
                                     'FIRMA': firmaBase64,
-                                    'FECHA_ENTREGA':
-                                        DateTime.now().toIso8601String(),
+                                    'FECHA_ENTREGA': now.toIso8601String(),
                                     'ESTATUS ACTUAL': 'ENTREGADO',
+                                    'EMPLEADO': 'STAFF DEVOLUCION',
+                                    'USUARIO_RECOLECTO': usuario,
+                                    'CANTIDAD': 1,
+                                    'REMISION': e['REmision'] ?? '',
+                                    'SKU': e['SKU'] ?? '',
+                                    'ARTICULO': e['ARTICULO'] ?? '',
                                   })
                               .toList();
                           final doc = await FirebaseFirestore.instance
