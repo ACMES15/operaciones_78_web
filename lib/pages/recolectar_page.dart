@@ -178,23 +178,30 @@ class _RecolectarPageState extends State<RecolectarPage> {
                           final now = DateTime.now();
                           final usuario = html.window.localStorage['usuario'] ??
                               'STAFF DEVOLUCION';
-                          final registros = seleccionados
-                              .map((e) => {
-                                    ...e,
-                                    'ENTREGO': entregoController.text
-                                        .trim()
-                                        .toUpperCase(),
-                                    'FIRMA': firmaBase64,
-                                    'FECHA_ENTREGA': now.toIso8601String(),
-                                    'ESTATUS ACTUAL': 'ENTREGADO',
-                                    'EMPLEADO': 'STAFF DEVOLUCION',
-                                    'USUARIO_RECOLECTO': usuario,
-                                    'CANTIDAD': 1,
-                                    'REMISION': e['REmision'] ?? '',
-                                    'SKU': e['SKU'] ?? '',
-                                    'ARTICULO': e['ARTICULO'] ?? '',
-                                  })
-                              .toList();
+                          // Adaptar estructura para entregas_mkp_page
+                          final registros = seleccionados.map((e) {
+                            return {
+                              // Estructura esperada por entregas_mkp_page
+                              'empleado':
+                                  e['NUMERO VENDEDOR'] ?? e['EMPLEADO'] ?? '',
+                              'devolucion_mkp':
+                                  e['REmision'] ?? e['REMISION'] ?? '',
+                              'skus': [e['ARTICULO'] ?? e['SKU'] ?? ''],
+                              'cantidad': 1,
+                              'usuario': usuario,
+                              'fecha': now.toIso8601String(),
+                              // Extras para trazabilidad
+                              'nombre_vendedor': e['NOMBRE DE VENDEDOR'] ?? '',
+                              'jefatura': e['JEFATURA'] ?? '',
+                              'firma': firmaBase64,
+                              'entrego':
+                                  entregoController.text.trim().toUpperCase(),
+                              'estatus_actual': 'ENTREGADO',
+                              'fecha_entrega': now.toIso8601String(),
+                              // Otros campos originales por si se requieren
+                              ...e,
+                            };
+                          }).toList();
                           final doc = await FirebaseFirestore.instance
                               .collection('entregas')
                               .doc('mkp')
