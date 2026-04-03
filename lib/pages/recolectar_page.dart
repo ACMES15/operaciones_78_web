@@ -33,6 +33,8 @@ class _RecolectarPageState extends State<RecolectarPage> {
     return base64Encode(byteData.buffer.asUint8List());
   }
 
+  String? _filtroJefatura;
+
   void _abrirDialogoFirma() async {
     final seleccionados = _seleccionados.map((i) => _pendientes[i]).toList();
     String entrego = '';
@@ -45,14 +47,30 @@ class _RecolectarPageState extends State<RecolectarPage> {
         return StatefulBuilder(
           builder: (ctx, setStateDialog) {
             return AlertDialog(
-              title: const Text('Entrega de artículos'),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              title: Row(
+                children: [
+                  const Icon(Icons.assignment_turned_in,
+                      color: Colors.blueGrey, size: 28),
+                  const SizedBox(width: 10),
+                  const Text('Confirmar entrega',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
               content: SizedBox(
-                width: 400,
+                width: 420,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Entregó'),
+                      decoration: const InputDecoration(
+                        labelText: 'Entregó',
+                        labelStyle: TextStyle(fontWeight: FontWeight.bold),
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
+                      ),
                       onChanged: (v) {
                         setStateDialog(() {
                           entrego = v.toUpperCase();
@@ -60,48 +78,60 @@ class _RecolectarPageState extends State<RecolectarPage> {
                       },
                       controller: TextEditingController(text: entrego),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('Firma (dibuje en el recuadro):'),
+                    const SizedBox(height: 18),
+                    const Text('Firma (dibuje en el recuadro):',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                     Container(
-                      width: 350,
-                      height: 120,
+                      width: 370,
+                      height: 130,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
+                        border: Border.all(color: Colors.blueGrey, width: 2),
                         color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black12, blurRadius: 2)
+                        ],
                       ),
-                      child: GestureDetector(
-                        onPanUpdate: (details) {
-                          setStateDialog(() {
-                            RenderBox? box =
-                                ctx.findRenderObject() as RenderBox?;
-                            if (box != null) {
-                              final local =
-                                  box.globalToLocal(details.globalPosition);
-                              firma.add(local);
-                            }
-                          });
-                        },
-                        onPanEnd: (_) {
-                          setStateDialog(() {
-                            firma.add(null);
-                          });
-                        },
-                        child: CustomPaint(
-                          painter: FirmaPainter(firma),
-                          child: Container(),
-                        ),
+                      child: Stack(
+                        children: [
+                          CustomPaint(
+                            painter: FirmaPainter(firma),
+                            child: Container(),
+                          ),
+                          GestureDetector(
+                            onPanUpdate: (details) {
+                              setStateDialog(() {
+                                RenderBox? box =
+                                    ctx.findRenderObject() as RenderBox?;
+                                if (box != null) {
+                                  final local =
+                                      box.globalToLocal(details.globalPosition);
+                                  firma.add(local);
+                                }
+                              });
+                            },
+                            onPanEnd: (_) {
+                              setStateDialog(() {
+                                firma.add(null);
+                              });
+                            },
+                            child: Container(),
+                          ),
+                        ],
                       ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(
+                        TextButton.icon(
                           onPressed: () {
                             setStateDialog(() {
                               firma.clear();
                             });
                           },
-                          child: const Text('Limpiar'),
+                          icon: const Icon(Icons.cleaning_services, size: 18),
+                          label: const Text('Limpiar'),
                         ),
                       ],
                     ),
@@ -113,16 +143,30 @@ class _RecolectarPageState extends State<RecolectarPage> {
                   onPressed: () => Navigator.of(ctx).pop(),
                   child: const Text('Cancelar'),
                 ),
-                ElevatedButton(
+                ElevatedButton.icon(
+                  icon: guardando
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check),
+                  label: const Text('Guardar',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 16),
+                  ),
                   onPressed: guardando || entrego.isEmpty || firma.isEmpty
                       ? null
                       : () async {
                           setStateDialog(() {
                             guardando = true;
                           });
-                          // Convertir firma a base64 PNG
                           final firmaBase64 = await _firmaToBase64(firma);
-                          // Preparar datos para entregas mkp page
                           final registros = seleccionados
                               .map((e) => {
                                     ...e,
@@ -133,7 +177,6 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                     'ESTATUS ACTUAL': 'ENTREGADO',
                                   })
                               .toList();
-                          // Guardar en entregas mkp page (agregar a colección entregas/mkp/items)
                           final doc = await FirebaseFirestore.instance
                               .collection('entregas')
                               .doc('mkp')
@@ -144,13 +187,11 @@ class _RecolectarPageState extends State<RecolectarPage> {
                               .collection('entregas')
                               .doc('mkp')
                               .set({'items': items});
-                          // Eliminar seleccionados de la lista local
                           setState(() {
                             _pendientes
                                 .removeWhere((e) => seleccionados.contains(e));
                             _seleccionados.clear();
                           });
-                          // Limpiar cache y Firestore de pendientes
                           final nuevosPendientes = _pendientes;
                           html.window.localStorage['reporte_mkp_no_entregado'] =
                               jsonEncode(nuevosPendientes);
@@ -165,12 +206,6 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                     Text('Entrega registrada y guardada.')),
                           );
                         },
-                  child: guardando
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Guardar'),
                 ),
               ],
             );
@@ -237,13 +272,25 @@ class _RecolectarPageState extends State<RecolectarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final jefaturas = _pendientes
+        .map((e) => e['JEFATURA'] ?? '')
+        .where((e) => e.toString().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
     final totalPendientes = _pendientes.length;
     final seleccionadosCount = _seleccionados.length;
+    final pendientesFiltrados =
+        _filtroJefatura == null || _filtroJefatura!.isEmpty
+            ? _pendientes
+            : _pendientes
+                .where((e) => (e['JEFATURA'] ?? '') == _filtroJefatura)
+                .toList();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recolectar',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
-        backgroundColor: Colors.blueGrey[900],
+        backgroundColor: const ui.Color.fromARGB(255, 170, 194, 206),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -311,7 +358,35 @@ class _RecolectarPageState extends State<RecolectarPage> {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 8),
+                            child: Row(
+                              children: [
+                                const Text('Filtrar por Jefatura:',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 12),
+                                DropdownButton<String>(
+                                  value: _filtroJefatura,
+                                  hint: const Text('Todas'),
+                                  items: [
+                                    const DropdownMenuItem<String>(
+                                        value: null, child: Text('Todas')),
+                                    ...jefaturas.map((j) =>
+                                        DropdownMenuItem<String>(
+                                            value: j,
+                                            child: Text(j.toString()))),
+                                  ],
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _filtroJefatura = val;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                           Expanded(
                             child: Card(
                               margin: const EdgeInsets.symmetric(
@@ -320,39 +395,73 @@ class _RecolectarPageState extends State<RecolectarPage> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                               child: ListView.separated(
-                                itemCount: _pendientes.length,
+                                itemCount: pendientesFiltrados.length,
                                 separatorBuilder: (_, __) => Divider(
                                     height: 1, color: Colors.blueGrey[100]),
                                 itemBuilder: (context, idx) {
-                                  final item = _pendientes[idx];
+                                  final item = pendientesFiltrados[idx];
+                                  final realIdx = _pendientes.indexOf(item);
                                   return Container(
                                     decoration: BoxDecoration(
-                                      color: _seleccionados.contains(idx)
+                                      color: _seleccionados.contains(realIdx)
                                           ? Colors.green.withOpacity(0.08)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: CheckboxListTile(
-                                      value: _seleccionados.contains(idx),
+                                      value: _seleccionados.contains(realIdx),
                                       onChanged: (val) {
                                         setState(() {
                                           if (val == true) {
-                                            _seleccionados.add(idx);
+                                            _seleccionados.add(realIdx);
                                           } else {
-                                            _seleccionados.remove(idx);
+                                            _seleccionados.remove(realIdx);
                                           }
                                         });
                                       },
-                                      title: Text(
-                                        item['NOMBRE CENTRO'] ?? '',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                                item['NOMBRE CENTRO'] ?? '',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 18)),
+                                          ),
+                                          if ((item['JEFATURA'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blueGrey[100],
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: Text(item['JEFATURA'],
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: Colors.blueGrey)),
+                                            ),
+                                        ],
                                       ),
                                       subtitle: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          if ((item['NOMBRE DE VENDEDOR'] ?? '')
+                                              .toString()
+                                              .isNotEmpty)
+                                            Text(
+                                                'Vendedor: ${item['NOMBRE DE VENDEDOR']}',
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.black87)),
                                           Text(
                                               'Remisión: ${item['REmision'] ?? ''}',
                                               style: const TextStyle(
