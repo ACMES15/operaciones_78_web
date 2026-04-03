@@ -18,6 +18,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   // Controladores para cada celda editable
   final Map<String, TextEditingController> _devolucionControllers = {};
   final Map<String, TextEditingController> _guiaControllers = {};
+  final Map<String, FocusNode> _guiaFocusNodes = {};
 
   // Genera una clave única para cada fila
   String _rowKey(Map<String, dynamic> reg) =>
@@ -552,7 +553,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                       builder: (context) {
                                                         final key =
                                                             _rowKey(reg);
-                                                        // Solo inicializar el controlador si no existe
+                                                        // Inicializar controlador y focus node si no existen
                                                         if (!_guiaControllers
                                                             .containsKey(key)) {
                                                           _guiaControllers[
@@ -562,10 +563,28 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                                       reg['guia'] ??
                                                                           '');
                                                         }
+                                                        if (!_guiaFocusNodes
+                                                            .containsKey(key)) {
+                                                          _guiaFocusNodes[key] =
+                                                              FocusNode();
+                                                        }
+                                                        final ctrl =
+                                                            _guiaControllers[
+                                                                key]!;
+                                                        final focus =
+                                                            _guiaFocusNodes[
+                                                                key]!;
+                                                        // Si el campo NO tiene foco y el valor cambió en Firestore, sincronizar
+                                                        if (!focus.hasFocus &&
+                                                            ctrl.text !=
+                                                                (reg['guia'] ??
+                                                                    '')) {
+                                                          ctrl.text =
+                                                              reg['guia'] ?? '';
+                                                        }
                                                         return TextField(
-                                                          controller:
-                                                              _guiaControllers[
-                                                                  key],
+                                                          controller: ctrl,
+                                                          focusNode: focus,
                                                           decoration:
                                                               const InputDecoration(
                                                             border: InputBorder
