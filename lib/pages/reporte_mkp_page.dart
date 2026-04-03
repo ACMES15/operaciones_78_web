@@ -15,6 +15,11 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
   // Set de pares (REmision, ARTICULO) que están entregados
   Set<String> _entregados = {};
 
+  // Normaliza valores quitando ceros a la izquierda y espacios
+  String _normalizeKey(String value) {
+    return value.trim().replaceFirst(RegExp(r'^0+'), '');
+  }
+
   // Cargar entregas MKP para validación
   Future<void> _cargarEntregasMKP() async {
     final doc = await FirebaseFirestore.instance
@@ -24,11 +29,12 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
     final items = (doc.data()?['items'] ?? []) as List;
     final entregados = <String>{};
     for (final item in items) {
-      final dev = (item['devolucion_mkp'] ?? '').toString();
+      final dev = _normalizeKey((item['devolucion_mkp'] ?? '').toString());
       final skus = (item['skus'] ?? []) as List?;
       if (skus != null) {
         for (final sku in skus) {
-          entregados.add('$dev|$sku');
+          final normSku = _normalizeKey(sku.toString());
+          entregados.add('$dev|$normSku');
         }
       }
     }
@@ -136,7 +142,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                       articuloIdx < row.length && row[articuloIdx] != null
                           ? row[articuloIdx]!.value.toString()
                           : '';
-                  final key = '$remision|$articulo';
+                  final key =
+                      '${_normalizeKey(remision)}|${_normalizeKey(articulo)}';
                   if (_entregados.contains(key)) {
                     val = 'ENTREGADO';
                   }
@@ -262,7 +269,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                               children:
                                   List.generate(_headers.length, (colIdx) {
                                 final isEditable = colIdx < _headers.length - 1;
-                                // Si es SECCION, actualizar JEFATURA al editar
+                                // Si es SECCION, actualizar JEFATURA al editar (siempre)
                                 if (_headers[colIdx] == 'SECCION') {
                                   return Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -289,7 +296,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                     ),
                                   );
                                 }
-                                // Si es REmision o ARTICULO, actualizar ESTATUS ACTUAL al editar
+                                // Si es REmision o ARTICULO, actualizar ESTATUS ACTUAL al editar (normalizando)
                                 if (_headers[colIdx] == 'REmision' ||
                                     _headers[colIdx] == 'ARTICULO') {
                                   return Padding(
@@ -315,7 +322,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             rowCtrls[remisionIdx].text;
                                         final articulo =
                                             rowCtrls[articuloIdx].text;
-                                        final key = '$remision|$articulo';
+                                        final key =
+                                            '${_normalizeKey(remision)}|${_normalizeKey(articulo)}';
                                         setState(() {
                                           if (_entregados.contains(key)) {
                                             rowCtrls[estatusIdx].text =
