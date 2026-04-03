@@ -582,27 +582,35 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                           ctrl.text =
                                                               reg['guia'] ?? '';
                                                         }
-                                                        return TextField(
-                                                          controller: ctrl,
+                                                        return Focus(
                                                           focusNode: focus,
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            border: InputBorder
-                                                                .none,
-                                                            hintText: 'Guía',
+                                                          child: TextField(
+                                                            controller: ctrl,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                              hintText: 'Guía',
+                                                            ),
+                                                            style: const TextStyle(
+                                                                fontSize: 15,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500),
+                                                            enabled: true,
                                                           ),
-                                                          style: const TextStyle(
-                                                              fontSize: 15,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500),
-                                                          onChanged: (v) =>
+                                                          onFocusChange:
+                                                              (hasFocus) {
+                                                            if (!hasFocus) {
                                                               _actualizarCampoPorClave(
-                                                                  registros,
-                                                                  reg,
-                                                                  'guia',
-                                                                  v),
-                                                          enabled: true,
+                                                                registros,
+                                                                reg,
+                                                                'guia',
+                                                                ctrl.text,
+                                                              );
+                                                            }
+                                                          },
                                                         );
                                                       },
                                                     ),
