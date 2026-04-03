@@ -56,16 +56,20 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
   }
 
   Future<void> _cargarJefaturas() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('Plantilla Ejecutiva')
+    // Leer correctamente la colección y documento reales
+    final doc = await FirebaseFirestore.instance
+        .collection('plantilla_ejecutiva')
+        .doc('datos')
         .get();
     final map = <String, String>{};
-    for (var doc in snapshot.docs) {
-      final data = doc.data();
-      final seccion = data['SECCION']?.toString() ?? '';
-      final nombre = data['NOMBRE']?.toString() ?? '';
-      if (seccion.isNotEmpty) {
-        map[_normalizeSeccion(seccion)] = nombre;
+    final items = (doc.data()?['items'] ?? []) as List?;
+    if (items != null) {
+      for (final item in items) {
+        final seccion = item['SECCION']?.toString() ?? '';
+        final nombre = item['NOMBRE']?.toString() ?? '';
+        if (seccion.isNotEmpty) {
+          map[_normalizeSeccion(seccion)] = nombre;
+        }
       }
     }
     setState(() {
