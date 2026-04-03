@@ -112005,11 +112005,11 @@ A.cE("DEBUG FIRESTORE: doc.data = "+J.y(p.bO(0)))
 h=t.N
 o=A.C(h,h)
 h=p.bO(0)
-h=h==null?null:h.h(0,"items")
+h=h==null?null:h.h(0,"datos")
 if(h==null)h=[]
 t.kc.a(h)
 n=J.hw(h)
-A.cE("DEBUG FIRESTORE: items = "+n.k(h))
+A.cE("DEBUG FIRESTORE: datos = "+n.k(h))
 for(h=n.gU(h);h.t();){m=h.gH(h)
 n=J.hw(m)
 A.xk("DEBUG FIRESTORE: item = "+n.k(m))

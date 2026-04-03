@@ -63,10 +63,10 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
         .get();
     print('DEBUG FIRESTORE: doc.data = ' + doc.data().toString());
     final map = <String, String>{};
-    final items = (doc.data()?['items'] ?? []) as List?;
-    print('DEBUG FIRESTORE: items = ' + items.toString());
-    if (items != null) {
-      for (final item in items) {
+    final datos = (doc.data()?['datos'] ?? []) as List?;
+    print('DEBUG FIRESTORE: datos = ' + datos.toString());
+    if (datos != null) {
+      for (final item in datos) {
         print('DEBUG FIRESTORE: item = ' + item.toString());
         final seccionRaw = item['SECCION'];
         final nombreRaw = item['NOMBRE'];
