@@ -7,6 +7,7 @@ import 'dart:html' as html;
 // import 'dart:js' as js; // Eliminado: no se usa
 import 'package:flutter/foundation.dart';
 import 'historial_firmadas_cdr_page.dart';
+import 'recepcion_big_ticket_page.dart';
 
 class EntregasCdrPage extends StatefulWidget {
   final String usuario;
@@ -310,6 +311,24 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                     label: const Text('Ver Entregas CDR'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color.fromARGB(255, 200, 220, 255),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RecepcionBigTicketPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.local_shipping),
+                    label: const Text('BIG TICKET'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 255, 230, 180),
+                      foregroundColor: Colors.deepPurple,
+                      textStyle:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     ),
                   ),
                 ],
