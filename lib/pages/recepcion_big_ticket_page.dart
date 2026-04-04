@@ -63,6 +63,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
 
   final List<List<String>> _rows = [];
   final TextEditingController _scanController = TextEditingController();
+  final FocusNode _scanFocusNode = FocusNode();
   String? _otPendiente;
 
   void _importFromExcel() {
@@ -92,18 +93,26 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             fila[1] = row.length > 1 && row[1] != null
                 ? row[1]!.value.toString()
                 : '';
-            fila[2] = row.length > 3 && row[3] != null
+            fila[2] = row.length > 2 && row[2] != null
+                ? row[2]!.value.toString()
+                : '';
+            fila[3] = row.length > 3 && row[3] != null
                 ? row[3]!.value.toString()
                 : '';
-            fila[3] = row.length > 4 && row[4] != null
+            fila[4] = row.length > 4 && row[4] != null
                 ? row[4]!.value.toString()
-                : '';
-            fila[4] = '0'; // ESCANEO
-            fila[5] = ''; // VALIDACION
-            fila[6] = '0'; // DIFERENCIA
-            fila[7] = '0'; // MANIFIESTO
-            fila[8] = row.length > 2 && row[2] != null
-                ? row[2]!.value.toString()
+                : '0'; // ESCANEO (si viene, si no 0)
+            fila[5] = row.length > 5 && row[5] != null
+                ? row[5]!.value.toString()
+                : ''; // VALIDACION
+            fila[6] = row.length > 6 && row[6] != null
+                ? row[6]!.value.toString()
+                : '0'; // DIFERENCIA
+            fila[7] = row.length > 7 && row[7] != null
+                ? row[7]!.value.toString()
+                : '0'; // MANIFIESTO
+            fila[8] = row.length > 8 && row[8] != null
+                ? row[8]!.value.toString()
                 : '';
             fila[9] = _seccionToJefatura[fila[8]] ?? '';
             datos.add(fila);
@@ -126,6 +135,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
         _otPendiente = scan;
         _scanController.clear();
         setState(() {});
+        FocusScope.of(context).requestFocus(_scanFocusNode);
       }
       // Si no es una OT válida, no hace nada
       return;
@@ -138,19 +148,19 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
       for (var fila in _rows) {
         if (fila.length < _headers.length) continue;
         if (fila[0] == ot && fila[1] == sku) {
-          int escaneos = int.tryParse(fila[6]) ?? 0; // ESCANEO
+          int escaneos = int.tryParse(fila[4]) ?? 0; // ESCANEO
           escaneos++;
-          fila[6] = escaneos.toString();
-          int cantidad = int.tryParse(fila[5]) ?? 0;
+          fila[4] = escaneos.toString();
+          int cantidad = int.tryParse(fila[3]) ?? 0;
           int diferencia = escaneos - cantidad;
-          fila[8] = diferencia.toString(); // DIFERENCIA
-          fila[9] = (cantidad - escaneos).toString(); // MANIFIESTO
+          fila[6] = diferencia.toString(); // DIFERENCIA
+          fila[7] = (cantidad - escaneos).toString(); // MANIFIESTO
           if (diferencia == 0) {
-            fila[7] = 'Correcto';
+            fila[5] = 'Correcto';
           } else if (diferencia > 0) {
-            fila[7] = 'Sobrante';
+            fila[5] = 'Sobrante';
           } else {
-            fila[7] = 'Falta';
+            fila[5] = 'Falta';
           }
           encontrado = true;
           break;
@@ -162,18 +172,19 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
         nuevaFila[0] = ot;
         nuevaFila[1] = sku;
         nuevaFila[2] = '';
-        nuevaFila[3] = '';
-        nuevaFila[4] = '';
-        nuevaFila[5] = '0'; // CANTIDAD
-        nuevaFila[6] = '1'; // ESCANEO
-        nuevaFila[7] = 'Sobrante'; // VALIDACION
-        nuevaFila[8] = '1'; // DIFERENCIA
-        nuevaFila[9] = '-1'; // MANIFIESTO (no existe en manifiesto)
+        nuevaFila[3] = '0'; // CANTIDAD
+        nuevaFila[4] = '1'; // ESCANEO
+        nuevaFila[5] = 'Sobrante'; // VALIDACION
+        nuevaFila[6] = '1'; // DIFERENCIA
+        nuevaFila[7] = '-1'; // MANIFIESTO (no existe en manifiesto)
+        nuevaFila[8] = '';
+        nuevaFila[9] = '';
         _rows.add(nuevaFila);
       }
       setState(() {});
       _scanController.clear();
       _otPendiente = null;
+      FocusScope.of(context).requestFocus(_scanFocusNode);
     }
   }
 
@@ -213,6 +224,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                 Expanded(
                   child: TextField(
                     controller: _scanController,
+                    focusNode: _scanFocusNode,
                     decoration: InputDecoration(
                       labelText:
                           _otPendiente == null ? 'Escanear OT' : 'Escanear SKU',
