@@ -229,6 +229,8 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final isMobileNarrow = mediaQuery.size.shortestSide <= 600;
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -248,46 +250,66 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
           children: [
             Row(
               children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Importar Excel'),
-                  onPressed: _importarExcel,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
+                if (isMobileNarrow)
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.assignment_turned_in),
+                      label: const Text('Recolectar'),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const RecolectarPage()),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple.shade700,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18)),
+                    ),
+                  )
+                else ...[
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Importar Excel'),
+                    onPressed: _importarExcel,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar fila'),
-                  onPressed: _agregarFila,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar'),
-                  onPressed: _guardarNoEntregado,
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade700,
-                      foregroundColor: Colors.white),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.assignment_turned_in),
-                  label: const Text('Recolectar'),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const RecolectarPage()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple.shade700,
-                      foregroundColor: Colors.white),
-                ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Agregar fila'),
+                    onPressed: _agregarFila,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber.shade700,
+                        foregroundColor: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                    onPressed: _guardarNoEntregado,
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade700,
+                        foregroundColor: Colors.white),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.assignment_turned_in),
+                    label: const Text('Recolectar'),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const RecolectarPage()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple.shade700,
+                        foregroundColor: Colors.white),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 24),

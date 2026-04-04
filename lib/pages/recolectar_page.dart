@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
-import 'firma_painter.dart';
+// import 'firma_painter.dart';
+import 'package:signature/signature.dart';
 // import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,23 +16,9 @@ class RecolectarPage extends StatefulWidget {
 }
 
 class _RecolectarPageState extends State<RecolectarPage> {
-  Future<String> _firmaToBase64(List<Offset?> points) async {
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, 350, 120));
-    final paint = Paint()
-      ..color = Colors.black
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-    for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null) {
-        canvas.drawLine(points[i]!, points[i + 1]!, paint);
-      }
-    }
-    final picture = recorder.endRecording();
-    final img = await picture.toImage(350, 120);
-    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) return '';
-    return base64Encode(byteData.buffer.asUint8List());
+  Future<String> _firmaToBase64(Uint8List? data) async {
+    if (data == null) return '';
+    return base64Encode(data);
   }
 
   String? _filtroJefatura;
@@ -38,8 +26,12 @@ class _RecolectarPageState extends State<RecolectarPage> {
   void _abrirDialogoFirma() async {
     final seleccionados = _seleccionados.map((i) => _pendientes[i]).toList();
     final entregoController = TextEditingController();
-    String entrego = '';
-    List<Offset?> firma = [];
+    // String entrego = '';
+    final SignatureController signatureController = SignatureController(
+      penStrokeWidth: 2,
+      penColor: Colors.black,
+      exportBackgroundColor: Colors.white,
+    );
     bool guardando = false;
     await showDialog(
       context: context,
@@ -84,9 +76,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                 TextSelection.collapsed(offset: upper.length),
                           );
                         }
-                        setStateDialog(() {
-                          entrego = upper;
-                        });
+                        setStateDialog(() {});
                       },
                     ),
                     const SizedBox(height: 18),
@@ -104,27 +94,9 @@ class _RecolectarPageState extends State<RecolectarPage> {
                           BoxShadow(color: Colors.black12, blurRadius: 2)
                         ],
                       ),
-                      child: GestureDetector(
-                        onPanUpdate: (details) {
-                          setStateDialog(() {
-                            RenderBox? box =
-                                ctx.findRenderObject() as RenderBox?;
-                            if (box != null) {
-                              final local =
-                                  box.globalToLocal(details.globalPosition);
-                              firma.add(local);
-                            }
-                          });
-                        },
-                        onPanEnd: (_) {
-                          setStateDialog(() {
-                            firma.add(null);
-                          });
-                        },
-                        child: CustomPaint(
-                          painter: FirmaPainter(firma),
-                          child: Container(),
-                        ),
+                      child: Signature(
+                        controller: signatureController,
+                        backgroundColor: Colors.white,
                       ),
                     ),
                     Row(
@@ -133,7 +105,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                         TextButton.icon(
                           onPressed: () {
                             setStateDialog(() {
-                              firma.clear();
+                              signatureController.clear();
                             });
                           },
                           icon: const Icon(Icons.cleaning_services, size: 18),
@@ -168,13 +140,16 @@ class _RecolectarPageState extends State<RecolectarPage> {
                   ),
                   onPressed: guardando ||
                           entregoController.text.trim().isEmpty ||
-                          firma.where((p) => p != null).length < 2
+                          signatureController.isEmpty
                       ? null
                       : () async {
                           setStateDialog(() {
                             guardando = true;
                           });
-                          final firmaBase64 = await _firmaToBase64(firma);
+                          final signatureData =
+                              await signatureController.toPngBytes();
+                          final firmaBase64 =
+                              await _firmaToBase64(signatureData);
                           final now = DateTime.now();
                           final usuario = html.window.localStorage['usuario'] ??
                               'STAFF DEVOLUCION';
