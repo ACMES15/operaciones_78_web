@@ -12,6 +12,37 @@ class RecepcionBigTicketPage extends StatefulWidget {
 }
 
 class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
+  void _finalizarEscaneo() {
+    setState(() {
+      for (var fila in _rows) {
+        int cantidad = int.tryParse(fila[3]) ?? 0;
+        int escaneo = int.tryParse(fila[4]) ?? 0;
+        int diferencia = escaneo - cantidad;
+        fila[6] = diferencia.toString();
+        if (diferencia == 0) {
+          fila[5] = 'Correcto';
+        } else if (diferencia > 0) {
+          fila[5] = 'Sobrante';
+        } else {
+          fila[5] = 'Faltante';
+        }
+      }
+      // Mover sobrantes al final y ajustar MANIFIESTO
+      List<List<String>> correctosYfaltantes =
+          _rows.where((f) => f[5] != 'Sobrante').toList();
+      List<List<String>> sobrantes =
+          _rows.where((f) => f[5] == 'Sobrante').toList();
+      for (var s in sobrantes) {
+        // MANIFIESTO igual a CANTIDAD
+        s[7] = s[3];
+      }
+      _rows
+        ..clear()
+        ..addAll(correctosYfaltantes)
+        ..addAll(sobrantes);
+    });
+  }
+
   final List<String> _headers = [
     'OT',
     'SKU',
@@ -154,13 +185,13 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           int cantidad = int.tryParse(fila[3]) ?? 0;
           int diferencia = escaneos - cantidad;
           fila[6] = diferencia.toString(); // DIFERENCIA
-          fila[7] = (cantidad - escaneos).toString(); // MANIFIESTO
+          // MANIFIESTO nunca se modifica aquí
           if (diferencia == 0) {
             fila[5] = 'Correcto';
           } else if (diferencia > 0) {
             fila[5] = 'Sobrante';
           } else {
-            fila[5] = 'Falta';
+            fila[5] = 'Faltante';
           }
           encontrado = true;
           break;
@@ -176,7 +207,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
         nuevaFila[4] = '1'; // ESCANEO
         nuevaFila[5] = 'Sobrante'; // VALIDACION
         nuevaFila[6] = '1'; // DIFERENCIA
-        nuevaFila[7] = '-1'; // MANIFIESTO (no existe en manifiesto)
+        nuevaFila[7] = '0'; // MANIFIESTO igual a CANTIDAD (0)
         nuevaFila[8] = '';
         nuevaFila[9] = '';
         _rows.add(nuevaFila);
@@ -213,6 +244,21 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             ),
           ),
           const SizedBox(width: 18),
+          ElevatedButton.icon(
+            onPressed: _finalizarEscaneo,
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Finalizar escaneo'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+              textStyle:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+            ),
+          ),
         ],
       ),
       body: Padding(
@@ -297,11 +343,11 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     Color? validacionColor;
                                     Color? diferenciaColor;
                                     Color? manifiestoColor;
-                                    if (fila[7] == 'Correcto') {
+                                    if (fila[5] == 'Correcto') {
                                       validacionColor = Colors.green.shade200;
-                                    } else if (fila[7] == 'Sobrante') {
+                                    } else if (fila[5] == 'Sobrante') {
                                       validacionColor = Colors.purple.shade200;
-                                    } else if (fila[7] == 'Falta') {
+                                    } else if (fila[5] == 'Faltante') {
                                       validacionColor = Colors.red.shade100;
                                     }
                                     int diferencia = int.tryParse(fila[8]) ?? 0;
@@ -391,9 +437,9 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                           );
                                         }
                                         if (i == 7) {
+                                          // MANIFIESTO solo lectura, sin color especial
                                           return DataCell(
                                             Container(
-                                              color: manifiestoColor,
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 2,
