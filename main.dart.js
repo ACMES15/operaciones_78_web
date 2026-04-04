@@ -111411,7 +111411,7 @@ A.ir(h).vd(i.w)}},
 M(a){var s=this,r=null,q=t.p,p=A.cW(A.a([A.bU(B.qx,B.ua,s.gaoC(),A.bW(r,r,B.l5,r,r,r,2,r,r,B.y,r,r,B.lr,r,new A.bJ(A.aL(12),B.J),r,r,B.cD,r)),B.cR,A.bU(B.Z3,B.aXo,s.gafC(),A.bW(r,r,B.e2,r,r,r,2,r,r,B.y,r,r,B.lr,r,new A.bJ(A.aL(12),B.J),r,r,B.cD,r))],q),!0,B.a0,r,2,r,r,r,B.aYf,r,r),o=s.x==null,n=o?"Escanear OT":"Escanear SKU"
 return A.cK(p,r,new A.a9(B.wS,A.am(A.a([A.a5(A.a([A.aG(A.b0(!0,B.a1,!0,r,!0,B.H,r,A.b3(),s.r,r,r,r,r,r,2,A.hX(r,B.bg,r,r,r,r,r,r,!0,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,r,o?"Escanea la OT y presiona ENTER":"Escanea el SKU y presiona ENTER",r,r,r,r,r,r,r,r,n,!0,r,B.Zb,r,r,r,r,r,r,r,r,r,r,r),B.U,!0,r,!0,r,!1,s.w,B.a_,r,r,r,r,r,r,r,1,r,r,!1,"\u2022",r,r,r,new A.aQ5(s),r,!1,r,!1,r,!0,r,B.a4,r,r,B.Z,B.Y,r,r,r,r,r,r,r,B.X,r,B.a5,r,r,r,r),1)],q),B.E,B.u,B.w,r),B.c1,A.aG(A.aB(r,new A.oD(new A.aQ6(s),r),B.M,r,r,new A.aT(B.y,r,r,A.aL(18),A.a([new A.bT(0,B.aI,B.cp,B.K,8)],t.V),r,B.a3),r,r,r,r,r,r,r),1)],q),B.E,B.u,B.w),r))}}
 A.aPV.prototype={
-$0(){var s,r,q,p,o,n,m,l,k,j,i
+$0(){var s,r,q,p,o,n,m,l,k,j
 for(s=this.a.f,r=s.length,q=0;q<s.length;s.length===r||(0,A.E)(s),++q){p=s[q]
 o=J.L(p)
 n=A.iB(o.h(p,3),null)
@@ -111425,9 +111425,7 @@ else o.l(p,5,"Faltante")}r=A.F(s).i("a6<1>")
 o=r.i("f.E")
 k=A.w(new A.a6(s,new A.aPT(),r),!0,o)
 j=A.w(new A.a6(s,new A.aPU(),r),!0,o)
-for(r=j.length,q=0;q<j.length;j.length===r||(0,A.E)(j),++q){i=j[q]
-o=J.L(i)
-o.l(i,7,o.h(i,3))}B.l.R(s)
+B.l.R(s)
 B.l.K(s,k)
 B.l.K(s,j)},
 $S:0}
@@ -111526,17 +111524,13 @@ A.aQ5.prototype={
 $1(a){return this.a.aog()},
 $S:3}
 A.aQ6.prototype={
-$2(a,b){var s,r,q,p,o,n=null,m=b.b,l=m<1100,k=l?900:1100
-m=l?m:1300
-s=this.a
-r=s.d
-q=A.F(r).i("B<1,j3>")
-q=A.w(new A.B(r,new A.aQ2(),q),!0,q.i("a4.E"))
-r=s.f.length
-if(r===0){p=J.cR(10,t.z8)
-for(o=0;o<10;++o)p[o]=B.lm
-s=A.a([A.ym(p)],t.yy)}else s=A.dd(r,new A.aQ3(s),!0,t.VZ)
-return A.cS(new A.ea(new A.aq(k,m,0,1/0),A.cS(A.En(n,q,new A.bV(new A.aQ4(),t.b),n,n,B.aUK,new A.c8(B.a0,t.rc),n,B.u4,s),n,n,B.aH),n),n,n,B.bi)},
+$2(a,b){var s,r,q=null,p=this.a,o=p.d,n=A.F(o).i("B<1,j3>")
+n=A.w(new A.B(o,new A.aQ2(),n),!0,n.i("a4.E"))
+o=p.f.length
+if(o===0){s=J.cR(10,t.z8)
+for(r=0;r<10;++r)s[r]=B.lm
+p=A.a([A.ym(s)],t.yy)}else p=A.dd(o,new A.aQ3(p),!0,t.VZ)
+return A.cS(new A.ea(new A.aq(1800,2000,0,1/0),A.cS(A.En(q,n,new A.bV(new A.aQ4(),t.b),q,q,B.aUK,new A.c8(B.a0,t.rc),q,B.u4,p),q,q,B.aH),q),q,q,B.bi)},
 $S:282}
 A.aQ4.prototype={
 $1(a){if(a.p(0,B.av))return B.vQ

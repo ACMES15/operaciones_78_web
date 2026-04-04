@@ -27,15 +27,11 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           fila[5] = 'Faltante';
         }
       }
-      // Mover sobrantes al final y ajustar MANIFIESTO
+      // Mover sobrantes al final (sin modificar MANIFIESTO)
       List<List<String>> correctosYfaltantes =
           _rows.where((f) => f[5] != 'Sobrante').toList();
       List<List<String>> sobrantes =
           _rows.where((f) => f[5] == 'Sobrante').toList();
-      for (var s in sobrantes) {
-        // MANIFIESTO igual a CANTIDAD
-        s[7] = s[3];
-      }
       _rows
         ..clear()
         ..addAll(correctosYfaltantes)
@@ -301,10 +297,9 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: isSmall ? 900 : _headers.length * 110,
-                          maxWidth: isSmall
-                              ? constraints.maxWidth
-                              : _headers.length * 130.0,
+                          minWidth: _headers.length *
+                              180, // Aumenta el ancho mínimo para que todas las columnas sean visibles
+                          maxWidth: _headers.length * 200.0,
                         ),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.vertical,
