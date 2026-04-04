@@ -574,14 +574,6 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                         final focus =
                                                             _guiaFocusNodes[
                                                                 key]!;
-                                                        // Si el campo NO tiene foco y el valor cambió en Firestore, sincronizar
-                                                        if (!focus.hasFocus &&
-                                                            ctrl.text !=
-                                                                (reg['guia'] ??
-                                                                    '')) {
-                                                          ctrl.text =
-                                                              reg['guia'] ?? '';
-                                                        }
                                                         return Focus(
                                                           focusNode: focus,
                                                           child: TextField(
