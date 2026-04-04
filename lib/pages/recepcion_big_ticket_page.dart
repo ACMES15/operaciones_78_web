@@ -50,6 +50,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
     'MANIFIESTO',
     'SECCION',
     'JEFATURA',
+    'Acciones',
   ];
 
   void _actualizarJefaturaPorSeccion(int rowIdx, String nuevaSeccion) {
@@ -61,10 +62,12 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
 
   // Cache de plantilla ejecutiva para búsqueda rápida
   Map<String, String> _seccionToJefatura = {};
+
   @override
   void initState() {
     super.initState();
     _cargarPlantillaEjecutiva();
+    // Usuario se puede obtener con html.window.localStorage['usuario'] cuando se requiera
   }
 
   Future<void> _cargarPlantillaEjecutiva() async {
@@ -292,7 +295,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    final isSmall = constraints.maxWidth < 1100;
+                    // final isSmall = constraints.maxWidth < 1100;
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
@@ -337,7 +340,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     final fila = _rows[rowIdx];
                                     Color? validacionColor;
                                     Color? diferenciaColor;
-                                    Color? manifiestoColor;
+                                    // Color? manifiestoColor;
                                     if (fila[5] == 'Correcto') {
                                       validacionColor = Colors.green.shade200;
                                     } else if (fila[5] == 'Sobrante') {
@@ -353,14 +356,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     } else {
                                       diferenciaColor = Colors.red.shade100;
                                     }
-                                    int manifiesto = int.tryParse(fila[9]) ?? 0;
-                                    if (manifiesto == 0) {
-                                      manifiestoColor = Colors.green.shade200;
-                                    } else if (manifiesto > 0) {
-                                      manifiestoColor = Colors.red.shade100;
-                                    } else {
-                                      manifiestoColor = Colors.purple.shade200;
-                                    }
+                                    // int manifiesto = int.tryParse(fila[9]) ?? 0;
+                                    // if (manifiesto == 0) {
+                                    //   manifiestoColor = Colors.green.shade200;
+                                    // } else if (manifiesto > 0) {
+                                    //   manifiestoColor = Colors.red.shade100;
+                                    // } else {
+                                    //   manifiestoColor = Colors.purple.shade200;
+                                    // }
                                     return DataRow(
                                       cells:
                                           List.generate(_headers.length, (i) {
@@ -443,6 +446,21 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                                   child: Text(fila[i],
                                                       overflow: TextOverflow
                                                           .ellipsis)),
+                                            ),
+                                          );
+                                        }
+                                        if (i == 10) {
+                                          // Acciones: eliminar fila
+                                          return DataCell(
+                                            IconButton(
+                                              icon: const Icon(Icons.delete,
+                                                  color: Colors.red),
+                                              tooltip: 'Eliminar fila',
+                                              onPressed: () {
+                                                setState(() {
+                                                  _rows.removeAt(rowIdx);
+                                                });
+                                              },
                                             ),
                                           );
                                         }
