@@ -26,189 +26,393 @@ class _RecolectarPageState extends State<RecolectarPage> {
   void _abrirDialogoFirma() async {
     final seleccionados = _seleccionados.map((i) => _pendientes[i]).toList();
     final entregoController = TextEditingController();
-    // String entrego = '';
     final SignatureController signatureController = SignatureController(
       penStrokeWidth: 2,
       penColor: Colors.black,
       exportBackgroundColor: Colors.white,
     );
     bool guardando = false;
+    final mediaQuery = MediaQuery.of(context);
+    final isMobile = mediaQuery.size.shortestSide <= 600;
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setStateDialog) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18)),
-              title: Row(
-                children: [
-                  const Icon(Icons.assignment_turned_in,
-                      color: Colors.blueGrey, size: 28),
-                  const SizedBox(width: 10),
-                  const Text('Confirmar entrega',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-              content: SizedBox(
-                width: 420,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Entregó',
-                        labelStyle: TextStyle(fontWeight: FontWeight.bold),
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      controller: entregoController,
-                      textCapitalization: TextCapitalization.characters,
-                      onChanged: (v) {
-                        final upper = v.toUpperCase();
-                        if (v != upper) {
-                          entregoController.value =
-                              entregoController.value.copyWith(
-                            text: upper,
-                            selection:
-                                TextSelection.collapsed(offset: upper.length),
-                          );
-                        }
-                        setStateDialog(() {});
-                      },
-                    ),
-                    const SizedBox(height: 18),
-                    const Text('Firma (dibuje en el recuadro):',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    Container(
-                      width: 370,
-                      height: 130,
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blueGrey, width: 2),
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black12, blurRadius: 2)
-                        ],
-                      ),
-                      child: Signature(
-                        controller: signatureController,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () {
-                            setStateDialog(() {
-                              signatureController.clear();
-                            });
-                          },
-                          icon: const Icon(Icons.cleaning_services, size: 18),
-                          label: const Text('Limpiar'),
+            if (isMobile) {
+              // Fullscreen dialog para mobile
+              return Dialog(
+                insetPadding: EdgeInsets.zero,
+                backgroundColor: Colors.white,
+                child: SizedBox(
+                  width: mediaQuery.size.width,
+                  height: mediaQuery.size.height,
+                  child: Scaffold(
+                    appBar: AppBar(
+                      backgroundColor: Colors.blueGrey[800],
+                      title: const Text('Confirmar entrega',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      automaticallyImplyLeading: false,
+                      actions: [
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(ctx).pop(),
                         ),
                       ],
                     ),
+                    body: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            decoration: const InputDecoration(
+                              labelText: 'Entregó',
+                              labelStyle:
+                                  TextStyle(fontWeight: FontWeight.bold),
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person),
+                            ),
+                            controller: entregoController,
+                            textCapitalization: TextCapitalization.characters,
+                            onChanged: (v) {
+                              final upper = v.toUpperCase();
+                              if (v != upper) {
+                                entregoController.value =
+                                    entregoController.value.copyWith(
+                                  text: upper,
+                                  selection: TextSelection.collapsed(
+                                      offset: upper.length),
+                                );
+                              }
+                              setStateDialog(() {});
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          const Text('Firma (dibuje en el recuadro):',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                    color: Colors.blueGrey, width: 2),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                      color: Colors.black12, blurRadius: 2)
+                                ],
+                              ),
+                              child: Signature(
+                                controller: signatureController,
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () {
+                                  setStateDialog(() {
+                                    signatureController.clear();
+                                  });
+                                },
+                                icon: const Icon(Icons.cleaning_services,
+                                    size: 18),
+                                label: const Text('Limpiar'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(),
+                                child: const Text('Cancelar'),
+                              ),
+                              ElevatedButton.icon(
+                                icon: guardando
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white))
+                                    : const Icon(Icons.check),
+                                label: const Text('Guardar',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.green.shade700,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
+                                  textStyle: const TextStyle(fontSize: 16),
+                                ),
+                                onPressed: guardando ||
+                                        entregoController.text.trim().isEmpty ||
+                                        signatureController.isEmpty
+                                    ? null
+                                    : () async {
+                                        setStateDialog(() {
+                                          guardando = true;
+                                        });
+                                        final signatureData =
+                                            await signatureController
+                                                .toPngBytes();
+                                        final firmaBase64 =
+                                            await _firmaToBase64(signatureData);
+                                        final now = DateTime.now();
+                                        final usuario = html.window
+                                                .localStorage['usuario'] ??
+                                            'STAFF DEVOLUCION';
+                                        final registros =
+                                            seleccionados.map((e) {
+                                          return {
+                                            'empleado': e['NUMERO VENDEDOR'] ??
+                                                e['EMPLEADO'] ??
+                                                '',
+                                            'devolucion_mkp': e['REmision'] ??
+                                                e['REMISION'] ??
+                                                '',
+                                            'skus': [
+                                              e['ARTICULO'] ?? e['SKU'] ?? ''
+                                            ],
+                                            'cantidad': 1,
+                                            'usuario': usuario,
+                                            'fecha': now.toIso8601String(),
+                                            'nombre_vendedor':
+                                                e['NOMBRE DE VENDEDOR'] ?? '',
+                                            'jefatura': e['JEFATURA'] ?? '',
+                                            'firma': firmaBase64,
+                                            'entrego': entregoController.text
+                                                .trim()
+                                                .toUpperCase(),
+                                            'estatus_actual': 'ENTREGADO',
+                                            'fecha_entrega':
+                                                now.toIso8601String(),
+                                            ...e,
+                                          };
+                                        }).toList();
+                                        final doc = await FirebaseFirestore
+                                            .instance
+                                            .collection('entregas')
+                                            .doc('mkp')
+                                            .get();
+                                        final items = (doc.data()?['items'] ??
+                                            []) as List;
+                                        items.addAll(registros);
+                                        await FirebaseFirestore.instance
+                                            .collection('entregas')
+                                            .doc('mkp')
+                                            .set({'items': items});
+                                        setState(() {
+                                          _pendientes.removeWhere(
+                                              (e) => seleccionados.contains(e));
+                                          _seleccionados.clear();
+                                        });
+                                        final nuevosPendientes = _pendientes;
+                                        html.window.localStorage[
+                                                'reporte_mkp_no_entregado'] =
+                                            jsonEncode(nuevosPendientes);
+                                        await FirebaseFirestore.instance
+                                            .collection(
+                                                'reporte_mkp_no_entregado')
+                                            .doc('pendientes')
+                                            .set({'items': nuevosPendientes});
+                                        Navigator.of(ctx).pop();
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'Entrega registrada y guardada.')),
+                                        );
+                                      },
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            } else {
+              // Desktop/tablet: AlertDialog tradicional
+              return AlertDialog(
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18)),
+                title: Row(
+                  children: [
+                    const Icon(Icons.assignment_turned_in,
+                        color: Colors.blueGrey, size: 28),
+                    const SizedBox(width: 10),
+                    const Text('Confirmar entrega',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancelar'),
-                ),
-                ElevatedButton.icon(
-                  icon: guardando
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : const Icon(Icons.check),
-                  label: const Text('Guardar',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
-                    textStyle: const TextStyle(fontSize: 16),
-                  ),
-                  onPressed: guardando ||
-                          entregoController.text.trim().isEmpty ||
-                          signatureController.isEmpty
-                      ? null
-                      : () async {
-                          setStateDialog(() {
-                            guardando = true;
-                          });
-                          final signatureData =
-                              await signatureController.toPngBytes();
-                          final firmaBase64 =
-                              await _firmaToBase64(signatureData);
-                          final now = DateTime.now();
-                          final usuario = html.window.localStorage['usuario'] ??
-                              'STAFF DEVOLUCION';
-                          // Adaptar estructura para entregas_mkp_page
-                          final registros = seleccionados.map((e) {
-                            return {
-                              // Estructura esperada por entregas_mkp_page
-                              'empleado':
-                                  e['NUMERO VENDEDOR'] ?? e['EMPLEADO'] ?? '',
-                              'devolucion_mkp':
-                                  e['REmision'] ?? e['REMISION'] ?? '',
-                              'skus': [e['ARTICULO'] ?? e['SKU'] ?? ''],
-                              'cantidad': 1,
-                              'usuario': usuario,
-                              'fecha': now.toIso8601String(),
-                              // Extras para trazabilidad
-                              'nombre_vendedor': e['NOMBRE DE VENDEDOR'] ?? '',
-                              'jefatura': e['JEFATURA'] ?? '',
-                              'firma': firmaBase64,
-                              'entrego':
-                                  entregoController.text.trim().toUpperCase(),
-                              'estatus_actual': 'ENTREGADO',
-                              'fecha_entrega': now.toIso8601String(),
-                              // Otros campos originales por si se requieren
-                              ...e,
-                            };
-                          }).toList();
-                          final doc = await FirebaseFirestore.instance
-                              .collection('entregas')
-                              .doc('mkp')
-                              .get();
-                          final items = (doc.data()?['items'] ?? []) as List;
-                          items.addAll(registros);
-                          await FirebaseFirestore.instance
-                              .collection('entregas')
-                              .doc('mkp')
-                              .set({'items': items});
-                          setState(() {
-                            _pendientes
-                                .removeWhere((e) => seleccionados.contains(e));
-                            _seleccionados.clear();
-                          });
-                          final nuevosPendientes = _pendientes;
-                          html.window.localStorage['reporte_mkp_no_entregado'] =
-                              jsonEncode(nuevosPendientes);
-                          await FirebaseFirestore.instance
-                              .collection('reporte_mkp_no_entregado')
-                              .doc('pendientes')
-                              .set({'items': nuevosPendientes});
-                          Navigator.of(ctx).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Entrega registrada y guardada.')),
-                          );
+                content: SizedBox(
+                  width: 420,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Entregó',
+                          labelStyle: TextStyle(fontWeight: FontWeight.bold),
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        controller: entregoController,
+                        textCapitalization: TextCapitalization.characters,
+                        onChanged: (v) {
+                          final upper = v.toUpperCase();
+                          if (v != upper) {
+                            entregoController.value =
+                                entregoController.value.copyWith(
+                              text: upper,
+                              selection:
+                                  TextSelection.collapsed(offset: upper.length),
+                            );
+                          }
+                          setStateDialog(() {});
                         },
+                      ),
+                      const SizedBox(height: 18),
+                      const Text('Firma (dibuje en el recuadro):',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      Container(
+                        width: 370,
+                        height: 130,
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.blueGrey, width: 2),
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black12, blurRadius: 2)
+                          ],
+                        ),
+                        child: Signature(
+                          controller: signatureController,
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              setStateDialog(() {
+                                signatureController.clear();
+                              });
+                            },
+                            icon: const Icon(Icons.cleaning_services, size: 18),
+                            label: const Text('Limpiar'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            );
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cancelar'),
+                  ),
+                  ElevatedButton.icon(
+                    icon: guardando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check),
+                    label: const Text('Guardar',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 12),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                    onPressed: guardando ||
+                            entregoController.text.trim().isEmpty ||
+                            signatureController.isEmpty
+                        ? null
+                        : () async {
+                            setStateDialog(() {
+                              guardando = true;
+                            });
+                            final signatureData =
+                                await signatureController.toPngBytes();
+                            final firmaBase64 =
+                                await _firmaToBase64(signatureData);
+                            final now = DateTime.now();
+                            final usuario =
+                                html.window.localStorage['usuario'] ??
+                                    'STAFF DEVOLUCION';
+                            final registros = seleccionados.map((e) {
+                              return {
+                                'empleado':
+                                    e['NUMERO VENDEDOR'] ?? e['EMPLEADO'] ?? '',
+                                'devolucion_mkp':
+                                    e['REmision'] ?? e['REMISION'] ?? '',
+                                'skus': [e['ARTICULO'] ?? e['SKU'] ?? ''],
+                                'cantidad': 1,
+                                'usuario': usuario,
+                                'fecha': now.toIso8601String(),
+                                'nombre_vendedor':
+                                    e['NOMBRE DE VENDEDOR'] ?? '',
+                                'jefatura': e['JEFATURA'] ?? '',
+                                'firma': firmaBase64,
+                                'entrego':
+                                    entregoController.text.trim().toUpperCase(),
+                                'estatus_actual': 'ENTREGADO',
+                                'fecha_entrega': now.toIso8601String(),
+                                ...e,
+                              };
+                            }).toList();
+                            final doc = await FirebaseFirestore.instance
+                                .collection('entregas')
+                                .doc('mkp')
+                                .get();
+                            final items = (doc.data()?['items'] ?? []) as List;
+                            items.addAll(registros);
+                            await FirebaseFirestore.instance
+                                .collection('entregas')
+                                .doc('mkp')
+                                .set({'items': items});
+                            setState(() {
+                              _pendientes.removeWhere(
+                                  (e) => seleccionados.contains(e));
+                              _seleccionados.clear();
+                            });
+                            final nuevosPendientes = _pendientes;
+                            html.window
+                                    .localStorage['reporte_mkp_no_entregado'] =
+                                jsonEncode(nuevosPendientes);
+                            await FirebaseFirestore.instance
+                                .collection('reporte_mkp_no_entregado')
+                                .doc('pendientes')
+                                .set({'items': nuevosPendientes});
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Entrega registrada y guardada.')),
+                            );
+                          },
+                  ),
+                ],
+              );
+            }
           },
         );
       },
