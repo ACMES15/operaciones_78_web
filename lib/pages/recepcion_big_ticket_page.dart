@@ -85,28 +85,27 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           for (int rowIndex = 1; rowIndex < sheet.maxRows; rowIndex++) {
             final row = sheet.row(rowIndex);
             final fila = List<String>.filled(_headers.length, '');
-            // OT, SKU, SECCION, JEFATURA, Descripción, CANTIDAD, ESCANEO, VALIDACION, DIFERENCIA, MANIFIESTO
+            // OT, SKU, Descripción, CANTIDAD, ESCANEO, VALIDACION, DIFERENCIA, MANIFIESTO, SECCION, JEFATURA
             fila[0] = row.isNotEmpty && row[0] != null
                 ? row[0]!.value.toString()
                 : '';
             fila[1] = row.length > 1 && row[1] != null
                 ? row[1]!.value.toString()
                 : '';
-            fila[2] = row.length > 2 && row[2] != null
-                ? row[2]!.value.toString()
-                : '';
-            // Buscar JEFATURA por SECCION
-            fila[3] = _seccionToJefatura[fila[2]] ?? '';
-            fila[4] = row.length > 3 && row[3] != null
+            fila[2] = row.length > 3 && row[3] != null
                 ? row[3]!.value.toString()
                 : '';
-            fila[5] = row.length > 4 && row[4] != null
+            fila[3] = row.length > 4 && row[4] != null
                 ? row[4]!.value.toString()
                 : '';
-            fila[6] = '0'; // ESCANEO
-            fila[7] = ''; // VALIDACION
-            fila[8] = '0'; // DIFERENCIA
-            fila[9] = '0'; // MANIFIESTO
+            fila[4] = '0'; // ESCANEO
+            fila[5] = ''; // VALIDACION
+            fila[6] = '0'; // DIFERENCIA
+            fila[7] = '0'; // MANIFIESTO
+            fila[8] = row.length > 2 && row[2] != null
+                ? row[2]!.value.toString()
+                : '';
+            fila[9] = _seccionToJefatura[fila[8]] ?? '';
             datos.add(fila);
           }
           break;
@@ -237,153 +236,175 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                   borderRadius: BorderRadius.circular(18),
                   boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
                 ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                        minWidth: _headers.length * 140, maxWidth: 1400),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.vertical,
-                      child: DataTable(
-                        headingRowColor:
-                            MaterialStateProperty.all(const Color(0xFF2D6A4F)),
-                        headingTextStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18),
-                        dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                            (Set<MaterialState> states) {
-                          if (states.contains(MaterialState.selected)) {
-                            return Colors.deepPurple.shade50;
-                          }
-                          return null;
-                        }),
-                        dataTextStyle: const TextStyle(
-                            fontSize: 16, color: Colors.black87),
-                        columns: _headers
-                            .map((h) => DataColumn(
-                                label: Center(
-                                    child: Text(h,
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 2))))
-                            .toList(),
-                        rows: _rows.isEmpty
-                            ? [
-                                DataRow(
-                                    cells: List.generate(_headers.length,
-                                        (i) => const DataCell(Text(''))))
-                              ]
-                            : List.generate(_rows.length, (rowIdx) {
-                                final fila = _rows[rowIdx];
-                                Color? validacionColor;
-                                Color? diferenciaColor;
-                                Color? manifiestoColor;
-                                if (fila[7] == 'Correcto') {
-                                  validacionColor = Colors.green.shade200;
-                                } else if (fila[7] == 'Sobrante') {
-                                  validacionColor = Colors.purple.shade200;
-                                } else if (fila[7] == 'Falta') {
-                                  validacionColor = Colors.red.shade100;
-                                }
-                                int diferencia = int.tryParse(fila[8]) ?? 0;
-                                if (diferencia == 0) {
-                                  diferenciaColor = Colors.green.shade200;
-                                } else if (diferencia > 0) {
-                                  diferenciaColor = Colors.purple.shade200;
-                                } else {
-                                  diferenciaColor = Colors.red.shade100;
-                                }
-                                int manifiesto = int.tryParse(fila[9]) ?? 0;
-                                if (manifiesto == 0) {
-                                  manifiestoColor = Colors.green.shade200;
-                                } else if (manifiesto > 0) {
-                                  manifiestoColor = Colors.red.shade100;
-                                } else {
-                                  manifiestoColor = Colors.purple.shade200;
-                                }
-                                return DataRow(
-                                  cells: List.generate(_headers.length, (i) {
-                                    if (i == 2) {
-                                      // SECCION editable
-                                      return DataCell(
-                                        TextFormField(
-                                          initialValue: fila[i],
-                                          decoration: const InputDecoration(
-                                            border: InputBorder.none,
-                                            isDense: true,
-                                            contentPadding:
-                                                EdgeInsets.symmetric(
-                                                    horizontal: 4, vertical: 2),
-                                          ),
-                                          style: const TextStyle(fontSize: 15),
-                                          onFieldSubmitted: (nuevoValor) {
-                                            _actualizarJefaturaPorSeccion(
-                                                rowIdx, nuevoValor.trim());
-                                          },
-                                        ),
-                                      );
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isSmall = constraints.maxWidth < 1100;
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minWidth: isSmall ? 900 : _headers.length * 110,
+                          maxWidth: isSmall
+                              ? constraints.maxWidth
+                              : _headers.length * 130.0,
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.vertical,
+                          child: DataTable(
+                            headingRowColor: MaterialStateProperty.all(
+                                const Color(0xFF2D6A4F)),
+                            headingTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15),
+                            dataRowColor:
+                                MaterialStateProperty.resolveWith<Color?>(
+                                    (Set<MaterialState> states) {
+                              if (states.contains(MaterialState.selected)) {
+                                return Colors.deepPurple.shade50;
+                              }
+                              return null;
+                            }),
+                            dataTextStyle: const TextStyle(
+                                fontSize: 13, color: Colors.black87),
+                            columns: _headers
+                                .map((h) => DataColumn(
+                                    label: Center(
+                                        child: Text(h,
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 2))))
+                                .toList(),
+                            rows: _rows.isEmpty
+                                ? [
+                                    DataRow(
+                                        cells: List.generate(_headers.length,
+                                            (i) => const DataCell(Text(''))))
+                                  ]
+                                : List.generate(_rows.length, (rowIdx) {
+                                    final fila = _rows[rowIdx];
+                                    Color? validacionColor;
+                                    Color? diferenciaColor;
+                                    Color? manifiestoColor;
+                                    if (fila[7] == 'Correcto') {
+                                      validacionColor = Colors.green.shade200;
+                                    } else if (fila[7] == 'Sobrante') {
+                                      validacionColor = Colors.purple.shade200;
+                                    } else if (fila[7] == 'Falta') {
+                                      validacionColor = Colors.red.shade100;
                                     }
-                                    if (i == 3) {
-                                      // JEFATURA no editable
-                                      return DataCell(
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4, vertical: 2),
-                                          child: Center(
-                                              child: Text(fila[i],
-                                                  overflow:
-                                                      TextOverflow.ellipsis)),
-                                        ),
-                                      );
+                                    int diferencia = int.tryParse(fila[8]) ?? 0;
+                                    if (diferencia == 0) {
+                                      diferenciaColor = Colors.green.shade200;
+                                    } else if (diferencia > 0) {
+                                      diferenciaColor = Colors.purple.shade200;
+                                    } else {
+                                      diferenciaColor = Colors.red.shade100;
                                     }
-                                    if (i == 7) {
-                                      return DataCell(
-                                        Container(
-                                          color: validacionColor,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4, vertical: 2),
-                                          child: Center(
-                                              child: Text(fila[i],
-                                                  overflow:
-                                                      TextOverflow.ellipsis)),
-                                        ),
-                                      );
+                                    int manifiesto = int.tryParse(fila[9]) ?? 0;
+                                    if (manifiesto == 0) {
+                                      manifiestoColor = Colors.green.shade200;
+                                    } else if (manifiesto > 0) {
+                                      manifiestoColor = Colors.red.shade100;
+                                    } else {
+                                      manifiestoColor = Colors.purple.shade200;
                                     }
-                                    if (i == 8) {
-                                      return DataCell(
-                                        Container(
-                                          color: diferenciaColor,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4, vertical: 2),
-                                          child: Center(
-                                              child: Text(fila[i],
-                                                  overflow:
-                                                      TextOverflow.ellipsis)),
-                                        ),
-                                      );
-                                    }
-                                    if (i == 9) {
-                                      return DataCell(
-                                        Container(
-                                          color: manifiestoColor,
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4, vertical: 2),
-                                          child: Center(
-                                              child: Text(fila[i],
-                                                  overflow:
-                                                      TextOverflow.ellipsis)),
-                                        ),
-                                      );
-                                    }
-                                    return DataCell(Center(
-                                        child: Text(fila[i],
-                                            overflow: TextOverflow.ellipsis)));
+                                    return DataRow(
+                                      cells:
+                                          List.generate(_headers.length, (i) {
+                                        if (i == 8) {
+                                          // SECCION editable
+                                          return DataCell(
+                                            TextFormField(
+                                              initialValue: fila[i],
+                                              decoration: const InputDecoration(
+                                                border: InputBorder.none,
+                                                isDense: true,
+                                                contentPadding:
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 2,
+                                                        vertical: 1),
+                                              ),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                              onFieldSubmitted: (nuevoValor) {
+                                                _actualizarJefaturaPorSeccion(
+                                                    rowIdx, nuevoValor.trim());
+                                              },
+                                            ),
+                                          );
+                                        }
+                                        if (i == 9) {
+                                          // JEFATURA no editable
+                                          return DataCell(
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2,
+                                                      vertical: 1),
+                                              child: Center(
+                                                  child: Text(fila[i],
+                                                      overflow: TextOverflow
+                                                          .ellipsis)),
+                                            ),
+                                          );
+                                        }
+                                        if (i == 5) {
+                                          return DataCell(
+                                            Container(
+                                              color: validacionColor,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2,
+                                                      vertical: 1),
+                                              child: Center(
+                                                  child: Text(fila[i],
+                                                      overflow: TextOverflow
+                                                          .ellipsis)),
+                                            ),
+                                          );
+                                        }
+                                        if (i == 6) {
+                                          return DataCell(
+                                            Container(
+                                              color: diferenciaColor,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2,
+                                                      vertical: 1),
+                                              child: Center(
+                                                  child: Text(fila[i],
+                                                      overflow: TextOverflow
+                                                          .ellipsis)),
+                                            ),
+                                          );
+                                        }
+                                        if (i == 7) {
+                                          return DataCell(
+                                            Container(
+                                              color: manifiestoColor,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 2,
+                                                      vertical: 1),
+                                              child: Center(
+                                                  child: Text(fila[i],
+                                                      overflow: TextOverflow
+                                                          .ellipsis)),
+                                            ),
+                                          );
+                                        }
+                                        return DataCell(Center(
+                                            child: Text(fila[i],
+                                                overflow:
+                                                    TextOverflow.ellipsis)));
+                                      }),
+                                    );
                                   }),
-                                );
-                              }),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ),
