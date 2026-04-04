@@ -245,18 +245,28 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
       ),
       body: isMobileNarrow
           ? Center(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.assignment_turned_in),
-                label: const Text('Recolectar'),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const RecolectarPage()),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
+              child: SizedBox(
+                width: 260,
+                height: 80,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.assignment_turned_in, size: 38),
+                  label: const Text('Recolectar',
+                      style:
+                          TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const RecolectarPage()),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple.shade700,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 18)),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 24, horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18)),
+                  ),
+                ),
               ),
             )
           : Padding(

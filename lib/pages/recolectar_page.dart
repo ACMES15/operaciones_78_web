@@ -34,6 +34,8 @@ class _RecolectarPageState extends State<RecolectarPage> {
     bool guardando = false;
     final mediaQuery = MediaQuery.of(context);
     final isMobile = mediaQuery.size.shortestSide <= 600;
+    final usuarioActual =
+        html.window.localStorage['usuario'] ?? 'STAFF DEVOLUCION';
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -67,12 +69,20 @@ class _RecolectarPageState extends State<RecolectarPage> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextField(
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Entregó',
                               labelStyle:
-                                  TextStyle(fontWeight: FontWeight.bold),
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.person),
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                              border: const OutlineInputBorder(),
+                              prefixIcon: const Icon(Icons.person),
+                              suffixIcon: usuarioActual != 'STAFF DEVOLUCION'
+                                  ? Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: 8.0),
+                                      child: Icon(Icons.verified_user,
+                                          color: Colors.green),
+                                    )
+                                  : null,
                             ),
                             controller: entregoController,
                             textCapitalization: TextCapitalization.characters,
@@ -167,7 +177,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                         final firmaBase64 =
                                             await _firmaToBase64(signatureData);
                                         final now = DateTime.now();
-                                        final usuario = html.window
+                                        final usuarioActual = html.window
                                                 .localStorage['usuario'] ??
                                             'STAFF DEVOLUCION';
                                         final registros =
@@ -183,7 +193,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                               e['ARTICULO'] ?? e['SKU'] ?? ''
                                             ],
                                             'cantidad': 1,
-                                            'usuario': usuario,
+                                            'usuario': usuarioActual,
                                             'fecha': now.toIso8601String(),
                                             'nombre_vendedor':
                                                 e['NOMBRE DE VENDEDOR'] ?? '',
@@ -355,7 +365,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                             final firmaBase64 =
                                 await _firmaToBase64(signatureData);
                             final now = DateTime.now();
-                            final usuario =
+                            final usuarioActual =
                                 html.window.localStorage['usuario'] ??
                                     'STAFF DEVOLUCION';
                             final registros = seleccionados.map((e) {
@@ -366,7 +376,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                     e['REmision'] ?? e['REMISION'] ?? '',
                                 'skus': [e['ARTICULO'] ?? e['SKU'] ?? ''],
                                 'cantidad': 1,
-                                'usuario': usuario,
+                                'usuario': usuarioActual,
                                 'fecha': now.toIso8601String(),
                                 'nombre_vendedor':
                                     e['NOMBRE DE VENDEDOR'] ?? '',
@@ -658,14 +668,13 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          if ((item['NOMBRE DE VENDEDOR'] ?? '')
-                                              .toString()
-                                              .isNotEmpty)
-                                            Text(
-                                                'Vendedor: ${item['NOMBRE DE VENDEDOR']}',
-                                                style: const TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.black87)),
+                                          Text(
+                                            'NOMBRE DEL VENDEDOR:  0${item['NOMBRE DEL VENDEDOR'] ?? item['NOMBRE DE VENDEDOR'] ?? ''}',
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87),
+                                          ),
                                           Text(
                                               'Remisión: ${item['REmision'] ?? ''}',
                                               style: const TextStyle(
@@ -686,6 +695,15 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                                       fontSize: 13,
                                                       color: Colors.black54)),
                                             ),
+                                          Padding(
+                                            padding:
+                                                const EdgeInsets.only(top: 2),
+                                            child: Text(
+                                                'Usuario: ${html.window.localStorage['usuario'] ?? 'STAFF DEVOLUCION'}',
+                                                style: const TextStyle(
+                                                    fontSize: 13,
+                                                    color: Colors.blueGrey)),
+                                          ),
                                         ],
                                       ),
                                       controlAffinity:
