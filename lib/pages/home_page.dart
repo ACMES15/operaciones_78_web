@@ -121,8 +121,7 @@ class _HomePageState extends State<HomePage> {
     'DevCan': DevCanPage(usuario: widget.usuario),
     'Dev Mbodas': DevMbodasPage(usuario: widget.usuario),
     'Dev XD': DevXdPage(usuario: widget.usuario),
-    'Historial Entregas XD': HistorialEntregasXdPage(
-        historial: const [], tipoUsuarioActual: widget.tipoUsuario),
+    'Historial Entregas XD': HistorialEntregasXdPage(),
     'Dev CyC': DevCycPage(usuario: widget.usuario),
     'Entregas CyC':
         EntregasCycPage(usuario: widget.usuario), // Solo navegación interna

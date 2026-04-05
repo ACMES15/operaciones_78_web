@@ -29730,9 +29730,9 @@ aJ3:function aJ3(){},
 aJ1:function aJ1(a){this.a=a},
 aJ2:function aJ2(a){this.a=a},
 FH:function FH(a){this.a=a},
-Mb:function Mb(a){var _=this
-_.d=$
-_.e=a
+Mb:function Mb(a,b){var _=this
+_.d=a
+_.e=b
 _.f=$
 _.r=""
 _.c=_.a=null},
@@ -108201,7 +108201,8 @@ $0(){A.aK(this.a,!1).cB(!0)
 return null},
 $S:0}
 A.FH.prototype={
-a6(){return new A.Mb(A.a([],t.Y))}}
+a6(){var s=t.Y
+return new A.Mb(A.a([],s),A.a([],s))}}
 A.Mb.prototype={
 ag(){this.az()
 this.f=new A.aa(B.W,$.S())
@@ -108233,21 +108234,17 @@ q.d=A.bc(q.e,!0,i)
 q.E(new A.aJF())
 return A.q(null,r)}})
 return A.r($async$wU,r)},
-akK(){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a="Historial Entregas XD",a0=A.fA(new A.eW().ff(new A.hT().b6(u.j)))
-a0.iv(a)
-s=a0.x
+akK(){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b="Historial Entregas XD",a=A.fA(new A.eW().ff(new A.hT().b6(u.j)))
+a.iv(b)
+s=a.x
 s===$&&A.b()
-s=s.h(0,a)
+s=s.h(0,b)
 s.toString
 r=A.a(["XD","SKU","DESCRIPCION","CANTIDAD","SECCION","JEFATURA","nombreRecibe","usuarioValido","usuarioEntrega","fecha"],t.s)
 q=s.d
 q===$&&A.b()
 s.eS(r,q)
-q=this.d
-q===$&&A.b()
-p=q.length
-o=0
-for(;o<q.length;q.length===p||(0,A.D)(q),++o){n=q[o]
+for(q=this.d,p=q.length,o=0;o<q.length;q.length===p||(0,A.D)(q),++o){n=q[o]
 m=J.L(n)
 l=m.h(n,"XD")
 if(l==null)l=""
@@ -108269,22 +108266,20 @@ d=m.h(n,"usuarioEntrega")
 if(d==null)d=""
 m=m.h(n,"fecha")
 if(m==null)m=""
-s.eS([l,k,j,i,h,g,f,e,d,m],s.d)}s=a0.db
+s.eS([l,k,j,i,h,g,f,e,d,m],s.d)}s=a.db
 s===$&&A.b()
-c=A.m4(a0,s).kb()
+c=A.m4(a,s).kb()
 if(c!=null){s=(self.URL||self.webkitURL).createObjectURL(A.lw([c],u.q))
 s.toString
-b=A.lt(s)
-b.setAttribute("download","historial_entregas_xd.xlsx")
-b.click();(self.URL||self.webkitURL).revokeObjectURL(s)}},
+q=A.lt(s)
+q.setAttribute("download","historial_entregas_xd.xlsx")
+q.click();(self.URL||self.webkitURL).revokeObjectURL(s)}},
 M(a){var s,r,q=this,p=null,o=t.p,n=A.a4(A.a([B.i_,B.bs,B.aYT],o),B.D,B.u,B.w,p)
 n=A.cW(A.a([A.br(p,B.fc,p,p,q.gakN(),p,"Actualizar desde Firestore"),A.br(p,B.eE,p,p,q.gakJ(),p,"Descargar Excel")],o),!0,B.y,p,2,p,p,p,n,p,p)
 s=q.f
 s===$&&A.b()
 s=A.b0(!0,B.a2,!1,p,!0,B.H,p,A.b3(),s,p,p,p,p,p,2,B.fO,B.U,!0,p,!0,p,!1,p,B.a_,p,p,p,p,p,p,p,1,p,p,!1,"\u2022",p,q.gakL(),p,p,p,!1,p,!1,p,!0,p,B.a4,p,p,B.Z,B.Y,p,p,p,p,p,p,p,B.X,p,B.a5,p,p,p,p)
-r=q.d
-r===$&&A.b()
-r=r.length
+r=q.d.length
 if(r===0)r=A.c5(A.A(q.r.length===0?"No hay entregas registradas":"No hay coincidencias para tu b\xfasqueda",p,p,p,B.cd,p,p),p,p)
 else r=A.qQ(new A.aJH(q),r,p,new A.aJI())
 return A.cK(n,p,new A.a9(B.bF,A.ak(A.a([s,B.as,A.aF(r,1)],o),B.D,B.u,B.w),p))}}
@@ -108314,54 +108309,49 @@ A.aJI.prototype={
 $2(a,b){return B.bw},
 $S:65}
 A.aJH.prototype={
-$2(a3,a4){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b=null,a="firma",a0="-",a1="usuarioEntrega",a2=this.a.d
-a2===$&&A.b()
-p=a2[a4]
-a2=J.L(p)
-s=a2.h(p,a)
-r=null
-if(s!=null)try{q=null
-if(t.D.b(s))q=s
-else if(t.J.b(s))q=new Uint8Array(A.bu(s))
-else if(typeof s=="string")q=new Uint8Array(A.bu(B.dJ.b6(s)))
-if(q!=null&&!J.dF(q))r=new A.a9(B.hO,A.qa(A.aJ(8),A.kO(q,b,B.cV,40,70),B.cz),b)}catch(o){}n=A.aJ(16)
-m=t.p
-l=A.a([A.xX(B.a0,B.i1)],m)
-if(r!=null)l.push(r)
-l=A.ak(l,B.D,B.u,B.w)
-k=A.A("XD: ",b,b,b,A.cB(b,b,B.c4,b,b,b,b,b,b,b,b,b,b,b,B.ag,b,b,!0,b,b,b,b,b,b,b,b),b,b)
-j=a2.h(p,"XD")
-j=j==null?b:J.w(j)
-j=A.A(j==null?a0:j,b,b,b,B.he,b,b)
-i=A.h_(B.fK,B.du,b,18)
-h=a2.h(p,"fecha")
-h=h==null?b:B.n.a3(J.w(h),0,10)
-g=A.A((h==null?a0:h)!==""?B.n.a3(J.w(a2.h(p,"fecha")),0,10):a0,b,b,b,B.eP,b,b)
-f=a2.h(p,a1)
-h=f==null?b:J.w(f)
-k=A.a4(A.a([k,j,B.cE,i,B.dC,g,B.dY,B.fb,B.dC,A.A(h==null?a0:h,b,b,b,B.eP,b,b)],m),B.D,B.u,B.w,b)
-j=a2.h(p,"nombreRecibe")
-j=j==null?b:J.w(j)
-if(j==null)j=a0
-j=A.a4(A.a([B.fM,B.c0,A.A(j.toUpperCase(),b,b,b,B.hc,b,b)],m),B.D,B.u,B.w,b)
-i=a2.h(p,"SKU")
-i=A.A("SKU: \\"+A.j(i==null?a0:i),b,b,b,B.aw,b,b)
-h=a2.h(p,"DESCRIPCION")
-h=A.A("Descripci\xf3n: \\"+A.j(h==null?a0:h),b,b,b,B.aw,b,b)
-g=a2.h(p,"CANTIDAD")
-g=A.A("Cantidad: \\"+A.j(g==null?a0:g),b,b,b,B.aw,b,b)
-f=a2.h(p,"SECCION")
-f=A.A("Secci\xf3n: \\"+A.j(f==null?a0:f),b,b,b,B.aw,b,b)
-e=a2.h(p,"JEFATURA")
-e=A.A("Jefatura: \\"+A.j(e==null?a0:e),b,b,b,B.aw,b,b)
-d=a2.h(p,"usuarioValido")
-d=d==null?b:J.w(d)
-d=A.A("Valid\xf3: "+(d==null?a0:d),b,b,b,B.aw,b,b)
-c=a2.h(p,a1)
-c=c==null?b:J.w(c)
-k=A.a([k,B.aM,j,B.aM,i,h,g,f,e,B.aM,A.a4(A.a([B.fL,B.c0,d,B.dX,B.fb,B.c0,A.A("Entreg\xf3: "+(c==null?a0:c),b,b,b,B.aw,b,b)],m),B.D,B.u,B.w,b)],m)
-B.k.K(k,a2.h(p,a)!=null&&J.w(a2.h(p,a)).length!==0?A.a([new A.a9(B.bM,A.ak(A.a([B.aYZ,A.bK(b,6,b),A.kO(B.dJ.b6(a2.h(p,a)),new A.aJG(),B.cV,80,b)],m),B.a1,B.u,B.w),b)],m):A.a([],m))
-return A.dm(new A.a9(B.fE,A.a4(A.a([l,B.cE,A.aF(A.ak(k,B.a1,B.u,B.w),1)],m),B.a1,B.u,B.w,b),b),B.y,6,b,b,new A.bG(n,B.J))},
+$2(a3,a4){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e="firma",d=null,c="-",b="usuarioEntrega",a=this.a.d[a4],a0=J.L(a),a1=a0.h(a,e),a2=null
+if(a1!=null)try{s=null
+if(t.D.b(a1))s=a1
+else if(t.J.b(a1))s=new Uint8Array(A.bu(a1))
+else if(typeof a1=="string")s=new Uint8Array(A.bu(B.dJ.b6(a1)))
+if(s!=null&&!J.dF(s))a2=new A.a9(B.hO,A.qa(A.aJ(8),A.kO(s,d,B.cV,40,70),B.cz),d)}catch(r){}q=A.aJ(16)
+p=t.p
+o=A.a([A.xX(B.a0,B.i1)],p)
+if(a2!=null)o.push(a2)
+o=A.ak(o,B.D,B.u,B.w)
+n=A.A("XD: ",d,d,d,A.cB(d,d,B.c4,d,d,d,d,d,d,d,d,d,d,d,B.ag,d,d,!0,d,d,d,d,d,d,d,d),d,d)
+m=a0.h(a,"XD")
+m=m==null?d:J.w(m)
+m=A.A(m==null?c:m,d,d,d,B.he,d,d)
+l=A.h_(B.fK,B.du,d,18)
+k=a0.h(a,"fecha")
+k=k==null?d:B.n.a3(J.w(k),0,10)
+j=A.A((k==null?c:k)!==""?B.n.a3(J.w(a0.h(a,"fecha")),0,10):c,d,d,d,B.eP,d,d)
+i=a0.h(a,b)
+k=i==null?d:J.w(i)
+n=A.a4(A.a([n,m,B.cE,l,B.dC,j,B.dY,B.fb,B.dC,A.A(k==null?c:k,d,d,d,B.eP,d,d)],p),B.D,B.u,B.w,d)
+m=a0.h(a,"nombreRecibe")
+m=m==null?d:J.w(m)
+if(m==null)m=c
+m=A.a4(A.a([B.fM,B.c0,A.A(m.toUpperCase(),d,d,d,B.hc,d,d)],p),B.D,B.u,B.w,d)
+l=a0.h(a,"SKU")
+l=A.A("SKU: \\"+A.j(l==null?c:l),d,d,d,B.aw,d,d)
+k=a0.h(a,"DESCRIPCION")
+k=A.A("Descripci\xf3n: \\"+A.j(k==null?c:k),d,d,d,B.aw,d,d)
+j=a0.h(a,"CANTIDAD")
+j=A.A("Cantidad: \\"+A.j(j==null?c:j),d,d,d,B.aw,d,d)
+i=a0.h(a,"SECCION")
+i=A.A("Secci\xf3n: \\"+A.j(i==null?c:i),d,d,d,B.aw,d,d)
+h=a0.h(a,"JEFATURA")
+h=A.A("Jefatura: \\"+A.j(h==null?c:h),d,d,d,B.aw,d,d)
+g=a0.h(a,"usuarioValido")
+g=g==null?d:J.w(g)
+g=A.A("Valid\xf3: "+(g==null?c:g),d,d,d,B.aw,d,d)
+f=a0.h(a,b)
+f=f==null?d:J.w(f)
+n=A.a([n,B.aM,m,B.aM,l,k,j,i,h,B.aM,A.a4(A.a([B.fL,B.c0,g,B.dX,B.fb,B.c0,A.A("Entreg\xf3: "+(f==null?c:f),d,d,d,B.aw,d,d)],p),B.D,B.u,B.w,d)],p)
+B.k.K(n,a0.h(a,e)!=null&&J.w(a0.h(a,e)).length!==0?A.a([new A.a9(B.bM,A.ak(A.a([B.aYZ,A.bK(d,6,d),A.kO(B.dJ.b6(a0.h(a,e)),new A.aJG(),B.cV,80,d)],p),B.a1,B.u,B.w),d)],p):A.a([],p))
+return A.dm(new A.a9(B.fE,A.a4(A.a([o,B.cE,A.aF(A.ak(n,B.a1,B.u,B.w),1)],p),B.a1,B.u,B.w,d),d),B.y,6,d,d,new A.bG(q,B.J))},
 $S:14}
 A.aJG.prototype={
 $3(a,b,c){return B.aWY},

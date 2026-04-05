@@ -6,13 +6,7 @@ import 'package:excel/excel.dart';
 import 'dart:html' as html;
 
 class HistorialEntregasXdPage extends StatefulWidget {
-  final List<Map<String, dynamic>> historial;
-  final String tipoUsuarioActual;
-  const HistorialEntregasXdPage({
-    Key? key,
-    required this.historial,
-    required this.tipoUsuarioActual,
-  }) : super(key: key);
+  const HistorialEntregasXdPage({Key? key}) : super(key: key);
 
   @override
   State<HistorialEntregasXdPage> createState() =>
@@ -20,20 +14,9 @@ class HistorialEntregasXdPage extends StatefulWidget {
 }
 
 class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
-  String _formatearFecha(dynamic fecha) {
-    try {
-      DateTime dt =
-          fecha is DateTime ? fecha : DateTime.parse(fecha.toString());
-      String dia = dt.day.toString().padLeft(2, '0');
-      String mes = dt.month.toString().padLeft(2, '0');
-      String anio = dt.year.toString();
-      return '$dia-$mes-$anio';
-    } catch (_) {
-      return 'null';
-    }
-  }
+  // ...existing code...
 
-  late List<Map<String, dynamic>> _resultados;
+  List<Map<String, dynamic>> _resultados = [];
   List<Map<String, dynamic>> _datosOriginales = [];
   late TextEditingController _busquedaController;
   String _filtro = '';
@@ -123,7 +106,7 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
       final blob = html.Blob([fileBytes],
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
+      html.AnchorElement(href: url)
         ..setAttribute('download', 'historial_entregas_xd.xlsx')
         ..click();
       html.Url.revokeObjectUrl(url);
