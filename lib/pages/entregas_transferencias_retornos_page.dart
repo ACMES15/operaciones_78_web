@@ -65,8 +65,7 @@ class _EntregasTransferenciasRetornosPageState
         if (e is Map) {
           final map = Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v)));
-          print(
-              'DEBUG TF O DEV carga: \\${map['TF O DEV']}\\ id: \\${map['id']}');
+          print('DEBUG TF O DEV carga: ${map['TF O DEV']} id: ${map['id']}');
           // Mapear TF O DEV a TRANSFERENCIA si es necesario
           if (map['TRANSFERENCIA'] == null ||
               map['TRANSFERENCIA'].toString().isEmpty) {
@@ -565,7 +564,7 @@ class _EntregasTransferenciasRetornosPageState
         entrega['TF'] ??
         entrega['DEV'] ??
         '-';
-    print('UI TF O DEV: \\${value}\\ id: \\${entrega['id']}');
+    print('UI TF O DEV: $value id: ${entrega['id']}');
     return _mobileField('TF O DEV', value);
   }
 
