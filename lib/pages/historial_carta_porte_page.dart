@@ -275,52 +275,53 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                   }
                   return ListView.builder(
                     itemCount: cartas.length,
-                    itemBuilder: (context, idx) {
-                      final carta = cartas[idx];
-                      final choferStr = (carta['chofer'] ?? '')
-                          .toString()
-                          .trim()
-                          .toUpperCase();
-                      final isPendiente = choferStr == 'PENDIENTE';
+                    itemBuilder: (context, i) {
+                      final carta = cartas[i];
                       return Card(
-                        color: isPendiente
-                            ? Colors.orange.shade200
-                            : const Color(0xFFF5F6FA),
-                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 6, horizontal: 12),
                         child: ListTile(
-                          title: Text(
-                              'Manifiesto: ${carta['numero_control'] ?? '-'}'),
+                          title:
+                              Text('Manifiesto: ${carta['MANIFIESTO'] ?? ''}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Destino: ${carta['destino'] ?? '-'}'),
-                              Text('Fecha: ${carta['fecha'] ?? '-'}'),
-                              Text('Chofer: ${carta['chofer'] ?? '-'}'),
-                              Text('RFC: ${carta['rfc'] ?? '-'}'),
-                              Text('Unidad: ${carta['unidad'] ?? '-'}'),
-                              if (isPendiente)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    'Falta editar parámetros',
-                                    style: TextStyle(
-                                      color: Colors.orange[800],
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                              Text('Destino: ${carta['DESTINO'] ?? ''}'),
+                              Text('Fecha: ${carta['FECHA'] ?? ''}'),
+                              Text('Nombre: ${carta['NOMBRE'] ?? ''}'),
+                              Text('Usuario: ${carta['USUARIO'] ?? ''}'),
                             ],
                           ),
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => CartaPorteEdicionPage(
-                                  carta: carta,
-                                  docId: carta['id'],
-                                ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.edit, color: Colors.blue),
+                                tooltip: 'Editar',
+                                onPressed: () async {
+                                  await _editarCartaDialog(carta);
+                                },
                               ),
-                            );
-                          },
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.add, color: Colors.green),
+                                tooltip: 'Agregar relacionado',
+                                onPressed: () async {
+                                  // Buscar datos externos y abrir diálogo para agregar
+                                  final datos = await _buscarDatosExternos(
+                                      carta['MANIFIESTO'] ?? '');
+                                  if (datos != null) {
+                                    await _editarCartaDialog(datos);
+                                  } else {
+                                    await _editarCartaDialog({
+                                      'MANIFIESTO': carta['MANIFIESTO'] ?? ''
+                                    });
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
