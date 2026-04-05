@@ -360,7 +360,6 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
-          'fecha': DateTime.now(),
         });
         await docRef.update({'id': docRef.id});
       } else if (validacion == 'Faltante') {
@@ -373,7 +372,6 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             'SKU': fila[1],
             'SECCION': fila[8],
             'MANIFIESTO': fila[7],
-            'fecha': DateTime.now(),
             'mensaje': 'Faltante detectado en Recepción Big Ticket',
             'usuarioValido': usuario,
           });
@@ -391,7 +389,6 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
-          'fecha': DateTime.now(),
         });
         await docRef.update({'id': docRef.id});
       }
