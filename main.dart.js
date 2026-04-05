@@ -106187,12 +106187,12 @@ if(m!=null&&t.j.b(J.u(m,"items")))for(l=J.af(t.j.a(J.u(m,"items"))),h=t.f,g=t.z,
 if(h.b(d)){c=A.bX(J.he(d,new A.aFE(),g,g),f,g)
 if(e===0){A.nP("CLAVES DEL PRIMER ELEMENTO:")
 for(b=new A.jh(c,c.r,A.m(c).i("jh<1>")),b.c=c.e;b.t();)A.nP("CLAVE: >"+b.d+"<")}A.nP("DEBUG TF O DEV carga: "+A.j(c.h(0,"TF O DEV"))+" id: "+A.j(c.h(0,"id")))
-if(c.h(0,"TRANSFERENCIA")==null||J.x(c.h(0,"TRANSFERENCIA")).length===0)if(c.h(0,"TF O DEV")!=null&&J.x(c.h(0,"TF O DEV")).length!==0)c.l(0,"TRANSFERENCIA",c.h(0,"TF O DEV"))
+if(c.h(0,"TRANSFERENCIA")==null||J.x(c.h(0,"TRANSFERENCIA")).length===0)if(c.h(0,"TF O DEV ")!=null&&J.x(c.h(0,"TF O DEV ")).length!==0)c.l(0,"TRANSFERENCIA",c.h(0,"TF O DEV "))
 else if(c.h(0,"TF")!=null&&J.x(c.h(0,"TF")).length!==0)c.l(0,"TRANSFERENCIA",c.h(0,"TF"))
 else if(c.h(0,"DEV")!=null&&J.x(c.h(0,"DEV")).length!==0)c.l(0,"TRANSFERENCIA",c.h(0,"DEV"))
 b=c.h(0,"id")
 b=b==null?null:J.x(b)
-if(b==null){b=c.h(0,"TF O DEV")
+if(b==null){b=c.h(0,"TF O DEV ")
 b=b==null?null:J.x(b)
 if(b==null)b="item_"+e}c.l(0,"id",b)
 i.push(c);++e}}a=A.a([],p)
@@ -106200,7 +106200,7 @@ if(j!=null&&t.j.b(J.u(j,"items")))for(p=J.af(t.j.a(J.u(j,"items"))),l=t.f,h=t.z,
 if(l.b(d)){c=A.bX(J.he(d,new A.aFF(),h,h),g,h)
 f=c.h(0,"id")
 f=f==null?null:J.x(f)
-if(f==null){f=c.h(0,"TF O DEV")
+if(f==null){f=c.h(0,"TF O DEV ")
 f=f==null?null:J.x(f)
 if(f==null)f=""}c.l(0,"id",f)
 a.push(c)}}q.E(new A.aFG(q,i,a))
@@ -106300,7 +106300,7 @@ $S:7}
 A.aFI.prototype={
 $1(a){var s,r,q=this.a,p=!0
 if(q.e.length!==0){s=J.L(a)
-r=s.h(a,"TF O DEV")
+r=s.h(a,"TF O DEV ")
 r=r==null?null:J.x(r).toLowerCase()
 if(r==null)r=""
 if(!B.n.p(r,q.e.toLowerCase())){r=s.h(a,"ORIGEN")

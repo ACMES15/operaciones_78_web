@@ -75,9 +75,9 @@ class _EntregasTransferenciasRetornosPageState
           // Mapear TF O DEV a TRANSFERENCIA si es necesario
           if (map['TRANSFERENCIA'] == null ||
               map['TRANSFERENCIA'].toString().isEmpty) {
-            if (map['TF O DEV'] != null &&
-                map['TF O DEV'].toString().isNotEmpty) {
-              map['TRANSFERENCIA'] = map['TF O DEV'];
+            if (map['TF O DEV '] != null &&
+                map['TF O DEV '].toString().isNotEmpty) {
+              map['TRANSFERENCIA'] = map['TF O DEV '];
             } else if (map['TF'] != null && map['TF'].toString().isNotEmpty) {
               map['TRANSFERENCIA'] = map['TF'];
             } else if (map['DEV'] != null && map['DEV'].toString().isNotEmpty) {
@@ -85,7 +85,7 @@ class _EntregasTransferenciasRetornosPageState
             }
           }
           map['id'] = map['id']?.toString() ??
-              (map['TF O DEV']?.toString() ?? 'item_$idx');
+              (map['TF O DEV ']?.toString() ?? 'item_$idx');
           entregas.add(map);
           idx++;
         }
@@ -98,7 +98,7 @@ class _EntregasTransferenciasRetornosPageState
           final map = Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v)));
           map['id'] =
-              map['id']?.toString() ?? (map['TF O DEV']?.toString() ?? '');
+              map['id']?.toString() ?? (map['TF O DEV ']?.toString() ?? '');
           historial.add(map);
         }
       }
@@ -116,7 +116,7 @@ class _EntregasTransferenciasRetornosPageState
         .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _busqueda.isEmpty ||
-            (e['TF O DEV']?.toString().toLowerCase() ?? '')
+            (e['TF O DEV ']?.toString().toLowerCase() ?? '')
                 .contains(_busqueda.toLowerCase()) ||
             (e['ORIGEN']?.toString().toLowerCase() ?? '')
                 .contains(_busqueda.toLowerCase()) ||
