@@ -111,6 +111,57 @@ class _MensajesPageState extends State<MensajesPage> {
       _cargarTiposUsuario();
       _cargarUsuarios();
     }
+    // Marcar mensajes como leídos automáticamente al abrir la página
+    Future.delayed(Duration.zero, _marcarTodosComoLeidos);
+  }
+
+  Future<void> _marcarTodosComoLeidos() async {
+    final snapshot =
+        await FirebaseFirestore.instance.collection('mensajes').get();
+    for (final doc in snapshot.docs) {
+      final data = doc.data();
+      // Solo marcar como leído si el usuario tiene derecho a ver el mensaje (misma lógica que en el builder)
+      final destino = (data['destino'] ?? '').toString();
+      final destinoTipo = (data['destinoTipo'] ?? '').toString().toUpperCase();
+      final origen = (data['origen'] ?? '').toString();
+      final origenTipoNorm =
+          (data['origenTipo'] ?? '').toString().toUpperCase();
+      bool visible = false;
+      if (_esAdmin) {
+        visible = destino == widget.usuario ||
+            destinoTipo.contains('ADMIN') ||
+            destino == 'ADMIN' ||
+            destino == 'TODOS' ||
+            destinoTipo == 'TODOS' ||
+            origen == widget.usuario;
+      } else {
+        String normaliza(String s) => s.toLowerCase().replaceAll(' ', '');
+        final tipoUsuarioNorm = normaliza(widget.tipoUsuario);
+        final usuarioNorm = normaliza(widget.usuario);
+        final destinoNorm = normaliza(data['destino'] ?? '');
+        final destinoTipoNorm = normaliza(data['destinoTipo'] ?? '');
+        final esMensajeParaGrupo = destinoNorm == tipoUsuarioNorm ||
+            destinoTipoNorm == tipoUsuarioNorm;
+        final esMensajeParaTodos =
+            destinoNorm == 'todos' || destinoTipoNorm == 'todos';
+        final esMensajeIndividual =
+            destinoNorm == usuarioNorm || destinoTipoNorm == usuarioNorm;
+        final esMensajeDeAdmin = ['ADMIN', 'ADMIN OMNICANAL', 'ADMIN ENVIOS']
+                .contains(origenTipoNorm) &&
+            (esMensajeParaGrupo || esMensajeParaTodos || esMensajeIndividual);
+        visible = esMensajeParaGrupo ||
+            esMensajeParaTodos ||
+            esMensajeIndividual ||
+            esMensajeDeAdmin ||
+            origen == widget.usuario;
+      }
+      if (!visible) continue;
+      // Si no está leído por el usuario, marcarlo
+      final leidosPor = (data['leidosPor'] ?? []) as List;
+      if (!leidosPor.contains(widget.usuario)) {
+        await _marcarComoLeidoPorUsuario(doc.id, leidosPor);
+      }
+    }
   }
 
   Future<void> _eliminarMensajesExpirados() async {

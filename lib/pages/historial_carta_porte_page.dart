@@ -90,6 +90,79 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   }
 
   final TextEditingController _busquedaController = TextEditingController();
+  final TextEditingController _escaneoController = TextEditingController();
+
+  Future<Map<String, dynamic>?> _buscarDatosExternos(String codigo) async {
+    // Buscar en hoja de ruta enviada
+    final rutaSnap = await FirebaseFirestore.instance
+        .collection('hoja_de_ruta_enviada')
+        .where('MANIFIESTO', isEqualTo: codigo)
+        .orderBy('FECHA', descending: true)
+        .limit(1)
+        .get();
+    Map<String, dynamic>? mejorData;
+    DateTime? mejorFecha;
+    if (rutaSnap.docs.isNotEmpty) {
+      final data = rutaSnap.docs.first.data();
+      final fecha = _parseFecha(data['FECHA']);
+      mejorData = {
+        'MANIFIESTO': data['MANIFIESTO'] ?? '',
+        'DESTINO': data['DESTINO'] ?? '',
+        'FECHA': data['FECHA'] ?? '',
+        'NOMBRE': data['NOMBRE'] ?? '',
+        'USUARIO': data['USUARIO'] ?? '',
+      };
+      mejorFecha = fecha;
+    }
+    // Buscar en hoja de XD
+    final xdSnap = await FirebaseFirestore.instance
+        .collection('hoja_de_xd_historial')
+        .where('MANIFIESTO', isEqualTo: codigo)
+        .orderBy('FECHA', descending: true)
+        .limit(1)
+        .get();
+    if (xdSnap.docs.isNotEmpty) {
+      final data = xdSnap.docs.first.data();
+      final fecha = _parseFecha(data['FECHA']);
+      if (mejorFecha == null || (fecha != null && fecha.isAfter(mejorFecha))) {
+        mejorData = {
+          'MANIFIESTO': data['MANIFIESTO'] ?? '',
+          'DESTINO': data['DESTINO'] ?? '',
+          'FECHA': data['FECHA'] ?? '',
+          'NOMBRE': data['NOMBRE'] ?? '',
+          'USUARIO': data['USUARIO'] ?? '',
+        };
+        mejorFecha = fecha;
+      }
+    }
+    return mejorData;
+  }
+
+  DateTime? _parseFecha(dynamic fecha) {
+    if (fecha == null) return null;
+    if (fecha is DateTime) return fecha;
+    if (fecha is String) {
+      try {
+        return DateTime.parse(fecha);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  Future<void> _escanearOBuscar() async {
+    final codigo = _escaneoController.text.trim();
+    if (codigo.isEmpty) return;
+    // Buscar datos externos SOLAMENTE
+    final datos = await _buscarDatosExternos(codigo);
+    if (datos != null) {
+      // Agregar nueva carta con datos externos
+      await _editarCartaDialog(datos);
+    } else {
+      // Agregar nueva carta vacía con manifiesto prellenado
+      await _editarCartaDialog({'MANIFIESTO': codigo});
+    }
+    _escaneoController.clear();
+  }
 
   Future<void> exportarAExcel(BuildContext context) async {
     try {
@@ -146,17 +219,29 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            TextField(
-              controller: _busquedaController,
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                labelText: 'Buscar',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
-              onChanged: (_) {
-                setState(() {});
-              },
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _escaneoController,
+                    decoration: const InputDecoration(
+                      labelText: 'Escanear/Buscar Manifiesto',
+                      prefixIcon: Icon(Icons.qr_code_scanner),
+                    ),
+                    onSubmitted: (_) => _escanearOBuscar(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.search),
+                  label: const Text('Buscar'),
+                  onPressed: _escanearOBuscar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF2D6A4F),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Expanded(

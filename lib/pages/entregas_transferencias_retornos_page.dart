@@ -65,6 +65,18 @@ class _EntregasTransferenciasRetornosPageState
         if (e is Map) {
           final map = Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v)));
+          // Mapear TF O DEV a TRANSFERENCIA si es necesario
+          if (map['TRANSFERENCIA'] == null ||
+              map['TRANSFERENCIA'].toString().isEmpty) {
+            if (map['TF O DEV'] != null &&
+                map['TF O DEV'].toString().isNotEmpty) {
+              map['TRANSFERENCIA'] = map['TF O DEV'];
+            } else if (map['TF'] != null && map['TF'].toString().isNotEmpty) {
+              map['TRANSFERENCIA'] = map['TF'];
+            } else if (map['DEV'] != null && map['DEV'].toString().isNotEmpty) {
+              map['TRANSFERENCIA'] = map['DEV'];
+            }
+          }
           map['id'] = map['id']?.toString() ??
               (map['TRANSFERENCIA']?.toString() ?? 'item_$idx');
           entregas.add(map);
@@ -97,7 +109,7 @@ class _EntregasTransferenciasRetornosPageState
         .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _busqueda.isEmpty ||
-            (e['TRANSFERENCIA']?.toString().toLowerCase() ?? '')
+            (e['TF O DEV']?.toString().toLowerCase() ?? '')
                 .contains(_busqueda.toLowerCase()) ||
             (e['ORIGEN']?.toString().toLowerCase() ?? '')
                 .contains(_busqueda.toLowerCase()) ||

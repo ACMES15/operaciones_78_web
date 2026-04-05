@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import '../utils/firebase_cache_utils.dart';
 // imports eliminados porque ya no se usan aquí
 import 'entregas_mkp_registros_page.dart';
@@ -150,6 +151,11 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                                   labelText: 'Devolución MKP',
                                   border: OutlineInputBorder(),
                                 ),
+                                keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  // Solo números
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                               ),
                               SizedBox(height: isMobile ? 8 : 16),
                               Row(
