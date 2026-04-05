@@ -559,6 +559,15 @@ class _EntregasTransferenciasRetornosPageState
     );
   }
 
+  Widget _mobileFieldTFODEV(Map<String, dynamic> entrega) {
+    final value = entrega['TF O DEV'] ??
+        entrega['TRANSFERENCIA'] ??
+        entrega['TF'] ??
+        entrega['DEV'] ??
+        '-';
+    return _mobileField('TF O DEV', value);
+  }
+
   Widget _infoChip(String label, dynamic value) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -571,6 +580,15 @@ class _EntregasTransferenciasRetornosPageState
       child: Text('$label: ${value ?? '-'}',
           style: const TextStyle(fontWeight: FontWeight.bold)),
     );
+  }
+
+  Widget _infoChipTFODEV(Map<String, dynamic> entrega) {
+    final value = entrega['TF O DEV'] ??
+        entrega['TRANSFERENCIA'] ??
+        entrega['TF'] ??
+        entrega['DEV'] ??
+        '-';
+    return _infoChip('TF O DEV', value);
   }
 
   @override
