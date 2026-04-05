@@ -144,6 +144,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             fila[8] = row.length > 8 && row[8] != null
                 ? row[8]!.value.toString()
                 : '';
+            // Buscar JEFATURA automáticamente por SECCION
             fila[9] = _seccionToJefatura[fila[8]] ?? '';
             datos.add(fila);
           }
@@ -295,13 +296,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    // final isSmall = constraints.maxWidth < 1100;
                     return SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: _headers.length * 90.0, // Más compacto
-                          maxWidth: _headers.length * 120.0,
+                          minWidth: (_headers.length - 2) * 90.0 +
+                              180 +
+                              120, // 9 cols normales + JEFATURA + ACCIONES
+                          maxWidth: 1800,
                         ),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.vertical,
@@ -311,7 +313,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                             headingTextStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 11), // Más pequeño
+                                fontSize: 11),
                             dataRowColor:
                                 MaterialStateProperty.resolveWith<Color?>(
                                     (Set<MaterialState> states) {
@@ -321,17 +323,36 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                               return null;
                             }),
                             dataTextStyle: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.black87), // Más pequeño
-                            columns: _headers
-                                .map((h) => DataColumn(
-                                    label: Center(
-                                        child: Text(h,
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 2,
-                                            style: const TextStyle(
-                                                fontSize: 11)))))
-                                .toList(),
+                                fontSize: 10, color: Colors.black87),
+                            columns: List.generate(_headers.length, (i) {
+                              double fontSize = 10;
+                              double? colWidth;
+                              if (i == 9) {
+                                // JEFATURA
+                                fontSize = 11;
+                                colWidth = 180;
+                              } else if (i == 10) {
+                                // ACCIONES
+                                fontSize = 11;
+                                colWidth = 120;
+                              }
+                              return DataColumn(
+                                label: Container(
+                                  width: colWidth,
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    _headers[i],
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                    style: TextStyle(
+                                      fontSize: fontSize,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
                             rows: _rows.isEmpty
                                 ? [
                                     DataRow(
@@ -345,7 +366,6 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     final fila = _rows[rowIdx];
                                     Color? validacionColor;
                                     Color? diferenciaColor;
-                                    // Color? manifiestoColor;
                                     if (fila[5] == 'Correcto') {
                                       validacionColor = Colors.green.shade200;
                                     } else if (fila[5] == 'Sobrante') {
@@ -353,7 +373,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     } else if (fila[5] == 'Faltante') {
                                       validacionColor = Colors.red.shade100;
                                     }
-                                    int diferencia = int.tryParse(fila[8]) ?? 0;
+                                    int diferencia = int.tryParse(fila[6]) ?? 0;
                                     if (diferencia == 0) {
                                       diferenciaColor = Colors.green.shade200;
                                     } else if (diferencia > 0) {
@@ -361,14 +381,6 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                     } else {
                                       diferenciaColor = Colors.red.shade100;
                                     }
-                                    // int manifiesto = int.tryParse(fila[9]) ?? 0;
-                                    // if (manifiesto == 0) {
-                                    //   manifiestoColor = Colors.green.shade200;
-                                    // } else if (manifiesto > 0) {
-                                    //   manifiestoColor = Colors.red.shade100;
-                                    // } else {
-                                    //   manifiestoColor = Colors.purple.shade200;
-                                    // }
                                     return DataRow(
                                       cells:
                                           List.generate(_headers.length, (i) {
@@ -493,6 +505,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                 ),
               ),
             ),
+            // Eliminado bloque duplicado y corregido el índice de diferencia en la tabla principal
           ],
         ),
       ),
