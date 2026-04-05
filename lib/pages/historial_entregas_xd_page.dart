@@ -81,17 +81,9 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
       }
     }
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
-    if (_filtro.isNotEmpty) {
-      _resultados = _datosOriginales.where((e) {
-        return e.entries.any((entry) {
-          final v = entry.value;
-          if (v == null) return false;
-          return v.toString().toLowerCase().contains(_filtro);
-        });
-      }).toList();
-    } else {
-      _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
-    }
+    _busquedaController.clear();
+    _filtro = '';
+    _resultados = List<Map<String, dynamic>>.from(_datosOriginales);
     setState(() {});
   }
 
@@ -190,7 +182,14 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
             const SizedBox(height: 16),
             Expanded(
               child: _resultados.isEmpty
-                  ? const Center(child: Text('Actualiza para ver las entregas'))
+                  ? Center(
+                      child: Text(
+                        _filtro.isEmpty
+                            ? 'No hay entregas registradas'
+                            : 'No hay coincidencias para tu búsqueda',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    )
                   : ListView.separated(
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemCount: _resultados.length,
