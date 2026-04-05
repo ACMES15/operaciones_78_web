@@ -215,22 +215,12 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _escaneoController,
+                    controller: _busquedaController,
                     decoration: const InputDecoration(
-                      labelText: 'Escanear/Buscar Manifiesto',
-                      prefixIcon: Icon(Icons.qr_code_scanner),
+                      labelText: 'Buscar en todos los campos',
+                      prefixIcon: Icon(Icons.search),
                     ),
-                    onSubmitted: (_) => _escanearOBuscar(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.search),
-                  label: const Text('Buscar'),
-                  onPressed: _escanearOBuscar,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF2D6A4F),
-                    foregroundColor: Colors.white,
+                    onChanged: (_) => setState(() {}),
                   ),
                 ),
               ],

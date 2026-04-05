@@ -300,9 +300,8 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          minWidth: _headers.length *
-                              180, // Aumenta el ancho mínimo para que todas las columnas sean visibles
-                          maxWidth: _headers.length * 200.0,
+                          minWidth: _headers.length * 90.0, // Más compacto
+                          maxWidth: _headers.length * 120.0,
                         ),
                         child: SingleChildScrollView(
                           scrollDirection: Axis.vertical,
@@ -312,7 +311,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                             headingTextStyle: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15),
+                                fontSize: 11), // Más pequeño
                             dataRowColor:
                                 MaterialStateProperty.resolveWith<Color?>(
                                     (Set<MaterialState> states) {
@@ -322,19 +321,25 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                               return null;
                             }),
                             dataTextStyle: const TextStyle(
-                                fontSize: 13, color: Colors.black87),
+                                fontSize: 10,
+                                color: Colors.black87), // Más pequeño
                             columns: _headers
                                 .map((h) => DataColumn(
                                     label: Center(
                                         child: Text(h,
                                             overflow: TextOverflow.ellipsis,
-                                            maxLines: 2))))
+                                            maxLines: 2,
+                                            style: const TextStyle(
+                                                fontSize: 11)))))
                                 .toList(),
                             rows: _rows.isEmpty
                                 ? [
                                     DataRow(
-                                        cells: List.generate(_headers.length,
-                                            (i) => const DataCell(Text(''))))
+                                        cells: List.generate(
+                                            _headers.length,
+                                            (i) => const DataCell(Text('',
+                                                style:
+                                                    TextStyle(fontSize: 10)))))
                                   ]
                                 : List.generate(_rows.length, (rowIdx) {
                                     final fila = _rows[rowIdx];
@@ -377,11 +382,11 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                                 isDense: true,
                                                 contentPadding:
                                                     EdgeInsets.symmetric(
-                                                        horizontal: 2,
-                                                        vertical: 1),
+                                                        horizontal: 1,
+                                                        vertical: 0),
                                               ),
                                               style:
-                                                  const TextStyle(fontSize: 12),
+                                                  const TextStyle(fontSize: 10),
                                               onFieldSubmitted: (nuevoValor) {
                                                 _actualizarJefaturaPorSeccion(
                                                     rowIdx, nuevoValor.trim());
@@ -395,12 +400,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                      vertical: 1),
+                                                      horizontal: 1,
+                                                      vertical: 0),
                                               child: Center(
                                                   child: Text(fila[i],
-                                                      overflow: TextOverflow
-                                                          .ellipsis)),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 10))),
                                             ),
                                           );
                                         }
@@ -410,12 +417,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                               color: validacionColor,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                      vertical: 1),
+                                                      horizontal: 1,
+                                                      vertical: 0),
                                               child: Center(
                                                   child: Text(fila[i],
-                                                      overflow: TextOverflow
-                                                          .ellipsis)),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 10))),
                                             ),
                                           );
                                         }
@@ -425,12 +434,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                               color: diferenciaColor,
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                      vertical: 1),
+                                                      horizontal: 1,
+                                                      vertical: 0),
                                               child: Center(
                                                   child: Text(fila[i],
-                                                      overflow: TextOverflow
-                                                          .ellipsis)),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 10))),
                                             ),
                                           );
                                         }
@@ -440,12 +451,14 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                      horizontal: 2,
-                                                      vertical: 1),
+                                                      horizontal: 1,
+                                                      vertical: 0),
                                               child: Center(
                                                   child: Text(fila[i],
-                                                      overflow: TextOverflow
-                                                          .ellipsis)),
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 10))),
                                             ),
                                           );
                                         }
@@ -454,7 +467,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                           return DataCell(
                                             IconButton(
                                               icon: const Icon(Icons.delete,
-                                                  color: Colors.red),
+                                                  size: 18, color: Colors.red),
                                               tooltip: 'Eliminar fila',
                                               onPressed: () {
                                                 setState(() {
@@ -466,8 +479,9 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                         }
                                         return DataCell(Center(
                                             child: Text(fila[i],
-                                                overflow:
-                                                    TextOverflow.ellipsis)));
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                    fontSize: 10))));
                                       }),
                                     );
                                   }),
