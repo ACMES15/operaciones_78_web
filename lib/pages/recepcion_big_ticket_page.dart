@@ -348,7 +348,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
     for (final fila in _rows) {
       final validacion = fila[5];
       if (validacion == 'Correcto' || validacion == 'Sobrante') {
-        await firestore.collection('entregas_cdr').add({
+        final docRef = await firestore.collection('entregas_cdr').add({
           'BOX': false,
           'BULTOS': fila[4], // ESCANEO
           'CANTIDAD': fila[3],
@@ -362,6 +362,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'usuarioValido': usuario,
           'fecha': DateTime.now(),
         });
+        await docRef.update({'id': docRef.id});
       } else if (validacion == 'Faltante') {
         // Notificación a ADMIN OMNICANAL y ADMIN ENVIOS
         for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
@@ -378,7 +379,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           });
         }
         // También guardar en entregas_cdr con BOX: true
-        await firestore.collection('entregas_cdr').add({
+        final docRef = await firestore.collection('entregas_cdr').add({
           'BOX': true,
           'BULTOS': fila[4], // ESCANEO
           'CANTIDAD': fila[3],
@@ -392,6 +393,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'usuarioValido': usuario,
           'fecha': DateTime.now(),
         });
+        await docRef.update({'id': docRef.id});
       }
     }
     setState(() => _guardando = false);
