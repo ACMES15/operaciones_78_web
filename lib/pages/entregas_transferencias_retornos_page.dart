@@ -65,6 +65,12 @@ class _EntregasTransferenciasRetornosPageState
         if (e is Map) {
           final map = Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v)));
+          if (idx == 0) {
+            print('CLAVES DEL PRIMER ELEMENTO:');
+            for (var key in map.keys) {
+              print('CLAVE: >' + key + '<');
+            }
+          }
           print('DEBUG TF O DEV carga: ${map['TF O DEV']} id: ${map['id']}');
           // Mapear TF O DEV a TRANSFERENCIA si es necesario
           if (map['TRANSFERENCIA'] == null ||
