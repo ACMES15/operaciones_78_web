@@ -111410,19 +111410,19 @@ return new A.N4(s,A.C(r,r),q,new A.a9(B.W,$.S()),A.fZ(!0,null,!0,!0,null,null,!1
 A.N4.prototype={
 afH(){this.E(new A.aPV(this))},
 AK(a,b){return this.aaW(a,b)},
-aaW(a,b){var s=0,r=A.r(t.H),q=this,p,o,n
+aaW(a,b){var s=0,r=A.r(t.H),q=this,p,o,n,m
 var $async$AK=A.t(function(c,d){if(c===1)return A.o(d,r)
-while(true)switch(s){case 0:n={}
+while(true)switch(s){case 0:m={}
 J.fo(q.f[a],8,b)
-p=q.e
-o=n.a=p.h(0,b)
-s=o==null||o.length===0?2:3
+p=m.a=""
+o=q.e
+s=o.a===0?2:3
 break
 case 2:s=4
 return A.k(q.rY(),$async$AK)
-case 4:o=p.h(0,b)
-n.a=o==null?"":o
-case 3:q.E(new A.aPR(n,q,a))
+case 4:case 3:n=o.h(0,b)
+m.a=n==null?p:n
+q.E(new A.aPR(m,q,a))
 return A.p(null,r)}})
 return A.q($async$AK,r)},
 ag(){this.aw()
@@ -111530,7 +111530,7 @@ $1(a){return J.u(a,5)==="Sobrante"},
 $S:116}
 A.aPR.prototype={
 $0(){var s=this.b.f[this.c],r=this.a.a
-J.fo(s,9,r==null?"":r)},
+J.fo(s,9,r)},
 $S:0}
 A.aPS.prototype={
 $0(){},
@@ -111635,11 +111635,12 @@ $1(a){if(a.p(0,B.av))return B.vR
 return null},
 $S:67}
 A.aQ4.prototype={
-$1(a){var s,r=null,q=11
-if(a===9)s=180
-else if(a===10)s=120
-else{s=r
-q=10}return A.u2(A.aA(B.aJ,A.A(this.a.d[a],2,B.bB,r,A.cB(r,r,B.y,r,r,r,r,r,r,r,r,q,r,r,B.ah,r,r,!0,r,r,r,r,r,r,r,r),r,r),B.L,r,r,r,r,r,r,r,r,r,s))},
+$1(a){var s,r=null,q=this.a.d[a],p=10
+if(q==="CANTIDAD"||q==="ESCANEO"||q==="VALIDACION"||q==="DIFERENCIA")s=48
+else if(q==="JEFATURA"){p=11
+s=180}else if(q==="Acciones"){p=11
+s=120}else s=r
+return A.u2(A.aA(B.aJ,A.A(q,2,B.bB,r,A.cB(r,r,B.y,r,r,r,r,r,r,r,r,p,r,r,B.ah,r,r,!0,r,r,r,r,r,r,r,r),r,r),B.L,r,r,r,r,r,r,r,r,r,s))},
 $S:696}
 A.aQ5.prototype={
 $1(a){var s,r,q={},p=this.a,o=p.f[a]

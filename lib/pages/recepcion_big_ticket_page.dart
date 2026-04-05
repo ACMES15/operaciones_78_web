@@ -55,11 +55,12 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
 
   void _actualizarJefaturaPorSeccion(int rowIdx, String nuevaSeccion) async {
     _rows[rowIdx][8] = nuevaSeccion;
-    String? jefatura = _seccionToJefatura[nuevaSeccion];
-    if (jefatura == null || jefatura.isEmpty) {
+    // Buscar el NOMBRE en plantilla ejecutiva a partir de SECCION
+    String? jefatura = '';
+    if (_seccionToJefatura.isEmpty) {
       await _cargarPlantillaEjecutiva();
-      jefatura = _seccionToJefatura[nuevaSeccion] ?? '';
     }
+    jefatura = _seccionToJefatura[nuevaSeccion] ?? '';
     setState(() {
       _rows[rowIdx][9] = jefatura ?? '';
     });
@@ -153,7 +154,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             fila[8] = row.length > 8 && row[8] != null
                 ? row[8]!.value.toString()
                 : '';
-            // Buscar JEFATURA automáticamente por SECCION
+            // Buscar JEFATURA automáticamente por SECCION usando plantilla ejecutiva
             fila[9] = _seccionToJefatura[fila[8]] ?? '';
             datos.add(fila);
           }
@@ -342,12 +343,16 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                             columns: List.generate(_headers.length, (i) {
                               double fontSize = 10;
                               double? colWidth;
-                              if (i == 9) {
-                                // JEFATURA
+                              // Ajuste de ancho para campos de 3 dígitos
+                              if (_headers[i] == 'CANTIDAD' ||
+                                  _headers[i] == 'ESCANEO' ||
+                                  _headers[i] == 'VALIDACION' ||
+                                  _headers[i] == 'DIFERENCIA') {
+                                colWidth = 48;
+                              } else if (_headers[i] == 'JEFATURA') {
                                 fontSize = 11;
                                 colWidth = 180;
-                              } else if (i == 10) {
-                                // ACCIONES
+                              } else if (_headers[i] == 'Acciones') {
                                 fontSize = 11;
                                 colWidth = 120;
                               }
