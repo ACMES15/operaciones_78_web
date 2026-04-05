@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:excel/excel.dart';
+import 'dart:html' as html;
 
 class HistorialEntregasXdPage extends StatefulWidget {
   final List<Map<String, dynamic>> historial;
@@ -93,6 +95,49 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
     setState(() {});
   }
 
+  void _exportarAExcel() {
+    final excel = Excel.createExcel();
+    final sheet = excel['Historial Entregas XD'];
+    // Encabezados
+    final headers = [
+      'XD',
+      'SKU',
+      'DESCRIPCION',
+      'CANTIDAD',
+      'SECCION',
+      'JEFATURA',
+      'nombreRecibe',
+      'usuarioValido',
+      'usuarioEntrega',
+      'fecha'
+    ];
+    sheet.appendRow(headers);
+    for (final entrega in _resultados) {
+      sheet.appendRow([
+        entrega['XD'] ?? '',
+        entrega['SKU'] ?? '',
+        entrega['DESCRIPCION'] ?? '',
+        entrega['CANTIDAD'] ?? '',
+        entrega['SECCION'] ?? '',
+        entrega['JEFATURA'] ?? '',
+        entrega['nombreRecibe'] ?? '',
+        entrega['usuarioValido'] ?? '',
+        entrega['usuarioEntrega'] ?? '',
+        entrega['fecha'] ?? '',
+      ]);
+    }
+    final fileBytes = excel.encode();
+    if (fileBytes != null) {
+      final blob = html.Blob([fileBytes],
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'historial_entregas_xd.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,11 +158,17 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
             ),
           ],
         ),
+        // ...existing code...
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
             onPressed: _recargarFirestore,
             tooltip: 'Actualizar desde Firestore',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download, color: Color(0xFF2D6A4F)),
+            onPressed: _exportarAExcel,
+            tooltip: 'Descargar Excel',
           ),
         ],
       ),
@@ -145,6 +196,35 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                       itemCount: _resultados.length,
                       itemBuilder: (context, index) {
                         final entrega = _resultados[index];
+                        final dynamic firmaData = entrega['firma'];
+                        Widget? firmaWidget;
+                        if (firmaData != null) {
+                          try {
+                            Uint8List? bytes;
+                            if (firmaData is Uint8List) {
+                              bytes = firmaData;
+                            } else if (firmaData is List<int>) {
+                              bytes = Uint8List.fromList(firmaData);
+                            } else if (firmaData is String) {
+                              bytes =
+                                  Uint8List.fromList(base64Decode(firmaData));
+                            }
+                            if (bytes != null && bytes.isNotEmpty) {
+                              firmaWidget = Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    bytes,
+                                    width: 70,
+                                    height: 40,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              );
+                            }
+                          } catch (_) {}
+                        }
                         return Card(
                           elevation: 6,
                           shape: RoundedRectangleBorder(
@@ -162,6 +242,7 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                       child: const Icon(Icons.fact_check,
                                           color: Colors.white),
                                     ),
+                                    if (firmaWidget != null) firmaWidget,
                                   ],
                                 ),
                                 const SizedBox(width: 18),
@@ -184,6 +265,39 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 18,
                                                 color: Color(0xFF2D6A4F)),
+                                          ),
+                                          const SizedBox(width: 18),
+                                          // FECHA
+                                          Icon(Icons.calendar_today,
+                                              size: 18,
+                                              color: Colors.grey[600]),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            (entrega['fecha']
+                                                            ?.toString()
+                                                            .substring(0, 10) ??
+                                                        '-') !=
+                                                    ''
+                                                ? entrega['fecha']
+                                                    .toString()
+                                                    .substring(0, 10)
+                                                : '-',
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF495057)),
+                                          ),
+                                          const Spacer(),
+                                          const Icon(Icons.person_outline,
+                                              size: 18,
+                                              color: Color(0xFF2D6A4F)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            entrega['usuarioEntrega']
+                                                    ?.toString() ??
+                                                '-',
+                                            style: const TextStyle(
+                                                fontSize: 14,
+                                                color: Color(0xFF495057)),
                                           ),
                                         ],
                                       ),
@@ -260,6 +374,46 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                                   color: Color(0xFF495057))),
                                         ],
                                       ),
+                                      // Mostrar la firma si existe
+                                      ...((entrega['firma'] != null &&
+                                              entrega['firma']
+                                                  .toString()
+                                                  .isNotEmpty)
+                                          ? [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 8.0),
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    const Text('Firma:',
+                                                        style: TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Color(
+                                                                0xFF495057))),
+                                                    SizedBox(height: 6),
+                                                    Image.memory(
+                                                      base64Decode(
+                                                          entrega['firma']),
+                                                      height: 80,
+                                                      fit: BoxFit.contain,
+                                                      errorBuilder: (context,
+                                                              error,
+                                                              stackTrace) =>
+                                                          const Text(
+                                                              'Firma inválida',
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .red)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ]
+                                          : []),
                                     ],
                                   ),
                                 ),
