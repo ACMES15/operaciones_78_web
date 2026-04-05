@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:excel/excel.dart' as ex;
 import 'dart:html' as html;
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecepcionBigTicketPage extends StatefulWidget {
   const RecepcionBigTicketPage({Key? key}) : super(key: key);
@@ -55,12 +57,58 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
 
   void _actualizarJefaturaPorSeccion(int rowIdx, String nuevaSeccion) async {
     _rows[rowIdx][8] = nuevaSeccion;
-    // Buscar el NOMBRE en plantilla ejecutiva a partir de SECCION
-    String? jefatura = '';
-    if (_seccionToJefatura.isEmpty) {
-      await _cargarPlantillaEjecutiva();
+    String? jefatura = _seccionToJefatura[nuevaSeccion];
+    if (jefatura == null || jefatura.isEmpty) {
+      // Buscar en Firestore: colección 'plantilla_ejecutiva', documento 'datos', array de objetos
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('plantilla_ejecutiva')
+            .doc('datos')
+            .get();
+        if (doc.exists) {
+          final data = doc.data();
+          if (data != null && data['datos'] is List) {
+            final List<dynamic> lista = data['datos'];
+            final match = lista.firstWhere(
+              (e) => e is Map && e['SECCION'] == nuevaSeccion,
+              orElse: () => null,
+            );
+            if (match != null && match['NOMBRE'] != null) {
+              jefatura = match['NOMBRE'].toString();
+              _seccionToJefatura[nuevaSeccion] = jefatura;
+              // Actualiza el cache localStorage
+              final cache =
+                  html.window.localStorage['plantilla_ejecutiva_cache'];
+              List<dynamic> cacheList = [];
+              if (cache != null) {
+                cacheList = List<dynamic>.from(jsonDecode(cache));
+              }
+              bool updated = false;
+              for (final fila in cacheList) {
+                if (fila is Map && fila['SECCION'] == nuevaSeccion) {
+                  fila['NOMBRE'] = jefatura;
+                  updated = true;
+                  break;
+                }
+              }
+              if (!updated) {
+                cacheList.add({'SECCION': nuevaSeccion, 'NOMBRE': jefatura});
+              }
+              html.window.localStorage['plantilla_ejecutiva_cache'] =
+                  jsonEncode(cacheList);
+            } else {
+              jefatura = '';
+            }
+          } else {
+            jefatura = '';
+          }
+        } else {
+          jefatura = '';
+        }
+      } catch (_) {
+        jefatura = '';
+      }
     }
-    jefatura = _seccionToJefatura[nuevaSeccion] ?? '';
     setState(() {
       _rows[rowIdx][9] = jefatura ?? '';
     });
@@ -508,6 +556,21 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                               },
                                             ),
                                           );
+                                        }
+                                        if (i == 2) {
+                                          // DESCRIPCIÓN con máximo 10 caracteres y '...'
+                                          String desc = fila[i];
+                                          String displayDesc = desc.length > 10
+                                              ? desc.substring(0, 10) + '...'
+                                              : desc;
+                                          return DataCell(Center(
+                                            child: Text(
+                                              displayDesc,
+                                              overflow: TextOverflow.ellipsis,
+                                              style:
+                                                  const TextStyle(fontSize: 10),
+                                            ),
+                                          ));
                                         }
                                         return DataCell(Center(
                                             child: Text(fila[i],
