@@ -7,7 +7,9 @@ import 'package:cloud_firestore/cloud_firestore.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecepcionBigTicketPage extends StatefulWidget {
-  const RecepcionBigTicketPage({Key? key}) : super(key: key);
+  final String usuario;
+  const RecepcionBigTicketPage({Key? key, required this.usuario})
+      : super(key: key);
 
   @override
   State<RecepcionBigTicketPage> createState() => _RecepcionBigTicketPageState();
@@ -61,12 +63,12 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
     if (jefatura == null || jefatura.isEmpty) {
       // Buscar en Firestore: colección 'plantilla_ejecutiva', documento 'datos', array de objetos
       try {
-        final doc = await FirebaseFirestore.instance
+        final docSnap = await FirebaseFirestore.instance
             .collection('plantilla_ejecutiva')
             .doc('datos')
             .get();
-        if (doc.exists) {
-          final data = doc.data();
+        if (docSnap.exists) {
+          final data = docSnap.data();
           if (data != null && data['datos'] is List) {
             final List<dynamic> lista = data['datos'];
             final match = lista.firstWhere(
@@ -341,13 +343,13 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
 
   Future<void> _guardarRegistros() async {
     setState(() => _guardando = true);
-    final usuario = html.window.localStorage['usuario'] ?? '';
+    final usuario = widget.usuario;
     final firestore = FirebaseFirestore.instance;
     for (final fila in _rows) {
       final validacion = fila[5];
       if (validacion == 'Correcto' || validacion == 'Sobrante') {
         await firestore.collection('entregas_cdr').add({
-          'BOX': validacion == 'Faltante de recepcion big ticket' ? '' : '',
+          'BOX': false,
           'BULTOS': fila[4], // ESCANEO
           'CANTIDAD': fila[3],
           'DESCRIPCION': fila[2],
@@ -375,6 +377,21 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             'usuarioValido': usuario,
           });
         }
+        // También guardar en entregas_cdr con BOX: true
+        await firestore.collection('entregas_cdr').add({
+          'BOX': true,
+          'BULTOS': fila[4], // ESCANEO
+          'CANTIDAD': fila[3],
+          'DESCRIPCION': fila[2],
+          'DOCUMENTO': fila[0], // OT
+          'HOJA DE RUTA': fila[7], // MANIFIESTO
+          'JEFATURA': fila[9],
+          'SECCION': fila[8],
+          'SKU': fila[1],
+          'TIPO DOCTO': 'MANIF BT',
+          'usuarioValido': usuario,
+          'fecha': DateTime.now(),
+        });
       }
     }
     setState(() => _guardando = false);

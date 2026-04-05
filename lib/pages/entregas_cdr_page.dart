@@ -318,7 +318,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => RecepcionBigTicketPage(),
+                          builder: (_) =>
+                              RecepcionBigTicketPage(usuario: widget.usuario),
                         ),
                       );
                     },
