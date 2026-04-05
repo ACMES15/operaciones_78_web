@@ -53,10 +53,15 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
     'Acciones',
   ];
 
-  void _actualizarJefaturaPorSeccion(int rowIdx, String nuevaSeccion) {
+  void _actualizarJefaturaPorSeccion(int rowIdx, String nuevaSeccion) async {
+    _rows[rowIdx][8] = nuevaSeccion;
+    String? jefatura = _seccionToJefatura[nuevaSeccion];
+    if (jefatura == null || jefatura.isEmpty) {
+      await _cargarPlantillaEjecutiva();
+      jefatura = _seccionToJefatura[nuevaSeccion] ?? '';
+    }
     setState(() {
-      _rows[rowIdx][8] = nuevaSeccion;
-      _rows[rowIdx][9] = _seccionToJefatura[nuevaSeccion] ?? '';
+      _rows[rowIdx][9] = jefatura ?? '';
     });
   }
 
@@ -96,7 +101,11 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
   final FocusNode _scanFocusNode = FocusNode();
   String? _otPendiente;
 
-  void _importFromExcel() {
+  Future<void> _importFromExcel() async {
+    // Esperar a que la plantilla ejecutiva esté cargada
+    if (_seccionToJefatura.isEmpty) {
+      await _cargarPlantillaEjecutiva();
+    }
     final uploadInput = html.FileUploadInputElement()..accept = '.xlsx';
     uploadInput.click();
     uploadInput.onChange.listen((e) {
@@ -104,7 +113,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
       if (files == null || files.isEmpty) return;
       final reader = html.FileReader();
       reader.readAsArrayBuffer(files[0]);
-      reader.onLoadEnd.listen((event) {
+      reader.onLoadEnd.listen((event) async {
         final result = reader.result;
         final Uint8List bytes =
             result is ByteBuffer ? result.asUint8List() : (result as Uint8List);
@@ -152,7 +161,13 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
         }
         setState(() {
           _rows.clear();
-          _rows.addAll(datos);
+          for (final fila in datos) {
+            // Asegura que cada fila tenga la longitud de _headers
+            while (fila.length < _headers.length) {
+              fila.add('');
+            }
+            _rows.add(fila);
+          }
         });
       });
     });
