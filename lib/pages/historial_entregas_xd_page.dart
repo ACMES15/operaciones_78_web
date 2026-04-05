@@ -54,6 +54,8 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
         .doc('dev_xd_firmadas')
         .get();
     final data = doc.exists ? doc.data() : null;
+    print('Firestore data:');
+    print(data);
     List<Map<String, dynamic>> nuevos = [];
     if (data != null && data['items'] is List) {
       for (var e in (data['items'] as List)) {
@@ -62,6 +64,11 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
               e.map((k, v) => MapEntry(k.toString(), v))));
         }
       }
+    }
+    print('Registros cargados: \\${nuevos.length}');
+    if (nuevos.isNotEmpty) {
+      print('Primer registro:');
+      print(nuevos.first);
     }
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _busquedaController.clear();
