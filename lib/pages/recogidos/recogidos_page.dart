@@ -243,6 +243,26 @@ class _RecogidosPageState extends State<RecogidosPage> {
   }
 
   Future<void> _guardarRecogidosYNotificar() async {
+    // Validar que haya datos
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
+
+    // Validar que ninguna fila tenga VALIDACION vacía
+    final idxValidacion = _headers.indexOf('VALIDACION');
+    for (final row in _rows) {
+      if (idxValidacion == -1 || row[idxValidacion].text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('No puedes guardar: hay filas con VALIDACION vacía.')),
+        );
+        return;
+      }
+    }
     final items = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:excel/excel.dart' as ex;
 import 'dart:html' as html;
 import 'dart:convert';
-import 'package:cloud_firestore/cloud_firestore.dart' as fb;
+// import 'package:cloud_firestore/cloud_firestore.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecepcionBigTicketPage extends StatefulWidget {
@@ -259,7 +259,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                 jefatura = '';
               }
             }
-            fila[9] = jefatura ?? '';
+            fila[9] = jefatura;
             datos.add(fila);
           }
           break;
@@ -342,71 +342,81 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
   bool _guardando = false;
 
   Future<void> _guardarRegistros() async {
+    // Validar que no haya ningún campo VALIDACION vacío
+    for (final fila in _rows) {
+      if (fila.length < 6 || fila[5].trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('No puedes guardar: hay filas con VALIDACION vacía.')),
+        );
+        return;
+      }
+    }
+
     setState(() => _guardando = true);
     final usuario = widget.usuario;
     final firestore = FirebaseFirestore.instance;
     for (final fila in _rows) {
       final validacion = fila[5];
+      // Guardar en entregas_cdr
       if (validacion == 'Correcto' || validacion == 'Sobrante') {
         final docRef = await firestore.collection('entregas_cdr').add({
           'BOX': false,
-          'BULTOS': fila[4], // ESCANEO
+          'BULTOS': fila[4],
           'CANTIDAD': fila[3],
           'DESCRIPCION': fila[2],
-          'DOCUMENTO': fila[0], // OT
-          'HOJA DE RUTA': fila[7], // MANIFIESTO
+          'DOCUMENTO': fila[0],
+          'HOJA DE RUTA': fila[7],
           'JEFATURA': fila[9],
           'SECCION': fila[8],
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
-          // 'fecha': DateTime.now(), // Eliminado
         });
         await docRef.update({'id': docRef.id});
         // Notificación si es Sobrante
         if (validacion == 'Sobrante') {
+          final mensaje =
+              'Sobrante en Recepción Big Ticket: OT ${fila[0]}, SKU ${fila[1]}, SECCION ${fila[8]}';
           for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
             await firestore.collection('notificaciones').add({
               'para': admin,
-              'tipo': 'sobrante',
-              'OT': fila[0],
-              'SKU': fila[1],
-              'SECCION': fila[8],
-              'MANIFIESTO': fila[7],
-              'mensaje': 'Sobrante detectado en Recepción Big Ticket',
-              'usuarioValido': usuario,
+              'mensaje': mensaje,
+              'fecha': DateTime.now(),
+              'tipo': 'SOBRANTE BT',
+              'detalle': Map<String, dynamic>.fromIterables(_headers, fila),
+              'leida': false,
             });
           }
         }
       } else if (validacion == 'Faltante') {
         // Notificación a ADMIN OMNICANAL y ADMIN ENVIOS
+        final mensaje =
+            'Faltante en Recepción Big Ticket: OT ${fila[0]}, SKU ${fila[1]}, SECCION ${fila[8]}';
         for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
           await firestore.collection('notificaciones').add({
             'para': admin,
-            'tipo': 'faltante',
-            'OT': fila[0],
-            'SKU': fila[1],
-            'SECCION': fila[8],
-            'MANIFIESTO': fila[7],
-            // 'fecha': DateTime.now(), // Eliminado
-            'mensaje': 'Faltante detectado en Recepción Big Ticket',
-            'usuarioValido': usuario,
+            'mensaje': mensaje,
+            'fecha': DateTime.now(),
+            'tipo': 'FALTANTE BT',
+            'detalle': Map<String, dynamic>.fromIterables(_headers, fila),
+            'leida': false,
           });
         }
         // También guardar en entregas_cdr con BOX: true
         final docRef = await firestore.collection('entregas_cdr').add({
           'BOX': true,
-          'BULTOS': fila[4], // ESCANEO
+          'BULTOS': fila[4],
           'CANTIDAD': fila[3],
           'DESCRIPCION': fila[2],
-          'DOCUMENTO': fila[0], // OT
-          'HOJA DE RUTA': fila[7], // MANIFIESTO
+          'DOCUMENTO': fila[0],
+          'HOJA DE RUTA': fila[7],
           'JEFATURA': fila[9],
           'SECCION': fila[8],
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
-          // 'fecha': DateTime.now(), // Eliminado
         });
         await docRef.update({'id': docRef.id});
       }

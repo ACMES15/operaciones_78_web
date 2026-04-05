@@ -16,6 +16,13 @@ class ReporteMkpPage extends StatefulWidget {
 class _ReporteMkpPageState extends State<ReporteMkpPage> {
   // Guardar registros NO ENTREGADO en Firestore y cache local
   Future<void> _guardarNoEntregado() async {
+    // Validar que haya datos
+    if (_controllers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
     final noEntregados = <Map<String, dynamic>>[];
     for (final ctrls in _controllers) {
       final estatusIdx = _headers.indexOf('ESTATUS ACTUAL');
@@ -29,6 +36,12 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
         }
         noEntregados.add(row);
       }
+    }
+    if (noEntregados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
     }
     // Guardar en Firestore
     await FirebaseFirestore.instance

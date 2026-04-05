@@ -275,6 +275,13 @@ class _DevMbodasPageState extends State<DevMbodasPage> {
 
   // (Eliminado el bloque duplicado y fuera de lugar)
   Future<void> _guardarMbodasYNotificar() async {
+    // Validar que haya datos
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
     final items = <Map<String, dynamic>>[];
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];

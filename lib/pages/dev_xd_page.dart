@@ -185,6 +185,13 @@ class _DevXdPageState extends State<DevXdPage> {
   }
 
   Future<void> _guardarXdYNotificar() async {
+    // Validar que haya datos
+    if (_rows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
     final items = <Map<String, dynamic>>[];
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];

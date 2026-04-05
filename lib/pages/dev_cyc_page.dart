@@ -163,7 +163,12 @@ class _DevCycPageState extends State<DevCycPage> {
         datos.add(fila);
       }
     }
-    if (datos.isEmpty) return;
+    if (datos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
     final batch = FirebaseFirestore.instance.batch();
     final col = FirebaseFirestore.instance.collection('entregas_cyc');
     for (final fila in datos) {

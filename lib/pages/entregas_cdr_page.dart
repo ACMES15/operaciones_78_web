@@ -44,7 +44,12 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         datos.add(fila);
       }
     }
-    if (datos.isEmpty) return;
+    if (datos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para guardar.')),
+      );
+      return;
+    }
     final batch = FirebaseFirestore.instance.batch();
     final col = FirebaseFirestore.instance.collection('entregas_cdr');
     for (final fila in datos) {
