@@ -140,7 +140,6 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
             ),
           ],
         ),
-        // ...existing code...
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF2D6A4F)),
@@ -154,8 +153,6 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
           ),
         ],
       ),
-      // ...existing code...
-      // ...existing code...
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -172,13 +169,8 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
             const SizedBox(height: 16),
             Expanded(
               child: _resultados.isEmpty
-                  ? Center(
-                      child: Text(
-                        _filtro.isEmpty
-                            ? 'No hay entregas registradas'
-                            : 'No hay coincidencias para tu búsqueda',
-                        style: const TextStyle(fontSize: 16),
-                      ),
+                  ? const Center(
+                      child: Text('No hay entregas firmadas.'),
                     )
                   : ListView.separated(
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
@@ -195,8 +187,8 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                             } else if (firmaData is List<int>) {
                               bytes = Uint8List.fromList(firmaData);
                             } else if (firmaData is String) {
-                              bytes =
-                                  Uint8List.fromList(base64Decode(firmaData));
+                              bytes = Uint8List.fromList(
+                                  const Base64Decoder().convert(firmaData));
                             }
                             if (bytes != null && bytes.isNotEmpty) {
                               firmaWidget = Padding(
@@ -256,34 +248,34 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                                 color: Color(0xFF2D6A4F)),
                                           ),
                                           const SizedBox(width: 18),
-                                          // FECHA
+                                          Text(
+                                            'SKU: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey[700]),
+                                          ),
+                                          Text(
+                                            entrega['SKU']?.toString() ?? '-',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color: Color(0xFF2D6A4F)),
+                                          ),
+                                          const Spacer(),
                                           Icon(Icons.calendar_today,
                                               size: 18,
                                               color: Colors.grey[600]),
                                           const SizedBox(width: 4),
                                           Text(
-                                            (entrega['fecha']
+                                            (entrega['fechaFirma']
                                                             ?.toString()
                                                             .substring(0, 10) ??
                                                         '-') !=
                                                     ''
-                                                ? entrega['fecha']
+                                                ? entrega['fechaFirma']
                                                     .toString()
                                                     .substring(0, 10)
                                                 : '-',
-                                            style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFF495057)),
-                                          ),
-                                          const Spacer(),
-                                          const Icon(Icons.person_outline,
-                                              size: 18,
-                                              color: Color(0xFF2D6A4F)),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            entrega['usuarioEntrega']
-                                                    ?.toString() ??
-                                                '-',
                                             style: const TextStyle(
                                                 fontSize: 14,
                                                 color: Color(0xFF495057)),
@@ -298,6 +290,12 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
+                                            'Recibió: ',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF2D6A4F)),
+                                          ),
+                                          Text(
                                             (entrega['nombreRecibe']
                                                         ?.toString() ??
                                                     '-')
@@ -308,31 +306,31 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text('SKU: \\${entrega['SKU'] ?? '-'}',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF495057))),
+                                      const SizedBox(height: 4),
                                       Text(
-                                          'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF495057))),
+                                        'Descripción: ${entrega['DESCRIPCION'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
                                       Text(
-                                          'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF495057))),
+                                        'Cantidad: ${entrega['CANTIDAD'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
                                       Text(
-                                          'Sección: \\${entrega['SECCION'] ?? '-'}',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF495057))),
+                                        'Sección: ${entrega['SECCION'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
                                       Text(
-                                          'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
-                                          style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Color(0xFF495057))),
+                                        'Jefatura: ${entrega['JEFATURA'] ?? '-'}',
+                                        style: const TextStyle(
+                                            fontSize: 15,
+                                            color: Color(0xFF495057)),
+                                      ),
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [
@@ -341,68 +339,49 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                              'Validó: ' +
-                                                  (entrega['usuarioValido']
-                                                          ?.toString() ??
-                                                      '-'),
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF495057))),
+                                            'Validó: ' +
+                                                (entrega['usuarioValido']
+                                                        ?.toString() ??
+                                                    '-'),
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFF495057)),
+                                          ),
                                           const SizedBox(width: 16),
                                           const Icon(Icons.person_outline,
                                               size: 18,
                                               color: Color(0xFF2D6A4F)),
                                           const SizedBox(width: 6),
                                           Text(
-                                              'Entregó: ' +
-                                                  (entrega['usuarioEntrega']
-                                                          ?.toString() ??
-                                                      '-'),
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  color: Color(0xFF495057))),
+                                            'Entregó: ' +
+                                                (entrega['usuarioEntrega']
+                                                        ?.toString() ??
+                                                    '-'),
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFF495057)),
+                                          ),
                                         ],
                                       ),
-                                      // Mostrar la firma si existe
-                                      ...((entrega['firma'] != null &&
-                                              entrega['firma']
-                                                  .toString()
-                                                  .isNotEmpty)
-                                          ? [
-                                              Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        vertical: 8.0),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text('Firma:',
-                                                        style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight.bold,
-                                                            color: Color(
-                                                                0xFF495057))),
-                                                    SizedBox(height: 6),
-                                                    Image.memory(
-                                                      base64Decode(
-                                                          entrega['firma']),
-                                                      height: 80,
-                                                      fit: BoxFit.contain,
-                                                      errorBuilder: (context,
-                                                              error,
-                                                              stackTrace) =>
-                                                          const Text(
-                                                              'Firma inválida',
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .red)),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ]
-                                          : []),
+                                      if (firmaWidget != null)
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8.0),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Firma:',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          Color(0xFF495057))),
+                                              SizedBox(height: 6),
+                                              firmaWidget,
+                                            ],
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
