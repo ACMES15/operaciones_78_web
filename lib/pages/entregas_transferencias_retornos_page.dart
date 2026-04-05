@@ -482,8 +482,7 @@ class _EntregasTransferenciasRetornosPageState
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _mobileField('TF O DEV',
-                                                entrega['TF O DEV']),
+                                            _mobileFieldTFODEV(entrega),
                                             _mobileField(
                                                 'ORIGEN', entrega['ORIGEN']),
                                             _mobileField(
@@ -496,8 +495,7 @@ class _EntregasTransferenciasRetornosPageState
                                         )
                                       : Row(
                                           children: [
-                                            _infoChip('TF O DEV',
-                                                entrega['TF O DEV']),
+                                            _infoChipTFODEV(entrega),
                                             _infoChip(
                                                 'ORIGEN', entrega['ORIGEN']),
                                             _infoChip(

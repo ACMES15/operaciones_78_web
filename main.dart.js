@@ -106445,9 +106445,16 @@ if(s==null)s=""
 return this.a.f=s},
 $S:0}
 A.aG9.prototype={
-$2(a,b){var s=null,r="TF O DEV",q="ORIGEN",p="DESTINO",o="SECCION",n="JEFATURA",m=this.a,l=m.gwy()[b],k=m.x.p(0,b),j=A.aL(14),i=J.L(l),h=t.p
-i=this.b?A.ak(A.a([m.xb(r,i.h(l,r)),m.xb(q,i.h(l,q)),m.xb(p,i.h(l,p)),m.xb(o,i.h(l,o)),m.xb(n,i.h(l,n))],h),B.a3,B.u,B.w):A.a5(A.a([m.wV(r,i.h(l,r)),m.wV(q,i.h(l,q)),m.wV(p,i.h(l,p)),m.wV(o,i.h(l,o)),m.wV(n,i.h(l,n))],h),B.D,B.u,B.w,s)
-return A.dm(A.my(s,B.ey,B.dP,new A.aG_(m,b),new A.bK(A.aL(12),B.J),s,i,k),B.y,4,s,B.f5,new A.bK(j,B.hu))},
+$2(a,b){var s,r,q=null,p="TF O DEV",o="TRANSFERENCIA",n="ORIGEN",m="DESTINO",l="SECCION",k="JEFATURA",j=this.a,i=j.gwy()[b],h=j.x.p(0,b),g=A.aL(14),f=J.L(i)
+if(this.b){s=f.h(i,p)
+if(s==null)s=f.h(i,o)
+if(s==null)s=f.h(i,"TF")
+r=s==null?f.h(i,"DEV"):s
+f=A.ak(A.a([j.xb(p,r==null?"-":r),j.xb(n,f.h(i,n)),j.xb(m,f.h(i,m)),j.xb(l,f.h(i,l)),j.xb(k,f.h(i,k))],t.p),B.a3,B.u,B.w)}else{s=f.h(i,p)
+if(s==null)s=f.h(i,o)
+if(s==null)s=f.h(i,"TF")
+r=s==null?f.h(i,"DEV"):s
+f=A.a5(A.a([j.wV(p,r==null?"-":r),j.wV(n,f.h(i,n)),j.wV(m,f.h(i,m)),j.wV(l,f.h(i,l)),j.wV(k,f.h(i,k))],t.p),B.D,B.u,B.w,q)}return A.dm(A.my(q,B.ey,B.dP,new A.aG_(j,b),new A.bK(A.aL(12),B.J),q,f,h),B.y,4,q,B.f5,new A.bK(g,B.hu))},
 $S:14}
 A.aG_.prototype={
 $1(a){var s=this.a
