@@ -97,54 +97,33 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
     final rutaSnap = await FirebaseFirestore.instance
         .collection('hoja_de_ruta_enviada')
         .where('MANIFIESTO', isEqualTo: codigo)
-        .orderBy('FECHA', descending: true)
         .limit(1)
         .get();
-    Map<String, dynamic>? mejorData;
-    DateTime? mejorFecha;
     if (rutaSnap.docs.isNotEmpty) {
       final data = rutaSnap.docs.first.data();
-      final fecha = _parseFecha(data['FECHA']);
-      mejorData = {
+      return {
         'MANIFIESTO': data['MANIFIESTO'] ?? '',
         'DESTINO': data['DESTINO'] ?? '',
         'FECHA': data['FECHA'] ?? '',
         'NOMBRE': data['NOMBRE'] ?? '',
         'USUARIO': data['USUARIO'] ?? '',
       };
-      mejorFecha = fecha;
     }
     // Buscar en hoja de XD
     final xdSnap = await FirebaseFirestore.instance
         .collection('hoja_de_xd_historial')
         .where('MANIFIESTO', isEqualTo: codigo)
-        .orderBy('FECHA', descending: true)
         .limit(1)
         .get();
     if (xdSnap.docs.isNotEmpty) {
       final data = xdSnap.docs.first.data();
-      final fecha = _parseFecha(data['FECHA']);
-      if (mejorFecha == null || (fecha != null && fecha.isAfter(mejorFecha))) {
-        mejorData = {
-          'MANIFIESTO': data['MANIFIESTO'] ?? '',
-          'DESTINO': data['DESTINO'] ?? '',
-          'FECHA': data['FECHA'] ?? '',
-          'NOMBRE': data['NOMBRE'] ?? '',
-          'USUARIO': data['USUARIO'] ?? '',
-        };
-        mejorFecha = fecha;
-      }
-    }
-    return mejorData;
-  }
-
-  DateTime? _parseFecha(dynamic fecha) {
-    if (fecha == null) return null;
-    if (fecha is DateTime) return fecha;
-    if (fecha is String) {
-      try {
-        return DateTime.parse(fecha);
-      } catch (_) {}
+      return {
+        'MANIFIESTO': data['MANIFIESTO'] ?? '',
+        'DESTINO': data['DESTINO'] ?? '',
+        'FECHA': data['FECHA'] ?? '',
+        'NOMBRE': data['NOMBRE'] ?? '',
+        'USUARIO': data['USUARIO'] ?? '',
+      };
     }
     return null;
   }
@@ -152,14 +131,27 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
   Future<void> _escanearOBuscar() async {
     final codigo = _escaneoController.text.trim();
     if (codigo.isEmpty) return;
-    // Buscar datos externos SOLAMENTE
-    final datos = await _buscarDatosExternos(codigo);
-    if (datos != null) {
-      // Agregar nueva carta con datos externos
-      await _editarCartaDialog(datos);
+    // Buscar si ya existe en historial
+    final snap = await FirebaseFirestore.instance
+        .collection('cartas_porte')
+        .where('MANIFIESTO', isEqualTo: codigo)
+        .limit(1)
+        .get();
+    if (snap.docs.isNotEmpty) {
+      // Editar existente
+      final carta = snap.docs.first.data();
+      carta['id'] = snap.docs.first.id;
+      await _editarCartaDialog(carta);
     } else {
-      // Agregar nueva carta vacía con manifiesto prellenado
-      await _editarCartaDialog({'MANIFIESTO': codigo});
+      // Buscar datos externos
+      final datos = await _buscarDatosExternos(codigo);
+      if (datos != null) {
+        // Agregar nueva carta con datos externos
+        await _editarCartaDialog(datos);
+      } else {
+        // Agregar nueva carta vacía con manifiesto prellenado
+        await _editarCartaDialog({'MANIFIESTO': codigo});
+      }
     }
     _escaneoController.clear();
   }
@@ -275,53 +267,52 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                   }
                   return ListView.builder(
                     itemCount: cartas.length,
-                    itemBuilder: (context, i) {
-                      final carta = cartas[i];
+                    itemBuilder: (context, idx) {
+                      final carta = cartas[idx];
+                      final choferStr = (carta['chofer'] ?? '')
+                          .toString()
+                          .trim()
+                          .toUpperCase();
+                      final isPendiente = choferStr == 'PENDIENTE';
                       return Card(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 6, horizontal: 12),
+                        color: isPendiente
+                            ? Colors.orange.shade200
+                            : const Color(0xFFF5F6FA),
+                        margin: const EdgeInsets.symmetric(vertical: 8),
                         child: ListTile(
-                          title:
-                              Text('Manifiesto: ${carta['MANIFIESTO'] ?? ''}'),
+                          title: Text(
+                              'Manifiesto: ${carta['numero_control'] ?? '-'}'),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Destino: ${carta['DESTINO'] ?? ''}'),
-                              Text('Fecha: ${carta['FECHA'] ?? ''}'),
-                              Text('Nombre: ${carta['NOMBRE'] ?? ''}'),
-                              Text('Usuario: ${carta['USUARIO'] ?? ''}'),
+                              Text('Destino: ${carta['destino'] ?? '-'}'),
+                              Text('Fecha: ${carta['fecha'] ?? '-'}'),
+                              Text('Chofer: ${carta['chofer'] ?? '-'}'),
+                              Text('RFC: ${carta['rfc'] ?? '-'}'),
+                              Text('Unidad: ${carta['unidad'] ?? '-'}'),
+                              if (isPendiente)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'Falta editar parámetros',
+                                    style: TextStyle(
+                                      color: Colors.orange[800],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
                             ],
                           ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.blue),
-                                tooltip: 'Editar',
-                                onPressed: () async {
-                                  await _editarCartaDialog(carta);
-                                },
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => CartaPorteEdicionPage(
+                                  carta: carta,
+                                  docId: carta['id'],
+                                ),
                               ),
-                              IconButton(
-                                icon:
-                                    const Icon(Icons.add, color: Colors.green),
-                                tooltip: 'Agregar relacionado',
-                                onPressed: () async {
-                                  // Buscar datos externos y abrir diálogo para agregar
-                                  final datos = await _buscarDatosExternos(
-                                      carta['MANIFIESTO'] ?? '');
-                                  if (datos != null) {
-                                    await _editarCartaDialog(datos);
-                                  } else {
-                                    await _editarCartaDialog({
-                                      'MANIFIESTO': carta['MANIFIESTO'] ?? ''
-                                    });
-                                  }
-                                },
-                              ),
-                            ],
-                          ),
+                            );
+                          },
                         ),
                       );
                     },
