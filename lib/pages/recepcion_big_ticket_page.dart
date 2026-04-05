@@ -360,8 +360,24 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
+          // 'fecha': DateTime.now(), // Eliminado
         });
         await docRef.update({'id': docRef.id});
+        // Notificación si es Sobrante
+        if (validacion == 'Sobrante') {
+          for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            await firestore.collection('notificaciones').add({
+              'para': admin,
+              'tipo': 'sobrante',
+              'OT': fila[0],
+              'SKU': fila[1],
+              'SECCION': fila[8],
+              'MANIFIESTO': fila[7],
+              'mensaje': 'Sobrante detectado en Recepción Big Ticket',
+              'usuarioValido': usuario,
+            });
+          }
+        }
       } else if (validacion == 'Faltante') {
         // Notificación a ADMIN OMNICANAL y ADMIN ENVIOS
         for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
@@ -372,6 +388,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             'SKU': fila[1],
             'SECCION': fila[8],
             'MANIFIESTO': fila[7],
+            // 'fecha': DateTime.now(), // Eliminado
             'mensaje': 'Faltante detectado en Recepción Big Ticket',
             'usuarioValido': usuario,
           });
@@ -389,6 +406,7 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
           'SKU': fila[1],
           'TIPO DOCTO': 'MANIF BT',
           'usuarioValido': usuario,
+          // 'fecha': DateTime.now(), // Eliminado
         });
         await docRef.update({'id': docRef.id});
       }
