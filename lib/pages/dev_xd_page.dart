@@ -201,6 +201,7 @@ class _DevXdPageState extends State<DevXdPage> {
       }
       map['usuarioValido'] = widget.usuario;
       map['id'] = DateTime.now().millisecondsSinceEpoch.toString() + '_$i';
+      map['fecha'] = DateTime.now().toIso8601String();
       items.add(map);
     }
     try {

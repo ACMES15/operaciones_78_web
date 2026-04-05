@@ -18,6 +18,19 @@ class HistorialEntregasXdPage extends StatefulWidget {
 }
 
 class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
+  String _formatearFecha(dynamic fecha) {
+    try {
+      DateTime dt =
+          fecha is DateTime ? fecha : DateTime.parse(fecha.toString());
+      String dia = dt.day.toString().padLeft(2, '0');
+      String mes = dt.month.toString().padLeft(2, '0');
+      String anio = dt.year.toString();
+      return '$dia-$mes-$anio';
+    } catch (_) {
+      return 'null';
+    }
+  }
+
   late List<Map<String, dynamic>> _resultados;
   List<Map<String, dynamic>> _datosOriginales = [];
   late TextEditingController _busquedaController;
@@ -108,6 +121,8 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
           ),
         ],
       ),
+      // ...existing code...
+      // ...existing code...
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

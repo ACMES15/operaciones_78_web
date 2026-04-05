@@ -17,6 +17,19 @@ class HistorialTfRetornosPage extends StatefulWidget {
 }
 
 class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
+  String _formatearFecha(dynamic fecha) {
+    try {
+      DateTime dt =
+          fecha is DateTime ? fecha : DateTime.parse(fecha.toString());
+      String dia = dt.day.toString().padLeft(2, '0');
+      String mes = dt.month.toString().padLeft(2, '0');
+      String anio = dt.year.toString();
+      return '$dia-$mes-$anio';
+    } catch (_) {
+      return 'null';
+    }
+  }
+
   Future<void> _exportarAExcel() async {
     // Usar package:excel y dart:html para exportar
     // Solo exportar los registros actualmente filtrados
@@ -427,13 +440,19 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                                                         const SizedBox(
                                                             width: 4),
                                                         Text(
-                                                            '${item.fecha!.toLocal().toString().substring(0, 10)}',
-                                                            style: const TextStyle(
-                                                                fontSize: 14,
-                                                                color: Color(
-                                                                    0xFF495057))),
+                                                          item.fecha != null
+                                                              ? _formatearFecha(
+                                                                  item.fecha)
+                                                              : 'null',
+                                                          style: const TextStyle(
+                                                              fontSize: 14,
+                                                              color: Color(
+                                                                  0xFF495057)),
+                                                        ),
                                                       ],
                                                     ),
+
+// Agregar función de formateo
                                                 ],
                                               ),
                                               const SizedBox(height: 8),

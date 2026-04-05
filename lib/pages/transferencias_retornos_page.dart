@@ -200,6 +200,7 @@ class _TransferenciasRetornosPageState
       }
       map['id'] = DateTime.now().millisecondsSinceEpoch.toString() + '_$i';
       map['usuarioValido'] = widget.usuario;
+      map['FECHA'] = DateTime.now().toIso8601String();
       items.add(map);
     }
     try {
