@@ -337,6 +337,53 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
     }
   }
 
+  bool _guardando = false;
+
+  Future<void> _guardarRegistros() async {
+    setState(() => _guardando = true);
+    final usuario = html.window.localStorage['usuario'] ?? '';
+    final firestore = FirebaseFirestore.instance;
+    for (final fila in _rows) {
+      final validacion = fila[5];
+      if (validacion == 'Correcto' || validacion == 'Sobrante') {
+        await firestore.collection('entregas_cdr').add({
+          'BOX': validacion == 'Faltante de recepcion big ticket' ? '' : '',
+          'BULTOS': fila[4], // ESCANEO
+          'CANTIDAD': fila[3],
+          'DESCRIPCION': fila[2],
+          'DOCUMENTO': fila[0], // OT
+          'HOJA DE RUTA': fila[7], // MANIFIESTO
+          'JEFATURA': fila[9],
+          'SECCION': fila[8],
+          'SKU': fila[1],
+          'TIPO DOCTO': 'MANIF BT',
+          'usuarioValido': usuario,
+          'fecha': DateTime.now(),
+        });
+      } else if (validacion == 'Faltante') {
+        // Notificación a ADMIN OMNICANAL y ADMIN ENVIOS
+        for (final admin in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+          await firestore.collection('notificaciones').add({
+            'para': admin,
+            'tipo': 'faltante',
+            'OT': fila[0],
+            'SKU': fila[1],
+            'SECCION': fila[8],
+            'MANIFIESTO': fila[7],
+            'fecha': DateTime.now(),
+            'mensaje': 'Faltante detectado en Recepción Big Ticket',
+            'usuarioValido': usuario,
+          });
+        }
+      }
+    }
+    setState(() => _guardando = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Registros guardados y notificaciones enviadas.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -368,6 +415,22 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             label: const Text('Finalizar escaneo'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+              textStyle:
+                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              elevation: 2,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _guardando ? null : _guardarRegistros,
+            icon: const Icon(Icons.save),
+            label:
+                _guardando ? const Text('Guardando...') : const Text('Guardar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
               foregroundColor: Colors.white,
               textStyle:
                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -597,15 +660,32 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
                                           );
                                         }
                                         if (i == 10) {
-                                          // Acciones: eliminar fila
+                                          // Acciones: limpiar escaneo
                                           return DataCell(
                                             IconButton(
-                                              icon: const Icon(Icons.delete,
-                                                  size: 18, color: Colors.red),
-                                              tooltip: 'Eliminar fila',
+                                              icon: const Icon(
+                                                  Icons.cleaning_services,
+                                                  size: 18,
+                                                  color: Colors.orange),
+                                              tooltip: 'Elimina escaneo',
                                               onPressed: () {
                                                 setState(() {
-                                                  _rows.removeAt(rowIdx);
+                                                  fila[4] = '0'; // ESCANEO
+                                                  int cantidad =
+                                                      int.tryParse(fila[3]) ??
+                                                          0;
+                                                  int escaneo = 0;
+                                                  int diferencia =
+                                                      escaneo - cantidad;
+                                                  fila[6] = diferencia
+                                                      .toString(); // DIFERENCIA
+                                                  if (diferencia == 0) {
+                                                    fila[5] = 'Correcto';
+                                                  } else if (diferencia > 0) {
+                                                    fila[5] = 'Sobrante';
+                                                  } else {
+                                                    fila[5] = 'Faltante';
+                                                  }
                                                 });
                                               },
                                             ),
