@@ -78,7 +78,7 @@ class _EntregasTransferenciasRetornosPageState
             }
           }
           map['id'] = map['id']?.toString() ??
-              (map['TRANSFERENCIA']?.toString() ?? 'item_$idx');
+              (map['TF O DEV']?.toString() ?? 'item_$idx');
           entregas.add(map);
           idx++;
         }
@@ -91,7 +91,7 @@ class _EntregasTransferenciasRetornosPageState
           final map = Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v)));
           map['id'] =
-              map['id']?.toString() ?? (map['TRANSFERENCIA']?.toString() ?? '');
+              map['id']?.toString() ?? (map['TF O DEV']?.toString() ?? '');
           historial.add(map);
         }
       }
@@ -350,8 +350,7 @@ class _EntregasTransferenciasRetornosPageState
               'firma': resultado['firma'],
               'fechaFirma': DateTime.now().toIso8601String(),
               'usuarioEntrega': usuarioEntrega,
-              'id':
-                  e['id']?.toString() ?? (e['TRANSFERENCIA']?.toString() ?? ''),
+              'id': e['id']?.toString() ?? (e['TF O DEV']?.toString() ?? ''),
             })
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
@@ -483,8 +482,8 @@ class _EntregasTransferenciasRetornosPageState
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _mobileField('TRANSFERENCIA',
-                                                entrega['TRANSFERENCIA']),
+                                            _mobileField('TF O DEV',
+                                                entrega['TF O DEV']),
                                             _mobileField(
                                                 'ORIGEN', entrega['ORIGEN']),
                                             _mobileField(
@@ -497,8 +496,8 @@ class _EntregasTransferenciasRetornosPageState
                                         )
                                       : Row(
                                           children: [
-                                            _infoChip('TRANSFERENCIA',
-                                                entrega['TRANSFERENCIA']),
+                                            _infoChip('TF O DEV',
+                                                entrega['TF O DEV']),
                                             _infoChip(
                                                 'ORIGEN', entrega['ORIGEN']),
                                             _infoChip(
