@@ -202,8 +202,62 @@ class _RecepcionBigTicketPageState extends State<RecepcionBigTicketPage> {
             fila[8] = row.length > 8 && row[8] != null
                 ? row[8]!.value.toString()
                 : '';
-            // Buscar JEFATURA automáticamente por SECCION usando plantilla ejecutiva
-            fila[9] = _seccionToJefatura[fila[8]] ?? '';
+            // Buscar JEFATURA automáticamente por SECCION usando plantilla ejecutiva o Firestore
+            String seccion = fila[8];
+            String? jefatura = _seccionToJefatura[seccion];
+            if (jefatura == null || jefatura.isEmpty) {
+              // Buscar en Firestore si no está en caché
+              try {
+                final doc = await FirebaseFirestore.instance
+                    .collection('plantilla_ejecutiva')
+                    .doc('datos')
+                    .get();
+                if (doc.exists) {
+                  final data = doc.data();
+                  if (data != null && data['datos'] is List) {
+                    final List<dynamic> lista = data['datos'];
+                    final match = lista.firstWhere(
+                      (e) => e is Map && e['SECCION'] == seccion,
+                      orElse: () => null,
+                    );
+                    if (match != null && match['NOMBRE'] != null) {
+                      jefatura = match['NOMBRE'].toString();
+                      _seccionToJefatura[seccion] = jefatura;
+                      // Actualiza el cache localStorage
+                      final cache =
+                          html.window.localStorage['plantilla_ejecutiva_cache'];
+                      List<dynamic> cacheList = [];
+                      if (cache != null) {
+                        cacheList = List<dynamic>.from(jsonDecode(cache));
+                      }
+                      bool updated = false;
+                      for (final filaCache in cacheList) {
+                        if (filaCache is Map &&
+                            filaCache['SECCION'] == seccion) {
+                          filaCache['NOMBRE'] = jefatura;
+                          updated = true;
+                          break;
+                        }
+                      }
+                      if (!updated) {
+                        cacheList.add({'SECCION': seccion, 'NOMBRE': jefatura});
+                      }
+                      html.window.localStorage['plantilla_ejecutiva_cache'] =
+                          jsonEncode(cacheList);
+                    } else {
+                      jefatura = '';
+                    }
+                  } else {
+                    jefatura = '';
+                  }
+                } else {
+                  jefatura = '';
+                }
+              } catch (_) {
+                jefatura = '';
+              }
+            }
+            fila[9] = jefatura ?? '';
             datos.add(fila);
           }
           break;
