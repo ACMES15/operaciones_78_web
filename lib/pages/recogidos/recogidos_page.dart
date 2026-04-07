@@ -71,6 +71,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
     'BOX',
   ];
   final List<List<TextEditingController>> _rows = [];
+  final TextEditingController _manifiestoController = TextEditingController();
 
   Future<void> _buscarJefaturaFirestore(
       String seccion, Function(String) onResult) async {
@@ -132,6 +133,7 @@ class _RecogidosPageState extends State<RecogidosPage> {
   void dispose() {
     _scanController.dispose();
     _scanFocus.dispose();
+    _manifiestoController.dispose();
     for (var row in _rows) {
       for (var ctrl in row) {
         ctrl.dispose();
@@ -251,24 +253,34 @@ class _RecogidosPageState extends State<RecogidosPage> {
       return;
     }
 
-    // Validar que ninguna fila tenga VALIDACION vacía
+    // Solo permitir guardar si todas las filas tienen paloma en VALIDACION
     final idxValidacion = _headers.indexOf('VALIDACION');
-    for (final row in _rows) {
-      if (idxValidacion == -1 || row[idxValidacion].text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('No puedes guardar: hay filas con VALIDACION vacía.')),
-        );
-        return;
-      }
+    if (idxValidacion == -1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se encontró la columna VALIDACION.')),
+      );
+      return;
     }
+    final todasValidadas = _rows.isNotEmpty &&
+        _rows.every((row) => row[idxValidacion].text.trim() == '✔️');
+    if (!todasValidadas) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Todas las filas deben estar validadas (paloma) para guardar.')),
+      );
+      return;
+    }
+    final manifiesto = _manifiestoController.text.trim();
     final items = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
       }
       map['usuarioValido'] = widget.usuario;
+      if (manifiesto.isNotEmpty) {
+        map['MANIFIESTO'] = manifiesto;
+      }
       return map;
     }).toList();
 
@@ -458,6 +470,23 @@ class _RecogidosPageState extends State<RecogidosPage> {
                           onPressed: () =>
                               _buscarYMarcarLP(_scanController.text.trim()),
                           child: const Text('Buscar LP'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Campo manifiesto
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _manifiestoController,
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'MANIFIESTO (se guardará en cada línea)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
                         ),
                       ],
                     ),

@@ -310,30 +310,40 @@ class _HistorialEntregasRecogidosPageState
                                         ],
                                       ),
                                       const SizedBox(height: 8),
-                                      Text('SKU: \\${entrega['SKU'] ?? '-'}',
+                                      Text('SKU: ${entrega['SKU'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
                                       Text(
-                                          'Descripción: \\${entrega['DESCRIPCION'] ?? '-'}',
+                                          'Descripción: ${entrega['DESCRIPCION'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
                                       Text(
-                                          'Cantidad: \\${entrega['CANTIDAD'] ?? '-'}',
+                                          'Cantidad: ${entrega['CANTIDAD'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
                                       Text(
-                                          'Sección: \\${entrega['SECCION'] ?? '-'}',
+                                          'Sección: ${entrega['SECCION'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
                                       Text(
-                                          'Jefatura: \\${entrega['JEFATURA'] ?? '-'}',
+                                          'Jefatura: ${entrega['JEFATURA'] ?? '-'}',
                                           style: const TextStyle(
                                               fontSize: 15,
                                               color: Color(0xFF495057))),
+                                      if (entrega['MANIFIESTO'] != null &&
+                                          entrega['MANIFIESTO']
+                                              .toString()
+                                              .isNotEmpty)
+                                        Text(
+                                            'Manifiesto: ${entrega['MANIFIESTO']}',
+                                            style: const TextStyle(
+                                                fontSize: 15,
+                                                color: Color(0xFFB68900),
+                                                fontWeight: FontWeight.bold)),
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [

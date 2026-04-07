@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import 'package:signature/signature.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EntregasCycPage extends StatefulWidget {
   final String usuario;
@@ -26,6 +26,34 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
     super.initState();
     _busquedaController = TextEditingController();
     _cargarPendientes();
+    _sincronizarFirmasPendientes();
+  }
+
+  Future<void> _sincronizarFirmasPendientes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'firmas_pendientes_cyc';
+    final data = prefs.getString(key);
+    if (data != null) {
+      try {
+        final List<dynamic> pendientes = jsonDecode(data);
+        if (pendientes.isNotEmpty) {
+          final firestore = FirebaseFirestore.instance;
+          final historialRef =
+              firestore.collection('historial_entregas').doc('cyc_firmadas');
+          final historialDoc = await historialRef.get();
+          List<dynamic> historial = [];
+          if (historialDoc.exists &&
+              historialDoc.data() != null &&
+              historialDoc.data()!['items'] is List) {
+            historial = List.from(historialDoc.data()!['items']);
+          }
+          historial.addAll(pendientes.cast<Map<String, dynamic>>());
+          await historialRef.set({'items': historial}, SetOptions(merge: true));
+          await prefs.remove(key);
+          await _cargarPendientes();
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _cargarPendientes() async {
@@ -263,7 +291,6 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
     if (resultado == null) return;
     final nombre = resultado['nombre'] as String;
     final firma = resultado['firma'] as String;
-    // Mover a historial y borrar de pendientes
     final firestore = FirebaseFirestore.instance;
     final batch = firestore.batch();
     final historialRef =
@@ -276,6 +303,7 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
       historial = List.from(historialDoc.data()!['items']);
     }
     final ahora = DateTime.now();
+    final nuevasFirmadas = <Map<String, dynamic>>[];
     for (final item in seleccionadas) {
       final nuevo = Map<String, dynamic>.from(item);
       nuevo['validadoPor'] = widget.usuario;
@@ -283,13 +311,35 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
       nuevo['recibidoPor'] = nombre;
       nuevo['firma'] = firma;
       historial.add(nuevo);
+      nuevasFirmadas.add(nuevo);
       batch.delete(firestore.collection('entregas_cyc').doc(item['id']));
     }
-    batch.set(historialRef, {'items': historial}, SetOptions(merge: true));
-    await batch.commit();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Entregas firmadas y movidas a historial.')));
-    await _cargarPendientes();
+    try {
+      batch.set(historialRef, {'items': historial}, SetOptions(merge: true));
+      await batch.commit();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Entregas firmadas y movidas a historial.')));
+      await _cargarPendientes();
+    } catch (e) {
+      // Si falla la subida, guardar localmente como pendiente
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'firmas_pendientes_cyc';
+      List<dynamic> pendientes = [];
+      final data = prefs.getString(key);
+      if (data != null) {
+        try {
+          pendientes = jsonDecode(data);
+        } catch (_) {}
+      }
+      pendientes.addAll(nuevasFirmadas);
+      await prefs.setString(key, jsonEncode(pendientes));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+        backgroundColor: Colors.orange,
+      ));
+      await _cargarPendientes();
+    }
   }
 
   @override

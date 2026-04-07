@@ -3,6 +3,7 @@ import '../../utils/firebase_cache_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // Clon de EntregasMbodasPage adaptado para XD
 class EntregasXdPage extends StatefulWidget {
@@ -31,6 +32,27 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
   void initState() {
     super.initState();
     _cargarDatos();
+    _sincronizarFirmasPendientes();
+  }
+
+  Future<void> _sincronizarFirmasPendientes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'firmas_pendientes_xd';
+    final data = prefs.getString(key);
+    if (data != null) {
+      try {
+        final List<dynamic> pendientes = jsonDecode(data);
+        if (pendientes.isNotEmpty) {
+          final historialActual =
+              List<Map<String, dynamic>>.from(_historialFirmadas);
+          historialActual.addAll(pendientes.cast<Map<String, dynamic>>());
+          await guardarDatosFirestoreYCache('historial_entregas',
+              'dev_xd_firmadas', {'items': historialActual});
+          await prefs.remove(key);
+          await _cargarDatos();
+        }
+      } catch (_) {}
+    }
   }
 
   Future<void> _cargarDatos({bool forzarFirestore = false}) async {
@@ -330,14 +352,38 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
     historialActual.addAll(nuevasFirmadas);
-    await guardarDatosFirestoreYCache(
-        'historial_entregas', 'dev_xd_firmadas', {'items': historialActual});
-    setState(() {
-      _seleccionados.clear();
-    });
-    await _cargarDatos();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Entregas firmadas y guardadas correctamente.')));
+    try {
+      await guardarDatosFirestoreYCache(
+          'historial_entregas', 'dev_xd_firmadas', {'items': historialActual});
+      setState(() {
+        _seleccionados.clear();
+      });
+      await _cargarDatos();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Entregas firmadas y guardadas correctamente.')));
+    } catch (e) {
+      // Si falla la subida, guardar localmente como pendiente
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'firmas_pendientes_xd';
+      List<dynamic> pendientes = [];
+      final data = prefs.getString(key);
+      if (data != null) {
+        try {
+          pendientes = jsonDecode(data);
+        } catch (_) {}
+      }
+      pendientes.addAll(nuevasFirmadas);
+      await prefs.setString(key, jsonEncode(pendientes));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+        backgroundColor: Colors.orange,
+      ));
+      setState(() {
+        _seleccionados.clear();
+      });
+      await _cargarDatos();
+    }
     // Ya no navega automáticamente, solo limpia y recarga
   }
 

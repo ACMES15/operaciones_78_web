@@ -3,6 +3,7 @@ import '../../utils/firebase_cache_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EntregasRecogidosPage extends StatefulWidget {
   final String usuario;
@@ -14,6 +15,32 @@ class EntregasRecogidosPage extends StatefulWidget {
 }
 
 class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatos();
+    _sincronizarFirmasPendientes();
+  }
+
+  Future<void> _sincronizarFirmasPendientes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'firmas_pendientes_recogidos';
+    final data = prefs.getString(key);
+    if (data != null) {
+      try {
+        final List<dynamic> pendientes = jsonDecode(data);
+        if (pendientes.isNotEmpty) {
+          final historialActual =
+              List<Map<String, dynamic>>.from(_historialFirmadas);
+          historialActual.addAll(pendientes.cast<Map<String, dynamic>>());
+          await guardarDatosFirestoreYCache('historial_entregas',
+              'recogidos_firmadas', {'items': historialActual});
+          await prefs.remove(key);
+          await _cargarDatos();
+        }
+      } catch (_) {}
+    }
+  }
   // ...existing code...
 
   Widget _mobileField(String label, dynamic value) {
@@ -47,11 +74,6 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
       .toSet();
 
   @override
-  void initState() {
-    super.initState();
-    _cargarDatos();
-  }
-
   Future<void> _cargarDatos({bool forzarFirestore = false}) async {
     setState(() => _cargando = true);
     Map<String, dynamic>? entregasRaw;
@@ -342,12 +364,36 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
         .toList();
     final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
     historialActual.addAll(nuevasFirmadas);
-    await guardarDatosFirestoreYCache(
-        'historial_entregas', 'recogidos_firmadas', {'items': historialActual});
-    setState(() {
-      _seleccionados.clear();
-    });
-    await _cargarDatos();
+    try {
+      await guardarDatosFirestoreYCache('historial_entregas',
+          'recogidos_firmadas', {'items': historialActual});
+      setState(() {
+        _seleccionados.clear();
+      });
+      await _cargarDatos();
+    } catch (e) {
+      // Si falla la subida, guardar localmente como pendiente
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'firmas_pendientes_recogidos';
+      List<dynamic> pendientes = [];
+      final data = prefs.getString(key);
+      if (data != null) {
+        try {
+          pendientes = jsonDecode(data);
+        } catch (_) {}
+      }
+      pendientes.addAll(nuevasFirmadas);
+      await prefs.setString(key, jsonEncode(pendientes));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+        backgroundColor: Colors.orange,
+      ));
+      setState(() {
+        _seleccionados.clear();
+      });
+      await _cargarDatos();
+    }
   }
 
   @override

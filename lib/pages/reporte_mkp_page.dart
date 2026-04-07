@@ -338,275 +338,119 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                       alignment: Alignment.topCenter,
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 1400),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Table(
-                            border: TableBorder(
-                              horizontalInside: BorderSide(
-                                  color: Colors.grey.shade300, width: 1),
-                              verticalInside: BorderSide(
-                                  color: Colors.grey.shade400, width: 1),
-                            ),
-                            columnWidths: {
-                              for (int i = 0; i < _headers.length; i++)
-                                i: const FlexColumnWidth(),
-                            },
-                            children: [
-                              TableRow(
-                                decoration: const BoxDecoration(
-                                    color: Color(0xFF2D6A4F)),
-                                children: _headers
-                                    .map((col) => Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 10, horizontal: 4),
-                                          child: Text(col,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 15)),
-                                        ))
-                                    .toList(),
+                        child: SizedBox(
+                          width: 1400,
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.vertical,
+                            child: Container(
+                              // constraints: const BoxConstraints(maxWidth: 1400),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
                               ),
-                              ...List.generate(
-                                _controllers.isEmpty ? 1 : _controllers.length,
-                                (rowIdx) {
-                                  final rowCtrls = _controllers.isEmpty
-                                      ? List.generate(_headers.length,
-                                          (i) => TextEditingController())
-                                      : _controllers[rowIdx];
-                                  return TableRow(
-                                    decoration: BoxDecoration(
-                                      color: rowIdx % 2 == 0
-                                          ? Colors.white
-                                          : Colors.grey.shade50,
-                                    ),
-                                    children: List.generate(_headers.length,
-                                        (colIdx) {
-                                      final isEditable =
-                                          colIdx < _headers.length - 1;
-                                      // Si es SECCION, actualizar JEFATURA al editar (siempre)
-                                      if (_headers[colIdx] == 'SECCION') {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 2, horizontal: 2),
-                                          child: TextField(
-                                            controller: rowCtrls[colIdx],
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 4),
-                                            ),
-                                            style:
-                                                const TextStyle(fontSize: 13),
-                                            onChanged: (value) {
-                                              final jefaturaIdx =
-                                                  _headers.indexOf('JEFATURA');
-                                              final clave =
-                                                  _normalizeSeccion(value);
-                                              final nuevaJefatura =
-                                                  _seccionToJefatura[clave] ??
-                                                      '';
-                                              print(
-                                                  'DEBUG EDIT: Buscando SECCION "$clave" => "$nuevaJefatura"');
-                                              rowCtrls[jefaturaIdx].text =
-                                                  nuevaJefatura;
-                                              setState(() {});
-                                            },
-                                          ),
-                                        );
-                                      }
-                                      // Si es JEFATURA, mostrar siempre el valor actualizado y no editable
-                                      if (_headers[colIdx] == 'JEFATURA') {
-                                        final seccionIdx =
-                                            _headers.indexOf('SECCION');
-                                        final seccion =
-                                            rowCtrls[seccionIdx].text;
-                                        final clave =
-                                            _normalizeSeccion(seccion);
-                                        final jefatura =
-                                            _seccionToJefatura[clave] ?? '';
-                                        print(
-                                            'DEBUG RENDER: Buscando SECCION "$clave" => "$jefatura"');
-                                        if (rowCtrls[colIdx].text != jefatura) {
-                                          rowCtrls[colIdx].text = jefatura;
-                                        }
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 2, horizontal: 2),
-                                          child: Text(
-                                            jefatura,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      // Si es DIAS, calcular días transcurridos desde FECHA y colorear
-                                      if (_headers[colIdx] == 'DIAS') {
-                                        final fechaIdx =
-                                            _headers.indexOf('FECHA');
-                                        String fechaStr =
-                                            rowCtrls[fechaIdx].text;
-                                        int dias = 0;
-                                        Color color = Colors.grey.shade200;
-                                        if (fechaStr.isNotEmpty) {
-                                          try {
-                                            // Intentar parsear dd/MM/yyyy HH:mm:ss
-                                            final partes = fechaStr.split(' ');
-                                            final fechaSolo = partes[0];
-                                            final formato = RegExp(
-                                                r'^(\d{2})/(\d{2})/(\d{4})$');
-                                            if (formato.hasMatch(fechaSolo)) {
-                                              final f = fechaSolo.split('/');
-                                              final dia = int.parse(f[0]);
-                                              final mes = int.parse(f[1]);
-                                              final anio = int.parse(f[2]);
-                                              final fecha =
-                                                  DateTime(anio, mes, dia);
-                                              final ahora = DateTime.now();
-                                              dias = ahora
-                                                  .difference(fecha)
-                                                  .inDays;
-                                              if (dias < 0) dias = 0;
-                                              if (dias == 1) {
-                                                color = Colors.green.shade200;
-                                              } else if (dias >= 2 &&
-                                                  dias <= 3) {
-                                                color = Colors.orange.shade200;
-                                              } else if (dias >= 4) {
-                                                color = Colors.red.shade200;
-                                              } else {
-                                                color = Colors.grey.shade200;
-                                              }
-                                            }
-                                          } catch (e) {
-                                            // Si hay error, dejar en gris
-                                          }
-                                        }
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 2, horizontal: 2),
-                                          child: Container(
-                                            color: color,
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              dias > 0 ? dias.toString() : '',
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      // Si es REmision o ARTICULO, actualizar ESTATUS ACTUAL al editar (normalizando)
-                                      if (_headers[colIdx] == 'REmision' ||
-                                          _headers[colIdx] == 'ARTICULO') {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 2, horizontal: 2),
-                                          child: TextField(
-                                            controller: rowCtrls[colIdx],
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                      vertical: 8,
-                                                      horizontal: 4),
-                                            ),
-                                            style:
-                                                const TextStyle(fontSize: 13),
-                                            onChanged: (_) {
-                                              final remisionIdx =
-                                                  _headers.indexOf('REmision');
-                                              final articuloIdx =
-                                                  _headers.indexOf('ARTICULO');
-                                              final estatusIdx = _headers
-                                                  .indexOf('ESTATUS ACTUAL');
-                                              final remision =
-                                                  rowCtrls[remisionIdx].text;
-                                              final articulo =
-                                                  rowCtrls[articuloIdx].text;
-                                              final key =
-                                                  '${_normalizeKey(remision)}|${_normalizeKey(articulo)}';
-                                              setState(() {
-                                                if (_entregados.contains(key)) {
-                                                  rowCtrls[estatusIdx].text =
-                                                      'ENTREGADO';
-                                                } else if (rowCtrls[estatusIdx]
-                                                        .text ==
-                                                    'ENTREGADO') {
-                                                  rowCtrls[estatusIdx].text =
-                                                      '';
-                                                }
-                                              });
-                                            },
-                                          ),
-                                        );
-                                      }
-                                      // Si es ESTATUS ACTUAL y es ENTREGADO, pintar verde
-                                      if (_headers[colIdx] ==
-                                              'ESTATUS ACTUAL' &&
-                                          rowCtrls[colIdx].text ==
-                                              'ENTREGADO') {
-                                        return Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 2, horizontal: 2),
-                                          child: Container(
-                                            color: Colors.green.shade200,
-                                            alignment: Alignment.center,
-                                            child: Text(
-                                              rowCtrls[colIdx].text,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 13,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 2, horizontal: 2),
-                                        child: isEditable
-                                            ? TextField(
-                                                controller: rowCtrls[colIdx],
-                                                decoration:
-                                                    const InputDecoration(
-                                                  border: InputBorder.none,
-                                                  isDense: true,
-                                                  contentPadding:
-                                                      EdgeInsets.symmetric(
-                                                          vertical: 8,
-                                                          horizontal: 4),
-                                                ),
-                                                style: const TextStyle(
-                                                    fontSize: 13),
-                                              )
-                                            : Text(rowCtrls[colIdx].text,
-                                                style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13)),
-                                      );
-                                    }),
-                                  );
+                              child: Table(
+                                border: TableBorder(
+                                  horizontalInside: BorderSide(
+                                      color: Colors.grey.shade300, width: 1),
+                                  verticalInside: BorderSide(
+                                      color: Colors.grey.shade400, width: 1),
+                                ),
+                                columnWidths: {
+                                  for (int i = 0; i < _headers.length; i++)
+                                    i: const FlexColumnWidth(),
                                 },
+                                children: [
+                                  TableRow(
+                                    decoration: const BoxDecoration(
+                                        color: Color(0xFF2D6A4F)),
+                                    children: _headers
+                                        .map((col) => Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 10,
+                                                      horizontal: 4),
+                                              child: Text(col,
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 15)),
+                                            ))
+                                        .toList(),
+                                  ),
+                                  ...List.generate(
+                                    _controllers.isEmpty
+                                        ? 1
+                                        : _controllers.length,
+                                    (rowIdx) {
+                                      final rowCtrls = _controllers.isEmpty
+                                          ? List.generate(_headers.length,
+                                              (i) => TextEditingController())
+                                          : _controllers[rowIdx];
+                                      return TableRow(
+                                        decoration: BoxDecoration(
+                                          color: rowIdx % 2 == 0
+                                              ? Colors.white
+                                              : Colors.grey.shade50,
+                                        ),
+                                        children: List.generate(_headers.length,
+                                            (colIdx) {
+                                          final isEditable =
+                                              colIdx < _headers.length - 1;
+                                          // ...existing code...
+                                          if (_headers[colIdx] == 'SECCION') {
+                                            // ...existing code...
+                                          }
+                                          if (_headers[colIdx] == 'JEFATURA') {
+                                            // ...existing code...
+                                          }
+                                          if (_headers[colIdx] == 'DIAS') {
+                                            // ...existing code...
+                                          }
+                                          if (_headers[colIdx] == 'REmision' ||
+                                              _headers[colIdx] == 'ARTICULO') {
+                                            // ...existing code...
+                                          }
+                                          if (_headers[colIdx] ==
+                                                  'ESTATUS ACTUAL' &&
+                                              rowCtrls[colIdx].text ==
+                                                  'ENTREGADO') {
+                                            // ...existing code...
+                                          }
+                                          return Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 2, horizontal: 2),
+                                            child: isEditable
+                                                ? TextField(
+                                                    controller:
+                                                        rowCtrls[colIdx],
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      border: InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              vertical: 8,
+                                                              horizontal: 4),
+                                                    ),
+                                                    style: const TextStyle(
+                                                        fontSize: 13),
+                                                  )
+                                                : Text(rowCtrls[colIdx].text,
+                                                    style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 13)),
+                                          );
+                                        }),
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
                       ),

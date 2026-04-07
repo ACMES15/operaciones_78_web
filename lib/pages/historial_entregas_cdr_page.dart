@@ -17,6 +17,40 @@ class HistorialEntregasCdrPage extends StatefulWidget {
 }
 
 class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
+  @override
+  void initState() {
+    super.initState();
+    _cargarDesdeFirestore();
+    _sincronizarFirmasPendientes();
+  }
+
+  Future<void> _sincronizarFirmasPendientes() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'firmas_pendientes_cdr';
+    final data = prefs.getString(key);
+    if (data != null) {
+      try {
+        final List<dynamic> pendientes = jsonDecode(data);
+        if (pendientes.isNotEmpty) {
+          final firestore = FirebaseFirestore.instance;
+          final historialDoc =
+              firestore.collection('historial_entregas').doc('cdr_firmadas');
+          final historialSnap = await historialDoc.get();
+          List<dynamic> historial = [];
+          if (historialSnap.exists &&
+              historialSnap.data() != null &&
+              historialSnap.data()!['items'] is List) {
+            historial = List.from(historialSnap.data()!['items']);
+          }
+          historial.addAll(pendientes.cast<Map<String, dynamic>>());
+          await historialDoc.set({'items': historial});
+          await prefs.remove(key);
+          await _cargarDesdeFirestore();
+        }
+      } catch (_) {}
+    }
+  }
+
   // Busca el valor de un campo por variantes de nombre
   dynamic _getCampoFlexible(
       Map<String, dynamic> entrega, List<String> variantes) {
@@ -245,39 +279,41 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     if (resultado == null) return;
 
     final firestore = FirebaseFirestore.instance;
-    // 1. Actualizar los datos firmados y eliminarlos de entregas_cdr
-    for (final entrega in seleccionadas) {
-      final docRef =
-          firestore.collection('entregas_cdr').doc(entrega['id']?.toString());
-      final nuevaEntrega = Map<String, dynamic>.from(entrega);
-      nuevaEntrega['nombreRecibe'] = resultado['nombre'];
-      nuevaEntrega['firma'] = resultado['firma'];
-      nuevaEntrega['fechaFirma'] = DateTime.now().toIso8601String();
-      nuevaEntrega['usuarioEntrega'] = widget.usuario;
-      // Eliminar el id para evitar conflictos en el historial
-      nuevaEntrega.remove('id');
-      await docRef.delete();
+    final List<Map<String, dynamic>> nuevasFirmadas = [];
+    try {
+      for (final entrega in seleccionadas) {
+        final docRef =
+            firestore.collection('entregas_cdr').doc(entrega['id']?.toString());
+        final nuevaEntrega = Map<String, dynamic>.from(entrega);
+        nuevaEntrega['nombreRecibe'] = resultado['nombre'];
+        nuevaEntrega['firma'] = resultado['firma'];
+        nuevaEntrega['fechaFirma'] = DateTime.now().toIso8601String();
+        nuevaEntrega['usuarioEntrega'] = widget.usuario;
+        nuevaEntrega.remove('id');
+        await docRef.delete();
 
-      // Notificar a ADMIN OMNICANAL y ADMIN ENVIOS si es faltante (BOX)
-      if (entrega['BOX'] == true || entrega['BOX'] == 'true') {
-        final mensaje =
-            'Faltante en Entregas CDR: DOC \\${entrega['DOCUMENTO'] ?? ''}, SKU \\${entrega['SKU'] ?? ''}, SECCION \\${entrega['SECCION'] ?? ''}';
-        for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
-          await FirebaseFirestore.instance.collection('notificaciones').add({
-            'mensaje': mensaje,
-            'fecha': DateTime.now(),
-            'destinoTipo': tipo,
-            'tipo': 'FALTANTE CDR',
-            'leido': false,
-            'documento': entrega['DOCUMENTO'] ?? '',
-            'sku': entrega['SKU'] ?? '',
-            'seccion': entrega['SECCION'] ?? '',
-            'usuario': widget.usuario,
-          });
+        // Notificar a ADMIN OMNICANAL y ADMIN ENVIOS si es faltante (BOX)
+        if (entrega['BOX'] == true || entrega['BOX'] == 'true') {
+          final mensaje =
+              'Faltante en Entregas CDR: DOC ${entrega['DOCUMENTO'] ?? ''}, SKU ${entrega['SKU'] ?? ''}, SECCION ${entrega['SECCION'] ?? ''}';
+          for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            await FirebaseFirestore.instance.collection('notificaciones').add({
+              'mensaje': mensaje,
+              'fecha': DateTime.now(),
+              'destinoTipo': tipo,
+              'tipo': 'FALTANTE CDR',
+              'leido': false,
+              'documento': entrega['DOCUMENTO'] ?? '',
+              'sku': entrega['SKU'] ?? '',
+              'seccion': entrega['SECCION'] ?? '',
+              'usuario': widget.usuario,
+            });
+          }
         }
-      }
 
-      // 2. Agregar al historial de firmadas
+        nuevasFirmadas.add(nuevaEntrega);
+      }
+      // Guardar en historial
       final historialDoc =
           firestore.collection('historial_entregas').doc('cdr_firmadas');
       final historialSnap = await historialDoc.get();
@@ -287,18 +323,31 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           historialSnap.data()!['items'] is List) {
         historial = List.from(historialSnap.data()!['items']);
       }
-      historial.add(nuevaEntrega);
+      historial.addAll(nuevasFirmadas);
       await historialDoc.set({'items': historial});
+      setState(() => _seleccionados.clear());
+      await _cargarDesdeFirestore();
+    } catch (e) {
+      // Si falla la subida, guardar localmente como pendiente
+      final prefs = await SharedPreferences.getInstance();
+      final key = 'firmas_pendientes_cdr';
+      List<dynamic> pendientes = [];
+      final data = prefs.getString(key);
+      if (data != null) {
+        try {
+          pendientes = jsonDecode(data);
+        } catch (_) {}
+      }
+      pendientes.addAll(nuevasFirmadas);
+      await prefs.setString(key, jsonEncode(pendientes));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+        backgroundColor: Colors.orange,
+      ));
+      setState(() => _seleccionados.clear());
+      await _cargarDesdeFirestore();
     }
-    setState(() => _seleccionados.clear());
-    await _cargarDesdeFirestore();
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _lpController = TextEditingController();
-    _cargarDesdeFirestore();
   }
 
   Future<void> _cargarDesdeFirestore() async {
