@@ -339,6 +339,17 @@ class _HistorialEntregasDevCanPageState
                                             fontSize: 15,
                                             color: Color(0xFF495057)),
                                       ),
+                                      if (entrega['MANIFIESTO'] != null &&
+                                          entrega['MANIFIESTO']
+                                              .toString()
+                                              .isNotEmpty)
+                                        Text(
+                                          'Manifiesto: \\${entrega['MANIFIESTO']}',
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              color: Color(0xFFB68900),
+                                              fontWeight: FontWeight.bold),
+                                        ),
                                       const SizedBox(height: 8),
                                       Row(
                                         children: [

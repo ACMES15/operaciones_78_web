@@ -18,9 +18,9 @@ class DevCanPage extends StatefulWidget {
 class _DevCanPageState extends State<DevCanPage> {
   String? _seccionActual;
   String? _jefaturaActual;
-  // Variables y métodos requeridos
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
+  final TextEditingController _manifiestoController = TextEditingController();
   final List<String> _headers = [
     'LP',
     'DEVOLUCION',
@@ -139,24 +139,31 @@ class _DevCanPageState extends State<DevCanPage> {
       return;
     }
 
-    // Validar que ninguna fila tenga VALIDACION vacía
+    // Validar que todas las filas tengan VALIDACION en 'true'
     final idxValidacion = _headers.indexOf('VALIDACION');
     for (final row in _rows) {
-      if (idxValidacion == -1 || row[idxValidacion].text.trim().isEmpty) {
+      final validacion = idxValidacion == -1
+          ? ''
+          : row[idxValidacion].text.trim().toLowerCase();
+      if (validacion != 'true') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('No puedes guardar: hay filas con VALIDACION vacía.')),
+              content: Text(
+                  'No puedes guardar: todas las filas deben tener VALIDACION en true.')),
         );
         return;
       }
     }
+    final manifiesto = _manifiestoController.text.trim();
     final items = _rows.map((row) {
       Map<String, dynamic> map = {};
       for (int i = 0; i < _headers.length; i++) {
         map[_headers[i]] = row[i].text;
       }
       map['usuarioValido'] = widget.usuario;
+      if (manifiesto.isNotEmpty) {
+        map['MANIFIESTO'] = manifiesto;
+      }
       return map;
     }).toList();
 
@@ -172,6 +179,9 @@ class _DevCanPageState extends State<DevCanPage> {
           map[_headers[i]] = row[i].text;
         }
         map['usuarioValido'] = widget.usuario;
+        if (manifiesto.isNotEmpty) {
+          map['MANIFIESTO'] = manifiesto;
+        }
         filasFaltantes.add(map);
       }
     }
@@ -421,6 +431,24 @@ class _DevCanPageState extends State<DevCanPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    // Campo para ingresar el manifiesto
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _manifiestoController,
+                            decoration: const InputDecoration(
+                              labelText:
+                                  'MANIFIESTO (se guardará en cada línea)',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     if ((_seccionActual?.isNotEmpty ?? false) ||
                         (_jefaturaActual?.isNotEmpty ?? false)) ...[
                       const SizedBox(height: 18),
