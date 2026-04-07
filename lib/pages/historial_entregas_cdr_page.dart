@@ -20,6 +20,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   @override
   void initState() {
     super.initState();
+    _lpController = TextEditingController();
     _cargarDesdeFirestore();
     _sincronizarFirmasPendientes();
   }
