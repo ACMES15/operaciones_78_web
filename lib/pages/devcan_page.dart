@@ -145,11 +145,24 @@ class _DevCanPageState extends State<DevCanPage> {
       final validacion = idxValidacion == -1
           ? ''
           : row[idxValidacion].text.trim().toLowerCase();
-      if (validacion != 'true') {
+      if (validacion != '✔️') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text(
                   'No puedes guardar: todas las filas deben tener VALIDACION en true.')),
+        );
+        return;
+      }
+    }
+    // Validar que todas las filas tengan VALIDACION en '✔️'
+    for (final row in _rows) {
+      final validacion =
+          idxValidacion == -1 ? '' : row[idxValidacion].text.trim();
+      if (validacion != '✔️') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'No puedes guardar: todas las filas deben estar validadas (paloma).')),
         );
         return;
       }

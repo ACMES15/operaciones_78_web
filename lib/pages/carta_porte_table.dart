@@ -16,6 +16,52 @@ class CartaPorteTable extends StatefulWidget {
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
+  Future<void> _imprimirHojaEspecial(String destino, String titulo) async {
+    final columns = _columns;
+    final table = <List<String>>[];
+    for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
+      final row = <String>[];
+      bool tieneDato = false;
+      for (int colIdx = 0; colIdx < columns.length; colIdx++) {
+        String valor;
+        if (columns[colIdx].toUpperCase().replaceAll('.', '').trim() == 'NO') {
+          valor = (rowIdx + 1).toString();
+        } else if (_controllers[rowIdx].length > colIdx) {
+          valor = _controllers[rowIdx][colIdx].text;
+        } else {
+          valor = '';
+        }
+        if (valor.trim().isNotEmpty &&
+            columns[colIdx].toUpperCase().replaceAll('.', '').trim() != 'NO') {
+          tieneDato = true;
+        }
+        row.add(valor);
+      }
+      // Filtrar solo filas con el destino indicado
+      final idxDestino = columns.indexOf('DESTINO');
+      if (tieneDato && idxDestino != -1 && row[idxDestino].trim() == destino) {
+        table.add(row);
+      }
+    }
+    if (table.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('No hay datos para imprimir para destino $destino.')),
+      );
+      return;
+    }
+    await descargarCartaPortePDF(
+      chofer:
+          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
+      unidad: _unidadController.text,
+      destino: '$titulo',
+      rfc: _rfcController.text,
+      fecha: _fechaActual,
+      columns: columns,
+      table: table,
+    );
+  }
+
   int _numFilas = 5;
   // Campos ejecutivos principales
   // final _formKey = GlobalKey<FormState>();
@@ -627,6 +673,22 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             tooltip: 'Imprimir hoja',
             color: Colors.white,
             onPressed: _imprimirHoja,
+          ),
+          IconButton(
+            icon: const Icon(Icons.description),
+            tooltip: 'Hojas de ruta especial',
+            color: Colors.white,
+            onPressed: () async {
+              await _imprimirHojaEspecial('880', 'HOJA DE RUTA : 880 PLAN N5');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: 'Hojas de ruta especial 94',
+            color: Colors.white,
+            onPressed: () async {
+              await _imprimirHojaEspecial('94', 'HOJA DE RUTA : 94 BAJIO');
+            },
           ),
           IconButton(
             icon: const Icon(Icons.people),
