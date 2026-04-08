@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
+import 'dart:convert';
+// import 'package:intl/intl.dart';
 import 'dart:html' as html;
 import 'package:excel/excel.dart' as excel;
 
@@ -15,6 +16,8 @@ class GuiasCycHistorialPage extends StatefulWidget {
 
 class _GuiasCycHistorialPageState extends State<GuiasCycHistorialPage> {
   bool _descargando = false;
+  bool _forzando = false;
+  List<Map<String, dynamic>>? _cacheHistorial;
 
   Future<void> _descargarExcel(List<QueryDocumentSnapshot> guias) async {
     setState(() => _descargando = true);
@@ -34,11 +37,56 @@ class _GuiasCycHistorialPageState extends State<GuiasCycHistorialPage> {
     final blob = html.Blob([bytes],
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
+    html.AnchorElement(href: url)
       ..setAttribute('download', 'historial_guias_cyc.xlsx')
       ..click();
     html.Url.revokeObjectUrl(url);
     setState(() => _descargando = false);
+  }
+
+  Future<void> _cargarDesdeCache() async {
+    try {
+      final cache = html.window.localStorage['guias_cyc_historial'];
+      if (cache != null) {
+        final list = jsonDecode(cache) as List;
+        setState(() {
+          _cacheHistorial = List<Map<String, dynamic>>.from(
+              list.map((e) => Map<String, dynamic>.from(e)));
+        });
+      } else {
+        setState(() {
+          _cacheHistorial = null;
+        });
+      }
+    } catch (_) {
+      setState(() {
+        _cacheHistorial = null;
+      });
+    }
+  }
+
+  Future<void> _forzarFirestoreYCache() async {
+    setState(() => _forzando = true);
+    final snapshot = await FirebaseFirestore.instance
+        .collection('guias_cyc')
+        .orderBy('fecha', descending: true)
+        .get();
+    final guias = snapshot.docs
+        .map((doc) => Map<String, dynamic>.from(doc.data() as Map))
+        .toList();
+    try {
+      html.window.localStorage['guias_cyc_historial'] = jsonEncode(guias);
+    } catch (_) {}
+    setState(() {
+      _cacheHistorial = guias;
+      _forzando = false;
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarDesdeCache();
   }
 
   @override
@@ -90,75 +138,80 @@ class _GuiasCycHistorialPageState extends State<GuiasCycHistorialPage> {
         ),
         centerTitle: false,
       ),
-      body: FutureBuilder<QuerySnapshot>(
-        future: FirebaseFirestore.instance
-            .collection('guias_cyc')
-            .orderBy('fecha', descending: true)
-            .get(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No hay guías registradas.'));
-          }
-          final guias = snapshot.data!.docs;
-          return Center(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 900),
-              margin: const EdgeInsets.all(24),
-              padding: const EdgeInsets.all(0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: border, width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: pink.withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
+      body: _cacheHistorial == null
+          ? const Center(child: CircularProgressIndicator())
+          : _cacheHistorial!.isEmpty
+              ? const Center(child: Text('No hay guías registradas.'))
+              : Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 900),
+                    margin: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: border, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: pink.withOpacity(0.08),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: DataTable(
+                      headingRowColor: MaterialStateProperty.all(pink),
+                      headingTextStyle: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                      dataRowColor: MaterialStateProperty.resolveWith<Color?>(
+                        (Set<MaterialState> states) {
+                          if (states.contains(MaterialState.selected)) {
+                            return pink.withOpacity(0.18);
+                          }
+                          return null;
+                        },
+                      ),
+                      columns: const [
+                        DataColumn(label: Center(child: Text('Guía'))),
+                        DataColumn(label: Center(child: Text('Fecha'))),
+                        DataColumn(label: Center(child: Text('Hora'))),
+                        DataColumn(label: Center(child: Text('Usuario'))),
+                      ],
+                      rows: _cacheHistorial!.map((data) {
+                        return DataRow(
+                          cells: [
+                            DataCell(Center(
+                                child: Text(data['guia'] ?? '',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)))),
+                            DataCell(Center(child: Text(data['fecha'] ?? ''))),
+                            DataCell(Center(child: Text(data['hora'] ?? ''))),
+                            DataCell(
+                                Center(child: Text(data['usuario'] ?? ''))),
+                          ],
+                        );
+                      }).toList(),
+                    ),
                   ),
-                ],
-              ),
-              child: DataTable(
-                headingRowColor: MaterialStateProperty.all(pink),
-                headingTextStyle: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
                 ),
-                dataRowColor: MaterialStateProperty.resolveWith<Color?>(
-                  (Set<MaterialState> states) {
-                    if (states.contains(MaterialState.selected)) {
-                      return pink.withOpacity(0.18);
-                    }
-                    return null;
-                  },
-                ),
-                columns: const [
-                  DataColumn(label: Center(child: Text('Guía'))),
-                  DataColumn(label: Center(child: Text('Fecha'))),
-                  DataColumn(label: Center(child: Text('Hora'))),
-                  DataColumn(label: Center(child: Text('Usuario'))),
-                ],
-                rows: guias.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return DataRow(
-                    cells: [
-                      DataCell(Center(
-                          child: Text(data['guia'] ?? '',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)))),
-                      DataCell(Center(child: Text(data['fecha'] ?? ''))),
-                      DataCell(Center(child: Text(data['hora'] ?? ''))),
-                      DataCell(Center(child: Text(data['usuario'] ?? ''))),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
-          );
-        },
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 32, right: 16),
+        child: FloatingActionButton.extended(
+          backgroundColor: darkPink,
+          icon: _forzando
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
+                )
+              : const Icon(Icons.sync),
+          label: const Text('Forzar recarga'),
+          onPressed: _forzando ? null : _forzarFirestoreYCache,
+        ),
       ),
     );
   }

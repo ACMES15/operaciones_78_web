@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'dart:html' as html;
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GuiasCycPage extends StatefulWidget {
   final String usuario;
@@ -11,6 +14,7 @@ class GuiasCycPage extends StatefulWidget {
 }
 
 class _GuiasCycPageState extends State<GuiasCycPage> {
+  final List<FocusNode> _focusNodes = [];
   final List<List<TextEditingController>> _rows = [];
   final int _minRows = 5;
   final int _maxRows = 1000;
@@ -25,6 +29,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
         TextEditingController(),
         TextEditingController(),
       ]);
+      _focusNodes.add(FocusNode());
     }
   }
 
@@ -34,6 +39,9 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
       for (var ctrl in row) {
         ctrl.dispose();
       }
+    }
+    for (var f in _focusNodes) {
+      f.dispose();
     }
     _firstFocus.dispose();
     super.dispose();
@@ -47,6 +55,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
           TextEditingController(),
           TextEditingController(),
         ]);
+        _focusNodes.add(FocusNode());
       });
     }
   }
@@ -64,19 +73,56 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
       });
       _addRowIfNeeded(idx);
       // Mover el foco a la siguiente fila, campo guía
-      if (idx + 1 < _rows.length) {
-        FocusScope.of(context).requestFocus(FocusNode());
-        Future.delayed(const Duration(milliseconds: 50), () {
-          FocusScope.of(context).nextFocus();
-        });
+      if (idx + 1 < _focusNodes.length) {
+        FocusScope.of(context).requestFocus(_focusNodes[idx + 1]);
       }
     }
   }
 
-  void _guardar() {
-    // Aquí puedes implementar la lógica de guardado
+  Future<void> _guardar() async {
+    // Guardar en Firestore y cache local
+    final guias = <Map<String, dynamic>>[];
+    for (final row in _rows) {
+      final guia = row[0].text.trim();
+      final fecha = row[1].text.trim();
+      final hora = row[2].text.trim();
+      if (guia.isNotEmpty) {
+        guias.add({
+          'guia': guia,
+          'fecha': fecha,
+          'hora': hora,
+          'usuario': widget.usuario,
+        });
+      }
+    }
+    if (guias.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay guías para guardar.')),
+      );
+      return;
+    }
+    // Guardar en Firestore
+    final batch = FirebaseFirestore.instance.batch();
+    final col = FirebaseFirestore.instance.collection('guias_cyc');
+    for (final guia in guias) {
+      final doc = col.doc();
+      batch.set(doc, guia);
+    }
+    await batch.commit();
+    // Guardar en cache local
+    try {
+      html.window.localStorage['guias_cyc_historial'] = jsonEncode(guias);
+    } catch (_) {}
+    // Limpiar filas
+    setState(() {
+      for (final row in _rows) {
+        row[0].clear();
+        row[1].clear();
+        row[2].clear();
+      }
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registros guardados (demo).')),
+      SnackBar(content: Text('Se guardaron ${guias.length} guías.')),
     );
   }
 
@@ -93,12 +139,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
       color: darkPink,
       letterSpacing: 1.2,
     );
-    final headerStyle = TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 18,
-      color: Colors.white,
-      letterSpacing: 1.1,
-    );
+    // headerStyle eliminado (no se usa)
     final cellStyle = TextStyle(
       fontSize: 16,
       color: darkPink,
@@ -171,7 +212,9 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
                               horizontal: 4, vertical: 2),
                           child: TextField(
                             controller: _rows[idx][0],
-                            focusNode: idx == 0 ? _firstFocus : null,
+                            focusNode: idx < _focusNodes.length
+                                ? _focusNodes[idx]
+                                : null,
                             maxLength: 40,
                             style: cellStyle,
                             decoration: InputDecoration(

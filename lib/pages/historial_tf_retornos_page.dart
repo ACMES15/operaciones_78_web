@@ -39,8 +39,16 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
             .where((pair) {
             final e = pair.key;
             final raw = pair.value;
-            // Buscar por TF O DEV en todos los posibles nombres
-            final tfOdevRaw = (raw['TF O DEV']?.toString().toLowerCase() ?? '');
+            // Buscar por TF O DEV en todos los posibles nombres y variantes
+            String tfOdevRaw = '';
+            // Buscar por variantes y por el campo exacto 'TF O DEV'
+            for (final k in raw.keys) {
+              final keyNorm = k.replaceAll(' ', '').toUpperCase();
+              if (keyNorm == 'TFODEV' || k.trim().toUpperCase() == 'TF O DEV') {
+                tfOdevRaw = (raw[k]?.toString().toLowerCase() ?? '');
+                break;
+              }
+            }
             return e.tfOdev.toLowerCase().contains(_filtro) ||
                 tfOdevRaw.contains(_filtro) ||
                 e.origen.toLowerCase().contains(_filtro) ||
@@ -83,10 +91,17 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
     for (final pair in resultados) {
       final e = pair.key;
       final raw = pair.value;
-      // Asegurar que el campo TF O DEV exporte el valor correcto
+      // Buscar el campo TF O DEV aunque tenga espacios extra o variantes
+      String tfOdevExcel = e.tfOdev;
+      for (final k in raw.keys) {
+        if (k.replaceAll(' ', '').toUpperCase() == 'TFODEV') {
+          tfOdevExcel = raw[k]?.toString() ?? e.tfOdev;
+          break;
+        }
+      }
       sheet.appendRow([
         e.id,
-        raw['TF O DEV'] ?? e.tfOdev,
+        tfOdevExcel,
         e.origen,
         raw['DESTINO'] ?? '',
         raw['SECCION'] ?? '',
