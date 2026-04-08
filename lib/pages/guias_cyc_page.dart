@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 class GuiasCycPage extends StatefulWidget {
-  const GuiasCycPage({Key? key}) : super(key: key);
+  final String usuario;
+  const GuiasCycPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<GuiasCycPage> createState() => _GuiasCycPageState();
@@ -46,6 +48,28 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
           TextEditingController(),
         ]);
       });
+    }
+  }
+
+  void _onGuiaSubmitted(int idx) {
+    // Registrar fecha y hora solo si el campo guía no está vacío
+    final guia = _rows[idx][0].text.trim();
+    if (guia.isNotEmpty) {
+      final now = DateTime.now();
+      final fecha = DateFormat('dd/MM/yyyy').format(now);
+      final hora = DateFormat('HH:mm:ss').format(now);
+      setState(() {
+        _rows[idx][1].text = fecha;
+        _rows[idx][2].text = hora;
+      });
+      _addRowIfNeeded(idx);
+      // Mover el foco a la siguiente fila, campo guía
+      if (idx + 1 < _rows.length) {
+        FocusScope.of(context).requestFocus(FocusNode());
+        Future.delayed(const Duration(milliseconds: 50), () {
+          FocusScope.of(context).nextFocus();
+        });
+      }
     }
   }
 
@@ -160,17 +184,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
                               contentPadding: const EdgeInsets.symmetric(
                                   vertical: 10, horizontal: 8),
                             ),
-                            onSubmitted: (_) {
-                              _addRowIfNeeded(idx);
-                              if (idx + 1 < _rows.length) {
-                                FocusScope.of(context)
-                                    .requestFocus(FocusNode());
-                                Future.delayed(const Duration(milliseconds: 50),
-                                    () {
-                                  FocusScope.of(context).nextFocus();
-                                });
-                              }
-                            },
+                            onSubmitted: (_) => _onGuiaSubmitted(idx),
                             inputFormatters: [
                               LengthLimitingTextInputFormatter(40),
                             ],
@@ -185,6 +199,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
                           child: TextField(
                             controller: _rows[idx][1],
                             style: cellStyle,
+                            readOnly: true,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
                               hintText: 'Fecha',
@@ -203,6 +218,7 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
                           child: TextField(
                             controller: _rows[idx][2],
                             style: cellStyle,
+                            readOnly: true,
                             decoration: const InputDecoration(
                               border: InputBorder.none,
                               hintText: 'Hora',
@@ -229,9 +245,17 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
             appBar: AppBar(
               backgroundColor: pink,
               elevation: 0,
-              title: Text('Guias CYC',
-                  style: titleStyle.copyWith(color: Colors.white)),
-              centerTitle: true,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Guias CYC',
+                      style: titleStyle.copyWith(color: Colors.white)),
+                  Text('Usuario:  ${widget.usuario}',
+                      style:
+                          const TextStyle(fontSize: 14, color: Colors.white70)),
+                ],
+              ),
+              centerTitle: false,
             ),
             body: SafeArea(
               child: Column(
@@ -287,6 +311,10 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
                         Icon(Icons.local_shipping, color: darkPink, size: 36),
                         const SizedBox(width: 12),
                         Text('Guias CYC', style: titleStyle),
+                        const SizedBox(width: 24),
+                        Text('Usuario:  ${widget.usuario}',
+                            style: const TextStyle(
+                                fontSize: 16, color: Colors.black87)),
                         const Spacer(),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.save),

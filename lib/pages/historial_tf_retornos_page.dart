@@ -39,7 +39,10 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
             .where((pair) {
             final e = pair.key;
             final raw = pair.value;
+            // Buscar por TF O DEV en todos los posibles nombres
+            final tfOdevRaw = (raw['TF O DEV']?.toString().toLowerCase() ?? '');
             return e.tfOdev.toLowerCase().contains(_filtro) ||
+                tfOdevRaw.contains(_filtro) ||
                 e.origen.toLowerCase().contains(_filtro) ||
                 (raw['SECCION']?.toString().toLowerCase() ?? '')
                     .contains(_filtro) ||
@@ -80,9 +83,10 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
     for (final pair in resultados) {
       final e = pair.key;
       final raw = pair.value;
+      // Asegurar que el campo TF O DEV exporte el valor correcto
       sheet.appendRow([
         e.id,
-        e.tfOdev,
+        raw['TF O DEV'] ?? e.tfOdev,
         e.origen,
         raw['DESTINO'] ?? '',
         raw['SECCION'] ?? '',

@@ -250,6 +250,41 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           ));
         }
       }
+
+      // 12. guias_cyc (historial de guías CYC)
+      final guiasCycDocs = await FirebaseFirestore.instance
+          .collection('guias_cyc')
+          .limit(100)
+          .get();
+      for (final doc in guiasCycDocs.docs) {
+        final data = doc.data();
+        if (data.values.any(
+            (v) => v != null && v.toString().toLowerCase().contains(query))) {
+          resultados.add(_ResultadoConsulta(
+            origen: 'Historial Guias CYC',
+            data: data,
+          ));
+        }
+      }
+
+      // 13. registros entregas MKP (reporte_mkp_no_entregado)
+      final mkpDoc = await FirebaseFirestore.instance
+          .collection('reporte_mkp_no_entregado')
+          .doc('pendientes')
+          .get();
+      final mkpItems = (mkpDoc.data()?['items'] ?? []) as List?;
+      if (mkpItems != null) {
+        for (final item in mkpItems) {
+          if (item is Map &&
+              item.values.any((v) =>
+                  v != null && v.toString().toLowerCase().contains(query))) {
+            resultados.add(_ResultadoConsulta(
+              origen: 'Registros Entregas MKP',
+              data: Map<String, dynamic>.from(item),
+            ));
+          }
+        }
+      }
       // Guardar en caché
       final jsonList = resultados.map((e) => e.toJson()).toList();
       await prefs.setString(cacheKey, jsonEncode(jsonList));

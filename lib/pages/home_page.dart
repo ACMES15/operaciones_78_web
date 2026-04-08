@@ -7,6 +7,7 @@ import '../pages/hoja_de_ruta_page.dart';
 import '../pages/hoja_de_xd_page.dart';
 import '../pages/hoja_de_xd_historial_page.dart';
 // import '../pages/carta_porte_page.dart';
+import '../pages/guias_cyc_historial_page.dart';
 import '../pages/carta_porte_table.dart' as real_carta_porte;
 import '../pages/historial_carta_porte_page.dart';
 import '../pages/plantilla_ejecutiva_page.dart';
@@ -102,6 +103,7 @@ class _HomePageState extends State<HomePage> {
     'Entregas MKP': Icons.shopping_cart_checkout,
     'MKP': Icons.store_mall_directory,
     'Guias CYC': Icons.qr_code_scanner,
+    'Historial Guias CYC': Icons.history,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -146,7 +148,8 @@ class _HomePageState extends State<HomePage> {
     'Consulta Global': ConsultaGlobalPage(),
     'Entregas MKP': EntregasMkpPage(usuario: widget.usuario),
     'MKP': const MkpPage(),
-    'Guias CYC': GuiasCycPage(),
+    'Guias CYC': GuiasCycPage(usuario: widget.usuario),
+    'Historial Guias CYC': GuiasCycHistorialPage(usuario: widget.usuario),
   };
 
   @override
@@ -186,6 +189,7 @@ class _HomePageState extends State<HomePage> {
       'MKP',
       'Consulta Global',
       'Guias CYC',
+      'Historial Guias CYC',
       'Plantilla Ejecutiva',
     ];
     // ...existing code...

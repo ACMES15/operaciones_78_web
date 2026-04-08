@@ -443,7 +443,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             (colIdx) {
                                           final isEditable =
                                               colIdx < _headers.length - 1;
-                                          // Pintar ESTATUS ACTUAL en verde si es ENTREGADO
+                                          // Pintar ESTATUS ACTUAL en verde si es ENTREGADO (celda completa)
                                           bool isEstatusEntregado =
                                               _headers[colIdx] ==
                                                       'ESTATUS ACTUAL' &&
@@ -452,7 +452,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                                           .trim()
                                                           .toUpperCase() ==
                                                       'ENTREGADO';
-                                          // Mostrar DIAS calculado
+                                          // Mostrar DIAS calculado y colorear celda
                                           if (_headers[colIdx] == 'DIAS') {
                                             Color? colorDias;
                                             if (dias == 0) {
@@ -465,7 +465,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             } else if (dias > 4) {
                                               colorDias = Colors.red.shade700;
                                             }
-                                            return Padding(
+                                            return Container(
+                                              color:
+                                                  colorDias?.withOpacity(0.18),
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       vertical: 2,
@@ -483,6 +485,64 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                               ),
                                             );
                                           }
+                                          // Celda ESTATUS ACTUAL coloreada si es ENTREGADO
+                                          if (_headers[colIdx] ==
+                                              'ESTATUS ACTUAL') {
+                                            return Container(
+                                              color: isEstatusEntregado
+                                                  ? Colors.green.shade100
+                                                  : null,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 2,
+                                                      horizontal: 2),
+                                              child: isEditable
+                                                  ? TextField(
+                                                      controller:
+                                                          rowCtrls[colIdx],
+                                                      decoration:
+                                                          const InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        isDense: true,
+                                                        contentPadding:
+                                                            EdgeInsets
+                                                                .symmetric(
+                                                                    vertical: 8,
+                                                                    horizontal:
+                                                                        4),
+                                                      ),
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color:
+                                                            isEstatusEntregado
+                                                                ? Colors.green
+                                                                    .shade800
+                                                                : null,
+                                                        fontWeight:
+                                                            isEstatusEntregado
+                                                                ? FontWeight
+                                                                    .bold
+                                                                : FontWeight
+                                                                    .normal,
+                                                      ),
+                                                    )
+                                                  : Text(
+                                                      rowCtrls[colIdx].text,
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 13,
+                                                        color:
+                                                            isEstatusEntregado
+                                                                ? Colors.green
+                                                                    .shade800
+                                                                : null,
+                                                      ),
+                                                    ),
+                                            );
+                                          }
+                                          // Otras celdas
                                           return Padding(
                                             padding: const EdgeInsets.symmetric(
                                                 vertical: 2, horizontal: 2),
@@ -499,29 +559,16 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                                               vertical: 8,
                                                               horizontal: 4),
                                                     ),
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontSize: 13,
-                                                      color: isEstatusEntregado
-                                                          ? Colors
-                                                              .green.shade800
-                                                          : null,
-                                                      fontWeight:
-                                                          isEstatusEntregado
-                                                              ? FontWeight.bold
-                                                              : FontWeight
-                                                                  .normal,
                                                     ),
                                                   )
                                                 : Text(
                                                     rowCtrls[colIdx].text,
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 13,
-                                                      color: isEstatusEntregado
-                                                          ? Colors
-                                                              .green.shade800
-                                                          : null,
                                                     ),
                                                   ),
                                           );

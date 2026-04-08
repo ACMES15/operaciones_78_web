@@ -74,6 +74,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Entregas MKP',
       'MKP',
       'Guias CYC',
+      'Historial Guias CYC',
     ];
   }
 
