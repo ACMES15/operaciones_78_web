@@ -49,8 +49,12 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
                 break;
               }
             }
-            return e.tfOdev.toLowerCase().contains(_filtro) ||
-                tfOdevRaw.contains(_filtro) ||
+            String filtroNorm = _filtro.replaceAll(' ', '').toLowerCase();
+            String tfOdevNorm =
+                (e.tfOdev ?? '').replaceAll(' ', '').toLowerCase();
+            String tfOdevRawNorm = tfOdevRaw.replaceAll(' ', '').toLowerCase();
+            return tfOdevNorm.contains(filtroNorm) ||
+                tfOdevRawNorm.contains(filtroNorm) ||
                 e.origen.toLowerCase().contains(_filtro) ||
                 (raw['SECCION']?.toString().toLowerCase() ?? '')
                     .contains(_filtro) ||
@@ -195,7 +199,22 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
             .where((pair) {
             final e = pair.key;
             final raw = pair.value;
-            return e.tfOdev.toLowerCase().contains(_filtro) ||
+            // Buscar por TF O DEV en todos los posibles nombres y variantes
+            String tfOdevRaw = '';
+            // Buscar por variantes y por el campo exacto 'TF O DEV'
+            for (final k in raw.keys) {
+              final keyNorm = k.replaceAll(' ', '').toUpperCase();
+              if (keyNorm == 'TFODEV' || k.trim().toUpperCase() == 'TF O DEV') {
+                tfOdevRaw = (raw[k]?.toString().toLowerCase() ?? '');
+                break;
+              }
+            }
+            String filtroNorm = _filtro.replaceAll(' ', '').toLowerCase();
+            String tfOdevNorm =
+                (e.tfOdev ?? '').replaceAll(' ', '').toLowerCase();
+            String tfOdevRawNorm = tfOdevRaw.replaceAll(' ', '').toLowerCase();
+            return tfOdevNorm.contains(filtroNorm) ||
+                tfOdevRawNorm.contains(filtroNorm) ||
                 e.origen.toLowerCase().contains(_filtro) ||
                 (raw['SECCION']?.toString().toLowerCase() ?? '')
                     .contains(_filtro) ||
