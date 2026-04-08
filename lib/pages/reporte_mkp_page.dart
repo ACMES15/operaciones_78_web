@@ -244,6 +244,9 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
     final isMobileNarrow = mediaQuery.size.shortestSide <= 600;
+    int fechaIdx = _headers.indexOf('FECHA');
+    int diasIdx = _headers.indexOf('DIAS');
+    int estatusIdx = _headers.indexOf('ESTATUS ACTUAL');
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -389,6 +392,47 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                           ? List.generate(_headers.length,
                                               (i) => TextEditingController())
                                           : _controllers[rowIdx];
+                                      // Calcular DIAS dinámicamente
+                                      int dias = 0;
+                                      if (diasIdx != -1 && fechaIdx != -1) {
+                                        final fechaStr =
+                                            rowCtrls[fechaIdx].text.trim();
+                                        if (fechaStr.isNotEmpty) {
+                                          DateTime? fecha;
+                                          try {
+                                            String? soloFecha;
+                                            // Buscar patrón flexible: dd[sep]MM[sep]yyyy, d[sep]M[sep]yy, etc.
+                                            final regex = RegExp(
+                                                r'(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})');
+                                            final match =
+                                                regex.firstMatch(fechaStr);
+                                            if (match != null) {
+                                              final d =
+                                                  int.tryParse(match.group(1)!);
+                                              final m =
+                                                  int.tryParse(match.group(2)!);
+                                              var y =
+                                                  int.tryParse(match.group(3)!);
+                                              if (d != null &&
+                                                  m != null &&
+                                                  y != null) {
+                                                // Si el año es de 2 dígitos, asumir 2000+
+                                                if (y < 100) y += 2000;
+                                                fecha = DateTime(y, m, d);
+                                              }
+                                            } else {
+                                              // Intentar parseo directo
+                                              fecha =
+                                                  DateTime.tryParse(fechaStr);
+                                            }
+                                            if (fecha != null) {
+                                              dias = DateTime.now()
+                                                  .difference(fecha)
+                                                  .inDays;
+                                            }
+                                          } catch (_) {}
+                                        }
+                                      }
                                       return TableRow(
                                         decoration: BoxDecoration(
                                           color: rowIdx % 2 == 0
@@ -399,25 +443,45 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             (colIdx) {
                                           final isEditable =
                                               colIdx < _headers.length - 1;
-                                          // ...existing code...
-                                          if (_headers[colIdx] == 'SECCION') {
-                                            // ...existing code...
-                                          }
-                                          if (_headers[colIdx] == 'JEFATURA') {
-                                            // ...existing code...
-                                          }
+                                          // Pintar ESTATUS ACTUAL en verde si es ENTREGADO
+                                          bool isEstatusEntregado =
+                                              _headers[colIdx] ==
+                                                      'ESTATUS ACTUAL' &&
+                                                  rowCtrls[colIdx]
+                                                          .text
+                                                          .trim()
+                                                          .toUpperCase() ==
+                                                      'ENTREGADO';
+                                          // Mostrar DIAS calculado
                                           if (_headers[colIdx] == 'DIAS') {
-                                            // ...existing code...
-                                          }
-                                          if (_headers[colIdx] == 'REmision' ||
-                                              _headers[colIdx] == 'ARTICULO') {
-                                            // ...existing code...
-                                          }
-                                          if (_headers[colIdx] ==
-                                                  'ESTATUS ACTUAL' &&
-                                              rowCtrls[colIdx].text ==
-                                                  'ENTREGADO') {
-                                            // ...existing code...
+                                            Color? colorDias;
+                                            if (dias == 0) {
+                                              colorDias = Colors.green.shade700;
+                                            } else if (dias == 1 || dias == 2) {
+                                              colorDias = Colors.amber.shade700;
+                                            } else if (dias == 3 || dias == 4) {
+                                              colorDias =
+                                                  Colors.orange.shade700;
+                                            } else if (dias > 4) {
+                                              colorDias = Colors.red.shade700;
+                                            }
+                                            return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 2,
+                                                      horizontal: 2),
+                                              child: Text(
+                                                dias > 0 || dias == 0
+                                                    ? dias.toString()
+                                                    : '',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                  color: colorDias,
+                                                ),
+                                              ),
+                                            );
                                           }
                                           return Padding(
                                             padding: const EdgeInsets.symmetric(
@@ -435,14 +499,31 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                                               vertical: 8,
                                                               horizontal: 4),
                                                     ),
-                                                    style: const TextStyle(
-                                                        fontSize: 13),
+                                                    style: TextStyle(
+                                                      fontSize: 13,
+                                                      color: isEstatusEntregado
+                                                          ? Colors
+                                                              .green.shade800
+                                                          : null,
+                                                      fontWeight:
+                                                          isEstatusEntregado
+                                                              ? FontWeight.bold
+                                                              : FontWeight
+                                                                  .normal,
+                                                    ),
                                                   )
-                                                : Text(rowCtrls[colIdx].text,
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 13)),
+                                                : Text(
+                                                    rowCtrls[colIdx].text,
+                                                    style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 13,
+                                                      color: isEstatusEntregado
+                                                          ? Colors
+                                                              .green.shade800
+                                                          : null,
+                                                    ),
+                                                  ),
                                           );
                                         }),
                                       );

@@ -78,11 +78,12 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
     ];
     sheet.appendRow(headers);
     for (final pair in resultados) {
+      final e = pair.key;
       final raw = pair.value;
       sheet.appendRow([
-        raw['id'] ?? '',
-        raw['TF O DEV'] ?? '',
-        raw['ORIGEN'] ?? '',
+        e.id,
+        e.tfOdev,
+        e.origen,
         raw['DESTINO'] ?? '',
         raw['SECCION'] ?? '',
         raw['JEFATURA'] ?? '',

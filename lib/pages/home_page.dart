@@ -18,6 +18,7 @@ import '../pages/recogidos/recogidos_page.dart';
 import '../pages/recogidos/historial_entregas_recogidos_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../pages/entregas_cdr_page.dart';
+import '../pages/guias_cyc_page.dart';
 import '../pages/entregas_mkp_page.dart';
 import '../pages/historial_firmadas_cdr_page.dart';
 import '../pages/historial_entregas_dev_mbodas_page.dart';
@@ -100,6 +101,7 @@ class _HomePageState extends State<HomePage> {
     'Consulta Global': Icons.public,
     'Entregas MKP': Icons.shopping_cart_checkout,
     'MKP': Icons.store_mall_directory,
+    'Guias CYC': Icons.qr_code_scanner,
   };
   int _selectedIndex = 0;
   bool _menuExpandido = true;
@@ -144,6 +146,7 @@ class _HomePageState extends State<HomePage> {
     'Consulta Global': ConsultaGlobalPage(),
     'Entregas MKP': EntregasMkpPage(usuario: widget.usuario),
     'MKP': const MkpPage(),
+    'Guias CYC': GuiasCycPage(),
   };
 
   @override
@@ -182,6 +185,7 @@ class _HomePageState extends State<HomePage> {
       'Entregas MKP',
       'MKP',
       'Consulta Global',
+      'Guias CYC',
       'Plantilla Ejecutiva',
     ];
     // ...existing code...

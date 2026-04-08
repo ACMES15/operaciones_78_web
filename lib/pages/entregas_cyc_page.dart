@@ -478,10 +478,8 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _mobileField(
-                                                'CyC',
-                                                entrega['CyC'] ??
-                                                    entrega['CYC']),
+                                            _mobileField('NUMERO DE PEDIDO',
+                                                entrega['NUMERO DE PEDIDO']),
                                             _mobileField('SKU', entrega['SKU']),
                                             _mobileField('CANTIDAD',
                                                 entrega['CANTIDAD']),
@@ -496,9 +494,10 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                       : Row(
                                           children: [
                                             _infoChip(
-                                                'CyC',
-                                                entrega['CyC'] ??
-                                                    entrega['CYC']),
+                                                'NUMERO DE PEDIDO',
+                                                entrega['NUMERO DE PEDIDO'] ??
+                                                    entrega[
+                                                        'NUMERO DE PEDIDO']),
                                             _infoChip('SKU', entrega['SKU']),
                                             _infoChip(
                                                 'CANT', entrega['CANTIDAD']),
