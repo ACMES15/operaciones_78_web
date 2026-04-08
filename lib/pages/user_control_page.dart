@@ -73,6 +73,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       'Consulta Global',
       'Entregas MKP',
       'MKP',
+      'Guias CYC',
     ];
   }
 

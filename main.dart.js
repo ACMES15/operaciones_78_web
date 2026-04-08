@@ -114510,7 +114510,7 @@ A.OO.prototype={
 af(){this.aw()
 this.n3()
 this.td()},
-ga2l(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Dev Mbodas","Dev XD","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Historial Entregas Dev Mbodas","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos","Historial TF o Retornos","Consulta Global","Entregas MKP","MKP"],t.s)},
+ga2l(){return A.a(["Control de usuarios","Hoja de ruta","Hoja de XD","Historial Hoja de XD","Carta Porte","Historial Carta Porte","Plantilla Ejecutiva","DevCan","Dev Mbodas","Dev XD","Historial Entregas DevCan","Recogidos","Historial Entregas Recogidos","Entregas CDR","Historial De Entregas CDR","Historial Entregas Dev Mbodas","Historial Entregas XD","Dev CyC","Historial Entregas CyC","Paqueter\xeda Externa","Historial Paqueter\xeda Externa","Transferencias y Retornos","Historial TF o Retornos","Consulta Global","Entregas MKP","MKP","Guias CYC"],t.s)},
 n3(){var s=0,r=A.t(t.H),q=this,p,o,n,m,l,k,j
 var $async$n3=A.u(function(a,b){if(a===1)return A.p(b,r)
 while(true)switch(s){case 0:k=$.F
