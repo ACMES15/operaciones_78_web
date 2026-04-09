@@ -195,11 +195,16 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                     if (cell.value is DateTime) {
                       fecha = cell.value as DateTime;
                     } else if (cell.value is num) {
-                      // 2. Si es serial Excel (número)
-                      // Excel: días desde 1899-12-30
+                      // 2. Si es serial Excel (número, puede ser double o int)
                       final excelEpoch = DateTime(1899, 12, 30);
-                      fecha = excelEpoch
-                          .add(Duration(days: (cell.value as num).floor()));
+                      final serial = cell.value;
+                      // Excel almacena fechas como double, pero solo la parte entera son días
+                      final dias = serial is int
+                          ? serial
+                          : serial is double
+                              ? serial.floor()
+                              : int.tryParse(serial.toString()) ?? 0;
+                      fecha = excelEpoch.add(Duration(days: dias));
                     } else if (cell.value is String) {
                       // 3. Si es string, intentar parsear varios formatos
                       final raw = cell.value.toString().trim();
