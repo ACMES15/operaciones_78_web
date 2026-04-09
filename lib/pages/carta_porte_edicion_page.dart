@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
 import 'carta_porte_imprimir_page.dart';
 
 class CartaPorteEdicionPage extends StatefulWidget {
@@ -172,9 +173,22 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
               value: choferSeleccionado,
               decoration: const InputDecoration(labelText: 'Chofer'),
               items: choferes.map((c) {
+                final nombre = c['nombre'] ?? '';
+                final rfc = c['rfc'] ?? '';
+                final licencia = c['licencia'] ?? '';
                 return DropdownMenuItem<String>(
-                  value: c['nombre'],
-                  child: Text(c['nombre'] ?? ''),
+                  value: nombre,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(nombre,
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      if (rfc.isNotEmpty || licencia.isNotEmpty)
+                        Text('RFC: $rfc   Licencia: $licencia',
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
                 );
               }).toList(),
               onChanged: (nuevo) {
@@ -203,19 +217,60 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
               decoration: const InputDecoration(labelText: 'Número de control'),
               enabled: false,
             ),
-            TextField(
-              controller: rfcController,
-              decoration: const InputDecoration(labelText: 'RFC'),
-              enabled: false,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: rfcController,
+                    decoration: const InputDecoration(labelText: 'RFC'),
+                    enabled: false,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Copiar RFC',
+                  icon: const Icon(Icons.copy, size: 22),
+                  onPressed: () {
+                    final text = rfcController.text;
+                    if (text.isNotEmpty) {
+                      Clipboard.setData(ClipboardData(text: text));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('RFC copiado')),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
-            TextField(
-              controller: licenciaController,
-              decoration: const InputDecoration(labelText: 'Licencia'),
-              enabled: false,
-            ),
-            TextField(
-              controller: unidadController,
-              decoration: const InputDecoration(labelText: 'Unidad'),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    controller: licenciaController,
+                    decoration: const InputDecoration(labelText: 'Licencia'),
+                    enabled: false,
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Copiar licencia',
+                  icon: const Icon(Icons.copy, size: 22),
+                  onPressed: () {
+                    final text = licenciaController.text;
+                    if (text.isNotEmpty) {
+                      Clipboard.setData(ClipboardData(text: text));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Licencia copiada')),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             const Text('Filas:', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -297,72 +352,311 @@ class CartaPorteAgregarFilaPage extends StatefulWidget {
 }
 
 class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
-  late List<Map<String, dynamic>> filas;
-  late List<TextEditingController> filaControllers;
   late List<String> columns;
+  late List<List<TextEditingController>> filasControllers;
+  final int filasCount = 5;
 
   @override
   void initState() {
     super.initState();
-    // Copiar columnas y preparar controladores para una nueva fila
+    // Copiar columnas y preparar controladores para 5 filas
     final ejemplo = (widget.carta['filas'] as List?)?.isNotEmpty == true
         ? Map<String, dynamic>.from((widget.carta['filas'] as List).first)
-        : <String, dynamic>{};
+        : <String, dynamic>{'ESCANEO': '', 'CANTIDAD': '', 'DESCRIPCION': ''};
     columns = ejemplo.keys.toList();
-    filaControllers = columns.map((k) => TextEditingController()).toList();
+    filasControllers = List.generate(
+      filasCount,
+      (_) => columns.map((k) => TextEditingController()).toList(),
+    );
   }
 
   @override
   void dispose() {
-    for (final c in filaControllers) {
-      c.dispose();
+    for (final fila in filasControllers) {
+      for (final c in fila) {
+        c.dispose();
+      }
     }
     super.dispose();
   }
 
-  Future<void> _autocompletarPorEscaneo(int idx) async {
-    // Aquí puedes reutilizar la lógica de _autocompletarFilaPorEscaneo de carta_porte_table.dart
-    // Por simplicidad, solo se deja el campo editable
+  Future<void> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
+    try {
+      final escaneo = filasControllers[filaIdx][colIdx].text.trim();
+      final escaneoLower = escaneo.toLowerCase();
+      if (escaneo.isEmpty) return;
+
+      // Buscar en hoja_ruta
+      final hojaRutaSnap = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .orderBy('fecha', descending: true)
+          .get();
+      final hojaRutaDocs = hojaRutaSnap.docs
+          .where((doc) =>
+              (doc.data()['caja'] ?? '').toString().trim().toLowerCase() ==
+              escaneoLower)
+          .toList();
+
+      // Buscar en hoja_de_xd_historial
+      final xdSnap = await FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .orderBy('fecha', descending: true)
+          .get();
+      List<dynamic> xd = xdSnap.docs
+          .map((doc) => doc.data())
+          .where((h) => ((h['CONTENEDOR O TARIMA'] ?? '')
+                  .toString()
+                  .trim()
+                  .toLowerCase() ==
+              escaneoLower))
+          .toList();
+
+      // Si no hay resultados directos, buscar por TARIMA
+      if (xd.isEmpty) {
+        final allDocs = xdSnap;
+        xd = allDocs.docs
+            .map((doc) => doc.data())
+            .where((h) => ((h['CONTENEDOR O TARIMA'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase() ==
+                    escaneoLower ||
+                (h['TARIMA'] ?? '').toString().trim().toLowerCase() ==
+                    escaneoLower))
+            .toList();
+      }
+
+      // Unificar resultados
+      final List<Map<String, dynamic>> resultados = [];
+      for (final doc in hojaRutaDocs) {
+        final data = doc.data();
+        if (data['fecha'] != null) {
+          resultados
+              .add({'tipo': 'hoja_ruta', 'fecha': data['fecha'], 'data': data});
+        }
+      }
+      for (final h in xd) {
+        resultados.add({'tipo': 'xd', 'fecha': h['fecha'], 'data': h});
+      }
+
+      if (resultados.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'No se encontró información para "$escaneo" en Firestore.')),
+        );
+        return;
+      }
+
+      DateTime _toDate(dynamic f) {
+        if (f is DateTime) return f;
+        if (f is Timestamp) return f.toDate();
+        if (f is String) {
+          try {
+            return DateTime.parse(f);
+          } catch (_) {
+            return DateTime(1970);
+          }
+        }
+        return DateTime(1970);
+      }
+
+      resultados.sort((a, b) {
+        final fa = _toDate(a['fecha']);
+        final fb = _toDate(b['fecha']);
+        return fb.compareTo(fa);
+      });
+      final masReciente = resultados.first;
+
+      // Mapear columnas por nombre
+      String getCol(String nombre) {
+        final idx = columns.indexWhere((c) => c.toUpperCase() == nombre);
+        return idx >= 0 ? columns[idx] : '';
+      }
+
+      if (masReciente['tipo'] == 'hoja_ruta') {
+        final ruta = masReciente['data'];
+        final rows = (ruta['rows'] as List?) ?? [];
+        String embarque = '';
+        for (final row in rows) {
+          if (row is Map) {
+            if ((row['No. Manifiesto o Remisión'] != null &&
+                row['No. Manifiesto o Remisión'].toString().isNotEmpty)) {
+              embarque = row['No. Manifiesto o Remisión'].toString();
+              break;
+            } else if ((row['Rem'] != null &&
+                row['Rem'].toString().isNotEmpty)) {
+              embarque = row['Rem'].toString();
+              break;
+            }
+          } else if (row is List) {
+            final columnsRuta = (ruta['columns'] as List?) ?? [];
+            final idx = columnsRuta.indexWhere((c) =>
+                c.toString().toLowerCase().contains('manifiesto') ||
+                c.toString().toLowerCase().contains('rem'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              embarque = row[idx].toString();
+              break;
+            }
+          }
+        }
+        // Asignar datos a los campos si existen
+        for (int i = 0; i < columns.length; i++) {
+          final col = columns[i].toUpperCase();
+          if (col.contains('TIPO'))
+            filasControllers[filaIdx][i].text = ruta['tipo'] ?? '';
+          if (col.contains('SISTEMA'))
+            filasControllers[filaIdx][i].text = 'SAP';
+          if (col.contains('EMBARQUE'))
+            filasControllers[filaIdx][i].text = embarque;
+          if (col.contains('BULTOS')) {
+            int sumaBultos = 0;
+            for (final row in rows) {
+              if (row is Map && row['No. Bultos'] != null) {
+                final val = int.tryParse(row['No. Bultos'].toString());
+                if (val != null) sumaBultos += val;
+              } else if (row is List) {
+                final columnsRuta = (ruta['columns'] as List?) ?? [];
+                final idx = columnsRuta.indexWhere(
+                    (c) => c.toString().toLowerCase().contains('bultos'));
+                if (idx >= 0 && row.length > idx && row[idx] != null) {
+                  final val = int.tryParse(row[idx].toString());
+                  if (val != null) sumaBultos += val;
+                }
+              }
+            }
+            filasControllers[filaIdx][i].text =
+                sumaBultos > 0 ? sumaBultos.toString() : '';
+          }
+          if (col.contains('DESTINO')) {
+            String destino = '';
+            for (final row in rows) {
+              if (row is Map &&
+                  row['No. Alm.'] != null &&
+                  row['No. Alm.'].toString().isNotEmpty) {
+                destino = row['No. Alm.'].toString();
+                break;
+              } else if (row is List) {
+                final columnsRuta = (ruta['columns'] as List?) ?? [];
+                final idx = columnsRuta.indexWhere(
+                    (c) => c.toString().toLowerCase().contains('alm'));
+                if (idx >= 0 &&
+                    row.length > idx &&
+                    row[idx] != null &&
+                    row[idx].toString().isNotEmpty) {
+                  destino = row[idx].toString();
+                  break;
+                }
+              }
+            }
+            filasControllers[filaIdx][i].text = destino;
+          }
+          if (col.contains('ESCANEO'))
+            filasControllers[filaIdx][i].text = escaneo;
+        }
+        setState(() {});
+        return;
+      } else if (masReciente['tipo'] == 'xd') {
+        final h = masReciente['data'];
+        for (int i = 0; i < columns.length; i++) {
+          final col = columns[i].toUpperCase();
+          if (col.contains('TIPO')) filasControllers[filaIdx][i].text = 'PAQ';
+          if (col.contains('SISTEMA'))
+            filasControllers[filaIdx][i].text =
+                (h['TU'] ?? '').toString().trim().isNotEmpty ? 'MAN' : 'XD';
+          if (col.contains('EMBARQUE'))
+            filasControllers[filaIdx][i].text = h['MANIFIESTO'] ?? '';
+          if (col.contains('BULTOS'))
+            filasControllers[filaIdx][i].text = h['CANTIDAD DE LPS'] ?? '';
+          if (col.contains('DESTINO'))
+            filasControllers[filaIdx][i].text = h['DESTINO'] ?? '';
+          if (col.contains('ESCANEO'))
+            filasControllers[filaIdx][i].text = escaneo;
+        }
+        setState(() {});
+        return;
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error inesperado: $e')),
+      );
+    }
+  }
+
+  bool _filaTieneDatos(List<TextEditingController> fila) {
+    return fila.any((c) => c.text.trim().isNotEmpty);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Agregar Fila (completa)')),
+      appBar: AppBar(title: const Text('Agregar filas (ejecutivo)')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (int i = 0; i < columns.length; i++)
-                Container(
-                  width: 140,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  child: TextField(
-                    controller: filaControllers[i],
-                    decoration: InputDecoration(labelText: columns[i]),
-                    onChanged: columns[i].toUpperCase().contains('ESCANEO')
-                        ? (_) => _autocompletarPorEscaneo(i)
-                        : null,
-                  ),
-                ),
-              const SizedBox(width: 16),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.start,
+              Row(
                 children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      final fila = <String, dynamic>{};
-                      for (int i = 0; i < columns.length; i++) {
-                        fila[columns[i]] = filaControllers[i].text;
-                      }
-                      Navigator.of(context).pop(fila);
-                    },
-                    child: const Text('Guardar'),
-                  ),
+                  for (final col in columns)
+                    Container(
+                      width: 140,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        col,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                 ],
+              ),
+              for (int filaIdx = 0; filaIdx < filasCount; filaIdx++)
+                Row(
+                  children: [
+                    for (int colIdx = 0; colIdx < columns.length; colIdx++)
+                      Container(
+                        width: 140,
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 6),
+                        child: TextField(
+                          controller: filasControllers[filaIdx][colIdx],
+                          decoration:
+                              InputDecoration(labelText: columns[colIdx]),
+                          onChanged: columns[colIdx]
+                                  .toUpperCase()
+                                  .contains('ESCANEO')
+                              ? (_) => _autocompletarPorEscaneo(filaIdx, colIdx)
+                              : null,
+                        ),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  final filasValidas = <Map<String, dynamic>>[];
+                  for (final fila in filasControllers) {
+                    if (_filaTieneDatos(fila)) {
+                      final map = <String, dynamic>{};
+                      for (int i = 0; i < columns.length; i++) {
+                        map[columns[i]] = fila[i].text;
+                      }
+                      filasValidas.add(map);
+                    }
+                  }
+                  if (filasValidas.isEmpty) {
+                    // Permitir regresar a editar carta porte si no hay datos
+                    Navigator.of(context).pop();
+                    return;
+                  }
+                  Navigator.of(context).pop(filasValidas);
+                },
+                child: const Text('Guardar'),
               ),
             ],
           ),
