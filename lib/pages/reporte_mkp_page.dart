@@ -152,7 +152,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
   // Controladores para edición
   final List<List<TextEditingController>> _controllers = [];
 
-  // Importar desde Excel
+  // Importar desde Excel (ignora encabezado, deja primera fila vacía, mapea por posición)
   Future<void> _importarExcel() async {
     final uploadInput = html.FileUploadInputElement();
     uploadInput.accept = '.xlsx';
@@ -178,12 +178,17 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
           }
           setState(() {
             _controllers.clear();
+            // Dejar la primera fila vacía (para edición manual si se desea)
+            _controllers.add(
+                List.generate(_headers.length, (i) => TextEditingController()));
+            // Tomar datos desde la segunda fila (índice 1) en adelante
             for (int i = 1; i < rows.length; i++) {
               final row = rows[i];
               final ctrls = List.generate(_headers.length, (colIdx) {
-                // Para la columna DIAS, inicializar vacío, se calculará en el build
+                // DIAS siempre vacío, se calcula en build
                 if (_headers[colIdx] == 'DIAS')
                   return TextEditingController(text: '');
+                // Mapear por posición, aunque el encabezado no coincida
                 String val = colIdx < row.length && row[colIdx] != null
                     ? row[colIdx]!.value.toString()
                     : '';
@@ -191,7 +196,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
               });
               _controllers.add(ctrls);
             }
-            // Forzar actualización de JEFATURA y ESTATUS ACTUAL después de importar
+            // JEFATURA y ESTATUS ACTUAL se calculan igual que antes
             for (final ctrls in _controllers) {
               final seccionIdx = _headers.indexOf('SECCION');
               final jefaturaIdx = _headers.indexOf('JEFATURA');
@@ -203,8 +208,6 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 final seccion = ctrls[seccionIdx].text;
                 final clave = _normalizeSeccion(seccion);
                 final nuevaJefatura = _seccionToJefatura[clave] ?? '';
-                print(
-                    'DEBUG IMPORT: Buscando SECCION "$clave" => "$nuevaJefatura"');
                 ctrls[jefaturaIdx].text = nuevaJefatura;
               }
               // ESTATUS ACTUAL

@@ -217,55 +217,32 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
               decoration: const InputDecoration(labelText: 'Número de control'),
               enabled: false,
             ),
+            // ...existing code...
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: rfcController,
-                    decoration: const InputDecoration(labelText: 'RFC'),
-                    enabled: false,
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.copy),
+                  label: const Text('Copiar Concentrado'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF2D6A4F),
+                    foregroundColor: Colors.white,
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Copiar RFC',
-                  icon: const Icon(Icons.copy, size: 22),
                   onPressed: () {
-                    final text = rfcController.text;
-                    if (text.isNotEmpty) {
-                      Clipboard.setData(ClipboardData(text: text));
+                    final concentrados = filas
+                        .map((f) => f['CONCENTRADO']?.toString() ?? '')
+                        .where((c) => c.isNotEmpty)
+                        .join('\n');
+                    if (concentrados.isNotEmpty) {
+                      Clipboard.setData(ClipboardData(text: concentrados));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('RFC copiado')),
+                        const SnackBar(
+                            content: Text('Todos los concentrados copiados')),
                       );
-                    }
-                  },
-                ),
-              ],
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: licenciaController,
-                    decoration: const InputDecoration(labelText: 'Licencia'),
-                    enabled: false,
-                    style: const TextStyle(fontSize: 15),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Copiar licencia',
-                  icon: const Icon(Icons.copy, size: 22),
-                  onPressed: () {
-                    final text = licenciaController.text;
-                    if (text.isNotEmpty) {
-                      Clipboard.setData(ClipboardData(text: text));
+                    } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Licencia copiada')),
+                        const SnackBar(
+                            content:
+                                Text('No hay datos en la columna Concentrado')),
                       );
                     }
                   },
@@ -359,11 +336,20 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
   @override
   void initState() {
     super.initState();
-    // Copiar columnas y preparar controladores para 5 filas
-    final ejemplo = (widget.carta['filas'] as List?)?.isNotEmpty == true
-        ? Map<String, dynamic>.from((widget.carta['filas'] as List).first)
-        : <String, dynamic>{'ESCANEO': '', 'CANTIDAD': '', 'DESCRIPCION': ''};
-    columns = ejemplo.keys.toList();
+    // Usar el mismo orden y nombres de columnas que carta_porte_table.dart
+    columns = [
+      'ESCANEO',
+      'NO.',
+      'TIPO',
+      'SYS',
+      'EMBARQUE',
+      'DESCRIPCIÓN / COMENTARIOS',
+      'NO. DE BULTOS',
+      'DESTINO',
+      'CONTENEDOR',
+      'EMBARQUE',
+      'CONCENTRADO',
+    ];
     filasControllers = List.generate(
       filasCount,
       (_) => columns.map((k) => TextEditingController()).toList(),
@@ -468,11 +454,7 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       });
       final masReciente = resultados.first;
 
-      // Mapear columnas por nombre
-      String getCol(String nombre) {
-        final idx = columns.indexWhere((c) => c.toUpperCase() == nombre);
-        return idx >= 0 ? columns[idx] : '';
-      }
+      // (getCol eliminado, ya no se usa)
 
       if (masReciente['tipo'] == 'hoja_ruta') {
         final ruta = masReciente['data'];
@@ -592,73 +574,105 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colWidths = [
+      120.0,
+      60.0,
+      120.0,
+      120.0,
+      120.0,
+      180.0,
+      120.0,
+      120.0,
+      120.0,
+      120.0,
+      120.0
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Agregar filas (ejecutivo)')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  for (final col in columns)
-                    Container(
-                      width: 140,
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        col,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                ],
-              ),
-              for (int filaIdx = 0; filaIdx < filasCount; filaIdx++)
+          child: Container(
+            width: colWidths.reduce((a, b) => a + b) + 40,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Encabezado tipo tabla
                 Row(
                   children: [
-                    for (int colIdx = 0; colIdx < columns.length; colIdx++)
+                    for (int i = 0; i < columns.length; i++)
                       Container(
-                        width: 140,
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 4, vertical: 6),
-                        child: TextField(
-                          controller: filasControllers[filaIdx][colIdx],
-                          decoration:
-                              InputDecoration(labelText: columns[colIdx]),
-                          onChanged: columns[colIdx]
-                                  .toUpperCase()
-                                  .contains('ESCANEO')
-                              ? (_) => _autocompletarPorEscaneo(filaIdx, colIdx)
-                              : null,
+                        width: colWidths[i],
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 12, horizontal: 8),
+                        child: Text(
+                          columns[i],
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D6A4F),
+                              fontSize: 15),
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
                         ),
                       ),
                   ],
                 ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  final filasValidas = <Map<String, dynamic>>[];
-                  for (final fila in filasControllers) {
-                    if (_filaTieneDatos(fila)) {
-                      final map = <String, dynamic>{};
-                      for (int i = 0; i < columns.length; i++) {
-                        map[columns[i]] = fila[i].text;
+                // Filas editables
+                for (int filaIdx = 0; filaIdx < filasCount; filaIdx++)
+                  Row(
+                    children: [
+                      for (int colIdx = 0; colIdx < columns.length; colIdx++)
+                        Container(
+                          width: colWidths[colIdx],
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          alignment: Alignment.center,
+                          child: TextField(
+                            controller: filasControllers[filaIdx][colIdx],
+                            textAlign: TextAlign.center,
+                            decoration: InputDecoration(
+                              labelText: null,
+                              hintText: columns[colIdx],
+                              isDense: true,
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(6)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 8, horizontal: 6),
+                            ),
+                            onSubmitted: columns[colIdx]
+                                    .toUpperCase()
+                                    .contains('ESCANEO')
+                                ? (_) =>
+                                    _autocompletarPorEscaneo(filaIdx, colIdx)
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    final filasValidas = <Map<String, dynamic>>[];
+                    for (final fila in filasControllers) {
+                      if (_filaTieneDatos(fila)) {
+                        final map = <String, dynamic>{};
+                        for (int i = 0; i < columns.length; i++) {
+                          map[columns[i]] = fila[i].text;
+                        }
+                        filasValidas.add(map);
                       }
-                      filasValidas.add(map);
                     }
-                  }
-                  if (filasValidas.isEmpty) {
-                    // Permitir regresar a editar carta porte si no hay datos
-                    Navigator.of(context).pop();
-                    return;
-                  }
-                  Navigator.of(context).pop(filasValidas);
-                },
-                child: const Text('Guardar'),
-              ),
-            ],
+                    if (filasValidas.isEmpty) {
+                      Navigator.of(context).pop();
+                      return;
+                    }
+                    Navigator.of(context).pop(filasValidas);
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

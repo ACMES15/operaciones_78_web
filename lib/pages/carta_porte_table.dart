@@ -927,18 +927,11 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              ElevatedButton.icon(
-                                onPressed: _copiarColumnaConcentrado,
+                              IconButton(
+                                tooltip: 'Copiar columna CONCENTRADO',
                                 icon: const Icon(Icons.copy),
-                                label: const Text('Copiar columna CONCENTRADO'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF2D6A4F),
-                                  foregroundColor: Colors.white,
-                                  padding: EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  textStyle:
-                                      TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                                color: Color(0xFF2D6A4F),
+                                onPressed: _copiarColumnaConcentrado,
                               ),
                               const SizedBox(width: 16),
                             ],
