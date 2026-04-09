@@ -185,15 +185,76 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 // DIAS siempre vacío, se calcula en build
                 if (_headers[colIdx] == 'DIAS')
                   return TextEditingController(text: '');
-                // Mapear por posición, aunque el encabezado no coincida
                 String val = '';
                 if (colIdx < row.length && row[colIdx] != null) {
                   final cell = row[colIdx]!;
-                  if (cell.value is DateTime) {
-                    // Convertir DateTime a string legible
-                    final dt = cell.value as DateTime;
-                    val =
-                        '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                  // Si es la columna FECHA, intentar convertir serial Excel, DateTime o string
+                  if (_headers[colIdx] == 'FECHA') {
+                    DateTime? fecha;
+                    // 1. Si es DateTime
+                    if (cell.value is DateTime) {
+                      fecha = cell.value as DateTime;
+                    } else if (cell.value is num) {
+                      // 2. Si es serial Excel (número)
+                      // Excel: días desde 1899-12-30
+                      final excelEpoch = DateTime(1899, 12, 30);
+                      fecha = excelEpoch
+                          .add(Duration(days: (cell.value as num).floor()));
+                    } else if (cell.value is String) {
+                      // 3. Si es string, intentar parsear varios formatos
+                      final raw = cell.value.toString().trim();
+                      // yyyy-MM-dd, yyyy/MM/dd, dd/MM/yyyy, MM/dd/yyyy, etc.
+                      final formats = [
+                        RegExp(
+                            r'^(\d{4})[\/-](\d{2})[\/-](\d{2})$'), // yyyy-MM-dd o yyyy/MM/dd
+                        RegExp(
+                            r'^(\d{2})[\/-](\d{2})[\/-](\d{4})$'), // dd/MM/yyyy o MM/dd/yyyy
+                        RegExp(
+                            r'^(\d{4})[\/-](\d{2})[\/-](\d{2})$'), // yyyy/MM/dd
+                        RegExp(
+                            r'^(\d{2})[\/-](\d{2})[\/-](\d{2})$'), // dd/MM/yy
+                      ];
+                      bool parsed = false;
+                      for (final f in formats) {
+                        final m = f.firstMatch(raw);
+                        if (m != null) {
+                          try {
+                            if (f.pattern.startsWith(r'^(\d{4})')) {
+                              // yyyy-MM-dd o yyyy/MM/dd
+                              final y = int.parse(m.group(1)!);
+                              final mth = int.parse(m.group(2)!);
+                              final d = int.parse(m.group(3)!);
+                              fecha = DateTime(y, mth, d);
+                            } else if (f.pattern.startsWith(r'^(\d{2})')) {
+                              // dd/MM/yyyy o MM/dd/yyyy
+                              final d1 = int.parse(m.group(1)!);
+                              final d2 = int.parse(m.group(2)!);
+                              final y = int.parse(m.group(3)!);
+                              // Si el año > 31, asumimos dd/MM/yyyy, si no, MM/dd/yyyy
+                              if (y > 31) {
+                                fecha = DateTime(y, d2, d1);
+                              } else {
+                                fecha = DateTime(y + 2000, d2, d1);
+                              }
+                            }
+                            parsed = true;
+                            break;
+                          } catch (_) {}
+                        }
+                      }
+                      if (!parsed) {
+                        // Intentar parseo directo
+                        try {
+                          fecha = DateTime.tryParse(raw);
+                        } catch (_) {}
+                      }
+                    }
+                    if (fecha != null) {
+                      val =
+                          '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+                    } else {
+                      val = cell.value.toString();
+                    }
                   } else {
                     val = cell.value.toString();
                   }
