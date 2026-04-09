@@ -178,10 +178,7 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
           }
           setState(() {
             _controllers.clear();
-            // Dejar la primera fila vacía (para edición manual si se desea)
-            _controllers.add(
-                List.generate(_headers.length, (i) => TextEditingController()));
-            // Tomar datos desde la segunda fila (índice 1) en adelante
+            // Tomar datos desde la primera fila (índice 0) en adelante, sin dejar fila vacía
             for (int i = 1; i < rows.length; i++) {
               final row = rows[i];
               final ctrls = List.generate(_headers.length, (colIdx) {
@@ -189,9 +186,18 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                 if (_headers[colIdx] == 'DIAS')
                   return TextEditingController(text: '');
                 // Mapear por posición, aunque el encabezado no coincida
-                String val = colIdx < row.length && row[colIdx] != null
-                    ? row[colIdx]!.value.toString()
-                    : '';
+                String val = '';
+                if (colIdx < row.length && row[colIdx] != null) {
+                  final cell = row[colIdx]!;
+                  if (cell.value is DateTime) {
+                    // Convertir DateTime a string legible
+                    final dt = cell.value as DateTime;
+                    val =
+                        '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+                  } else {
+                    val = cell.value.toString();
+                  }
+                }
                 return TextEditingController(text: val);
               });
               // Listener para recalcular JEFATURA al editar SECCION
