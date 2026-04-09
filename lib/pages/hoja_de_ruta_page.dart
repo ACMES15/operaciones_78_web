@@ -456,11 +456,22 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
 
   Future<void> _printHojaRuta({Map<String, dynamic>? sheet}) async {
     final headers = _columns;
+    // Siempre asegurar formato horizontal: cada sublista es una fila, cada elemento una celda
     final data = (sheet == null)
         ? _controllers
             .map((row) => row.map((c) => c.text.trim()).toList())
+            .where((row) => row.any((cell) => cell.isNotEmpty))
             .toList()
-        : List<List<String>>.from(sheet['rows'] as List);
+        : (sheet['rows'] is List<List<dynamic>>)
+            ? (sheet['rows'] as List)
+                .map((row) =>
+                    (row as List).map((cell) => cell.toString()).toList())
+                .toList()
+            : (sheet['rows'] as List)
+                .map((rowMap) =>
+                    headers.map((h) => (rowMap[h] ?? '').toString()).toList())
+                .toList();
+
     final origen = sheet == null ? _origen : (sheet['origen'] ?? '');
     final fecha = sheet == null ? _fechaEnvio : (sheet['fecha'] ?? '');
 

@@ -115,6 +115,25 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add, color: Color(0xFF2D6A4F)),
+            tooltip: 'Agregar fila',
+            onPressed: () async {
+              final nuevaFila =
+                  await Navigator.of(context).push<Map<String, dynamic>>(
+                MaterialPageRoute(
+                  builder: (_) => CartaPorteAgregarFilaPage(
+                    carta: widget.carta,
+                  ),
+                ),
+              );
+              if (nuevaFila != null) {
+                setState(() {
+                  filas.add(nuevaFila);
+                });
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.save, color: Color(0xFF2D6A4F)),
             tooltip: 'Guardar',
             onPressed: _guardar,
@@ -259,29 +278,6 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
               },
             ),
             const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.add),
-                label: const Text('Agregar fila'),
-                onPressed: () async {
-                  // Navegar a la misma página de edición de carta porte, pero en modo agregar fila
-                  final nuevaFila =
-                      await Navigator.of(context).push<Map<String, dynamic>>(
-                    MaterialPageRoute(
-                      builder: (_) => CartaPorteAgregarFilaPage(
-                        carta: widget.carta,
-                      ),
-                    ),
-                  );
-                  if (nuevaFila != null) {
-                    setState(() {
-                      filas.add(nuevaFila);
-                    });
-                  }
-                },
-              ),
-            ),
           ],
         ),
       ),
@@ -335,34 +331,41 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       appBar: AppBar(title: const Text('Agregar Fila (completa)')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < columns.length; i++)
-              TextField(
-                controller: filaControllers[i],
-                decoration: InputDecoration(labelText: columns[i]),
-                onChanged: columns[i].toUpperCase().contains('ESCANEO')
-                    ? (_) => _autocompletarPorEscaneo(i)
-                    : null,
-              ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    final fila = <String, dynamic>{};
-                    for (int i = 0; i < columns.length; i++) {
-                      fila[columns[i]] = filaControllers[i].text;
-                    }
-                    Navigator.of(context).pop(fila);
-                  },
-                  child: const Text('Guardar'),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < columns.length; i++)
+                Container(
+                  width: 140,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  child: TextField(
+                    controller: filaControllers[i],
+                    decoration: InputDecoration(labelText: columns[i]),
+                    onChanged: columns[i].toUpperCase().contains('ESCANEO')
+                        ? (_) => _autocompletarPorEscaneo(i)
+                        : null,
+                  ),
                 ),
-              ],
-            ),
-          ],
+              const SizedBox(width: 16),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      final fila = <String, dynamic>{};
+                      for (int i = 0; i < columns.length; i++) {
+                        fila[columns[i]] = filaControllers[i].text;
+                      }
+                      Navigator.of(context).pop(fila);
+                    },
+                    child: const Text('Guardar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

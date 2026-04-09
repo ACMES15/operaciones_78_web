@@ -20,6 +20,7 @@ class CartaPorteEdicionDialog extends StatelessWidget {
     final choferCtrl = TextEditingController(text: carta['CHOFER'] ?? '');
     final unidadCtrl = TextEditingController(text: carta['UNIDAD'] ?? '');
     final rfcCtrl = TextEditingController(text: carta['RFC'] ?? '');
+    final licenciaCtrl = TextEditingController(text: carta['LICENCIA'] ?? '');
     final concentradoCtrl =
         TextEditingController(text: carta['CONCENTRADO'] ?? '');
     final numeroControl = carta['NUMERO_CONTROL'] ?? '';
@@ -95,7 +96,7 @@ class CartaPorteEdicionDialog extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: 140,
+                  width: 120,
                   child: TextField(
                     controller: choferCtrl,
                     enabled: editable,
@@ -108,12 +109,30 @@ class CartaPorteEdicionDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
+                const Text('LICENCIA:',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 90,
+                  child: TextField(
+                    controller: licenciaCtrl,
+                    enabled: editable,
+                    decoration: const InputDecoration(
+                      hintText: 'Licencia',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 const Text('UNIDAD:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: 100,
+                  width: 90,
                   child: TextField(
                     controller: unidadCtrl,
                     enabled: editable,
@@ -126,12 +145,12 @@ class CartaPorteEdicionDialog extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 const Text('RFC:',
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: 130,
+                  width: 110,
                   child: TextField(
                     controller: rfcCtrl,
                     enabled: editable,
@@ -184,6 +203,7 @@ class CartaPorteEdicionDialog extends StatelessWidget {
                         ...carta,
                         'DESTINO': destinoCtrl.text.trim(),
                         'CHOFER': choferCtrl.text.trim(),
+                        'LICENCIA': licenciaCtrl.text.trim(),
                         'UNIDAD': unidadCtrl.text.trim(),
                         'RFC': rfcCtrl.text.trim(),
                         'CONCENTRADO': concentradoCtrl.text.trim(),

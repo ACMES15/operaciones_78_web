@@ -16,122 +16,82 @@ Future<pw.Document> buildCartaPortePdf(Map<String, dynamic> carta,
     pw.MultiPage(
       build: (context) => [
         pw.Center(
-          child: pw.Text('CARTA PORTE',
-              style:
-                  pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+          child: pw.Text('Liv. Galerias 0078',
+              style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.green800)),
         ),
         pw.SizedBox(height: 16),
-        pw.Container(
-          alignment: pw.Alignment.center,
-          padding: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 8),
-          child: pw.Table(
-            border: pw.TableBorder.symmetric(
-              inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
-              outside: pw.BorderSide.none,
-            ),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(2),
-              1: const pw.FlexColumnWidth(4),
-            },
-            children: [
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('Número de control:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['numero_control']?.toString() ?? '-'),
-                ),
-              ]),
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('Fecha:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['fecha']?.toString() ?? '-'),
-                ),
-              ]),
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('Destino:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['destino']?.toString() ?? '-'),
-                ),
-              ]),
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('Chofer:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['chofer']?.toString() ?? '-'),
-                ),
-              ]),
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('RFC:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['rfc']?.toString() ?? '-'),
-                ),
-              ]),
-              pw.TableRow(children: [
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text('Unidad:',
-                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.Padding(
-                  padding: const pw.EdgeInsets.all(6),
-                  child: pw.Text(carta['unidad']?.toString() ?? '-'),
-                ),
-              ]),
-            ],
-          ),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Text('Fecha: ${carta['fecha'] ?? '-'}   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Chofer: ${carta['chofer'] ?? '-'}   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('RFC: ${carta['rfc'] ?? '-'}   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Licencia: ${carta['licencia'] ?? '-'}   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Unidad: ${carta['unidad'] ?? '-'}   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Destino: ${carta['destino'] ?? '-'}',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+        pw.SizedBox(height: 12),
+        pw.Row(
+          children: [
+            pw.Text('No. Control:',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(width: 8),
+            pw.Text(carta['numero_control']?.toString() ?? '-'),
+          ],
         ),
         pw.SizedBox(height: 20),
         if (columnas.isNotEmpty)
           pw.Container(
             alignment: pw.Alignment.center,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             child: pw.Table(
               border: pw.TableBorder.symmetric(
                 inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
                 outside: pw.BorderSide.none,
               ),
               defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+              columnWidths: {
+                for (int i = 0; i < columnas.length; i++)
+                  i: const pw.FlexColumnWidth(1),
+              },
               children: [
                 pw.TableRow(
                   decoration: const pw.BoxDecoration(
                       color: PdfColor.fromInt(0xFFE8F5E9)),
                   children: columnas
                       .map((col) => pw.Padding(
-                            padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text(col,
-                                style: pw.TextStyle(
-                                    fontWeight: pw.FontWeight.bold)),
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            child: pw.Text(
+                              col.toString().replaceAll('\n', ' '),
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold, fontSize: 8),
+                              maxLines: 1,
+                            ),
                           ))
                       .toList(),
                 ),
                 ...filas.map((fila) => pw.TableRow(
                       children: columnas
                           .map((col) => pw.Padding(
-                                padding: const pw.EdgeInsets.all(6),
-                                child: pw.Text(fila[col]?.toString() ?? ''),
+                                padding: const pw.EdgeInsets.symmetric(
+                                    horizontal: 2, vertical: 1),
+                                child: pw.Text(
+                                  (fila[col]?.toString() ?? '')
+                                      .replaceAll('\n', ' '),
+                                  style: pw.TextStyle(fontSize: 8),
+                                  maxLines: 1,
+                                ),
                               ))
                           .toList(),
                     )),

@@ -37,84 +37,49 @@ class CartaPorteImprimirPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('CARTA PORTE',
+                const Text('Liv. Galerias 0078',
                     textAlign: TextAlign.center,
-                    style:
-                        TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D6A4F))),
                 const SizedBox(height: 16),
-                Table(
-                  columnWidths: const {
-                    0: FlexColumnWidth(2),
-                    1: FlexColumnWidth(4),
-                  },
-                  defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+                // Datos principales alineados en una sola línea
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 18,
+                    runSpacing: 8,
+                    children: [
+                      Text('Fecha: ${carta['fecha'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Chofer: ${carta['chofer'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('RFC: ${carta['rfc'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Licencia: ${carta['licencia'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Unidad: ${carta['unidad'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Destino: ${carta['destino'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Número de control
+                Row(
                   children: [
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Número de control:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['numero_control']?.toString() ?? '-'),
-                      ),
-                    ]),
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Fecha:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['fecha']?.toString() ?? '-'),
-                      ),
-                    ]),
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Destino:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['destino']?.toString() ?? '-'),
-                      ),
-                    ]),
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Chofer:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['chofer']?.toString() ?? '-'),
-                      ),
-                    ]),
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('RFC:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['rfc']?.toString() ?? '-'),
-                      ),
-                    ]),
-                    TableRow(children: [
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text('Unidad:',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Text(carta['unidad']?.toString() ?? '-'),
-                      ),
-                    ]),
+                    const Text('No. Control:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    Text(carta['numero_control']?.toString() ?? '-'),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -125,25 +90,41 @@ class CartaPorteImprimirPage extends StatelessWidget {
                       outside: BorderSide.none,
                     ),
                     defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-                    columnWidths: const {},
+                    columnWidths: {
+                      for (int i = 0; i < filas.first.keys.length; i++)
+                        i: const FlexColumnWidth(1),
+                    },
                     children: [
                       TableRow(
                         decoration:
                             const BoxDecoration(color: Color(0xFFE8F5E9)),
                         children: filas.first.keys
                             .map((col) => Padding(
-                                  padding: const EdgeInsets.all(8),
-                                  child: Text(col,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 2, vertical: 1),
+                                  child: Text(
+                                    col.replaceAll('\n', ' '),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ))
                             .toList(),
                       ),
                       ...filas.map((fila) => TableRow(
-                            children: fila.keys
+                            children: filas.first.keys
                                 .map((col) => Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Text(fila[col]?.toString() ?? ''),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 2, vertical: 1),
+                                      child: Text(
+                                        (fila[col]?.toString() ?? '')
+                                            .replaceAll('\n', ' '),
+                                        style: const TextStyle(fontSize: 11),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ))
                                 .toList(),
                           )),
