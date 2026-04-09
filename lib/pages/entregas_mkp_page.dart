@@ -143,6 +143,9 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: TextInputType.number,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                ],
                               ),
                               SizedBox(height: isMobile ? 8 : 16),
                               TextField(
@@ -209,6 +212,11 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                                             labelText: 'SKU ${idx + 1}',
                                             border: const OutlineInputBorder(),
                                           ),
+                                          keyboardType: TextInputType.number,
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter
+                                                .digitsOnly,
+                                          ],
                                         ),
                                       ),
                                     ),

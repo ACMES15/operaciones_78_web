@@ -549,6 +549,12 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             }
           }
         }
+        // Ordenar descendente por fecha (más reciente arriba)
+        sent.sort((a, b) {
+          final fa = DateTime.tryParse(a['fecha'] ?? '') ?? DateTime(2000);
+          final fb = DateTime.tryParse(b['fecha'] ?? '') ?? DateTime(2000);
+          return fb.compareTo(fa);
+        });
         debugPrint('Hojas de ruta individuales (sent):\n' + sent.toString());
         List<Map<String, dynamic>> filtered = List.from(sent);
 
@@ -578,7 +584,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                         break;
                       }
                     }
-                    if (match) break;
                   }
                 }
                 return match;
@@ -587,131 +592,251 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             }
 
             return Scaffold(
+              backgroundColor: const Color(0xFFF4F6FB),
               appBar: AppBar(
-                title: const Text('Hoja de ruta enviadas'),
-                backgroundColor: const Color.fromARGB(184, 69, 70, 69),
+                elevation: 4,
+                backgroundColor: const Color(0xFF2D6A4F),
+                title: Row(
+                  children: [
+                    const Icon(Icons.assignment_turned_in,
+                        color: Colors.white, size: 30),
+                    SizedBox(width: 12),
+                    const Text('Hojas de Ruta Enviadas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                          letterSpacing: 1.2,
+                        )),
+                  ],
+                ),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh, color: Colors.white),
                     tooltip: 'Forzar recarga',
                     onPressed: _forzarRecarga,
                   ),
                 ],
               ),
               body: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: searchController,
-                      decoration: const InputDecoration(
-                          labelText: 'Buscar hoja de ruta',
-                          prefixIcon: Icon(Icons.search),
-                          border: OutlineInputBorder()),
-                      onChanged: filterSheets,
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: filtered.isEmpty
-                          ? const Center(
-                              child: Text('No hay hojas de ruta enviadas'))
-                          : ListView.builder(
-                              itemCount: filtered.length,
-                              itemBuilder: (context, idx) {
-                                final sheet = filtered[idx];
-                                return Card(
-                                  child: ListTile(
-                                    title: Text(
-                                        'Hoja: ${sheet['createdAt'] ?? sheet['fecha'] ?? sheet['numeroControl']}'),
-                                    subtitle: Text(
-                                        'Fecha: ${sheet['fecha']}  •  No. Control: ${sheet['numeroControl']}'),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.print),
-                                          tooltip: 'Imprimir hoja',
-                                          onPressed: () async {
-                                            try {
-                                              await _printSheet(context, sheet);
-                                            } catch (e) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(SnackBar(
-                                                      content: Text(
-                                                          'Error al imprimir: $e')));
-                                            }
-                                          },
-                                        ),
-                                        IconButton(
-                                          icon:
-                                              const Icon(Icons.picture_as_pdf),
-                                          tooltip: 'Imprimir carátula',
-                                          onPressed: () async {
-                                            try {
-                                              await _printCaratulaFromSheet(
-                                                  context, sheet);
-                                            } catch (e) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(SnackBar(
-                                                      content: Text(
-                                                          'Error al imprimir carátula: $e')));
-                                            }
-                                          },
-                                        ),
-                                        IconButton(
-                                            icon: const Icon(Icons.visibility),
-                                            onPressed: () => _showSheetDetail(
-                                                context, sheet)),
-                                        if (HojaDeRutaExtraPage.isAdmin)
-                                          IconButton(
-                                            icon: const Icon(Icons.delete,
-                                                color: Colors.red),
-                                            tooltip: 'Eliminar',
-                                            onPressed: () async {
-                                              final confirm =
-                                                  await showDialog<bool>(
-                                                context: context,
-                                                builder: (ctx) => AlertDialog(
-                                                  title: const Text(
-                                                      'Eliminar hoja de ruta'),
-                                                  content: const Text(
-                                                      '¿Estás seguro de eliminar esta hoja de ruta? Esta acción no se puede deshacer.'),
-                                                  actions: [
-                                                    TextButton(
-                                                        onPressed: () =>
-                                                            Navigator.of(ctx)
-                                                                .pop(false),
-                                                        child: const Text(
-                                                            'Cancelar')),
-                                                    ElevatedButton(
-                                                      style: ElevatedButton
-                                                          .styleFrom(
-                                                              backgroundColor:
-                                                                  Colors.red),
-                                                      onPressed: () =>
-                                                          Navigator.of(ctx)
-                                                              .pop(true),
-                                                      child: const Text(
-                                                          'Eliminar'),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                              if (confirm != true) return;
-                                              await FirebaseFirestore.instance
-                                                  .collection('hoja_ruta')
-                                                  .doc(sheet['numeroControl'])
-                                                  .delete();
-                                            },
-                                          ),
-                                      ],
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 0, vertical: 18),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 1100),
+                    child: Card(
+                      elevation: 10,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.search,
+                                    color: Color(0xFF2D6A4F)),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: TextField(
+                                    decoration: InputDecoration(
+                                      hintText:
+                                          'Buscar hoja, origen, tipo, caja, fecha...',
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 0, horizontal: 16),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none,
+                                      ),
                                     ),
+                                    onChanged: filterSheets,
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 18),
+                            Expanded(
+                              child: filtered.isEmpty
+                                  ? const Center(
+                                      child: Text(
+                                          'No hay hojas de ruta enviadas.',
+                                          style: TextStyle(
+                                              fontSize: 18,
+                                              color: Colors.grey)),
+                                    )
+                                  : ListView.separated(
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 16),
+                                      itemCount: filtered.length,
+                                      itemBuilder: (context, idx) {
+                                        final sheet = filtered[idx];
+                                        return Card(
+                                          elevation: 5,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(14)),
+                                          color: Colors.white,
+                                          child: ListTile(
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 20,
+                                                    vertical: 14),
+                                            leading: CircleAvatar(
+                                              backgroundColor:
+                                                  const Color(0xFF2D6A4F),
+                                              child: const Icon(
+                                                  Icons.description,
+                                                  color: Colors.white),
+                                            ),
+                                            title: Text(
+                                              sheet['origen'] ?? '',
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 17,
+                                                color: Color(0xFF2D6A4F),
+                                              ),
+                                            ),
+                                            subtitle: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Fecha:  ${sheet['fecha']}   •   No. Control: ${sheet['numeroControl']}',
+                                                  style: const TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.black87),
+                                                ),
+                                                Text(
+                                                  'Tipo: ${sheet['tipo'] ?? ''}   •   Caja: ${sheet['caja'] ?? ''}',
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      color: Colors.black54),
+                                                ),
+                                              ],
+                                            ),
+                                            trailing: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.print,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  tooltip: 'Imprimir hoja',
+                                                  onPressed: () async {
+                                                    try {
+                                                      await _printSheet(
+                                                          context, sheet);
+                                                    } catch (e) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(SnackBar(
+                                                              content: Text(
+                                                                  'Error al imprimir: $e')));
+                                                    }
+                                                  },
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(
+                                                      Icons.picture_as_pdf,
+                                                      color: Color(0xFF2D6A4F)),
+                                                  tooltip: 'Imprimir carátula',
+                                                  onPressed: () async {
+                                                    try {
+                                                      await _printCaratulaFromSheet(
+                                                          context, sheet);
+                                                    } catch (e) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(SnackBar(
+                                                              content: Text(
+                                                                  'Error al imprimir carátula: $e')));
+                                                    }
+                                                  },
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(
+                                                      Icons.visibility,
+                                                      color: Colors.blueGrey),
+                                                  tooltip: 'Ver detalle',
+                                                  onPressed: () =>
+                                                      _showSheetDetail(
+                                                          context, sheet),
+                                                ),
+                                                if (HojaDeRutaExtraPage.isAdmin)
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.delete,
+                                                        color: Colors.red),
+                                                    tooltip: 'Eliminar',
+                                                    onPressed: () async {
+                                                      final confirm =
+                                                          await showDialog<
+                                                              bool>(
+                                                        context: context,
+                                                        builder: (ctx) =>
+                                                            AlertDialog(
+                                                          title: const Text(
+                                                              'Eliminar hoja de ruta'),
+                                                          content: const Text(
+                                                              '¿Estás seguro de eliminar esta hoja de ruta? Esta acción no se puede deshacer.'),
+                                                          actions: [
+                                                            TextButton(
+                                                                onPressed: () =>
+                                                                    Navigator.of(
+                                                                            ctx)
+                                                                        .pop(
+                                                                            false),
+                                                                child: const Text(
+                                                                    'Cancelar')),
+                                                            ElevatedButton(
+                                                              style: ElevatedButton
+                                                                  .styleFrom(
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .red),
+                                                              onPressed: () =>
+                                                                  Navigator.of(
+                                                                          ctx)
+                                                                      .pop(
+                                                                          true),
+                                                              child: const Text(
+                                                                  'Eliminar'),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                      if (confirm != true)
+                                                        return;
+                                                      await FirebaseFirestore
+                                                          .instance
+                                                          .collection(
+                                                              'hoja_ruta')
+                                                          .doc(sheet[
+                                                              'numeroControl'])
+                                                          .delete();
+                                                    },
+                                                  ),
+                                              ],
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(14)),
+                                            onTap: () => _showSheetDetail(
+                                                context, sheet),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             );

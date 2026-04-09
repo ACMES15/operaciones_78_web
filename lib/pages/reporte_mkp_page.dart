@@ -400,30 +400,48 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                         if (fechaStr.isNotEmpty) {
                                           DateTime? fecha;
                                           try {
-                                            String? soloFecha;
-                                            // Buscar patrón flexible: dd[sep]MM[sep]yyyy, d[sep]M[sep]yy, etc.
-                                            final regex = RegExp(
-                                                r'(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})');
-                                            final match =
-                                                regex.firstMatch(fechaStr);
-                                            if (match != null) {
-                                              final d =
-                                                  int.tryParse(match.group(1)!);
-                                              final m =
-                                                  int.tryParse(match.group(2)!);
-                                              var y =
-                                                  int.tryParse(match.group(3)!);
-                                              if (d != null &&
+                                            // Detectar formato ISO 8601: yyyy-MM-ddTHH:mm:ss.sss
+                                            final isoMatch = RegExp(
+                                                    r'^(\d{4})-(\d{2})-(\d{2})[T ]')
+                                                .firstMatch(fechaStr);
+                                            if (isoMatch != null) {
+                                              // Extraer solo la parte de la fecha
+                                              final y = int.tryParse(
+                                                  isoMatch.group(1)!);
+                                              final m = int.tryParse(
+                                                  isoMatch.group(2)!);
+                                              final d = int.tryParse(
+                                                  isoMatch.group(3)!);
+                                              if (y != null &&
                                                   m != null &&
-                                                  y != null) {
-                                                // Si el año es de 2 dígitos, asumir 2000+
-                                                if (y < 100) y += 2000;
+                                                  d != null) {
                                                 fecha = DateTime(y, m, d);
                                               }
                                             } else {
-                                              // Intentar parseo directo
-                                              fecha =
-                                                  DateTime.tryParse(fechaStr);
+                                              // Buscar patrón flexible: dd[sep]MM[sep]yyyy, d[sep]M[sep]yy, etc.
+                                              final regex = RegExp(
+                                                  r'(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})');
+                                              final match =
+                                                  regex.firstMatch(fechaStr);
+                                              if (match != null) {
+                                                final d = int.tryParse(
+                                                    match.group(1)!);
+                                                final m = int.tryParse(
+                                                    match.group(2)!);
+                                                var y = int.tryParse(
+                                                    match.group(3)!);
+                                                if (d != null &&
+                                                    m != null &&
+                                                    y != null) {
+                                                  // Si el año es de 2 dígitos, asumir 2000+
+                                                  if (y < 100) y += 2000;
+                                                  fecha = DateTime(y, m, d);
+                                                }
+                                              } else {
+                                                // Intentar parseo directo
+                                                fecha =
+                                                    DateTime.tryParse(fechaStr);
+                                              }
                                             }
                                             if (fecha != null) {
                                               dias = DateTime.now()

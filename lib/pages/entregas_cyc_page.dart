@@ -481,6 +481,7 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                             _mobileField('NUMERO DE PEDIDO',
                                                 entrega['NUMERO DE PEDIDO']),
                                             _mobileField('SKU', entrega['SKU']),
+                                            _mobileField('LP', entrega['LP']),
                                             _mobileField('CANTIDAD',
                                                 entrega['CANTIDAD']),
                                             _mobileField(
@@ -499,6 +500,7 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                                     entrega[
                                                         'NUMERO DE PEDIDO']),
                                             _infoChip('SKU', entrega['SKU']),
+                                            _infoChip('LP', entrega['LP']),
                                             _infoChip(
                                                 'CANT', entrega['CANTIDAD']),
                                             _infoChip(

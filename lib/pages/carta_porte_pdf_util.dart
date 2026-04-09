@@ -21,71 +21,122 @@ Future<pw.Document> buildCartaPortePdf(Map<String, dynamic> carta,
                   pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
         ),
         pw.SizedBox(height: 16),
-        pw.Table(
-          border: pw.TableBorder.all(),
-          columnWidths: {
-            0: const pw.FlexColumnWidth(2),
-            1: const pw.FlexColumnWidth(4),
-          },
-          children: [
-            pw.TableRow(children: [
-              pw.Text('Número de control:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['numero_control']?.toString() ?? '-')
-            ]),
-            pw.TableRow(children: [
-              pw.Text('Fecha:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['fecha']?.toString() ?? '-')
-            ]),
-            pw.TableRow(children: [
-              pw.Text('Destino:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['destino']?.toString() ?? '-')
-            ]),
-            pw.TableRow(children: [
-              pw.Text('Chofer:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['chofer']?.toString() ?? '-')
-            ]),
-            pw.TableRow(children: [
-              pw.Text('RFC:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['rfc']?.toString() ?? '-')
-            ]),
-            pw.TableRow(children: [
-              pw.Text('Unidad:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(carta['unidad']?.toString() ?? '-')
-            ]),
-          ],
+        pw.Container(
+          alignment: pw.Alignment.center,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+          child: pw.Table(
+            border: pw.TableBorder.symmetric(
+              inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+              outside: pw.BorderSide.none,
+            ),
+            columnWidths: {
+              0: const pw.FlexColumnWidth(2),
+              1: const pw.FlexColumnWidth(4),
+            },
+            children: [
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('Número de control:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['numero_control']?.toString() ?? '-'),
+                ),
+              ]),
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('Fecha:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['fecha']?.toString() ?? '-'),
+                ),
+              ]),
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('Destino:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['destino']?.toString() ?? '-'),
+                ),
+              ]),
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('Chofer:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['chofer']?.toString() ?? '-'),
+                ),
+              ]),
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('RFC:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['rfc']?.toString() ?? '-'),
+                ),
+              ]),
+              pw.TableRow(children: [
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text('Unidad:',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.Padding(
+                  padding: const pw.EdgeInsets.all(6),
+                  child: pw.Text(carta['unidad']?.toString() ?? '-'),
+                ),
+              ]),
+            ],
+          ),
         ),
         pw.SizedBox(height: 20),
         if (columnas.isNotEmpty)
-          pw.Table(
-            border: pw.TableBorder.all(),
-            children: [
-              pw.TableRow(
-                decoration:
-                    const pw.BoxDecoration(color: PdfColor.fromInt(0xFFE8F5E9)),
-                children: columnas
-                    .map((col) => pw.Padding(
-                          padding: const pw.EdgeInsets.all(4),
-                          child: pw.Text(col,
-                              style:
-                                  pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                        ))
-                    .toList(),
+          pw.Container(
+            alignment: pw.Alignment.center,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: pw.Table(
+              border: pw.TableBorder.symmetric(
+                inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                outside: pw.BorderSide.none,
               ),
-              ...filas.map((fila) => pw.TableRow(
-                    children: columnas
-                        .map((col) => pw.Padding(
-                              padding: const pw.EdgeInsets.all(4),
-                              child: pw.Text(fila[col]?.toString() ?? ''),
-                            ))
-                        .toList(),
-                  )),
-            ],
+              defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(
+                      color: PdfColor.fromInt(0xFFE8F5E9)),
+                  children: columnas
+                      .map((col) => pw.Padding(
+                            padding: const pw.EdgeInsets.all(6),
+                            child: pw.Text(col,
+                                style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold)),
+                          ))
+                      .toList(),
+                ),
+                ...filas.map((fila) => pw.TableRow(
+                      children: columnas
+                          .map((col) => pw.Padding(
+                                padding: const pw.EdgeInsets.all(6),
+                                child: pw.Text(fila[col]?.toString() ?? ''),
+                              ))
+                          .toList(),
+                    )),
+              ],
+            ),
           ),
         pw.SizedBox(height: 32),
         pw.Row(

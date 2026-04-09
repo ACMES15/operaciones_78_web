@@ -476,6 +476,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                       DataColumn(label: Text('Devolución')),
                                       DataColumn(label: Text('Guía')),
                                       DataColumn(label: Text('Fecha')),
+                                      DataColumn(label: Text('')),
                                     ],
                                     rows: List.generate(
                                       (registros.length > 8
@@ -489,7 +490,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                           return DataRow(cells: [
                                             DataCell(
                                               bloqueado
-                                                  ? Text(
+                                                  ? SelectableText(
                                                       reg['devolucion'] ?? '',
                                                       style: const TextStyle(
                                                           fontSize: 15))
@@ -546,14 +547,14 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                             ),
                                             DataCell(
                                               bloqueado
-                                                  ? Text(reg['guia'] ?? '',
+                                                  ? SelectableText(
+                                                      reg['guia'] ?? '',
                                                       style: const TextStyle(
                                                           fontSize: 15))
                                                   : Builder(
                                                       builder: (context) {
                                                         final key =
                                                             _rowKey(reg);
-                                                        // Inicializar controlador y focus node si no existen
                                                         if (!_guiaControllers
                                                             .containsKey(key)) {
                                                           _guiaControllers[
@@ -596,11 +597,10 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                               (hasFocus) {
                                                             if (!hasFocus) {
                                                               _actualizarCampoPorClave(
-                                                                registros,
-                                                                reg,
-                                                                'guia',
-                                                                ctrl.text,
-                                                              );
+                                                                  registros,
+                                                                  reg,
+                                                                  'guia',
+                                                                  ctrl.text);
                                                             }
                                                           },
                                                         );
@@ -622,10 +622,58 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                     color: Color(0xFF2D6A4F)),
                                               ),
                                             ),
+                                            DataCell(
+                                              bloqueado
+                                                  ? IconButton(
+                                                      icon: const Icon(
+                                                          Icons.add,
+                                                          color: Colors.green),
+                                                      tooltip:
+                                                          'Agregar movimiento',
+                                                      onPressed: () async {
+                                                        // Insertar nueva fila debajo con mismo número de devolución (bloqueado), fecha actual, guía vacía
+                                                        final nuevaLista = List<
+                                                                Map<String,
+                                                                    dynamic>>.from(
+                                                            registros);
+                                                        // Buscar el índice real en la lista original
+                                                        final idxReal = nuevaLista
+                                                            .indexWhere((r) =>
+                                                                (r['devolucion'] ??
+                                                                        '') ==
+                                                                    (reg['devolucion'] ??
+                                                                        '') &&
+                                                                (r['fecha'] ??
+                                                                        '') ==
+                                                                    (reg['fecha'] ??
+                                                                        ''));
+                                                        if (idxReal != -1) {
+                                                          final nuevaFila = {
+                                                            'devolucion': reg[
+                                                                'devolucion'],
+                                                            'guia': '',
+                                                            'fecha': DateTime
+                                                                    .now()
+                                                                .toIso8601String(),
+                                                            'bloqueado': false,
+                                                          };
+                                                          nuevaLista.insert(
+                                                              idxReal + 1,
+                                                              nuevaFila);
+                                                          await guardarDatosFirestoreYCache(
+                                                              'guias', 'mkp', {
+                                                            'items': nuevaLista
+                                                          });
+                                                        }
+                                                      },
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
                                           ]);
                                         } else {
                                           // Fila vacía para mantener el tamaño
                                           return const DataRow(cells: [
+                                            DataCell(Text('')),
                                             DataCell(Text('')),
                                             DataCell(Text('')),
                                             DataCell(Text('')),

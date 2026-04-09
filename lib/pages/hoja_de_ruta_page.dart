@@ -893,91 +893,110 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                     backgroundColor: const Color(0xFF0B6623),
                                     foregroundColor: Colors.white),
                                 onPressed: () async {
-                                  // 1. Guardar datos en variable local
-                                  final rowsAsMap = _controllers
-                                      .map((r) => {
-                                            for (int i = 0;
-                                                i < _columns.length;
-                                                i++)
-                                              _columns[i]: r[i].text.trim(),
-                                          })
-                                      .where((m) =>
-                                          m.values.any((v) => v.isNotEmpty))
-                                      .toList();
-                                  final homeState =
-                                      context.findAncestorWidgetOfExactType<
-                                          HomePage>();
-                                  final usuario = homeState?.usuario ?? '';
-                                  final sheet = <String, dynamic>{
-                                    'origen': _origen,
-                                    'fecha': _fechaEnvio,
-                                    'numeroControl': _numeroControlActual ?? '',
-                                    'tipo': _opcionSeleccionada != null
-                                        ? _opciones[_opcionSeleccionada!]
-                                        : '',
-                                    'caja': _cajaController.text.trim(),
-                                    'headers': _columns,
-                                    'rows': rowsAsMap,
-                                    'createdAt':
-                                        DateTime.now().toIso8601String(),
-                                    'usuario': usuario,
-                                  };
-                                  // 2. Validar y guardar en Firestore
-                                  final vr = validateSheet(sheet);
-                                  if (!vr.ok) {
+                                  showDialog(
+                                    context: context,
+                                    barrierDismissible: false,
+                                    builder: (_) => const Center(
+                                        child: CircularProgressIndicator()),
+                                  );
+                                  try {
+                                    // 1. Guardar datos en variable local
+                                    final rowsAsMap = _controllers
+                                        .map((r) => {
+                                              for (int i = 0;
+                                                  i < _columns.length;
+                                                  i++)
+                                                _columns[i]: r[i].text.trim(),
+                                            })
+                                        .where((m) =>
+                                            m.values.any((v) => v.isNotEmpty))
+                                        .toList();
+                                    final homeState =
+                                        context.findAncestorWidgetOfExactType<
+                                            HomePage>();
+                                    final usuario = homeState?.usuario ?? '';
+                                    final sheet = <String, dynamic>{
+                                      'origen': _origen,
+                                      'fecha': _fechaEnvio,
+                                      'numeroControl':
+                                          _numeroControlActual ?? '',
+                                      'tipo': _opcionSeleccionada != null
+                                          ? _opciones[_opcionSeleccionada!]
+                                          : '',
+                                      'caja': _cajaController.text.trim(),
+                                      'headers': _columns,
+                                      'rows': rowsAsMap,
+                                      'createdAt':
+                                          DateTime.now().toIso8601String(),
+                                      'usuario': usuario,
+                                    };
+                                    // 2. Validar y guardar en Firestore
+                                    final vr = validateSheet(sheet);
+                                    if (!vr.ok) {
+                                      Navigator.of(context).pop();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                              content: Text(
+                                                  'Error al guardar: \\${vr.errors.join('; ')}')));
+                                      return;
+                                    }
+                                    HojaDeRutaExtraPage.sentHojaRutas
+                                        .add(sheet);
+                                    await guardarDatosFirestoreYCache(
+                                        'hoja_ruta', 'sentHojaRutas', {
+                                      'items': HojaDeRutaExtraPage.sentHojaRutas
+                                    });
+                                    String docId = (sheet['numeroControl'] ??
+                                            DateTime.now()
+                                                .millisecondsSinceEpoch
+                                                .toString())
+                                        .toString();
+                                    final Map<String, dynamic>
+                                        serializableSheet = {};
+                                    sheet.forEach((key, value) {
+                                      if (value is DateTime) {
+                                        serializableSheet[key] =
+                                            value.toIso8601String();
+                                      } else if (value is List) {
+                                        serializableSheet[key] = value
+                                            .map((e) => e is Map
+                                                ? Map<String, dynamic>.from(e)
+                                                : e.toString())
+                                            .toList();
+                                      } else if (value is Map) {
+                                        serializableSheet[key] =
+                                            Map<String, dynamic>.from(value);
+                                      } else {
+                                        serializableSheet[key] =
+                                            value?.toString() ?? '';
+                                      }
+                                    });
+                                    await FirebaseFirestore.instance
+                                        .collection('hoja_ruta')
+                                        .doc(docId)
+                                        .set(serializableSheet);
+                                    Navigator.of(context)
+                                        .pop(); // Cerrar dialogo de guardando
+                                    // 3. Imprimir usando la variable local
+                                    await _printHojaRuta(sheet: sheet);
+                                    // 4. Limpiar campos después de imprimir
+                                    setState(() {
+                                      _cajaController.clear();
+                                      _opcionSeleccionada = null;
+                                      _numeroControlActual = null;
+                                      for (var row in _controllers) {
+                                        for (var c in row) {
+                                          c.clear();
+                                        }
+                                      }
+                                    });
+                                  } catch (e) {
+                                    Navigator.of(context).pop();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
-                                            content: Text(
-                                                'Error al guardar: \\${vr.errors.join('; ')}')));
-                                    return;
+                                            content:
+                                                Text('Error al guardar: $e')));
                                   }
-                                  HojaDeRutaExtraPage.sentHojaRutas.add(sheet);
-                                  await guardarDatosFirestoreYCache(
-                                      'hoja_ruta', 'sentHojaRutas', {
-                                    'items': HojaDeRutaExtraPage.sentHojaRutas
-                                  });
-                                  String docId = (sheet['numeroControl'] ??
-                                          DateTime.now()
-                                              .millisecondsSinceEpoch
-                                              .toString())
-                                      .toString();
-                                  final Map<String, dynamic> serializableSheet =
-                                      {};
-                                  sheet.forEach((key, value) {
-                                    if (value is DateTime) {
-                                      serializableSheet[key] =
-                                          value.toIso8601String();
-                                    } else if (value is List) {
-                                      serializableSheet[key] = value
-                                          .map((e) => e is Map
-                                              ? Map<String, dynamic>.from(e)
-                                              : e.toString())
-                                          .toList();
-                                    } else if (value is Map) {
-                                      serializableSheet[key] =
-                                          Map<String, dynamic>.from(value);
-                                    } else {
-                                      serializableSheet[key] =
-                                          value?.toString() ?? '';
-                                    }
-                                  });
-                                  await FirebaseFirestore.instance
-                                      .collection('hoja_ruta')
-                                      .doc(docId)
-                                      .set(serializableSheet);
-                                  // 3. Imprimir usando la variable local
-                                  await _printHojaRuta(sheet: sheet);
-                                  // 4. Limpiar campos después de imprimir
-                                  setState(() {
-                                    _cajaController.clear();
-                                    _opcionSeleccionada = null;
-                                    _numeroControlActual = null;
-                                    for (var row in _controllers) {
-                                      for (var c in row) {
-                                        c.clear();
-                                      }
-                                    }
-                                  });
                                 }),
                             const SizedBox(width: 12),
                             ElevatedButton.icon(

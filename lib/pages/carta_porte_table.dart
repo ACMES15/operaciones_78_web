@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
 // import 'dart:convert';
@@ -16,6 +17,19 @@ class CartaPorteTable extends StatefulWidget {
 }
 
 class _CartaPorteTableState extends State<CartaPorteTable> {
+  void _copiarColumnaConcentrado() {
+    final idx = _columns.indexWhere(
+        (c) => c.toUpperCase().replaceAll('.', '').trim() == 'CONCENTRADO');
+    if (idx == -1) return;
+    final valores = _controllers
+        .map((row) => row[idx].text)
+        .where((v) => v.trim().isNotEmpty)
+        .join('\n');
+    Clipboard.setData(ClipboardData(text: valores));
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Columna CONCENTRADO copiada')));
+  }
+
   Future<void> _imprimirHojaEspecial(String destino, String titulo) async {
     final columns = _columns;
     final table = <List<String>>[];
@@ -56,6 +70,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       unidad: _unidadController.text,
       destino: '$titulo',
       rfc: _rfcController.text,
+      licencia: _licenciaSeleccionada,
       fecha: _fechaActual,
       columns: columns,
       table: table,
@@ -66,6 +81,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   // Campos ejecutivos principales
   // final _formKey = GlobalKey<FormState>();
   final TextEditingController _rfcController = TextEditingController();
+  String _licenciaSeleccionada = '';
   final TextEditingController _choferController = TextEditingController();
   final TextEditingController _unidadController = TextEditingController();
   final TextEditingController _destinoController = TextEditingController();
@@ -106,27 +122,34 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     try {
       print('Iniciando autocompletarFilaPorEscaneo para fila $rowIdx');
       final escaneo = _controllers[rowIdx][0].text.trim();
+      final escaneoLower = escaneo.toLowerCase();
       print('Valor de escaneo: "$escaneo"');
       if (escaneo.isEmpty) return;
 
       // Buscar en hoja_ruta (todas las coincidencias)
       final hojaRutaSnap = await FirebaseFirestore.instance
           .collection('hoja_ruta')
-          .where('caja', isEqualTo: escaneo)
           .orderBy('fecha', descending: true)
           .get();
-      final hojaRutaDocs = hojaRutaSnap.docs;
+      final hojaRutaDocs = hojaRutaSnap.docs
+          .where((doc) =>
+              (doc.data()['caja'] ?? '').toString().trim().toLowerCase() ==
+              escaneoLower)
+          .toList();
 
       // Buscar en hoja_de_xd_historial (todas las coincidencias)
       final xdSnap = await FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
-          .where('CONTENEDOR O TARIMA', isEqualTo: escaneo)
           .orderBy('fecha', descending: true)
           .get();
       List<HojaDeXDHistorial> xd = xdSnap.docs
           .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-          .where(
-              (h) => (h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo)
+          .where((h) =>
+              (h.datos['CONTENEDOR O TARIMA'] ?? '')
+                  .toString()
+                  .trim()
+                  .toLowerCase() ==
+              escaneoLower)
           .toList();
 
       // Si no hay resultados directos, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs de hoja_de_xd_historial
@@ -137,9 +160,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
             .get();
         xd = allDocs.docs
             .map((doc) => HojaDeXDHistorial.fromJson(doc.data()))
-            .where((h) =>
-                ((h.datos['CONTENEDOR O TARIMA'] ?? '').trim() == escaneo ||
-                    (h.datos['TARIMA'] ?? '').trim() == escaneo))
+            .where((h) => ((h.datos['CONTENEDOR O TARIMA'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase() ==
+                    escaneoLower ||
+                (h.datos['TARIMA'] ?? '').toString().trim().toLowerCase() ==
+                    escaneoLower))
             .toList();
       }
 
@@ -305,14 +332,17 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
 
   void _actualizarRFC() {
     if (_choferesSeleccionados.isNotEmpty) {
-      final rfcList = _choferes
-          .where((c) => _choferesSeleccionados.contains(c['nombre']))
-          .map((c) => c['rfc'])
-          .toList();
-      _rfcController.text = rfcList.join(', ');
+      final chofer = _choferes.firstWhere(
+        (c) => _choferesSeleccionados.contains(c['nombre']),
+        orElse: () => {'rfc': '', 'licencia': ''},
+      );
+      _rfcController.text = chofer['rfc'] ?? '';
+      _licenciaSeleccionada = chofer['licencia'] ?? '';
     } else {
       _rfcController.text = '';
+      _licenciaSeleccionada = '';
     }
+    setState(() {});
   }
 
   Future<void> _guardarCartaPorte() async {
@@ -468,6 +498,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       unidad: _unidadController.text,
       destino: _destinoController.text,
       rfc: _rfcController.text,
+      licencia: _licenciaSeleccionada,
       fecha: _fechaActual,
       columns: columns,
       table: table,
@@ -495,6 +526,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                 'nombre': doc['nombre'],
                 'rfc': doc['rfc'],
                 'telefono': doc['telefono'],
+                'licencia': doc['licencia'] ?? '',
               })
           .toList();
     });
@@ -504,6 +536,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     TextEditingController nombreController = TextEditingController();
     TextEditingController rfcController = TextEditingController();
     TextEditingController telController = TextEditingController();
+    TextEditingController licenciaController = TextEditingController();
     int? editIndex;
     await showDialog(
       context: context,
@@ -512,7 +545,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           builder: (context, setStateDialog) {
             bool camposLlenos = nombreController.text.trim().isNotEmpty &&
                 rfcController.text.trim().isNotEmpty &&
-                telController.text.trim().isNotEmpty;
+                telController.text.trim().isNotEmpty &&
+                licenciaController.text.trim().isNotEmpty;
             return AlertDialog(
               title: const Text('Gestionar Choferes'),
               content: SizedBox(
@@ -530,7 +564,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           ListTile(
                             title: Text(choferes[i]['nombre'] ?? ''),
                             subtitle: Text(
-                                '${choferes[i]['rfc'] ?? ''} | ${choferes[i]['telefono'] ?? ''}'),
+                                '${choferes[i]['rfc'] ?? ''} | ${choferes[i]['telefono'] ?? ''} | Licencia: ${choferes[i]['licencia'] ?? ''}'),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -544,6 +578,8 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                         choferes[i]['rfc'] ?? '';
                                     telController.text =
                                         choferes[i]['telefono'] ?? '';
+                                    licenciaController.text =
+                                        choferes[i]['licencia'] ?? '';
                                     editIndex = i;
                                     setStateDialog(() {});
                                   },
@@ -580,6 +616,12 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           keyboardType: TextInputType.phone,
                           onChanged: (_) => setStateDialog(() {}),
                         ),
+                        TextField(
+                          controller: licenciaController,
+                          decoration:
+                              const InputDecoration(labelText: 'Licencia'),
+                          onChanged: (_) => setStateDialog(() {}),
+                        ),
                       ],
                     );
                   },
@@ -596,6 +638,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                           final nombre = nombreController.text.trim();
                           final rfc = rfcController.text.trim();
                           final tel = telController.text.trim();
+                          final licencia = licenciaController.text.trim();
                           if (editIndex != null) {
                             // Editar chofer
                             final snapshot = await FirebaseFirestore.instance
@@ -609,6 +652,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                               'nombre': nombre,
                               'rfc': rfc,
                               'telefono': tel,
+                              'licencia': licencia,
                             });
                           } else {
                             // Agregar nuevo chofer
@@ -618,11 +662,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                               'nombre': nombre,
                               'rfc': rfc,
                               'telefono': tel,
+                              'licencia': licencia,
                             });
                           }
                           nombreController.clear();
                           rfcController.clear();
                           telController.clear();
+                          licenciaController.clear();
                           editIndex = null;
                           setStateDialog(() {});
                           _cargarChoferes();
@@ -806,19 +852,43 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   ),
                   SizedBox(
                     width: isMobile ? double.infinity : 150,
-                    child: TextFormField(
-                      controller: _rfcController,
-                      readOnly: true,
-                      style: const TextStyle(
-                          color: Color(0xFF2D6A4F),
-                          fontWeight: FontWeight.bold),
-                      decoration: const InputDecoration(
-                        labelText: 'RFC',
-                        isDense: true,
-                        border: OutlineInputBorder(),
-                        fillColor: Colors.white,
-                        filled: true,
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rfcController,
+                            readOnly: true,
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                            decoration: const InputDecoration(
+                              labelText: 'RFC',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            controller: TextEditingController(
+                                text: _licenciaSeleccionada),
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                            decoration: const InputDecoration(
+                              labelText: 'Licencia',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   Text(_fechaActual,
@@ -854,6 +924,25 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                       width: colWidths.reduce((a, b) => a + b) + 40,
                       child: Column(
                         children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: _copiarColumnaConcentrado,
+                                icon: const Icon(Icons.copy),
+                                label: const Text('Copiar columna CONCENTRADO'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Color(0xFF2D6A4F),
+                                  foregroundColor: Colors.white,
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  textStyle:
+                                      TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                            ],
+                          ),
                           // Sticky header
                           Material(
                             elevation: 2,
@@ -958,34 +1047,16 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                                     '.', '')
                                                                 .trim() ==
                                                             'CONCENTRADO'
-                                                        ? TextFormField(
-                                                            controller:
-                                                                _controllers[
-                                                                        rowIdx]
-                                                                    [colIdx],
-                                                            readOnly: true,
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                            decoration:
-                                                                const InputDecoration(
-                                                              isDense: true,
-                                                              contentPadding:
-                                                                  EdgeInsets.symmetric(
-                                                                      vertical:
-                                                                          8,
-                                                                      horizontal:
-                                                                          4),
-                                                              fillColor:
-                                                                  Colors.white,
-                                                              filled: true,
-                                                              border:
-                                                                  InputBorder
-                                                                      .none,
-                                                            ),
+                                                        ? SelectableText(
+                                                            _controllers[rowIdx]
+                                                                    [colIdx]
+                                                                .text,
                                                             style: const TextStyle(
                                                                 fontSize: 15,
                                                                 color: Color(
                                                                     0xFF2D6A4F)),
+                                                            textAlign: TextAlign
+                                                                .center,
                                                           )
                                                         : TextFormField(
                                                             controller: _controllers

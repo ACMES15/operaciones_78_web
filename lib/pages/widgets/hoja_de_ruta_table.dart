@@ -15,59 +15,53 @@ class HojaDeRutaTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Usar Flex para distribuir columnas proporcionalmente
     return Card(
       elevation: 1,
       margin: const EdgeInsets.all(0),
-      child: DataTable(
-        columnSpacing: 2,
-        dataRowMinHeight: 28,
-        dataRowMaxHeight: 32,
-        headingRowHeight: 34,
-        columns: List.generate(columns.length, (colIdx) {
-          return DataColumn(
-            label: Container(
-              alignment: Alignment.center,
-              width: colWidth,
-              decoration: BoxDecoration(
-                border: colIdx < columns.length - 1
-                    ? const Border(
-                        right: BorderSide(color: Color(0xFFE0E0E0), width: 1))
-                    : null,
-              ),
-              child: Text(columns[colIdx],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 32, // Espaciado amplio
+          dataRowMinHeight: 32,
+          dataRowMaxHeight: 38,
+          headingRowHeight: 38,
+          columns: List.generate(columns.length, (colIdx) {
+            return DataColumn(
+              label: Container(
+                alignment: Alignment.center,
+                constraints: const BoxConstraints(minWidth: 120),
+                child: Text(
+                  columns[colIdx],
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 12)),
-            ),
-          );
-        }),
-        rows: List.generate(controllers.length, (rowIdx) {
-          final rowCtrls = controllers[rowIdx];
-          return DataRow(
-            cells: List.generate(columns.length, (colIdx) {
-              return DataCell(Container(
-                alignment: Alignment.center,
-                width: colWidth,
-                decoration: BoxDecoration(
-                  border: colIdx < columns.length - 1
-                      ? const Border(
-                          right: BorderSide(color: Color(0xFFE0E0E0), width: 1))
-                      : null,
+                      fontWeight: FontWeight.bold, fontSize: 14),
                 ),
-                child: TextField(
-                  controller: rowCtrls[colIdx],
-                  textAlign: TextAlign.center,
-                  decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 6, horizontal: 4)),
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ));
-            }),
-          );
-        }),
+              ),
+            );
+          }),
+          rows: List.generate(controllers.length, (rowIdx) {
+            final rowCtrls = controllers[rowIdx];
+            return DataRow(
+              cells: List.generate(columns.length, (colIdx) {
+                return DataCell(Container(
+                  alignment: Alignment.center,
+                  constraints: const BoxConstraints(minWidth: 120),
+                  child: TextField(
+                    controller: rowCtrls[colIdx],
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 8, horizontal: 8)),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ));
+              }),
+            );
+          }),
+        ),
       ),
     );
   }
