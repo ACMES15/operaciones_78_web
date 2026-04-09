@@ -208,6 +208,21 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
               decoration: const InputDecoration(labelText: 'Destino'),
             ),
             TextField(
+              controller: rfcController,
+              decoration: const InputDecoration(labelText: 'RFC'),
+              readOnly: false,
+            ),
+            TextField(
+              controller: licenciaController,
+              decoration: const InputDecoration(labelText: 'Licencia'),
+              readOnly: false,
+            ),
+            TextField(
+              controller: unidadController,
+              decoration: const InputDecoration(labelText: 'Unidad'),
+              readOnly: false,
+            ),
+            TextField(
               controller: fechaController,
               decoration: const InputDecoration(labelText: 'Fecha'),
               enabled: false,

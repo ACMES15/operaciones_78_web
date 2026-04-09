@@ -194,22 +194,24 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                     : '';
                 return TextEditingController(text: val);
               });
+              // Listener para recalcular JEFATURA al editar SECCION
+              final seccionIdx = _headers.indexOf('SECCION');
+              final jefaturaIdx = _headers.indexOf('JEFATURA');
+              if (seccionIdx != -1 && jefaturaIdx != -1) {
+                ctrls[seccionIdx].addListener(() {
+                  final clave = _normalizeSeccion(ctrls[seccionIdx].text);
+                  final nuevaJefatura = _seccionToJefatura[clave] ?? '';
+                  ctrls[jefaturaIdx].text = nuevaJefatura;
+                  setState(() {});
+                });
+              }
               _controllers.add(ctrls);
             }
             // JEFATURA y ESTATUS ACTUAL se calculan igual que antes
             for (final ctrls in _controllers) {
-              final seccionIdx = _headers.indexOf('SECCION');
-              final jefaturaIdx = _headers.indexOf('JEFATURA');
               final remisionIdx = _headers.indexOf('REmision');
               final articuloIdx = _headers.indexOf('ARTICULO');
               final estatusIdx = _headers.indexOf('ESTATUS ACTUAL');
-              // JEFATURA
-              if (seccionIdx != -1 && jefaturaIdx != -1) {
-                final seccion = ctrls[seccionIdx].text;
-                final clave = _normalizeSeccion(seccion);
-                final nuevaJefatura = _seccionToJefatura[clave] ?? '';
-                ctrls[jefaturaIdx].text = nuevaJefatura;
-              }
               // ESTATUS ACTUAL
               if (remisionIdx != -1 && articuloIdx != -1 && estatusIdx != -1) {
                 final remision = ctrls[remisionIdx].text;
@@ -464,6 +466,11 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                             (colIdx) {
                                           final isEditable =
                                               colIdx < _headers.length - 1;
+                                          // Si es SECCION, recalcula JEFATURA al editar
+                                          final seccionIdx =
+                                              _headers.indexOf('SECCION');
+                                          final jefaturaIdx =
+                                              _headers.indexOf('JEFATURA');
                                           // Pintar ESTATUS ACTUAL en verde si es ENTREGADO (celda completa)
                                           bool isEstatusEntregado =
                                               _headers[colIdx] ==
@@ -583,6 +590,23 @@ class _ReporteMkpPageState extends State<ReporteMkpPage> {
                                                     style: const TextStyle(
                                                       fontSize: 13,
                                                     ),
+                                                    onChanged: (colIdx ==
+                                                                seccionIdx &&
+                                                            jefaturaIdx != -1)
+                                                        ? (val) {
+                                                            final clave =
+                                                                _normalizeSeccion(
+                                                                    val);
+                                                            final nuevaJefatura =
+                                                                _seccionToJefatura[
+                                                                        clave] ??
+                                                                    '';
+                                                            rowCtrls[jefaturaIdx]
+                                                                    .text =
+                                                                nuevaJefatura;
+                                                            setState(() {});
+                                                          }
+                                                        : null,
                                                   )
                                                 : Text(
                                                     rowCtrls[colIdx].text,
