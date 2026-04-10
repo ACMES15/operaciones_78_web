@@ -490,6 +490,8 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                                 entrega['JEFATURA']),
                                             _mobileField('DESCRIPCION',
                                                 entrega['DESCRIPCION']),
+                                            _mobileField('Valido',
+                                                entrega['validadoPor'] ?? '-'),
                                           ],
                                         )
                                       : Row(
@@ -509,6 +511,8 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                                 'JEF', entrega['JEFATURA']),
                                             _infoChip(
                                                 'DESC', entrega['DESCRIPCION']),
+                                            _infoChip('Valido',
+                                                entrega['validadoPor'] ?? '-'),
                                           ],
                                         ),
                                   controlAffinity:

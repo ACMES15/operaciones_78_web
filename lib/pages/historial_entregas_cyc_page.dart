@@ -401,17 +401,41 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
   void _descargarExcel() {
     final excel = ex.Excel.createExcel();
     final sheet = excel['Historial'];
-    if (_firmadas.isNotEmpty) {
-      final allKeys = <String>{};
-      for (final row in _firmadas) {
-        allKeys.addAll(row.keys);
-      }
-      final orderedKeys = allKeys.toList();
-      sheet.appendRow(orderedKeys);
-      for (final row in _firmadas) {
-        final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
-        sheet.appendRow(rowValues);
-      }
+    // Orden de columnas igual que en entregas_cyc_page.dart
+    final orderedKeys = [
+      'NUMERO DE PEDIDO',
+      'SKU',
+      'LP',
+      'CANTIDAD',
+      'SECCION',
+      'JEFATURA',
+      'DESCRIPCION',
+      'validadoPor',
+      'fechaValidacion',
+      'recibidoPor',
+      'firma',
+      'id',
+    ];
+    sheet.appendRow([
+      'NUMERO DE PEDIDO',
+      'SKU',
+      'LP',
+      'CANTIDAD',
+      'SECCION',
+      'JEFATURA',
+      'DESCRIPCION',
+      'Valido',
+      'Fecha Validación',
+      'Recibido por',
+      'Firma',
+      'ID',
+    ]);
+    for (final row in _firmadas) {
+      final rowValues = orderedKeys.map((k) {
+        if (k == 'validadoPor') return row[k] ?? row['Valido'] ?? '';
+        return row[k] ?? '';
+      }).toList();
+      sheet.appendRow(rowValues);
     }
     final bytes = excel.encode();
     if (bytes != null) {

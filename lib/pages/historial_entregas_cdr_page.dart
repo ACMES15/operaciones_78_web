@@ -553,6 +553,18 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                                 entrega['JEFATURA']),
                                             _mobileField('Descripción',
                                                 entrega['DESCRIPCION']),
+                                            _mobileField(
+                                                'Valido',
+                                                _getCampoFlexible(entrega, [
+                                                      'validadoPor',
+                                                      'Valido',
+                                                      'validado',
+                                                      'usuarioValido',
+                                                      'usuario_valido',
+                                                      'validado_por',
+                                                      'validado por'
+                                                    ]) ??
+                                                    '-'),
                                             if (entrega['firma'] != null)
                                               Padding(
                                                 padding: const EdgeInsets.only(
@@ -671,6 +683,19 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                                         entrega['JEFATURA']),
                                                     _infoChip('DESC',
                                                         entrega['DESCRIPCION']),
+                                                    _infoChip(
+                                                        'Valido',
+                                                        _getCampoFlexible(
+                                                                entrega, [
+                                                              'validadoPor',
+                                                              'Valido',
+                                                              'validado',
+                                                              'usuarioValido',
+                                                              'usuario_valido',
+                                                              'validado_por',
+                                                              'validado por'
+                                                            ]) ??
+                                                            '-'),
                                                   ],
                                                 );
                                               },

@@ -19,80 +19,84 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printCaratulaFromSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     final origen = sheet['origen'] ?? '';
-    final destino = (sheet['rows'] != null &&
-            sheet['rows'] is List &&
-            (sheet['rows'] as List).isNotEmpty &&
-            sheet['headers'] != null)
-        ? ((sheet['rows'][0] is Map)
-            ? (sheet['rows'][0]['Nombre Alm. destino'] ?? '')
-            : (sheet['rows'][0] is List &&
-                    sheet['headers'] is List &&
-                    (sheet['headers'] as List).contains('Nombre Alm. destino')
-                ? (sheet['rows'][0][(sheet['headers'] as List)
-                        .indexOf('Nombre Alm. destino')] ??
-                    '')
-                : ''))
-        : '';
     final tipo = sheet['tipo'] ?? '';
     final numeroControl = sheet['numeroControl'] ?? '';
     final fechaEnvio = sheet['fecha'] ?? '';
     final caja = sheet['caja'] ?? '';
 
-    // Preparar datos horizontalmente
-    final headers =
-        sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
-    List<List<String>> data = [];
-    if (sheet['rows'] != null && sheet['rows'] is List && headers.isNotEmpty) {
-      final rawRows = sheet['rows'] as List;
-      for (final row in rawRows) {
-        if (row is Map) {
-          data.add(headers.map((h) => row[h]?.toString() ?? '').toList());
-        } else if (row is List) {
-          data.add(List<String>.from(row.map((e) => e.toString())));
-        }
-      }
-    }
-
     final pdf = pw.Document();
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
+        pageFormat: PdfPageFormat.letter,
         margin: pw.EdgeInsets.all(24),
         build: (context) => [
-          pw.Text('Hoja de Ruta',
-              style:
-                  pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Row(children: [
-            pw.Expanded(
-                child: pw.Text('Origen: $origen',
-                    style: pw.TextStyle(fontSize: 12))),
-            pw.SizedBox(width: 16),
-            pw.Text('N° Caja: $caja', style: pw.TextStyle(fontSize: 12)),
-          ]),
-          pw.SizedBox(height: 4),
-          pw.Row(children: [
-            pw.Expanded(
-                child: pw.Text('Fecha: $fechaEnvio',
-                    style: pw.TextStyle(fontSize: 12))),
-            pw.SizedBox(width: 16),
-            pw.Text('Tipo: $tipo', style: pw.TextStyle(fontSize: 12)),
-          ]),
-          pw.SizedBox(height: 4),
-          pw.Text('N° de control: $numeroControl',
-              style: pw.TextStyle(fontSize: 12)),
+          pw.Center(
+            child: pw.Text('CARÁTULA HOJA DE RUTA',
+                style: pw.TextStyle(
+                    fontSize: 22,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.green800)),
+          ),
+          pw.SizedBox(height: 24),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Origen:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(origen, style: pw.TextStyle(fontSize: 14)),
+            ],
+          ),
           pw.SizedBox(height: 12),
-          pw.Container(
-            width: double.infinity,
-            child: pw.Table.fromTextArray(
-              headers: headers,
-              data: data,
-              cellAlignment: pw.Alignment.center,
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              cellStyle: pw.TextStyle(fontSize: 10),
-              headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-              border: pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
-            ),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Fecha:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(fechaEnvio, style: pw.TextStyle(fontSize: 14)),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Tipo:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(tipo, style: pw.TextStyle(fontSize: 14)),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('N° Caja:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(caja, style: pw.TextStyle(fontSize: 14)),
+            ],
+          ),
+          pw.SizedBox(height: 12),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('N° de control:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Text(numeroControl, style: pw.TextStyle(fontSize: 14)),
+            ],
+          ),
+          pw.SizedBox(height: 32),
+          pw.Row(
+            children: [
+              pw.Text('Firma:',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(width: 16),
+              pw.Expanded(
+                child: pw.Container(
+                  padding:
+                      const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  decoration: pw.BoxDecoration(border: pw.Border.all()),
+                  child: pw.Text('', style: pw.TextStyle(fontSize: 16)),
+                ),
+              ),
+            ],
           ),
         ],
       ),

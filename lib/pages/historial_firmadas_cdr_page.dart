@@ -342,19 +342,44 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
   void _descargarExcel() {
     final excel = ex.Excel.createExcel();
     final sheet = excel['Historial'];
-    if (_firmadas.isNotEmpty) {
-      // Obtener todas las claves únicas de todos los registros
-      final allKeys = <String>{};
-      for (final row in _firmadas) {
-        allKeys.addAll(row.keys);
-      }
-      final orderedKeys = allKeys.toList();
-      sheet.appendRow(orderedKeys);
-      for (final row in _firmadas) {
-        // Alinear los valores según el orden de las claves
-        final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
-        sheet.appendRow(rowValues);
-      }
+    // Orden de columnas igual que en entregas_cdr_page.dart
+    final orderedKeys = [
+      'HOJA DE RUTA',
+      'TIPO DOCTO',
+      'DOCUMENTO',
+      'SKU',
+      'SECCION',
+      'DESCRIPCION',
+      'CANTIDAD',
+      'BULTOS',
+      'JEFATURA',
+      'BOX',
+      'nombreRecibe',
+      'firma',
+      'fechaFirma',
+      'usuarioEntrega',
+      'id',
+    ];
+    sheet.appendRow([
+      'HOJA DE RUTA',
+      'TIPO DOCTO',
+      'DOCUMENTO',
+      'SKU',
+      'SECCION',
+      'DESCRIPCION',
+      'CANTIDAD',
+      'BULTOS',
+      'JEFATURA',
+      'BOX',
+      'Recibió',
+      'Firma',
+      'Fecha Firma',
+      'Usuario Entrega',
+      'ID',
+    ]);
+    for (final row in _firmadas) {
+      final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
+      sheet.appendRow(rowValues);
     }
     final bytes = excel.encode();
     if (bytes != null) {

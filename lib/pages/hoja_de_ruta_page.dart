@@ -29,40 +29,78 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
       pageFormat: PdfPageFormat.letter,
       margin: pw.EdgeInsets.all(24),
       build: (context) => [
-        pw.Text('Hoja de Ruta',
-            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 8),
-        pw.Row(children: [
-          pw.Expanded(
-              child: pw.Text('Origen: $origen',
-                  style: pw.TextStyle(fontSize: 12))),
-          pw.SizedBox(width: 16),
-          pw.Text('N° Caja: $caja', style: pw.TextStyle(fontSize: 12)),
-        ]),
-        pw.SizedBox(height: 4),
-        pw.Row(children: [
-          pw.Expanded(
-              child:
-                  pw.Text('Fecha: $fecha', style: pw.TextStyle(fontSize: 12))),
-          pw.SizedBox(width: 16),
-          pw.Text('Tipo: $tipo', style: pw.TextStyle(fontSize: 12)),
-        ]),
-        pw.SizedBox(height: 4),
-        pw.Text('N° de control: $numeroControl',
-            style: pw.TextStyle(fontSize: 12)),
-        pw.SizedBox(height: 12),
-        pw.Container(
-          width: double.infinity,
-          child: pw.Table.fromTextArray(
-            headers: headers,
-            data: data,
-            cellAlignment: pw.Alignment.center,
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            cellStyle: pw.TextStyle(fontSize: 10),
-            headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
-            border: pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
-          ),
+        pw.Center(
+          child: pw.Text('Hoja de Ruta',
+              style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.green800)),
         ),
+        pw.SizedBox(height: 8),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Text('Origen: $origen   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('N° Caja: $caja   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Fecha: $fecha   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Tipo: $tipo   ',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('N° de control: $numeroControl',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+        pw.SizedBox(height: 16),
+        if (headers.isNotEmpty)
+          pw.Container(
+            width: double.infinity,
+            alignment: pw.Alignment.center,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            child: pw.Table(
+              border: pw.TableBorder.symmetric(
+                inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                outside: pw.BorderSide.none,
+              ),
+              defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+              columnWidths: {
+                for (int i = 0; i < headers.length; i++)
+                  i: const pw.FlexColumnWidth(1),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(
+                      color: PdfColor.fromInt(0xFFE8F5E9)),
+                  children: headers
+                      .map((col) => pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            child: pw.Text(
+                              col.toString().replaceAll('\n', ' '),
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold, fontSize: 10),
+                              maxLines: 1,
+                            ),
+                          ))
+                      .toList(),
+                ),
+                ...data.map((fila) => pw.TableRow(
+                      children: fila
+                          .map((cell) => pw.Padding(
+                                padding: const pw.EdgeInsets.symmetric(
+                                    horizontal: 2, vertical: 1),
+                                child: pw.Text(
+                                  cell.toString().replaceAll('\n', ' '),
+                                  style: pw.TextStyle(fontSize: 10),
+                                  maxLines: 1,
+                                ),
+                              ))
+                          .toList(),
+                    )),
+              ],
+            ),
+          ),
       ],
     ),
   );

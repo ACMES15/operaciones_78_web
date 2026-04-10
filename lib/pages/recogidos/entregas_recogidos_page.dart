@@ -530,6 +530,10 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                                 entrega['DESCRIPCION']),
                                             _mobileField('VALIDACION',
                                                 entrega['VALIDACION']),
+                                            _mobileField(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                             if (esFaltante)
                                               Container(
                                                 margin: const EdgeInsets.only(
@@ -568,6 +572,10 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                                 'SECC', entrega['SECCION']),
                                             _infoChip(
                                                 'JEF', entrega['JEFATURA']),
+                                            _infoChip(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                             if (esFaltante)
                                               Container(
                                                 margin: const EdgeInsets.only(

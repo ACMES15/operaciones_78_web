@@ -329,7 +329,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                   borderRadius: BorderRadius.circular(20)),
               margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 0),
               child: Container(
-                constraints: const BoxConstraints(maxWidth: 1100),
+                constraints: const BoxConstraints(maxWidth: 1500), // Más ancho
                 padding: const EdgeInsets.all(36),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6F7FB),
@@ -438,8 +438,8 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                     const SizedBox(height: 24),
                     Center(
                       child: Container(
-                        width: 700,
-                        height: 400,
+                        width: 1100, // Más ancho
+                        height: 500, // Más alto
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
@@ -453,7 +453,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                           child: SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: SizedBox(
-                              width: 650,
+                              width: 1000, // Más ancho para las columnas
                               child: ListView(
                                 padding: EdgeInsets.zero,
                                 children: [
@@ -473,10 +473,20 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                       return Colors.white;
                                     }),
                                     columns: const [
-                                      DataColumn(label: Text('Devolución')),
-                                      DataColumn(label: Text('Guía')),
-                                      DataColumn(label: Text('Fecha')),
-                                      DataColumn(label: Text('')),
+                                      DataColumn(
+                                          label: SizedBox(
+                                              width: 200,
+                                              child: Text('Devolución'))),
+                                      DataColumn(
+                                          label: SizedBox(
+                                              width: 200, child: Text('Guía'))),
+                                      DataColumn(
+                                          label: SizedBox(
+                                              width: 180,
+                                              child: Text('Fecha'))),
+                                      DataColumn(
+                                          label: SizedBox(
+                                              width: 80, child: Text(''))),
                                     ],
                                     rows: List.generate(
                                       (registros.length > 8

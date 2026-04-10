@@ -533,6 +533,10 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                                 entrega['DEVOLUCION']),
                                             _mobileField('VALIDACION',
                                                 entrega['VALIDACION']),
+                                            _mobileField(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                             if (esFaltante)
                                               Container(
                                                 margin: const EdgeInsets.only(
@@ -592,6 +596,10 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                                 'SECC', entrega['SECCION']),
                                             _infoChip(
                                                 'JEF', entrega['JEFATURA']),
+                                            _infoChip(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                             if (esFaltante)
                                               Container(
                                                 margin: const EdgeInsets.only(

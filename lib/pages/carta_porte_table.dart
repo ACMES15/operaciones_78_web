@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 // import '../utils/firebase_cache_utils.dart';
 import '../utils/exportar_excel.dart';
 import 'carta_porte_printer.dart';
+import 'carta_porte_imprimir_page.dart';
 // import 'hoja_de_ruta_extra_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'dart:math' as math;
@@ -28,6 +29,57 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     Clipboard.setData(ClipboardData(text: valores));
     ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Columna CONCENTRADO copiada')));
+  }
+
+  Future<void> _imprimirHoja() async {
+    final columns = _columns;
+    final table = <List<String>>[];
+    for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
+      final row = <String>[];
+      bool tieneDato = false;
+      for (int colIdx = 0; colIdx < columns.length; colIdx++) {
+        String valor;
+        if (columns[colIdx].toUpperCase().replaceAll('.', '').trim() == 'NO') {
+          valor = (rowIdx + 1).toString();
+        } else if (_controllers[rowIdx].length > colIdx) {
+          valor = _controllers[rowIdx][colIdx].text;
+        } else {
+          valor = '';
+        }
+        if (valor.trim().isNotEmpty &&
+            columns[colIdx].toUpperCase().replaceAll('.', '').trim() != 'NO') {
+          tieneDato = true;
+        }
+        row.add(valor);
+      }
+      if (tieneDato) {
+        table.add(row);
+      }
+    }
+    if (table.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay datos para imprimir.')),
+      );
+      return;
+    }
+    final hoja = {
+      'fecha': _fechaActual,
+      'chofer':
+          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
+      'unidad': _unidadController.text,
+      'destino': _destinoController.text,
+      'rfc': _rfcController.text,
+      'licencia': _licenciaSeleccionada,
+      'numero_control': _numeroControlActual ?? '',
+      'filas': [
+        for (final fila in table) Map.fromIterables(columns, fila),
+      ],
+    };
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CartaPorteImprimirPage(carta: hoja),
+      ),
+    );
   }
 
   Future<void> _imprimirHojaEspecial(String destino, String titulo) async {
@@ -64,16 +116,23 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       );
       return;
     }
-    await descargarCartaPortePDF(
-      chofer:
+    final hoja = {
+      'fecha': _fechaActual,
+      'chofer':
           _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
-      unidad: _unidadController.text,
-      destino: '$titulo',
-      rfc: _rfcController.text,
-      licencia: _licenciaSeleccionada,
-      fecha: _fechaActual,
-      columns: columns,
-      table: table,
+      'unidad': _unidadController.text,
+      'destino': titulo,
+      'rfc': _rfcController.text,
+      'licencia': _licenciaSeleccionada,
+      'numero_control': _numeroControlActual ?? '',
+      'filas': [
+        for (final fila in table) Map.fromIterables(columns, fila),
+      ],
+    };
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CartaPorteImprimirPage(carta: hoja),
+      ),
     );
   }
 
@@ -449,15 +508,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         fileName: 'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx');
   }
 
-  Future<void> _imprimirHoja() async {
-    print('--- IMPRIMIR HOJA ---');
-    print(
-        'Chofer: ${_choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : ''}');
-    print('Unidad: ${_unidadController.text}');
-    print('Destino: ${_destinoController.text}');
-    print('RFC: ${_rfcController.text}');
-    print('Fecha: $_fechaActual');
-    print('Columns: $_columns');
+  Future<void> _imprimirHoja1() async {
     final columns = _columns;
     final table = <List<String>>[];
     for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
@@ -482,26 +533,29 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         table.add(row);
       }
     }
-    print('Tabla a imprimir:');
-    for (final fila in table) {
-      print(fila);
-    }
     if (table.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No hay datos para imprimir.')),
       );
       return;
     }
-    await descargarCartaPortePDF(
-      chofer:
+    final hoja = {
+      'fecha': _fechaActual,
+      'chofer':
           _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
-      unidad: _unidadController.text,
-      destino: _destinoController.text,
-      rfc: _rfcController.text,
-      licencia: _licenciaSeleccionada,
-      fecha: _fechaActual,
-      columns: columns,
-      table: table,
+      'unidad': _unidadController.text,
+      'destino': _destinoController.text,
+      'rfc': _rfcController.text,
+      'licencia': _licenciaSeleccionada,
+      'numero_control': _numeroControlActual ?? '',
+      'filas': [
+        for (final fila in table) Map.fromIterables(columns, fila),
+      ],
+    };
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CartaPorteImprimirPage(carta: hoja),
+      ),
     );
   }
 
@@ -551,80 +605,85 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
               title: const Text('Gestionar Choferes'),
               content: SizedBox(
                 width: 350,
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('choferes')
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    final choferes = snapshot.data?.docs ?? [];
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 0; i < choferes.length; i++)
-                          ListTile(
-                            title: Text(choferes[i]['nombre'] ?? ''),
-                            subtitle: Text(
-                                '${choferes[i]['rfc'] ?? ''} | ${choferes[i]['telefono'] ?? ''} | Licencia: ${choferes[i]['licencia'] ?? ''}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.blue),
-                                  onPressed: () {
-                                    nombreController.text =
-                                        choferes[i]['nombre'] ?? '';
-                                    rfcController.text =
-                                        choferes[i]['rfc'] ?? '';
-                                    telController.text =
-                                        choferes[i]['telefono'] ?? '';
-                                    licenciaController.text =
-                                        choferes[i]['licencia'] ?? '';
-                                    editIndex = i;
-                                    setStateDialog(() {});
-                                  },
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete,
-                                      color: Colors.red),
-                                  onPressed: () async {
-                                    await FirebaseFirestore.instance
-                                        .collection('choferes')
-                                        .doc(choferes[i].id)
-                                        .delete();
-                                  },
-                                ),
-                              ],
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Lista scrollable de choferes
+                    SizedBox(
+                      height: 250,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: FirebaseFirestore.instance
+                            .collection('choferes')
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          final choferes = snapshot.data?.docs ?? [];
+                          return ListView.separated(
+                            itemCount: choferes.length,
+                            separatorBuilder: (_, __) => const Divider(),
+                            itemBuilder: (context, i) => ListTile(
+                              title: Text(choferes[i]['nombre'] ?? ''),
+                              subtitle: Text(
+                                  '${choferes[i]['rfc'] ?? ''} | ${choferes[i]['telefono'] ?? ''} | Licencia: ${choferes[i]['licencia'] ?? ''}'),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit,
+                                        color: Colors.blue),
+                                    onPressed: () {
+                                      nombreController.text =
+                                          choferes[i]['nombre'] ?? '';
+                                      rfcController.text =
+                                          choferes[i]['rfc'] ?? '';
+                                      telController.text =
+                                          choferes[i]['telefono'] ?? '';
+                                      licenciaController.text =
+                                          choferes[i]['licencia'] ?? '';
+                                      editIndex = i;
+                                      setStateDialog(() {});
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
+                                    onPressed: () async {
+                                      await FirebaseFirestore.instance
+                                          .collection('choferes')
+                                          .doc(choferes[i].id)
+                                          .delete();
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        const Divider(),
-                        TextField(
-                          controller: nombreController,
-                          decoration:
-                              const InputDecoration(labelText: 'Nombre'),
-                          onChanged: (_) => setStateDialog(() {}),
-                        ),
-                        TextField(
-                          controller: rfcController,
-                          decoration: const InputDecoration(labelText: 'RFC'),
-                          onChanged: (_) => setStateDialog(() {}),
-                        ),
-                        TextField(
-                          controller: telController,
-                          decoration:
-                              const InputDecoration(labelText: 'Teléfono'),
-                          keyboardType: TextInputType.phone,
-                          onChanged: (_) => setStateDialog(() {}),
-                        ),
-                        TextField(
-                          controller: licenciaController,
-                          decoration:
-                              const InputDecoration(labelText: 'Licencia'),
-                          onChanged: (_) => setStateDialog(() {}),
-                        ),
-                      ],
-                    );
-                  },
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    // Formulario siempre visible
+                    TextField(
+                      controller: nombreController,
+                      decoration: const InputDecoration(labelText: 'Nombre'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: rfcController,
+                      decoration: const InputDecoration(labelText: 'RFC'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: telController,
+                      decoration: const InputDecoration(labelText: 'Teléfono'),
+                      keyboardType: TextInputType.phone,
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: licenciaController,
+                      decoration: const InputDecoration(labelText: 'Licencia'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                  ],
                 ),
               ),
               actions: [
@@ -722,7 +781,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
           ),
           IconButton(
             icon: const Icon(Icons.description),
-            tooltip: 'Hojas de ruta especial',
+            tooltip: 'Hojas de ruta especial 880',
             color: Colors.white,
             onPressed: () async {
               await _imprimirHojaEspecial('880', 'HOJA DE RUTA : 880 PLAN N5');

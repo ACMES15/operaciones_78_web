@@ -544,6 +544,10 @@ class _EntregasTransferenciasRetornosPageState
                                                 'SECCION', entrega['SECCION']),
                                             _mobileField('JEFATURA',
                                                 entrega['JEFATURA']),
+                                            _mobileField(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         )
                                       : Row(
@@ -557,6 +561,10 @@ class _EntregasTransferenciasRetornosPageState
                                                 'SECCION', entrega['SECCION']),
                                             _infoChip('JEFATURA',
                                                 entrega['JEFATURA']),
+                                            _infoChip(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         ),
                                   controlAffinity:

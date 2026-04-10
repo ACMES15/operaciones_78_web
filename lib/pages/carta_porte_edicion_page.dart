@@ -119,17 +119,17 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
             icon: const Icon(Icons.add, color: Color(0xFF2D6A4F)),
             tooltip: 'Agregar fila',
             onPressed: () async {
-              final nuevaFila =
-                  await Navigator.of(context).push<Map<String, dynamic>>(
+              final nuevasFilas =
+                  await Navigator.of(context).push<List<Map<String, dynamic>>>(
                 MaterialPageRoute(
                   builder: (_) => CartaPorteAgregarFilaPage(
                     carta: widget.carta,
                   ),
                 ),
               );
-              if (nuevaFila != null) {
+              if (nuevasFilas != null && nuevasFilas.isNotEmpty) {
                 setState(() {
-                  filas.add(nuevaFila);
+                  filas.addAll(nuevasFilas);
                 });
               }
             },
@@ -371,19 +371,9 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
     );
   }
 
-  @override
-  void dispose() {
-    for (final fila in filasControllers) {
-      for (final c in fila) {
-        c.dispose();
-      }
-    }
-    super.dispose();
-  }
-
   Future<void> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
     try {
-      final escaneo = filasControllers[filaIdx][colIdx].text.trim();
+      final escaneo = filasControllers[filaIdx][0].text.trim();
       final escaneoLower = escaneo.toLowerCase();
       if (escaneo.isEmpty) return;
 
@@ -469,10 +459,10 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       });
       final masReciente = resultados.first;
 
-      // (getCol eliminado, ya no se usa)
-
       if (masReciente['tipo'] == 'hoja_ruta') {
         final ruta = masReciente['data'];
+        filasControllers[filaIdx][2].text = ruta['tipo'] ?? '';
+        filasControllers[filaIdx][3].text = 'SAP';
         final rows = (ruta['rows'] as List?) ?? [];
         String embarque = '';
         for (final row in rows) {
@@ -500,79 +490,70 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
             }
           }
         }
-        // Asignar datos a los campos si existen
-        for (int i = 0; i < columns.length; i++) {
-          final col = columns[i].toUpperCase();
-          if (col.contains('TIPO'))
-            filasControllers[filaIdx][i].text = ruta['tipo'] ?? '';
-          if (col.contains('SISTEMA'))
-            filasControllers[filaIdx][i].text = 'SAP';
-          if (col.contains('EMBARQUE'))
-            filasControllers[filaIdx][i].text = embarque;
-          if (col.contains('BULTOS')) {
-            int sumaBultos = 0;
-            for (final row in rows) {
-              if (row is Map && row['No. Bultos'] != null) {
-                final val = int.tryParse(row['No. Bultos'].toString());
-                if (val != null) sumaBultos += val;
-              } else if (row is List) {
-                final columnsRuta = (ruta['columns'] as List?) ?? [];
-                final idx = columnsRuta.indexWhere(
-                    (c) => c.toString().toLowerCase().contains('bultos'));
-                if (idx >= 0 && row.length > idx && row[idx] != null) {
-                  final val = int.tryParse(row[idx].toString());
-                  if (val != null) sumaBultos += val;
-                }
-              }
+        filasControllers[filaIdx][4].text = embarque;
+        filasControllers[filaIdx][5].text = ruta['tipo'] ?? '';
+        int sumaBultos = 0;
+        for (final row in rows) {
+          if (row is Map && row['No. Bultos'] != null) {
+            final val = int.tryParse(row['No. Bultos'].toString());
+            if (val != null) sumaBultos += val;
+          } else if (row is List) {
+            final columnsRuta = (ruta['columns'] as List?) ?? [];
+            final idx = columnsRuta.indexWhere(
+                (c) => c.toString().toLowerCase().contains('bultos'));
+            if (idx >= 0 && row.length > idx && row[idx] != null) {
+              final val = int.tryParse(row[idx].toString());
+              if (val != null) sumaBultos += val;
             }
-            filasControllers[filaIdx][i].text =
-                sumaBultos > 0 ? sumaBultos.toString() : '';
           }
-          if (col.contains('DESTINO')) {
-            String destino = '';
-            for (final row in rows) {
-              if (row is Map &&
-                  row['No. Alm.'] != null &&
-                  row['No. Alm.'].toString().isNotEmpty) {
-                destino = row['No. Alm.'].toString();
-                break;
-              } else if (row is List) {
-                final columnsRuta = (ruta['columns'] as List?) ?? [];
-                final idx = columnsRuta.indexWhere(
-                    (c) => c.toString().toLowerCase().contains('alm'));
-                if (idx >= 0 &&
-                    row.length > idx &&
-                    row[idx] != null &&
-                    row[idx].toString().isNotEmpty) {
-                  destino = row[idx].toString();
-                  break;
-                }
-              }
-            }
-            filasControllers[filaIdx][i].text = destino;
-          }
-          if (col.contains('ESCANEO'))
-            filasControllers[filaIdx][i].text = escaneo;
         }
+        filasControllers[filaIdx][6].text =
+            sumaBultos > 0 ? sumaBultos.toString() : '';
+        String destino = '';
+        for (final row in rows) {
+          if (row is Map &&
+              row['No. Alm.'] != null &&
+              row['No. Alm.'].toString().isNotEmpty) {
+            destino = row['No. Alm.'].toString();
+            break;
+          } else if (row is List) {
+            final columnsRuta = (ruta['columns'] as List?) ?? [];
+            final idx = columnsRuta
+                .indexWhere((c) => c.toString().toLowerCase().contains('alm'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              destino = row[idx].toString();
+              break;
+            }
+          }
+        }
+        filasControllers[filaIdx][7].text = destino;
+        filasControllers[filaIdx][8].text = escaneo;
+        final embarque1 = filasControllers[filaIdx][4].text;
+        final embarque2 = filasControllers[filaIdx][9].text;
+        filasControllers[filaIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
         return;
       } else if (masReciente['tipo'] == 'xd') {
         final h = masReciente['data'];
-        for (int i = 0; i < columns.length; i++) {
-          final col = columns[i].toUpperCase();
-          if (col.contains('TIPO')) filasControllers[filaIdx][i].text = 'PAQ';
-          if (col.contains('SISTEMA'))
-            filasControllers[filaIdx][i].text =
-                (h['TU'] ?? '').toString().trim().isNotEmpty ? 'MAN' : 'XD';
-          if (col.contains('EMBARQUE'))
-            filasControllers[filaIdx][i].text = h['MANIFIESTO'] ?? '';
-          if (col.contains('BULTOS'))
-            filasControllers[filaIdx][i].text = h['CANTIDAD DE LPS'] ?? '';
-          if (col.contains('DESTINO'))
-            filasControllers[filaIdx][i].text = h['DESTINO'] ?? '';
-          if (col.contains('ESCANEO'))
-            filasControllers[filaIdx][i].text = escaneo;
+        filasControllers[filaIdx][2].text = 'PAQ';
+        final tu = (h['TU'] ?? '').toString().trim();
+        if (tu.isNotEmpty) {
+          filasControllers[filaIdx][3].text = 'MAN';
+        } else {
+          filasControllers[filaIdx][3].text = 'XD';
         }
+        filasControllers[filaIdx][5].text = h['MANIFIESTO'] ?? '';
+        filasControllers[filaIdx][6].text = h['CANTIDAD DE LPS'] ?? '';
+        filasControllers[filaIdx][7].text = h['DESTINO'] ?? '';
+        filasControllers[filaIdx][8].text = escaneo;
+        final embarque1 = filasControllers[filaIdx][4].text;
+        final embarque2 = filasControllers[filaIdx][9].text;
+        filasControllers[filaIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
         return;
       }

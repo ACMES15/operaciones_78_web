@@ -516,6 +516,10 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                                                 entrega['DESCRIPCION']),
                                             _mobileField(
                                                 'MBODAS', entrega['MBODAS']),
+                                            _mobileField(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         )
                                       : Row(
@@ -532,6 +536,10 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                                                 'DESC', entrega['DESCRIPCION']),
                                             _infoChip(
                                                 'MBODAS', entrega['MBODAS']),
+                                            _infoChip(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         ),
                                   controlAffinity:

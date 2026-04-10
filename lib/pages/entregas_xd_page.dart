@@ -513,6 +513,10 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
                                                 entrega['JEFATURA']),
                                             _mobileField('DESCRIPCION',
                                                 entrega['DESCRIPCION']),
+                                            _mobileField(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         )
                                       : Row(
@@ -527,6 +531,10 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
                                                 'JEF', entrega['JEFATURA']),
                                             _infoChip(
                                                 'DESC', entrega['DESCRIPCION']),
+                                            _infoChip(
+                                                'Valido',
+                                                entrega['usuarioValido'] ??
+                                                    '-'),
                                           ],
                                         ),
                                   controlAffinity:
