@@ -14,6 +14,7 @@ Future<pw.Document> buildCartaPortePdf(Map<String, dynamic> carta,
 
   pdf.addPage(
     pw.MultiPage(
+      pageFormat: PdfPageFormat.a4.landscape,
       build: (context) {
         // --- Ajuste de ancho de columnas ---
         // Estimar ancho por string length (como hoja de ruta)
