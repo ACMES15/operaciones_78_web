@@ -335,13 +335,16 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                               child: Card(
                                 elevation: 1,
                                 margin: const EdgeInsets.all(0),
-                                child: DataTable(
-                                  columnSpacing: 2,
-                                  dataRowMinHeight: 28,
-                                  dataRowMaxHeight: 32,
-                                  headingRowHeight: 34,
-                                  columns: tableColumns,
-                                  rows: tableRows,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: DataTable(
+                                    columnSpacing: 16,
+                                    dataRowMinHeight: 28,
+                                    dataRowMaxHeight: 32,
+                                    headingRowHeight: 34,
+                                    columns: tableColumns,
+                                    rows: tableRows,
+                                  ),
                                 ),
                               ),
                             ),
@@ -424,6 +427,20 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final tipo = sheet['tipo'] ?? '';
       final numeroControl = sheet['numeroControl'] ?? '';
 
+      // Estimación simple: ancho proporcional a la longitud máxima de texto (caracteres) de cada columna
+      List<double> colWidths = List.filled(headers.length, 0);
+      const double fontSize = 10.0;
+      for (int i = 0; i < headers.length; i++) {
+        int maxLen = headers[i].length;
+        for (final row in data) {
+          if (i < row.length) {
+            final l = row[i].toString().length;
+            if (l > maxLen) maxLen = l;
+          }
+        }
+        // 7.5 es un factor empírico para tamaño de fuente 10
+        colWidths[i] = (maxLen * 7.5).clamp(40, 320);
+      }
       final pdf = pw.Document();
       pdf.addPage(
         pw.MultiPage(
@@ -456,15 +473,52 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             if (headers.isNotEmpty && data.isNotEmpty)
               pw.Container(
                 width: double.infinity,
-                child: pw.Table.fromTextArray(
-                  headers: headers,
-                  data: data,
-                  cellAlignment: pw.Alignment.center,
-                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                  cellStyle: pw.TextStyle(fontSize: 10),
-                  headerDecoration: pw.BoxDecoration(color: PdfColors.grey300),
+                child: pw.Table(
                   border:
                       pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
+                  defaultVerticalAlignment:
+                      pw.TableCellVerticalAlignment.middle,
+                  columnWidths: {
+                    for (int i = 0; i < headers.length; i++)
+                      i: pw.FixedColumnWidth(colWidths[i]),
+                  },
+                  children: [
+                    pw.TableRow(
+                      decoration:
+                          const pw.BoxDecoration(color: PdfColors.grey300),
+                      children: [
+                        for (int i = 0; i < headers.length; i++)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            child: pw.Text(
+                              headers[i].replaceAll('\n', ' '),
+                              style: pw.TextStyle(
+                                  fontWeight: pw.FontWeight.bold,
+                                  fontSize: fontSize),
+                              maxLines: 1,
+                              overflow: pw.TextOverflow.clip,
+                            ),
+                          ),
+                      ],
+                    ),
+                    ...data.map((fila) => pw.TableRow(
+                          children: [
+                            for (int i = 0; i < headers.length; i++)
+                              pw.Padding(
+                                padding: const pw.EdgeInsets.symmetric(
+                                    horizontal: 2, vertical: 1),
+                                child: pw.Text(
+                                  (i < fila.length ? fila[i] : '')
+                                      .replaceAll('\n', ' '),
+                                  style: pw.TextStyle(fontSize: fontSize),
+                                  maxLines: 1,
+                                  overflow: pw.TextOverflow.clip,
+                                ),
+                              ),
+                          ],
+                        )),
+                  ],
                 ),
               ),
           ],
@@ -480,7 +534,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
 
   @override
   Widget build(BuildContext context) {
-    final searchController = TextEditingController();
+    // final searchController = TextEditingController();
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance.collection('hoja_ruta').snapshots(),
       builder: (context, snapshot) {
