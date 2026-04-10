@@ -5,12 +5,17 @@ Future<pw.Document> buildCartaPortePdf(Map<String, dynamic> carta,
     {String? firma}) async {
   final pdf = pw.Document();
   final filas = (carta['filas'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-  // Determinar columnas de la tabla de filas
-  final Set<String> columnasFilas = {};
-  for (final fila in filas) {
-    columnasFilas.addAll(fila.keys);
+  // Usar el orden de columnas como se guarda en carta_porte_table.dart
+  List<String> columnas = [];
+  if (filas.isNotEmpty) {
+    columnas = filas.first.keys.toList();
+    // Si carta tiene campo 'headers' o 'columnas', usar ese orden
+    if (carta.containsKey('headers')) {
+      columnas = List<String>.from(carta['headers']);
+    } else if (carta.containsKey('columnas')) {
+      columnas = List<String>.from(carta['columnas']);
+    }
   }
-  final columnas = columnasFilas.toList();
 
   pdf.addPage(
     pw.MultiPage(
@@ -37,30 +42,30 @@ Future<pw.Document> buildCartaPortePdf(Map<String, dynamic> carta,
                     color: PdfColors.green800)),
           ),
           pw.SizedBox(height: 16),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.center,
+          pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text('Fecha: ${carta['fecha'] ?? '-'}   ',
+              pw.Text('Fecha: ${carta['fecha'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Chofer: ${carta['chofer'] ?? '-'}   ',
+              pw.SizedBox(height: 4),
+              pw.Text('Chofer: ${carta['chofer'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('RFC: ${carta['rfc'] ?? '-'}   ',
+              pw.SizedBox(height: 4),
+              pw.Text('RFC: ${carta['rfc'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Licencia: ${carta['licencia'] ?? '-'}   ',
+              pw.SizedBox(height: 4),
+              pw.Text('Licencia: ${carta['licencia'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Unidad: ${carta['unidad'] ?? '-'}   ',
+              pw.SizedBox(height: 4),
+              pw.Text('Unidad: ${carta['unidad'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
               pw.Text('Destino: ${carta['destino'] ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          pw.Row(
-            children: [
-              pw.Text('No. Control:',
+              pw.SizedBox(height: 4),
+              pw.Text(
+                  'No. Control: ${carta['numero_control']?.toString() ?? '-'}',
                   style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(width: 8),
-              pw.Text(carta['numero_control']?.toString() ?? '-'),
             ],
           ),
           pw.SizedBox(height: 20),

@@ -80,7 +80,7 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
     // Usar package:excel
     final excel = Excel.createExcel();
     final sheet = excel['Historial TF Retornos'];
-    // Encabezados
+    // Encabezados (agregando FECHA)
     final headers = [
       'ID',
       'TF O DEV',
@@ -89,7 +89,8 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
       'SECCION',
       'JEFATURA',
       'RETORNO',
-      'usuarioValido'
+      'usuarioValido',
+      'FECHA',
     ];
     sheet.appendRow(headers);
     for (final pair in resultados) {
@@ -112,6 +113,7 @@ class _HistorialTfRetornosPageState extends State<HistorialTfRetornosPage> {
         raw['JEFATURA'] ?? '',
         raw['RETORNO'] ?? '',
         raw['usuarioValido'] ?? '',
+        _formatearFecha(e.fecha),
       ]);
     }
     final bytes = excel.encode()!;

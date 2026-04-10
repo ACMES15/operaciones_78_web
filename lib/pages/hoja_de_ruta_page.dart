@@ -41,7 +41,7 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
 
   pdf.addPage(
     pw.MultiPage(
-      pageFormat: PdfPageFormat.letter,
+      pageFormat: PdfPageFormat.letter.landscape,
       margin: pw.EdgeInsets.all(24),
       build: (context) => [
         pw.Center(
@@ -52,17 +52,21 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
                   color: PdfColors.green800)),
         ),
         pw.SizedBox(height: 8),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.center,
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
-            pw.Text('Origen: $origen   ',
+            pw.Text('Origen: $origen',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.Text('N° Caja: $caja   ',
+            pw.SizedBox(height: 4),
+            pw.Text('N° Caja: $caja',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.Text('Fecha: $fecha   ',
+            pw.SizedBox(height: 4),
+            pw.Text('Fecha: $fecha',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            pw.Text('Tipo: $tipo   ',
+            pw.SizedBox(height: 4),
+            pw.Text('Tipo: $tipo',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
             pw.Text('N° de control: $numeroControl',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
           ],
@@ -98,7 +102,6 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
                               fontWeight: pw.FontWeight.bold,
                               fontSize: fontSize),
                           maxLines: 1,
-                          overflow: pw.TextOverflow.clip,
                         ),
                       ),
                   ],
@@ -114,7 +117,6 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
                                   .replaceAll('\n', ' '),
                               style: pw.TextStyle(fontSize: fontSize),
                               maxLines: 1,
-                              overflow: pw.TextOverflow.clip,
                             ),
                           ),
                       ],

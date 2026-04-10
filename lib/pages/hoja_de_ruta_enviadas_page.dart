@@ -26,79 +26,90 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
 
     final pdf = pw.Document();
     pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.letter,
-        margin: pw.EdgeInsets.all(24),
-        build: (context) => [
-          pw.Center(
-            child: pw.Text('CARÁTULA HOJA DE RUTA',
-                style: pw.TextStyle(
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.green800)),
-          ),
-          pw.SizedBox(height: 24),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('Origen:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(origen, style: pw.TextStyle(fontSize: 14)),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('Fecha:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(fechaEnvio, style: pw.TextStyle(fontSize: 14)),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('Tipo:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(tipo, style: pw.TextStyle(fontSize: 14)),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('N° Caja:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(caja, style: pw.TextStyle(fontSize: 14)),
-            ],
-          ),
-          pw.SizedBox(height: 12),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text('N° de control:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text(numeroControl, style: pw.TextStyle(fontSize: 14)),
-            ],
-          ),
-          pw.SizedBox(height: 32),
-          pw.Row(
-            children: [
-              pw.Text('Firma:',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(width: 16),
-              pw.Expanded(
-                child: pw.Container(
-                  padding:
-                      const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  decoration: pw.BoxDecoration(border: pw.Border.all()),
-                  child: pw.Text('', style: pw.TextStyle(fontSize: 16)),
-                ),
+              pw.Text('Hoja de Ruta',
+                  style: pw.TextStyle(
+                      fontSize: 20, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 12),
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Origen:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(origen, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Fecha:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(fechaEnvio,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Tipo:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(tipo, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° Caja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(caja, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de control:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(numeroControl,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                ],
               ),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
@@ -404,18 +415,15 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     try {
-      final headers = sheet['headers'] != null
-          ? List<String>.from(sheet['headers'])
-          : (sheet['rows'] != null &&
-                  (sheet['rows'] as List).isNotEmpty &&
-                  (sheet['rows'] as List).first is Map
-              ? (sheet['rows'][0] as Map).keys.map((k) => k.toString()).toList()
-              : []);
+      // Usar headers y orden exactamente como se guardaron
+      final headers =
+          sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
       final data = (sheet['rows'] as List?)?.map((row) {
-            if (row is List) {
-              return row.map((e) => e.toString()).toList();
-            } else if (row is Map) {
+            if (row is Map && headers.isNotEmpty) {
+              // Ordenar los valores según headers
               return headers.map((h) => row[h]?.toString() ?? '').toList();
+            } else if (row is List) {
+              return List<String>.from(row.map((e) => e.toString()));
             } else {
               return [row.toString()];
             }
@@ -444,38 +452,44 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final pdf = pw.Document();
       pdf.addPage(
         pw.MultiPage(
-          pageFormat: PdfPageFormat.letter,
+          pageFormat: PdfPageFormat.letter.landscape,
           margin: pw.EdgeInsets.all(24),
           build: (context) => [
             pw.Text('Hoja de Ruta',
                 style:
                     pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
             pw.SizedBox(height: 8),
-            pw.Row(children: [
-              pw.Expanded(
-                  child: pw.Text('Origen: $origen',
-                      style: pw.TextStyle(fontSize: 12))),
-              pw.SizedBox(width: 16),
-              pw.Text('N° Caja: $caja', style: pw.TextStyle(fontSize: 12)),
-            ]),
-            pw.SizedBox(height: 4),
-            pw.Row(children: [
-              pw.Expanded(
-                  child: pw.Text('Fecha: $fecha',
-                      style: pw.TextStyle(fontSize: 12))),
-              pw.SizedBox(width: 16),
-              pw.Text('Tipo: $tipo', style: pw.TextStyle(fontSize: 12)),
-            ]),
-            pw.SizedBox(height: 4),
-            pw.Text('N° de control: $numeroControl',
-                style: pw.TextStyle(fontSize: 12)),
-            pw.SizedBox(height: 12),
-            if (headers.isNotEmpty && data.isNotEmpty)
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text('Origen: $origen',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text('N° Caja: $caja',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text('Fecha: $fecha',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text('Tipo: $tipo',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                pw.Text('N° de control: $numeroControl',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              ],
+            ),
+            pw.SizedBox(height: 16),
+            if (headers.isNotEmpty)
               pw.Container(
                 width: double.infinity,
+                alignment: pw.Alignment.center,
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
                 child: pw.Table(
-                  border:
-                      pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
+                  border: pw.TableBorder.symmetric(
+                    inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                    outside: pw.BorderSide.none,
+                  ),
                   defaultVerticalAlignment:
                       pw.TableCellVerticalAlignment.middle,
                   columnWidths: {
@@ -497,7 +511,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                                   fontWeight: pw.FontWeight.bold,
                                   fontSize: fontSize),
                               maxLines: 1,
-                              overflow: pw.TextOverflow.clip,
                             ),
                           ),
                       ],
@@ -513,7 +526,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                                       .replaceAll('\n', ' '),
                                   style: pw.TextStyle(fontSize: fontSize),
                                   maxLines: 1,
-                                  overflow: pw.TextOverflow.clip,
                                 ),
                               ),
                           ],

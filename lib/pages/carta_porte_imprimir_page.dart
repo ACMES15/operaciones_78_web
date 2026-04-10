@@ -44,7 +44,7 @@ class CartaPorteImprimirPage extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF2D6A4F))),
                 const SizedBox(height: 16),
-                // Datos principales alineados en una sola línea
+                // Datos principales en vertical y centrados
                 Container(
                   padding:
                       const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
@@ -52,35 +52,32 @@ class CartaPorteImprimirPage extends StatelessWidget {
                     color: Color(0xFFE8F5E9),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 18,
-                    runSpacing: 8,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text('Fecha: ${carta['fecha'] ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
                       Text('Chofer: ${carta['chofer'] ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
                       Text('RFC: ${carta['rfc'] ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
                       Text('Licencia: ${carta['licencia'] ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
                       Text('Unidad: ${carta['unidad'] ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
                       Text('Destino: ${carta['destino'] ?? '-'}',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height: 4),
+                      Text(
+                          'No. Control: ${carta['numero_control']?.toString() ?? '-'}',
                           style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                // Número de control
-                Row(
-                  children: [
-                    const Text('No. Control:',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    Text(carta['numero_control']?.toString() ?? '-'),
-                  ],
                 ),
                 const SizedBox(height: 20),
                 if (filas.isNotEmpty)
@@ -95,38 +92,42 @@ class CartaPorteImprimirPage extends StatelessWidget {
                         i: const FlexColumnWidth(1),
                     },
                     children: [
+                      // Usar el orden de columnas como en carta_porte_table.dart si está en carta['headers']
                       TableRow(
                         decoration:
                             const BoxDecoration(color: Color(0xFFE8F5E9)),
-                        children: filas.first.keys
-                            .map((col) => Padding(
+                        children: [
+                          for (final col in (carta['headers'] ??
+                              filas.first.keys) as Iterable)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 2, vertical: 1),
+                              child: Text(
+                                col.replaceAll('\n', ' '),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 11),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
+                      ),
+                      ...filas.map((fila) => TableRow(
+                            children: [
+                              for (final col in (carta['headers'] ??
+                                  filas.first.keys) as Iterable)
+                                Padding(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 2, vertical: 1),
                                   child: Text(
-                                    col.replaceAll('\n', ' '),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 11),
+                                    (fila[col]?.toString() ?? '')
+                                        .replaceAll('\n', ' '),
+                                    style: const TextStyle(fontSize: 11),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                ))
-                            .toList(),
-                      ),
-                      ...filas.map((fila) => TableRow(
-                            children: filas.first.keys
-                                .map((col) => Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 2, vertical: 1),
-                                      child: Text(
-                                        (fila[col]?.toString() ?? '')
-                                            .replaceAll('\n', ' '),
-                                        style: const TextStyle(fontSize: 11),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ))
-                                .toList(),
+                                ),
+                            ],
                           )),
                     ],
                   ),

@@ -342,7 +342,7 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
   void _descargarExcel() {
     final excel = ex.Excel.createExcel();
     final sheet = excel['Historial'];
-    // Orden de columnas igual que en entregas_cdr_page.dart
+    // Obtener el orden de columnas desde entregas_cdr_page.dart si es posible
     final orderedKeys = [
       'HOJA DE RUTA',
       'TIPO DOCTO',
@@ -354,29 +354,43 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
       'BULTOS',
       'JEFATURA',
       'BOX',
+    ];
+    // Agregar campos extra si existen en los datos
+    final extraKeys = <String>{};
+    for (final row in _firmadas) {
+      extraKeys.addAll(row.keys);
+    }
+    final knownExtras = [
       'nombreRecibe',
       'firma',
       'fechaFirma',
       'usuarioEntrega',
       'id',
     ];
-    sheet.appendRow([
-      'HOJA DE RUTA',
-      'TIPO DOCTO',
-      'DOCUMENTO',
-      'SKU',
-      'SECCION',
-      'DESCRIPCION',
-      'CANTIDAD',
-      'BULTOS',
-      'JEFATURA',
-      'BOX',
-      'Recibió',
-      'Firma',
-      'Fecha Firma',
-      'Usuario Entrega',
-      'ID',
-    ]);
+    for (final k in knownExtras) {
+      if (extraKeys.contains(k) && !orderedKeys.contains(k)) {
+        orderedKeys.add(k);
+      }
+    }
+    // Encabezados para Excel
+    final headerMap = {
+      'HOJA DE RUTA': 'HOJA DE RUTA',
+      'TIPO DOCTO': 'TIPO DOCTO',
+      'DOCUMENTO': 'DOCUMENTO',
+      'SKU': 'SKU',
+      'SECCION': 'SECCION',
+      'DESCRIPCION': 'DESCRIPCION',
+      'CANTIDAD': 'CANTIDAD',
+      'BULTOS': 'BULTOS',
+      'JEFATURA': 'JEFATURA',
+      'BOX': 'BOX',
+      'nombreRecibe': 'Recibió',
+      'firma': 'Firma',
+      'fechaFirma': 'Fecha Firma',
+      'usuarioEntrega': 'Usuario Entrega',
+      'id': 'ID',
+    };
+    sheet.appendRow([for (final k in orderedKeys) headerMap[k] ?? k]);
     for (final row in _firmadas) {
       final rowValues = orderedKeys.map((k) => row[k] ?? '').toList();
       sheet.appendRow(rowValues);
