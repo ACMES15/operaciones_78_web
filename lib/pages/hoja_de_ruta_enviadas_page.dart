@@ -435,7 +435,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final tipo = sheet['tipo'] ?? '';
       final numeroControl = sheet['numeroControl'] ?? '';
 
-      // Estimación simple: ancho proporcional a la longitud máxima de texto (caracteres) de cada columna
+      // Ajustar ancho de columnas al texto, mínimo 40, máximo 320
       List<double> colWidths = List.filled(headers.length, 0);
       const double fontSize = 10.0;
       for (int i = 0; i < headers.length; i++) {
@@ -446,7 +446,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             if (l > maxLen) maxLen = l;
           }
         }
-        // 7.5 es un factor empírico para tamaño de fuente 10
         colWidths[i] = (maxLen * 7.5).clamp(40, 320);
       }
       final pdf = pw.Document();
@@ -481,8 +480,10 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             pw.SizedBox(height: 16),
             if (headers.isNotEmpty)
               pw.Container(
-                width: double.infinity,
-                alignment: pw.Alignment.center,
+                width: headers.fold<double>(
+                        0, (a, b) => a + colWidths[headers.indexOf(b)]) +
+                    headers.length * 4,
+                alignment: pw.Alignment.centerLeft,
                 padding:
                     const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
                 child: pw.Table(

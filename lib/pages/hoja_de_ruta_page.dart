@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'hoja_de_ruta_extra_page.dart';
 import '../home_page.dart';
 import 'hoja_de_ruta_enviadas_page.dart';
+import 'hoja_de_ruta_skus_page.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
@@ -12,10 +14,29 @@ import '../utils/firebase_cache_utils.dart';
 import '../utils/sheet_validator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Clase para identificar una celda seleccionada
+class _CellPos {
+  final int row;
+  final int col;
+  const _CellPos(this.row, this.col);
+  @override
+  bool operator ==(Object other) =>
+      other is _CellPos && other.row == row && other.col == col;
+  @override
+  int get hashCode => row.hashCode ^ col.hashCode;
+}
+
 // Top-level function for PDF generation to be used with compute
 Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
+  // Eliminar columna 'Docto' solo para impresión PDF
   final headers = List<String>.from(params['headers'] as List);
-  final data = List<List<String>>.from(params['data'] as List);
+  final doctoIdx = headers.indexOf('Docto');
+  if (doctoIdx != -1) headers.removeAt(doctoIdx);
+  final data = List<List<String>>.from(params['data'] as List)
+      .map((row) => doctoIdx != -1 && row.length > doctoIdx
+          ? (List<String>.from(row)..removeAt(doctoIdx))
+          : row)
+      .toList();
   final origen = params['origen'] as String? ?? '';
   final fecha = params['fecha'] as String? ?? '';
   final caja = params['caja'] as String? ?? '';
@@ -25,6 +46,7 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
   final pdf = pw.Document();
 
   // Estimación simple: ancho proporcional a la longitud máxima de texto (caracteres) de cada columna
+  // Ajustar ancho de columnas al texto, mínimo 40, máximo 320
   List<double> colWidths = List.filled(headers.length, 0);
   const double fontSize = 10.0;
   for (int i = 0; i < headers.length; i++) {
@@ -35,7 +57,6 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
         if (l > maxLen) maxLen = l;
       }
     }
-    // 7.5 es un factor empírico para tamaño de fuente 10
     colWidths[i] = (maxLen * 7.5).clamp(40, 320);
   }
 
@@ -74,8 +95,10 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
         pw.SizedBox(height: 16),
         if (headers.isNotEmpty)
           pw.Container(
-            width: double.infinity,
-            alignment: pw.Alignment.center,
+            width: headers.fold<double>(
+                    0, (a, b) => a + colWidths[headers.indexOf(b)]) +
+                headers.length * 4,
+            alignment: pw.Alignment.centerLeft,
             padding: const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
             child: pw.Table(
               border: pw.TableBorder.symmetric(
@@ -139,6 +162,111 @@ class HojaDeRutaPage extends StatefulWidget {
 }
 
 class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
+  // Estado para selección múltiple de celdas
+  Set<_CellPos> _selectedCells = {};
+  _CellPos? _lastSelectedCell;
+
+  void _handleCellTap(int row, int col, bool shift) {
+    final pos = _CellPos(row, col);
+    setState(() {
+      if (shift && _lastSelectedCell != null) {
+        // Selección rectangular
+        final r0 = _lastSelectedCell!.row;
+        final c0 = _lastSelectedCell!.col;
+        final r1 = row;
+        final c1 = col;
+        final rMin = r0 < r1 ? r0 : r1;
+        final rMax = r0 > r1 ? r0 : r1;
+        final cMin = c0 < c1 ? c0 : c1;
+        final cMax = c0 > c1 ? c0 : c1;
+        _selectedCells.clear();
+        for (int r = rMin; r <= rMax; r++) {
+          for (int c = cMin; c <= cMax; c++) {
+            _selectedCells.add(_CellPos(r, c));
+          }
+        }
+      } else {
+        _selectedCells = {pos};
+        _lastSelectedCell = pos;
+      }
+    });
+  }
+
+  void _handleCopy() {
+    if (_selectedCells.isEmpty) return;
+    // Ordenar por fila y columna
+    final cells = _selectedCells.toList()
+      ..sort((a, b) => a.row != b.row ? a.row - b.row : a.col - b.col);
+    final minRow = cells.first.row;
+    final maxRow = cells.last.row;
+    final minCol = cells.first.col;
+    final maxCol = cells.last.col;
+    final buffer = StringBuffer();
+    for (int r = minRow; r <= maxRow; r++) {
+      for (int c = minCol; c <= maxCol; c++) {
+        if (c > minCol) buffer.write('\t');
+        final ctrl = _controllers[r][c];
+        buffer.write(ctrl.text);
+      }
+      if (r < maxRow) buffer.write('\n');
+    }
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+  }
+
+  // Pega datos tabulados (de Excel) en la tabla, agregando filas si es necesario
+  void _handlePaste(int rowIdx, int colIdx) async {
+    final data = await Clipboard.getData('text/plain');
+    if (data == null || data.text == null || data.text!.isEmpty) return;
+    final rows =
+        data.text!.split(RegExp(r'\r?\n')).where((r) => r.isNotEmpty).toList();
+    final parsed = rows.map((r) => r.split(RegExp(r'\t'))).toList();
+    // Si solo una celda, pegar normal
+    if (parsed.length == 1 && parsed[0].length == 1) {
+      _controllers[rowIdx][colIdx].text = parsed[0][0];
+      return;
+    }
+    // Si es vertical (una columna, varias filas)
+    if (parsed.every((r) => r.length == 1)) {
+      final needed = rowIdx + parsed.length - _controllers.length;
+      if (needed > 0) _addDataRow(needed.toInt());
+      for (int i = 0; i < parsed.length; i++) {
+        _controllers[rowIdx + i][colIdx].text = parsed[i][0];
+      }
+      return;
+    }
+    // Si es rectangular (varias filas y columnas)
+    final neededRows = rowIdx + parsed.length - _controllers.length;
+    if (neededRows > 0) _addDataRow(neededRows.toInt());
+    for (int i = 0; i < parsed.length; i++) {
+      for (int j = 0; j < parsed[i].length; j++) {
+        final r = rowIdx + i;
+        final c = colIdx + j;
+        if (r < _controllers.length && c < _columns.length) {
+          _controllers[r][c].text = parsed[i][j];
+        }
+      }
+    }
+  }
+
+  /// Obtiene el siguiente número de control de forma atómica usando Firestore
+  Future<String> getNextNumeroControlFirestore() async {
+    final ref =
+        FirebaseFirestore.instance.collection('hoja_ruta').doc('consecutivo');
+    return await FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      int actual = 0;
+      if (snapshot.exists &&
+          snapshot.data() != null &&
+          snapshot.data()!['valor'] != null) {
+        actual = snapshot.data()!['valor'] as int;
+      }
+      final siguiente = actual + 1;
+      transaction.set(ref, {'valor': siguiente});
+      // Formato: 0078-XXX
+      return '0078-${siguiente.toString().padLeft(3, '0')}';
+    });
+  }
+
   final List<String> _columns = const [
     'Docto',
     'No. Manifiesto o Remisión',
@@ -231,6 +359,28 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () => _showHojaRutaDialog(context),
+                ),
+                SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.qr_code),
+                  label: Text('Agrega SKUs',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(180, 48),
+                    backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: _numeroControlActual == null
+                      ? null
+                      : () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => HojaDeRutaSkusPage(
+                                numeroControl: _numeroControlActual!,
+                              ),
+                            ),
+                          );
+                        },
                 ),
               ],
             ),
@@ -793,10 +943,11 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                               fontWeight: FontWeight.bold)),
                                     const SizedBox(width: 8),
                                     ElevatedButton(
-                                      onPressed: () {
+                                      onPressed: () async {
+                                        final nuevo =
+                                            await getNextNumeroControlFirestore();
                                         setModalState(() {
-                                          _numeroControlActual =
-                                              getNextNumeroControl();
+                                          _numeroControlActual = nuevo;
                                         });
                                       },
                                       style: ElevatedButton.styleFrom(
@@ -975,11 +1126,17 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                         'hoja_ruta', 'sentHojaRutas', {
                                       'items': HojaDeRutaExtraPage.sentHojaRutas
                                     });
-                                    String docId = (sheet['numeroControl'] ??
-                                            DateTime.now()
-                                                .millisecondsSinceEpoch
-                                                .toString())
-                                        .toString();
+                                    String docId =
+                                        (sheet['numeroControl'] ?? '')
+                                            .toString();
+                                    if (docId.isEmpty || docId == 'null') {
+                                      docId =
+                                          await getNextNumeroControlFirestore();
+                                      sheet['numeroControl'] = docId;
+                                      setState(() {
+                                        _numeroControlActual = docId;
+                                      });
+                                    }
                                     final Map<String, dynamic>
                                         serializableSheet = {};
                                     sheet.forEach((key, value) {
@@ -1101,17 +1258,73 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                                       width: 1))
                                               : null,
                                         ),
-                                        child: TextField(
-                                          controller: rowCtrls[colIdx],
-                                          textAlign: TextAlign.center,
-                                          decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              isDense: true,
-                                              contentPadding:
-                                                  EdgeInsets.symmetric(
-                                                      vertical: 6,
-                                                      horizontal: 4)),
-                                          style: const TextStyle(fontSize: 13),
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            _handleCellTap(
+                                                rowIdx, colIdx, false);
+                                          },
+                                          child: Focus(
+                                            onKey: (node, event) {
+                                              if (event is RawKeyDownEvent) {
+                                                if (event.isControlPressed &&
+                                                    event.logicalKey.keyLabel
+                                                            .toLowerCase() ==
+                                                        'v') {
+                                                  _handlePaste(rowIdx, colIdx);
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.isControlPressed &&
+                                                    event.logicalKey.keyLabel
+                                                            .toLowerCase() ==
+                                                        'c') {
+                                                  _handleCopy();
+                                                  return KeyEventResult.handled;
+                                                }
+                                              }
+                                              return KeyEventResult.ignored;
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: _selectedCells.contains(
+                                                        _CellPos(
+                                                            rowIdx, colIdx))
+                                                    ? const Color(0xFFB7E4C7)
+                                                    : null,
+                                              ),
+                                              child: TextField(
+                                                controller: rowCtrls[colIdx],
+                                                textAlign: TextAlign.center,
+                                                decoration:
+                                                    const InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        isDense: true,
+                                                        contentPadding:
+                                                            EdgeInsets
+                                                                .symmetric(
+                                                                    vertical: 6,
+                                                                    horizontal:
+                                                                        4)),
+                                                style: const TextStyle(
+                                                    fontSize: 13),
+                                                onTap: () {
+                                                  // Shift+Click selección múltiple
+                                                  final shift = RawKeyboard
+                                                          .instance.keysPressed
+                                                          .contains(
+                                                              LogicalKeyboardKey
+                                                                  .shiftLeft) ||
+                                                      RawKeyboard
+                                                          .instance.keysPressed
+                                                          .contains(
+                                                              LogicalKeyboardKey
+                                                                  .shiftRight);
+                                                  _handleCellTap(
+                                                      rowIdx, colIdx, shift);
+                                                },
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ));
                                     }));

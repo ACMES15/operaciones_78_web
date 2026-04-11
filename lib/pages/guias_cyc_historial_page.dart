@@ -252,23 +252,27 @@ class _GuiasCycHistorialPageState extends State<GuiasCycHistorialPage> {
                                     return DataRow(
                                       cells: [
                                         DataCell(Center(
-                                            child: Text(data['guia'] ?? '',
+                                            child: SelectableText(
+                                                data['guia'] ?? '',
                                                 style: TextStyle(
                                                     fontWeight: FontWeight.bold,
                                                     fontSize:
                                                         isMobile ? 13 : 16)))),
                                         DataCell(Center(
-                                            child: Text(data['fecha'] ?? '',
+                                            child: SelectableText(
+                                                data['fecha'] ?? '',
                                                 style: TextStyle(
                                                     fontSize:
                                                         isMobile ? 13 : 16)))),
                                         DataCell(Center(
-                                            child: Text(data['hora'] ?? '',
+                                            child: SelectableText(
+                                                data['hora'] ?? '',
                                                 style: TextStyle(
                                                     fontSize:
                                                         isMobile ? 13 : 16)))),
                                         DataCell(Center(
-                                            child: Text(data['usuario'] ?? '',
+                                            child: SelectableText(
+                                                data['usuario'] ?? '',
                                                 style: TextStyle(
                                                     fontSize:
                                                         isMobile ? 13 : 16)))),

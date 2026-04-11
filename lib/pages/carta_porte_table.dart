@@ -10,6 +10,7 @@ import 'carta_porte_imprimir_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // import 'dart:math' as math;
 import '../models/hoja_de_xd_historial.dart';
+import '../utils/skus_utils.dart' as skus_utils;
 
 class CartaPorteTable extends StatefulWidget {
   const CartaPorteTable({super.key});
@@ -1099,16 +1100,95 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                                                                     '.', '')
                                                                 .trim() ==
                                                             'CONCENTRADO'
-                                                        ? SelectableText(
-                                                            _controllers[rowIdx]
-                                                                    [colIdx]
-                                                                .text,
-                                                            style: const TextStyle(
-                                                                fontSize: 15,
-                                                                color: Color(
-                                                                    0xFF2D6A4F)),
-                                                            textAlign: TextAlign
-                                                                .center,
+                                                        ? Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Expanded(
+                                                                child:
+                                                                    SelectableText(
+                                                                  _controllers[
+                                                                              rowIdx]
+                                                                          [
+                                                                          colIdx]
+                                                                      .text,
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          15,
+                                                                      color: Color(
+                                                                          0xFF2D6A4F)),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                ),
+                                                              ),
+                                                              FutureBuilder<
+                                                                  List<
+                                                                      List<
+                                                                          String>>>(
+                                                                future: _numeroControlActual !=
+                                                                            null &&
+                                                                        _controllers[rowIdx][colIdx]
+                                                                            .text
+                                                                            .isNotEmpty
+                                                                    ? skus_utils.obtenerSkusLigadosHojaDeRuta(
+                                                                        _controllers[rowIdx][colIdx]
+                                                                            .text)
+                                                                    : Future
+                                                                        .value(
+                                                                            []),
+                                                                builder: (context,
+                                                                    snapshot) {
+                                                                  if (snapshot
+                                                                          .connectionState ==
+                                                                      ConnectionState
+                                                                          .waiting) {
+                                                                    return const SizedBox(
+                                                                        width:
+                                                                            24,
+                                                                        height:
+                                                                            24,
+                                                                        child: CircularProgressIndicator(
+                                                                            strokeWidth:
+                                                                                2));
+                                                                  }
+                                                                  final skus =
+                                                                      snapshot.data ??
+                                                                          [];
+                                                                  if (skus
+                                                                      .isNotEmpty) {
+                                                                    return Tooltip(
+                                                                      message:
+                                                                          'Copiar SKUs ligados',
+                                                                      child:
+                                                                          IconButton(
+                                                                        icon: const Icon(
+                                                                            Icons
+                                                                                .copy,
+                                                                            size:
+                                                                                20,
+                                                                            color:
+                                                                                Colors.green),
+                                                                        onPressed:
+                                                                            () {
+                                                                          final texto =
+                                                                              skus_utils.skusToTexto(skus);
+                                                                          Clipboard.setData(
+                                                                              ClipboardData(text: texto));
+                                                                          ScaffoldMessenger.of(context)
+                                                                              .showSnackBar(
+                                                                            const SnackBar(content: Text('SKUs ligados copiados')),
+                                                                          );
+                                                                        },
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                  return const SizedBox
+                                                                      .shrink();
+                                                                },
+                                                              ),
+                                                            ],
                                                           )
                                                         : TextFormField(
                                                             controller: _controllers

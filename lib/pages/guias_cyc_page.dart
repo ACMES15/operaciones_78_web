@@ -48,7 +48,8 @@ class _GuiasCycPageState extends State<GuiasCycPage> {
   }
 
   void _addRowIfNeeded(int idx) {
-    if (idx >= _rows.length - 2 && _rows.length < _maxRows) {
+    // Siempre agrega una fila nueva si se presiona enter en la penúltima
+    if (idx == _rows.length - 2 && _rows.length < _maxRows) {
       setState(() {
         _rows.add([
           TextEditingController(),

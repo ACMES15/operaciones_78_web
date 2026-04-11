@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import '../utils/skus_utils.dart' as skus_utils;
 import 'carta_porte_imprimir_page.dart';
 
 class CartaPorteEdicionPage extends StatefulWidget {
@@ -235,32 +236,72 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
             // ...existing code...
             Row(
               children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.copy),
-                  label: const Text('Copiar Concentrado'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF2D6A4F),
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    final concentrados = filas
-                        .map((f) => f['CONCENTRADO']?.toString() ?? '')
-                        .where((c) => c.isNotEmpty)
-                        .join('\n');
-                    if (concentrados.isNotEmpty) {
-                      Clipboard.setData(ClipboardData(text: concentrados));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Todos los concentrados copiados')),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('No hay datos en la columna Concentrado')),
-                      );
-                    }
-                  },
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar Concentrado'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xFF2D6A4F),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        final concentrados = filas
+                            .map((f) => f['CONCENTRADO']?.toString() ?? '')
+                            .where((c) => c.isNotEmpty)
+                            .join('\n');
+                        if (concentrados.isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: concentrados));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Todos los concentrados copiados')),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text(
+                                    'No hay datos en la columna Concentrado')),
+                          );
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    FutureBuilder<List<List<String>>>(
+                      future: numeroControlController.text.isNotEmpty
+                          ? skus_utils.obtenerSkusLigadosHojaDeRuta(
+                              numeroControlController.text)
+                          : Future.value([]),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2));
+                        }
+                        final skus = snapshot.data ?? [];
+                        if (skus.isNotEmpty) {
+                          return Tooltip(
+                            message: 'Copiar SKUs ligados',
+                            child: IconButton(
+                              icon: const Icon(Icons.copy,
+                                  size: 20, color: Colors.green),
+                              onPressed: () {
+                                final texto = skus_utils.skusToTexto(skus);
+                                Clipboard.setData(ClipboardData(text: texto));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('SKUs ligados copiados')),
+                                );
+                              },
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),

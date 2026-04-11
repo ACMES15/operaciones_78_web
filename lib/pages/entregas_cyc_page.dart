@@ -478,39 +478,24 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _mobileField('NUMERO DE PEDIDO',
-                                                entrega['NUMERO DE PEDIDO']),
-                                            _mobileField('SKU', entrega['SKU']),
                                             _mobileField('LP', entrega['LP']),
-                                            _mobileField('CANTIDAD',
-                                                entrega['CANTIDAD']),
-                                            _mobileField(
-                                                'SECCION', entrega['SECCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
+                                            _mobileField('SKU', entrega['SKU']),
                                             _mobileField('DESCRIPCION',
                                                 entrega['DESCRIPCION']),
+                                            _mobileField('JEFATURA',
+                                                entrega['JEFATURA']),
                                             _mobileField('Valido',
                                                 entrega['validadoPor'] ?? '-'),
                                           ],
                                         )
                                       : Row(
                                           children: [
-                                            _infoChip(
-                                                'NUMERO DE PEDIDO',
-                                                entrega['NUMERO DE PEDIDO'] ??
-                                                    entrega[
-                                                        'NUMERO DE PEDIDO']),
-                                            _infoChip('SKU', entrega['SKU']),
                                             _infoChip('LP', entrega['LP']),
-                                            _infoChip(
-                                                'CANT', entrega['CANTIDAD']),
-                                            _infoChip(
-                                                'SECC', entrega['SECCION']),
-                                            _infoChip(
-                                                'JEF', entrega['JEFATURA']),
-                                            _infoChip(
-                                                'DESC', entrega['DESCRIPCION']),
+                                            _infoChip('SKU', entrega['SKU']),
+                                            _infoChip('DESCRIPCION',
+                                                entrega['DESCRIPCION']),
+                                            _infoChip('JEFATURA',
+                                                entrega['JEFATURA']),
                                             _infoChip('Valido',
                                                 entrega['validadoPor'] ?? '-'),
                                           ],

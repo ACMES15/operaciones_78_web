@@ -1,14 +1,110 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../utils/word_exporter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/firebase_cache_utils.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/sheet_validator.dart';
+
+/// Imprime hoja de ruta especial para destino 880
+Future<void> _printHojaRutaXD880(Map<String, String> data) async {
+  final pdf = pw.Document();
+  final destino = data['DESTINO'] ?? '';
+  final contTarima = data['CONTENEDOR O TARIMA'] ?? '';
+  final manifiesto = data['MANIFIESTO'] ?? '';
+  final tu = data['TU'] ?? '';
+  final fecha = data['FECHA'] ?? '';
+  final cantidadLps = data['CANTIDAD DE LPS'] ?? '';
+  pdf.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      build: (context) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.SizedBox(height: 16),
+            pw.Text('HOJA DE RUTA XD PLAN 880',
+                style:
+                    pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center),
+            pw.SizedBox(height: 24),
+            pw.Table(
+              border: pw.TableBorder.all(width: 0.5, color: PdfColors.grey600),
+              children: [
+                pw.TableRow(
+                  decoration: pw.BoxDecoration(color: PdfColors.grey300),
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('DESTINO',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('CONTENEDOR O TARIMA',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('MANIFIESTO',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('TU',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('FECHA',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('CANTIDAD DE LPS',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                pw.TableRow(
+                  children: [
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(destino),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(contTarima),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(manifiesto),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(tu),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(fecha),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(cantidadLps),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    ),
+  );
+  await Printing.layoutPdf(onLayout: (format) async => pdf.save());
+}
 
 class HojaDeXDPage extends StatefulWidget {
   final String? usuario;
@@ -370,6 +466,11 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                                 rowCtrls[i].text;
                                           }
                                           await _printXDCaratula(data);
+                                          // Si el destino es 880, imprimir hoja de ruta especial
+                                          if ((data['DESTINO'] ?? '').trim() ==
+                                              '880') {
+                                            await _printHojaRutaXD880(data);
+                                          }
                                           // Guardar registro en historial XD (Firestore/cache)
                                           final now = DateTime.now();
                                           final fechaStr =
@@ -414,6 +515,8 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
       ),
     );
   }
+
+  /// Imprime hoja de ruta especial para destino 880
 
   Future<void> _printXDCaratula(Map<String, String> data) async {
     final pdf = pw.Document();

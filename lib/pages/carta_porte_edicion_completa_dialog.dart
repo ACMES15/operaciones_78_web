@@ -1,6 +1,8 @@
 import '../utils/firebase_cache_utils.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/skus_utils.dart' as skus_utils;
 
 class CartaPorteHistorialManager {
   static List<Map<String, dynamic>> historial = [];
@@ -214,6 +216,43 @@ class CartaPorteEdicionCompletaDialog extends StatelessWidget {
                           EdgeInsets.symmetric(vertical: 8, horizontal: 8),
                     ),
                   ),
+                ),
+                FutureBuilder<List<List<String>>>(
+                  future: carta['CONCENTRADO'] != null &&
+                          carta['CONCENTRADO'].toString().isNotEmpty
+                      ? skus_utils.obtenerSkusLigadosHojaDeRuta(
+                          carta['CONCENTRADO'].toString())
+                      : Future.value([]),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(strokeWidth: 2)),
+                      );
+                    }
+                    final skus = snapshot.data ?? [];
+                    if (skus.isNotEmpty) {
+                      return Tooltip(
+                        message: 'Copiar SKUs ligados',
+                        child: IconButton(
+                          icon: const Icon(Icons.copy,
+                              size: 20, color: Colors.green),
+                          onPressed: () {
+                            final texto = skus_utils.skusToTexto(skus);
+                            Clipboard.setData(ClipboardData(text: texto));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('SKUs ligados copiados')),
+                            );
+                          },
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
               ],
             ),
