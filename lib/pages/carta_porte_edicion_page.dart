@@ -17,6 +17,7 @@ class CartaPorteEdicionPage extends StatefulWidget {
 }
 
 class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
+  late TextEditingController embarqueController;
   late TextEditingController choferController;
   late TextEditingController destinoController;
   late TextEditingController fechaController;
@@ -38,6 +39,8 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
     fechaController = TextEditingController(text: widget.carta['fecha'] ?? '');
     numeroControlController =
         TextEditingController(text: widget.carta['numero_control'] ?? '');
+    embarqueController =
+        TextEditingController(text: widget.carta['embarque'] ?? '');
     rfcController = TextEditingController(text: widget.carta['rfc'] ?? '');
     unidadController =
         TextEditingController(text: widget.carta['unidad'] ?? '');
@@ -72,6 +75,7 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
     destinoController.dispose();
     fechaController.dispose();
     numeroControlController.dispose();
+    embarqueController.dispose();
     rfcController.dispose();
     unidadController.dispose();
     licenciaController.dispose();
@@ -153,6 +157,7 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
                       'destino': destinoController.text,
                       'fecha': fechaController.text,
                       'numero_control': numeroControlController.text,
+                      'embarque': embarqueController.text,
                       'rfc': rfcController.text,
                       'unidad': unidadController.text,
                       'filas': filas,
@@ -170,6 +175,11 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            TextField(
+              controller: embarqueController,
+              decoration: const InputDecoration(labelText: 'Embarque'),
+              readOnly: false,
+            ),
             DropdownButtonFormField<String>(
               value: choferSeleccionado,
               decoration: const InputDecoration(labelText: 'Chofer'),
@@ -268,10 +278,21 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
                     ),
                     const SizedBox(width: 8),
                     FutureBuilder<List<List<String>>>(
-                      future: numeroControlController.text.isNotEmpty
-                          ? skus_utils.obtenerSkusLigadosHojaDeRuta(
-                              numeroControlController.text)
-                          : Future.value([]),
+                      future: () async {
+                        // Buscar SKUs ligados por numero_control y embarque
+                        final nc = numeroControlController.text;
+                        final emb = embarqueController.text;
+                        List<List<String>> skus = [];
+                        if (nc.isNotEmpty) {
+                          skus =
+                              await skus_utils.obtenerSkusLigadosHojaDeRuta(nc);
+                        }
+                        if ((skus.isEmpty) && emb.isNotEmpty) {
+                          skus = await skus_utils
+                              .obtenerSkusLigadosHojaDeRuta(emb);
+                        }
+                        return skus;
+                      }(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {

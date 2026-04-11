@@ -162,6 +162,23 @@ class HojaDeRutaPage extends StatefulWidget {
 }
 
 class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
+  // --- Navegación avanzada de celdas ---
+  final Map<String, FocusNode> _cellFocusNodes = {};
+
+  FocusNode _getFocusNode(int row, int col) {
+    final key = '$row-$col';
+    return _cellFocusNodes.putIfAbsent(key, () => FocusNode());
+  }
+
+  void _moveFocus(int row, int col) {
+    if (row < 0 ||
+        col < 0 ||
+        row >= _controllers.length ||
+        col >= _columns.length) return;
+    final node = _getFocusNode(row, col);
+    node.requestFocus();
+  }
+
   // Estado para selección múltiple de celdas
   Set<_CellPos> _selectedCells = {};
   _CellPos? _lastSelectedCell;
@@ -543,6 +560,10 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
         : '';
     final fechaEnvio = _fechaEnvio;
     final caja = _cajaController.text.trim();
+    final tipoHoja =
+        _opcionSeleccionada != null ? _opciones[_opcionSeleccionada!] : '';
+    final numeroControl = _numeroControlActual ?? '';
+    final esZonaEspecial = tipoHoja.toLowerCase().contains('zona especial');
 
     final pdf = pw.Document();
     pdf.addPage(
@@ -551,6 +572,17 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              if (esZonaEspecial)
+                pw.Center(
+                  child: pw.Text(
+                    tipoHoja.toUpperCase(),
+                    style: pw.TextStyle(
+                      fontSize: 32,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red800,
+                    ),
+                  ),
+                ),
               pw.Text('Hoja de Ruta',
                   style: pw.TextStyle(
                       fontSize: 20, fontWeight: pw.FontWeight.bold)),
@@ -558,6 +590,34 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 children: [
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Tipo de hoja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child:
+                          pw.Text(tipoHoja, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de control:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(numeroControl,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
                   pw.TableRow(children: [
                     pw.Container(
                       padding: pw.EdgeInsets.all(8),
@@ -1033,9 +1093,37 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                 ]),
                               )
                             else
-                              const Padding(
-                                  padding: EdgeInsets.only(right: 12),
-                                  child: Text('Impresora: por defecto')),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.only(right: 12),
+                                    child: Text('Impresora: por defecto'),
+                                  ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.qr_code),
+                                    label: const Text('Agrega SKUs'),
+                                    style: ElevatedButton.styleFrom(
+                                      minimumSize: const Size(120, 40),
+                                      backgroundColor: Colors.deepPurple,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    onPressed: _numeroControlActual == null
+                                        ? null
+                                        : () {
+                                            Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    HojaDeRutaSkusPage(
+                                                  numeroControl:
+                                                      _numeroControlActual!,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                  ),
+                                ],
+                              ),
                             TextButton.icon(
                                 icon: const Icon(Icons.search),
                                 label: const Text('Seleccionar impresora'),
@@ -1266,6 +1354,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                           child: Focus(
                                             onKey: (node, event) {
                                               if (event is RawKeyDownEvent) {
+                                                // Copiar/pegar
                                                 if (event.isControlPressed &&
                                                     event.logicalKey.keyLabel
                                                             .toLowerCase() ==
@@ -1278,6 +1367,49 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                                             .toLowerCase() ==
                                                         'c') {
                                                   _handleCopy();
+                                                  return KeyEventResult.handled;
+                                                }
+                                                // Navegación avanzada
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey.tab) {
+                                                  _moveFocus(
+                                                      rowIdx,
+                                                      colIdx +
+                                                          1); // Tab: derecha
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey.enter) {
+                                                  _moveFocus(rowIdx + 1,
+                                                      colIdx); // Enter: abajo
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey
+                                                        .arrowDown) {
+                                                  _moveFocus(
+                                                      rowIdx + 1, colIdx);
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey
+                                                        .arrowUp) {
+                                                  _moveFocus(
+                                                      rowIdx - 1, colIdx);
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey
+                                                        .arrowLeft) {
+                                                  _moveFocus(
+                                                      rowIdx, colIdx - 1);
+                                                  return KeyEventResult.handled;
+                                                }
+                                                if (event.logicalKey ==
+                                                    LogicalKeyboardKey
+                                                        .arrowRight) {
+                                                  _moveFocus(
+                                                      rowIdx, colIdx + 1);
                                                   return KeyEventResult.handled;
                                                 }
                                               }
@@ -1307,6 +1439,8 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                                                         4)),
                                                 style: const TextStyle(
                                                     fontSize: 13),
+                                                focusNode: _getFocusNode(
+                                                    rowIdx, colIdx),
                                                 onTap: () {
                                                   // Shift+Click selección múltiple
                                                   final shift = RawKeyboard
@@ -1321,6 +1455,14 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                                                   .shiftRight);
                                                   _handleCellTap(
                                                       rowIdx, colIdx, shift);
+                                                },
+                                                onEditingComplete: () {
+                                                  _moveFocus(rowIdx + 1,
+                                                      colIdx); // Enter: abajo
+                                                },
+                                                onSubmitted: (_) {
+                                                  _moveFocus(rowIdx + 1,
+                                                      colIdx); // Enter: abajo
                                                 },
                                               ),
                                             ),

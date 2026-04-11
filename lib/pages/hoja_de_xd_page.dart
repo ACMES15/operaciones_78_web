@@ -465,11 +465,13 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                             data[_columns[i]] =
                                                 rowCtrls[i].text;
                                           }
-                                          await _printXDCaratula(data);
-                                          // Si el destino es 880, imprimir hoja de ruta especial
+                                          // Si el destino es 880, imprime primero hoja de ruta especial y luego carátula normal
                                           if ((data['DESTINO'] ?? '').trim() ==
                                               '880') {
                                             await _printHojaRutaXD880(data);
+                                            await _printXDCaratula(data);
+                                          } else {
+                                            await _printXDCaratula(data);
                                           }
                                           // Guardar registro en historial XD (Firestore/cache)
                                           final now = DateTime.now();

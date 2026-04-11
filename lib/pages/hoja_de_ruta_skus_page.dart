@@ -162,139 +162,210 @@ class _HojaDeRutaSkusPageState extends State<HojaDeRutaSkusPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6F8),
       appBar: AppBar(
-        title: const Text('Agregar SKUs a Hoja de Ruta'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.deepPurple),
+        title: const Text('Agregar SKUs a Hoja de Ruta',
+            style: TextStyle(
+              color: Colors.deepPurple,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              letterSpacing: 0.5,
+            )),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Text('N° de control:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(width: 8),
-                Text(widget.numeroControl,
-                    style: const TextStyle(color: Colors.green)),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Agregar columna SKU',
-                  onPressed: isSaved ? null : _addColumn,
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                child: Row(
+                  children: [
+                    const Text('N° de control:',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(width: 8),
+                    Text(widget.numeroControl,
+                        style: const TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
+                    const Spacer(),
+                    Tooltip(
+                      message: 'Agregar columna SKU',
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.add),
+                        label: const Text('Columna'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
+                          minimumSize: const Size(120, 40),
+                        ),
+                        onPressed: isSaved ? null : _addColumn,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Expanded(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: List.generate(skuColumns.length, (colIdx) {
-                    return Container(
-                      margin: const EdgeInsets.only(right: 16),
-                      width: 180,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: const Text('SKU',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                          Expanded(
-                            child: ListView.builder(
-                              itemCount: skuColumns[colIdx].length + 1,
-                              itemBuilder: (context, rowIdx) {
-                                final isCell =
-                                    rowIdx < skuColumns[colIdx].length;
-                                final value =
-                                    isCell ? skuColumns[colIdx][rowIdx] : '';
-                                return GestureDetector(
-                                  onTap: () {
-                                    if (!isSaved) {
-                                      _handleCellTap(rowIdx, colIdx, false);
-                                    }
-                                  },
-                                  onLongPress: () {
-                                    if (!isSaved) {
-                                      _handleCellTap(rowIdx, colIdx, true);
-                                    }
-                                  },
-                                  child: Container(
-                                    color: selectedCells
-                                            .contains(_CellPos(rowIdx, colIdx))
-                                        ? Colors.lightGreenAccent
-                                            .withOpacity(0.4)
-                                        : null,
-                                    child: TextField(
-                                      controller: isCell
-                                          ? TextEditingController(text: value)
-                                          : TextEditingController(),
-                                      enabled: !isSaved && !isCell,
-                                      maxLines: 1,
-                                      decoration: InputDecoration(
-                                        border: InputBorder.none,
-                                        hintText:
-                                            isCell ? '' : 'Pega SKUs aquí',
-                                        isDense: true,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                vertical: 4, horizontal: 6),
-                                      ),
-                                      onTap: () {
-                                        if (!isSaved && !isCell) {
-                                          // Pega tabla completa desde Excel
-                                          _handlePasteTable(rowIdx, colIdx);
-                                        }
-                                      },
-                                      onChanged: (val) {
-                                        if (!isSaved && !isCell) {
-                                          if (val.isNotEmpty) {
-                                            skuColumns[colIdx].add(val);
-                                            setState(() {});
-                                          }
-                                        }
-                                      },
-                                      readOnly: isSaved || isCell,
-                                      onSubmitted: (_) {},
-                                    ),
-                                  ),
-                                );
-                              },
+                    return Card(
+                      elevation: 1,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      margin: const EdgeInsets.only(right: 20, bottom: 8),
+                      child: Container(
+                        width: 200,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: const Text('SKU',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: Colors.deepPurple)),
                             ),
-                          ),
-                        ],
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: skuColumns[colIdx].length + 1,
+                                itemBuilder: (context, rowIdx) {
+                                  final isCell =
+                                      rowIdx < skuColumns[colIdx].length;
+                                  final value =
+                                      isCell ? skuColumns[colIdx][rowIdx] : '';
+                                  return GestureDetector(
+                                    onTap: () {
+                                      if (!isSaved) {
+                                        _handleCellTap(rowIdx, colIdx, false);
+                                      }
+                                    },
+                                    onLongPress: () {
+                                      if (!isSaved) {
+                                        _handleCellTap(rowIdx, colIdx, true);
+                                      }
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(
+                                          vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: selectedCells.contains(
+                                                _CellPos(rowIdx, colIdx))
+                                            ? Colors.deepPurple
+                                                .withOpacity(0.12)
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: TextField(
+                                        controller: isCell
+                                            ? TextEditingController(text: value)
+                                            : TextEditingController(),
+                                        enabled: !isSaved && !isCell,
+                                        maxLines: 1,
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black87),
+                                        decoration: InputDecoration(
+                                          border: InputBorder.none,
+                                          hintText:
+                                              isCell ? '' : 'Pega SKUs aquí',
+                                          isDense: true,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                  vertical: 6, horizontal: 10),
+                                        ),
+                                        onTap: () {
+                                          if (!isSaved && !isCell) {
+                                            _handlePasteTable(rowIdx, colIdx);
+                                          }
+                                        },
+                                        onChanged: (val) {
+                                          if (!isSaved && !isCell) {
+                                            if (val.isNotEmpty) {
+                                              skuColumns[colIdx].add(val);
+                                              setState(() {});
+                                            }
+                                          }
+                                        },
+                                        readOnly: isSaved || isCell,
+                                        onSubmitted: (_) {},
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.save),
                   label: const Text('Guardar'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    minimumSize: const Size(120, 44),
+                    textStyle: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   onPressed: isSaved ? null : _guardarSkus,
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 18),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.copy),
                   label: const Text('Copiar selección'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.indigo,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
+                    minimumSize: const Size(120, 44),
+                    textStyle: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
                   onPressed: selectedCells.isEmpty ? null : _handleCopy,
                 ),
               ],
             ),
             if (isSaved)
               const Padding(
-                padding: EdgeInsets.only(top: 12),
+                padding: EdgeInsets.only(top: 16),
                 child: Text(
                   'No se pueden modificar ni borrar los SKUs guardados. Solo puedes copiar o agregar más columnas.',
-                  style: TextStyle(color: Colors.red),
+                  style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15),
                 ),
               ),
           ],
