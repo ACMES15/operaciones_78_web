@@ -170,7 +170,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     120, // TIPO
     120, // SYS
     120, // EMBARQUE
-    340, // DESCRIPCIÓN / COMENTARIOS (más grande)
+    320, // DESCRIPCIÓN / COMENTARIOS (más grande)
     120, // NO. DE BULTOS
     120, // DESTINO
     120, // CONTENEDOR
