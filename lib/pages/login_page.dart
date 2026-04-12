@@ -116,7 +116,8 @@ class _LoginPageState extends State<LoginPage> {
                       if (!docSnap.exists || docSnap.data() == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Usuario no registrado.')),
+                              content:
+                                  Text('Usuario o contraseña incorrectos.')),
                         );
                         return;
                       }
@@ -223,8 +224,27 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () async {
-                    // Buscar admins en la colección usuarios
+                    final usuarioInput =
+                        _usuarioController.text.trim().toLowerCase();
+                    if (usuarioInput.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Ingrese su usuario')),
+                      );
+                      return;
+                    }
                     try {
+                      final userSnap = await FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .doc(usuarioInput)
+                          .get();
+                      if (!userSnap.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Usuario no registrado.')),
+                        );
+                        return;
+                      }
+                      // Buscar admins en la colección usuarios
                       final query = await FirebaseFirestore.instance
                           .collection('usuarios')
                           .where('tipo', isEqualTo: 'ADMIN')

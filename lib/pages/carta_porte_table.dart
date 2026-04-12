@@ -165,17 +165,17 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   List<List<TextEditingController>> _controllers = [];
   List<List<FocusNode>> _focusNodes = [];
   List<double> colWidths = [
-    120,
-    60,
-    120,
-    120,
-    120,
-    180,
-    120,
-    120,
-    120,
-    120,
-    120
+    120, // ESCANEO
+    60, // NO.
+    120, // TIPO
+    120, // SYS
+    120, // EMBARQUE
+    340, // DESCRIPCIÓN / COMENTARIOS (más grande)
+    120, // NO. DE BULTOS
+    120, // DESTINO
+    120, // CONTENEDOR
+    120, // EMBARQUE
+    120 // CONCENTRADO
   ];
 
   Future<void> _autocompletarFilaPorEscaneo(int rowIdx) async {

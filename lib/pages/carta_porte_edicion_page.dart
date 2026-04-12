@@ -601,21 +601,26 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
         return;
       } else if (masReciente['tipo'] == 'xd') {
         final h = masReciente['data'];
-        filasControllers[filaIdx][2].text = 'PAQ';
+        // Llenar todos los campos relevantes
+        filasControllers[filaIdx][2].text = 'PAQ'; // TIPO
         final tu = (h['TU'] ?? '').toString().trim();
         if (tu.isNotEmpty) {
-          filasControllers[filaIdx][3].text = 'MAN';
+          filasControllers[filaIdx][3].text = 'MAN'; // SYS
         } else {
-          filasControllers[filaIdx][3].text = 'XD';
+          filasControllers[filaIdx][3].text = 'XD'; // SYS
         }
-        filasControllers[filaIdx][5].text = h['MANIFIESTO'] ?? '';
-        filasControllers[filaIdx][6].text = h['CANTIDAD DE LPS'] ?? '';
+        filasControllers[filaIdx][4].text =
+            h['CONTENEDOR O TARIMA'] ?? ''; // EMBARQUE
+        filasControllers[filaIdx][5].text =
+            h['DESCRIPCIÓN / COMENTARIOS'] ?? ''; // DESCRIPCIÓN / COMENTARIOS
+        filasControllers[filaIdx][6].text =
+            h['CANTIDAD DE LPS'] ?? ''; // NO. DE BULTOS
         filasControllers[filaIdx][7].text = h['DESTINO'] ?? '';
-        filasControllers[filaIdx][8].text = escaneo;
-        final embarque1 = filasControllers[filaIdx][4].text;
-        final embarque2 = filasControllers[filaIdx][9].text;
-        filasControllers[filaIdx][10].text =
-            embarque1.isNotEmpty ? embarque1 : embarque2;
+        filasControllers[filaIdx][8].text = h['CONTENEDOR O TARIMA'] ?? '';
+        filasControllers[filaIdx][9].text = h['EMBARQUE'] ?? '';
+        filasControllers[filaIdx][10].text = h['CONCENTRADO'] ?? '';
+        // El escaneo siempre en la columna 0
+        filasControllers[filaIdx][0].text = escaneo;
         setState(() {});
         return;
       }
