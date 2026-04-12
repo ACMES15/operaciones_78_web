@@ -418,15 +418,22 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       // Usar headers y orden exactamente como se guardaron
       final headers =
           sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
+      final doctoIdx = headers.indexOf('Docto');
+      if (doctoIdx != -1) headers.removeAt(doctoIdx);
       final data = (sheet['rows'] as List?)?.map((row) {
+            List<String> ordered;
             if (row is Map && headers.isNotEmpty) {
-              // Ordenar los valores según headers
-              return headers.map((h) => row[h]?.toString() ?? '').toList();
+              ordered = headers.map((h) => row[h]?.toString() ?? '').toList();
             } else if (row is List) {
-              return List<String>.from(row.map((e) => e.toString()));
+              ordered = List<String>.from(row.map((e) => e.toString()));
             } else {
-              return [row.toString()];
+              ordered = [row.toString()];
             }
+            // Remover columna Docto si existe
+            if (doctoIdx != -1 && ordered.length > doctoIdx) {
+              ordered.removeAt(doctoIdx);
+            }
+            return ordered;
           }).toList() ??
           [];
       final origen = sheet['origen'] ?? '';

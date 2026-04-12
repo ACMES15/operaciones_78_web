@@ -683,17 +683,26 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   }
 
   Future<void> _printHojaRuta({Map<String, dynamic>? sheet}) async {
-    final headers = _columns;
+    // Copia de headers y data para impresión
+    final headers = List<String>.from(_columns);
+    final doctoIdx = headers.indexOf('Docto');
+    if (doctoIdx != -1) headers.removeAt(doctoIdx);
     // Siempre asegurar formato horizontal: cada sublista es una fila, cada elemento una celda
     final data = (sheet == null)
         ? _controllers
             .map((row) => row.map((c) => c.text.trim()).toList())
             .where((row) => row.any((cell) => cell.isNotEmpty))
+            .map((row) => doctoIdx != -1 && row.length > doctoIdx
+                ? (List<String>.from(row)..removeAt(doctoIdx))
+                : row)
             .toList()
         : (sheet['rows'] is List<List<dynamic>>)
             ? (sheet['rows'] as List)
                 .map((row) =>
                     (row as List).map((cell) => cell.toString()).toList())
+                .map((row) => doctoIdx != -1 && row.length > doctoIdx
+                    ? (List<String>.from(row)..removeAt(doctoIdx))
+                    : row)
                 .toList()
             : (sheet['rows'] as List)
                 .map((rowMap) =>

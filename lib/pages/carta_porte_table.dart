@@ -166,13 +166,13 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   List<List<FocusNode>> _focusNodes = [];
   List<double> colWidths = [
     120, // ESCANEO
-    60, // NO.
+    50, // NO.
     120, // TIPO
     120, // SYS
     120, // EMBARQUE
-    285, // DESCRIPCIÓN / COMENTARIOS (ajustado para que quepa en pantalla)
-    120, // NO. DE BULTOS
-    120, // DESTINO
+    282, // DESCRIPCIÓN / COMENTARIOS (ajustado para que quepa en pantalla)
+    70, // NO. DE BULTOS (más pequeño)
+    60, // DESTINO (más pequeño)
     120, // CONTENEDOR
     120, // EMBARQUE
     120 // CONCENTRADO
