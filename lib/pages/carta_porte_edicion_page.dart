@@ -610,15 +610,31 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
           filasControllers[filaIdx][3].text = 'XD'; // SYS
         }
         filasControllers[filaIdx][4].text =
-            h['CONTENEDOR O TARIMA'] ?? ''; // EMBARQUE
-        filasControllers[filaIdx][5].text =
-            h['DESCRIPCIÓN / COMENTARIOS'] ?? ''; // DESCRIPCIÓN / COMENTARIOS
+            h['CONTENEDOR O TARIMA'] ?? ''; // EMBARQUE 1
+        filasControllers[filaIdx][5].text = h['DESCRIPCIÓN / COMENTARIOS'] ??
+            h['DESCRIPCION'] ??
+            ''; // DESCRIPCIÓN / COMENTARIOS
+
+        // NO. DE BULTOS: buscar en varios campos posibles
         filasControllers[filaIdx][6].text =
-            h['CANTIDAD DE LPS'] ?? ''; // NO. DE BULTOS
+            h['CANTIDAD DE LPS'] ?? h['NO. DE BULTOS'] ?? h['BULTOS'] ?? '';
+
         filasControllers[filaIdx][7].text = h['DESTINO'] ?? '';
         filasControllers[filaIdx][8].text = h['CONTENEDOR O TARIMA'] ?? '';
-        filasControllers[filaIdx][9].text = h['EMBARQUE'] ?? '';
-        filasControllers[filaIdx][10].text = h['CONCENTRADO'] ?? '';
+        filasControllers[filaIdx][9].text = h['EMBARQUE'] ?? ''; // EMBARQUE 2
+
+        // CONCENTRADO: si no hay, poner embarque1 o embarque2
+        String concentrado = (h['CONCENTRADO'] ?? '').toString().trim();
+        final embarque1 = (h['CONTENEDOR O TARIMA'] ?? '').toString().trim();
+        final embarque2 = (h['EMBARQUE'] ?? '').toString().trim();
+        if (concentrado.isEmpty) {
+          if (embarque1.isNotEmpty) {
+            concentrado = embarque1;
+          } else if (embarque2.isNotEmpty) {
+            concentrado = embarque2;
+          }
+        }
+        filasControllers[filaIdx][10].text = concentrado;
         // El escaneo siempre en la columna 0
         filasControllers[filaIdx][0].text = escaneo;
         setState(() {});
@@ -643,7 +659,7 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       120.0,
       120.0,
       120.0,
-      180.0,
+      200.0,
       120.0,
       120.0,
       120.0,
