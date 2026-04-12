@@ -655,13 +655,13 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
   Widget build(BuildContext context) {
     final colWidths = [
       120.0,
-      60.0,
+      50.0,
       120.0,
       120.0,
       120.0,
       282.0,
       120.0,
-      120.0,
+      100.0,
       120.0,
       120.0,
       120.0
