@@ -104055,7 +104055,7 @@ n.push(new A.nk(B.hV,A.bD(A.cY(p,"\n"," "),1,A.bP(o,o,o,o,o,o,o,o,o,B.am,o,o,8,o
 $S:608}
 A.E_.prototype={
 a1(){var s=$.P(),r=t.s
-return new A.Ll(new A.a3(B.T,s),new A.a3(B.T,s),new A.a3(B.T,s),new A.a3(B.T,s),A.a([],t.Y),A.a([],r),A.a(["ESCANEO","NO.","TIPO","SYS","EMBARQUE","DESCRIPCI\xd3N / COMENTARIOS","NO. DE BULTOS","DESTINO","CONTENEDOR","EMBARQUE","CONCENTRADO"],r),A.a([],t.C),A.a([],t.lO),A.a([120,60,120,120,120,270,120,120,120,120,120],t.n))}}
+return new A.Ll(new A.a3(B.T,s),new A.a3(B.T,s),new A.a3(B.T,s),new A.a3(B.T,s),A.a([],t.Y),A.a([],r),A.a(["ESCANEO","NO.","TIPO","SYS","EMBARQUE","DESCRIPCI\xd3N / COMENTARIOS","NO. DE BULTOS","DESTINO","CONTENEDOR","EMBARQUE","CONCENTRADO"],r),A.a([],t.C),A.a([],t.lO),A.a([120,60,120,120,120,287,120,120,120,120,120],t.n))}}
 A.Ll.prototype={
 aem(){var s,r=B.k.rr(this.at,new A.azM())
 if(r===-1)return
