@@ -661,7 +661,7 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       120.0,
       282.0,
       120.0,
-      100.0,
+      80.0,
       120.0,
       120.0,
       120.0
