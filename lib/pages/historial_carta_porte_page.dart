@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/exportar_excel.dart';
 import 'carta_porte_edicion_page.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class HistorialCartaPortePage extends StatefulWidget {
   const HistorialCartaPortePage({Key? key}) : super(key: key);
@@ -12,8 +14,39 @@ class HistorialCartaPortePage extends StatefulWidget {
 }
 
 class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
-  // Caché local sincronizada con Firestore
+  static const String _hiveBoxName = 'historial_carta_porte_cache';
   List<Map<String, dynamic>> _cartasCache = [];
+  bool _hiveInitialized = false;
+
+  final TextEditingController _busquedaController = TextEditingController();
+  final TextEditingController _escaneoController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initHiveAndLoadCache();
+  }
+
+  Future<void> _initHiveAndLoadCache() async {
+    if (!_hiveInitialized) {
+      await Hive.initFlutter();
+      _hiveInitialized = true;
+    }
+    var box = await Hive.openBox(_hiveBoxName);
+    final cached = box.get('cartas') as List?;
+    if (cached != null) {
+      _cartasCache =
+          cached.cast<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      setState(() {});
+    }
+  }
+
+  Future<void> _guardarCacheCartas(List<Map<String, dynamic>> cartas) async {
+    if (!_hiveInitialized) return;
+    var box = await Hive.openBox(_hiveBoxName);
+    await box.put('cartas', cartas);
+  }
+
   Future<void> _editarCartaDialog(Map<String, dynamic> carta) async {
     final manifiestoController = TextEditingController(
         text: carta['MANIFIESTO'] ?? carta['manifiesto'] ?? '');
@@ -90,9 +123,6 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
       },
     );
   }
-
-  final TextEditingController _busquedaController = TextEditingController();
-  final TextEditingController _escaneoController = TextEditingController();
 
   Future<Map<String, dynamic>?> _buscarDatosExternos(String codigo) async {
     // Buscar en hoja de ruta enviada
@@ -235,19 +265,24 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                     .orderBy('numero_control', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      _cartasCache.isEmpty) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: \\${snapshot.error}'));
                   }
-                  // Actualiza la caché local con los datos más recientes
-                  final docs = snapshot.data?.docs ?? [];
-                  _cartasCache = docs.map((d) {
-                    final data = d.data() as Map<String, dynamic>;
-                    data['id'] = d.id;
-                    return data;
-                  }).toList();
+                  // Si hay datos nuevos de Firestore, actualiza la caché persistente y la memoria
+                  if (snapshot.hasData) {
+                    final docs = snapshot.data?.docs ?? [];
+                    final nuevasCartas = docs.map((d) {
+                      final data = d.data() as Map<String, dynamic>;
+                      data['id'] = d.id;
+                      return data;
+                    }).toList();
+                    _cartasCache = nuevasCartas;
+                    _guardarCacheCartas(nuevasCartas);
+                  }
                   final busqueda =
                       _busquedaController.text.trim().toLowerCase();
                   final cartas = _cartasCache.where((carta) {
