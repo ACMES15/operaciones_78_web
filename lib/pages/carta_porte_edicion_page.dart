@@ -406,43 +406,250 @@ class CartaPorteAgregarFilaPage extends StatefulWidget {
 }
 
 class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
-  late List<String> columns;
-  late List<List<TextEditingController>> filasControllers;
-  final int filasCount = 5;
-
-  @override
-  void initState() {
-    super.initState();
-    // Usar el mismo orden y nombres de columnas que carta_porte_table.dart
-    columns = [
-      'ESCANEO',
-      'NO.',
-      'TIPO',
-      'SYS',
-      'EMBARQUE',
-      'DESCRIPCIÓN / COMENTARIOS',
-      'NO. DE BULTOS',
-      'DESTINO',
-      // Agrega aquí más columnas si tu tabla original tiene más
-    ];
-    filasControllers = List.generate(
-      filasCount,
-      (_) => List.generate(columns.length, (_) => TextEditingController()),
-    );
-  }
-
   Future<void> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
     try {
       final escaneo = filasControllers[filaIdx][0].text.trim();
+      final escaneoLower = escaneo.toLowerCase();
       if (escaneo.isEmpty) return;
-      // Aquí va la lógica de autollenado, ya alineada con carta_porte_table.dart
-      // ...existing code de autollenado...
+
+      // Buscar en hoja_ruta (todas las coincidencias)
+      final hojaRutaSnap = await FirebaseFirestore.instance
+          .collection('hoja_ruta')
+          .orderBy('fecha', descending: true)
+          .get();
+      final hojaRutaDocs = hojaRutaSnap.docs
+          .where((doc) =>
+              (doc.data()['caja'] ?? '').toString().trim().toLowerCase() ==
+              escaneoLower)
+          .toList();
+
+      // Buscar en hoja_de_xd_historial (todas las coincidencias)
+      final xdSnap = await FirebaseFirestore.instance
+          .collection('hoja_de_xd_historial')
+          .orderBy('fecha', descending: true)
+          .get();
+      List<dynamic> xd = xdSnap.docs
+          .map((doc) => doc.data())
+          .where((h) =>
+              (h['datos']?['CONTENEDOR O TARIMA'] ?? '')
+                  .toString()
+                  .trim()
+                  .toLowerCase() ==
+              escaneoLower)
+          .toList();
+
+      // Si no hay resultados directos, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs de hoja_de_xd_historial
+      if (xd.isEmpty) {
+        xd = xdSnap.docs
+            .map((doc) => doc.data())
+            .where((h) => ((h['datos']?['CONTENEDOR O TARIMA'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase() ==
+                    escaneoLower ||
+                (h['datos']?['TARIMA'] ?? '').toString().trim().toLowerCase() ==
+                    escaneoLower))
+            .toList();
+      }
+
+      // Unificar todos los resultados en una lista con tipo y fecha
+      final List<Map<String, dynamic>> resultados = [];
+      for (final doc in hojaRutaDocs) {
+        final data = doc.data();
+        if (data['fecha'] != null) {
+          resultados.add({
+            'tipo': 'hoja_ruta',
+            'fecha': data['fecha'],
+            'data': data,
+          });
+        }
+      }
+      for (final h in xd) {
+        resultados.add({
+          'tipo': 'xd',
+          'fecha': h['fecha'],
+          'data': h,
+        });
+      }
+
+      if (resultados.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'No se encontró información para "$escaneo" en Firestore.')),
+        );
+        return;
+      }
+
+      DateTime _toDate(dynamic f) {
+        if (f is DateTime) return f;
+        if (f is Timestamp) return f.toDate();
+        if (f is String) {
+          try {
+            return DateTime.parse(f);
+          } catch (_) {
+            return DateTime(1970);
+          }
+        }
+        return DateTime(1970);
+      }
+
+      resultados.sort((a, b) {
+        final fa = _toDate(a['fecha']);
+        final fb = _toDate(b['fecha']);
+        return fb.compareTo(fa);
+      });
+      final masReciente = resultados.first;
+
+      if (masReciente['tipo'] == 'hoja_ruta') {
+        final ruta = masReciente['data'];
+        filasControllers[filaIdx][2].text = ruta['tipo'] ?? '';
+        filasControllers[filaIdx][3].text = 'SAP';
+        final rows = (ruta['rows'] as List?) ?? [];
+        String embarque = '';
+        for (final row in rows) {
+          if (row is Map) {
+            if ((row['No. Manifiesto o Remisión'] != null &&
+                row['No. Manifiesto o Remisión'].toString().isNotEmpty)) {
+              embarque = row['No. Manifiesto o Remisión'].toString();
+              break;
+            } else if ((row['Rem'] != null &&
+                row['Rem'].toString().isNotEmpty)) {
+              embarque = row['Rem'].toString();
+              break;
+            }
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns.indexWhere((c) =>
+                c.toString().toLowerCase().contains('manifiesto') ||
+                c.toString().toLowerCase().contains('rem'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              embarque = row[idx].toString();
+              break;
+            }
+          }
+        }
+        filasControllers[filaIdx][4].text = embarque;
+        filasControllers[filaIdx][5].text = ruta['tipo'] ?? '';
+        int sumaBultos = 0;
+        for (final row in rows) {
+          if (row is Map && row['No. Bultos'] != null) {
+            final val = int.tryParse(row['No. Bultos'].toString());
+            if (val != null) sumaBultos += val;
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns.indexWhere(
+                (c) => c.toString().toLowerCase().contains('bultos'));
+            if (idx >= 0 && row.length > idx && row[idx] != null) {
+              final val = int.tryParse(row[idx].toString());
+              if (val != null) sumaBultos += val;
+            }
+          }
+        }
+        filasControllers[filaIdx][6].text =
+            sumaBultos > 0 ? sumaBultos.toString() : '';
+        String destino = '';
+        for (final row in rows) {
+          if (row is Map &&
+              row['No. Alm.'] != null &&
+              row['No. Alm.'].toString().isNotEmpty) {
+            destino = row['No. Alm.'].toString();
+            break;
+          } else if (row is List) {
+            final columns = (ruta['columns'] as List?) ?? [];
+            final idx = columns
+                .indexWhere((c) => c.toString().toLowerCase().contains('alm'));
+            if (idx >= 0 &&
+                row.length > idx &&
+                row[idx] != null &&
+                row[idx].toString().isNotEmpty) {
+              destino = row[idx].toString();
+              break;
+            }
+          }
+        }
+        filasControllers[filaIdx][7].text = destino;
+        filasControllers[filaIdx][8].text = escaneo;
+        final embarque1 = filasControllers[filaIdx][4].text;
+        final embarque2 = filasControllers[filaIdx][9].text;
+        filasControllers[filaIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
+        setState(() {});
+        return;
+      } else if (masReciente['tipo'] == 'xd') {
+        final h = masReciente['data'];
+        filasControllers[filaIdx][2].text = 'PAQ';
+        final tu = (h['datos']?['TU'] ?? '').toString().trim();
+        if (tu.isNotEmpty) {
+          filasControllers[filaIdx][3].text = 'MAN';
+          filasControllers[filaIdx][4].text = tu;
+        } else {
+          filasControllers[filaIdx][3].text = 'XD';
+        }
+        filasControllers[filaIdx][5].text = h['datos']?['MANIFIESTO'] ?? '';
+        filasControllers[filaIdx][6].text =
+            h['datos']?['CANTIDAD DE LPS'] ?? '';
+        filasControllers[filaIdx][7].text = h['datos']?['DESTINO'] ?? '';
+        filasControllers[filaIdx][8].text = escaneo;
+        final embarque1 = filasControllers[filaIdx][4].text;
+        final embarque2 = filasControllers[filaIdx][9].text;
+        filasControllers[filaIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
+        setState(() {});
+        return;
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error inesperado: $e')),
       );
     }
   }
+
+  final List<String> columns = [
+    'ESCANEO',
+    'NO.',
+    'TIPO',
+    'CLASE',
+    'EMBARQUE 1',
+    'EMBARQUE 2',
+    'NO. DE BULTOS',
+    'DESTINO',
+    'DESCRIPCIÓN / COMENTARIOS',
+    'CONCENTRADO',
+    'OTRO',
+  ];
+
+  late List<List<TextEditingController>> filasControllers;
+  late List<FocusNode> escaneoFocusNodes;
+  int filasCount = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    filasControllers = List.generate(
+      filasCount,
+      (_) => List.generate(columns.length, (_) => TextEditingController()),
+    );
+    escaneoFocusNodes = List.generate(filasCount, (_) => FocusNode());
+  }
+
+  // Anchos personalizados para cada columna
+  final List<double> colWidths = [
+    120, // ESCANEO
+    40, // NO.
+    60, // TIPO
+    60, // CLASE
+    100, // EMBARQUE 1
+    100, // EMBARQUE 2
+    60, // NO. DE BULTOS
+    80, // DESTINO
+    100, // DESCRIPCIÓN / COMENTARIOS
+    100, // CONCENTRADO
+    100, // OTRO
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -471,20 +678,44 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
                       padding: const EdgeInsets.all(8.0),
                       child: Row(
                         children: List.generate(columns.length, (colIdx) {
-                          return Expanded(
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: TextField(
-                                controller: filasControllers[filaIdx][colIdx],
-                                decoration:
-                                    InputDecoration(labelText: columns[colIdx]),
-                                onChanged: (_) {
-                                  if (colIdx == 0) {
-                                    _autocompletarPorEscaneo(filaIdx, colIdx);
+                          return Container(
+                            width: colWidths[colIdx],
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 4.0),
+                            child: TextField(
+                              controller: filasControllers[filaIdx][colIdx],
+                              focusNode: colIdx == 0
+                                  ? escaneoFocusNodes[filaIdx]
+                                  : null,
+                              decoration:
+                                  InputDecoration(labelText: columns[colIdx]),
+                              maxLength: colIdx == 1
+                                  ? 2 // NO.
+                                  : colIdx == 6
+                                      ? 4 // NO. DE BULTOS
+                                      : colIdx == 7
+                                          ? 4 // DESTINO
+                                          : null,
+                              buildCounter: (context,
+                                      {required currentLength,
+                                      required isFocused,
+                                      maxLength}) =>
+                                  null,
+                              onChanged: (_) {
+                                if (colIdx == 0) {
+                                  _autocompletarPorEscaneo(filaIdx, colIdx);
+                                }
+                              },
+                              onSubmitted: (value) async {
+                                if (colIdx == 0) {
+                                  await _autocompletarPorEscaneo(
+                                      filaIdx, colIdx);
+                                  if (filaIdx + 1 < filasCount) {
+                                    FocusScope.of(context).requestFocus(
+                                        escaneoFocusNodes[filaIdx + 1]);
                                   }
-                                },
-                              ),
+                                }
+                              },
                             ),
                           );
                         }),
