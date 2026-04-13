@@ -175,11 +175,7 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: embarqueController,
-              decoration: const InputDecoration(labelText: 'Embarque'),
-              readOnly: false,
-            ),
+            // Campo 'Embarque' eliminado
             DropdownButtonFormField<String>(
               value: choferSeleccionado,
               decoration: const InputDecoration(labelText: 'Chofer'),
