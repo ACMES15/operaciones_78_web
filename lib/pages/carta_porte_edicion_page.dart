@@ -420,9 +420,15 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       'TIPO',
       'SYS',
       'EMBARQUE',
-      // ...agrega aquí el resto de columnas si es necesario...
+      'DESCRIPCIÓN / COMENTARIOS',
+      'NO. DE BULTOS',
+      'DESTINO',
+      // Agrega aquí más columnas si tu tabla original tiene más
     ];
-    // ...inicialización de filasControllers y otros...
+    filasControllers = List.generate(
+      filasCount,
+      (_) => List.generate(columns.length, (_) => TextEditingController()),
+    );
   }
 
   Future<void> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
