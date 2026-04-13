@@ -635,16 +635,16 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
   // Anchos personalizados para cada columna
   final List<double> colWidths = [
     120, // ESCANEO
-    40, // NO.
-    60, // TIPO
-    60, // CLASE
-    100, // EMBARQUE 1
-    100, // EMBARQUE 2
-    60, // NO. DE BULTOS
-    80, // DESTINO
-    100, // DESCRIPCIÓN / COMENTARIOS
-    100, // CONCENTRADO
-    100, // OTRO
+    50, // NO.
+    120, // TIPO
+    120, // SYS
+    120, // EMBARQUE
+    282, // DESCRIPCIÓN / COMENTARIOS
+    70, // NO. DE BULTOS
+    60, // DESTINO
+    120, // CONTENEDOR
+    120, // EMBARQUE
+    140, // CONCENTRADO (más ancho)
   ];
 
   @override
@@ -730,6 +730,27 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
                                             required isFocused,
                                             maxLength}) =>
                                         null,
+                                    onChanged: (value) {
+                                      // Si se edita EMBARQUE 1 o EMBARQUE 2 y EMBARQUE 1 está vacío, pasar el valor a CONCENTRADO
+                                      final embarque1Idx =
+                                          columns.indexOf('EMBARQUE');
+                                      final embarque2Idx =
+                                          columns.lastIndexOf('EMBARQUE');
+                                      final concentradoIdx =
+                                          columns.indexOf('CONCENTRADO');
+                                      if ((colIdx == embarque1Idx ||
+                                              colIdx == embarque2Idx) &&
+                                          filasControllers[filaIdx]
+                                                  [embarque1Idx]
+                                              .text
+                                              .trim()
+                                              .isEmpty) {
+                                        filasControllers[filaIdx]
+                                                [concentradoIdx]
+                                            .text = value;
+                                        setState(() {});
+                                      }
+                                    },
                                     onSubmitted: (value) async {
                                       if (colIdx == 0) {
                                         final found =
@@ -784,7 +805,9 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
                   icon: const Icon(Icons.check),
                   label: const Text('Agregar'),
                   style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2D6A4F)),
+                    backgroundColor: Color(0xFF2D6A4F),
+                    foregroundColor: Colors.white,
+                  ),
                   onPressed: () {
                     final nuevasFilas = filasControllers
                         .map((fila) {
