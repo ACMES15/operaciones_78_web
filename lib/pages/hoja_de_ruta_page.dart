@@ -45,19 +45,27 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
 
   final pdf = pw.Document();
 
-  // Estimación simple: ancho proporcional a la longitud máxima de texto (caracteres) de cada columna
-  // Ajustar ancho de columnas al texto, mínimo 40, máximo 320
+  // Ajustar ancho de columnas: 'No. Manifiesto o Remisión' angosta, 'SELLOS' ancha
   List<double> colWidths = List.filled(headers.length, 0);
   const double fontSize = 10.0;
   for (int i = 0; i < headers.length; i++) {
-    int maxLen = headers[i].length;
+    final h = headers[i];
+    if (h == 'No. Manifiesto o Remisión') {
+      colWidths[i] = 60; // más angosta
+      continue;
+    }
+    if (h == 'SELLOS') {
+      colWidths[i] = 160; // más ancha
+      continue;
+    }
+    int maxLen = h.length;
     for (final row in data) {
       if (i < row.length) {
         final l = row[i].toString().length;
         if (l > maxLen) maxLen = l;
       }
     }
-    colWidths[i] = (maxLen * 7.5).clamp(40, 320);
+    colWidths[i] = (maxLen * 7.5).clamp(40, 120);
   }
 
   pdf.addPage(

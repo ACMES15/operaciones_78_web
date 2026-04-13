@@ -128,10 +128,150 @@ class HojaDeRutaExtraPage extends StatefulWidget {
 }
 
 class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
-  String? _usuarioNombre;
-
   // Reemplaza esta variable por la fuente real del nombre del usuario firmado en tu app
   String get _nombreUsuarioFirmado => widget.usuario;
+
+  Future<void> _abrirDialogoPegadoMasivoTiendas() async {
+    final controller = TextEditingController();
+    final result = await showDialog<List<List<String>>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Agregar Tiendas de forma masiva'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                    'Pega aquí los datos. Cada línea debe tener el número y nombre de tienda separados por coma o tabulación.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  minLines: 6,
+                  maxLines: 16,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '78, Galerías\n51, Centro\n53, Patria',
+                  ),
+                  autofocus: true,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final lineas = controller.text.split(RegExp(r'\r?\n'));
+                final filas = <List<String>>[];
+                for (final linea in lineas) {
+                  final partes = linea.split(RegExp(r'[\t,]'));
+                  if (partes.length >= 2) {
+                    final no = partes[0].trim();
+                    final nombre = partes[1].trim();
+                    if (no.isNotEmpty || nombre.isNotEmpty) {
+                      filas.add([no, nombre]);
+                    }
+                  }
+                }
+                Navigator.of(context).pop(filas);
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        for (var r in result) {
+          _tiendasControllers.add([
+            TextEditingController(text: r[0]),
+            TextEditingController(text: r[1]),
+          ]);
+        }
+        _localDirtyTiendas = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Se agregaron ${result.length} tiendas.')),
+      );
+    }
+  }
+
+  Future<void> _abrirDialogoPegadoMasivoProveedores() async {
+    final controller = TextEditingController();
+    final result = await showDialog<List<List<String>>>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Agregar Proveedores de forma masiva'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                    'Pega aquí los datos. Cada línea debe tener el número y nombre de proveedor separados por coma o tabulación.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  minLines: 6,
+                  maxLines: 16,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: '135, Proveedor 1\n5365, Proveedor 2',
+                  ),
+                  autofocus: true,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final lineas = controller.text.split(RegExp(r'\r?\n'));
+                final filas = <List<String>>[];
+                for (final linea in lineas) {
+                  final partes = linea.split(RegExp(r'[\t,]'));
+                  if (partes.length >= 2) {
+                    final no = partes[0].trim();
+                    final nombre = partes[1].trim();
+                    if (no.isNotEmpty || nombre.isNotEmpty) {
+                      filas.add([no, nombre]);
+                    }
+                  }
+                }
+                Navigator.of(context).pop(filas);
+              },
+              child: const Text('Agregar'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        for (var r in result) {
+          _proveedoresControllers.add([
+            TextEditingController(text: r[0]),
+            TextEditingController(text: r[1]),
+          ]);
+        }
+        _localDirtyProveedores = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Se agregaron ${result.length} proveedores.')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -141,9 +281,7 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
 
   Future<void> _cargarUsuarioActual() async {
     // Solo asigna el nombre del usuario firmado
-    setState(() {
-      _usuarioNombre = _nombreUsuarioFirmado;
-    });
+    // (variable eliminada, no es necesario hacer nada)
   }
 
   final List<List<TextEditingController>> _tiendasControllers = [];
@@ -518,13 +656,22 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                                         },
                                       ),
                                     ),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton.icon(
-                                        icon: const Icon(Icons.add),
-                                        label: const Text('Agregar fila'),
-                                        onPressed: _addTiendaRow,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.add),
+                                          label: const Text('Agregar fila'),
+                                          onPressed: _addTiendaRow,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.playlist_add),
+                                          label: const Text('Agregar masivo'),
+                                          onPressed:
+                                              _abrirDialogoPegadoMasivoTiendas,
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -576,13 +723,22 @@ class _HojaDeRutaExtraPageState extends State<HojaDeRutaExtraPage> {
                                         },
                                       ),
                                     ),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton.icon(
-                                        icon: const Icon(Icons.add),
-                                        label: const Text('Agregar fila'),
-                                        onPressed: _addProveedorRow,
-                                      ),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.add),
+                                          label: const Text('Agregar fila'),
+                                          onPressed: _addProveedorRow,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        TextButton.icon(
+                                          icon: const Icon(Icons.playlist_add),
+                                          label: const Text('Agregar masivo'),
+                                          onPressed:
+                                              _abrirDialogoPegadoMasivoProveedores,
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),

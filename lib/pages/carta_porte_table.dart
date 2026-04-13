@@ -368,6 +368,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
         final tu = (h.datos['TU'] ?? '').trim();
         if (tu.isNotEmpty) {
           _controllers[rowIdx][3].text = 'MAN';
+          _controllers[rowIdx][4].text = tu; // Coloca TU en EMBARQUE 1
         } else {
           _controllers[rowIdx][3].text = 'XD';
         }

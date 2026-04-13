@@ -603,40 +603,31 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
         final h = masReciente['data'];
         // Llenar todos los campos relevantes
         filasControllers[filaIdx][2].text = 'PAQ'; // TIPO
+        // Lógica SYS y TU igual que en carta_porte_table
         final tu = (h['TU'] ?? '').toString().trim();
         if (tu.isNotEmpty) {
-          filasControllers[filaIdx][3].text = 'MAN'; // SYS
+          filasControllers[filaIdx][3].text = 'MAN';
+          filasControllers[filaIdx][4].text = tu; // TU en EMBARQUE 1
         } else {
-          filasControllers[filaIdx][3].text = 'XD'; // SYS
+          filasControllers[filaIdx][3].text = 'XD';
+          filasControllers[filaIdx][4].text = h['CONTENEDOR O TARIMA'] ?? '';
         }
-        filasControllers[filaIdx][4].text =
-            h['CONTENEDOR O TARIMA'] ?? ''; // EMBARQUE 1
+        // DESCRIPCIÓN / COMENTARIOS: igual que carta_porte_table.dart
         filasControllers[filaIdx][5].text = h['DESCRIPCIÓN / COMENTARIOS'] ??
             h['DESCRIPCION'] ??
-            ''; // DESCRIPCIÓN / COMENTARIOS
-
-        // NO. DE BULTOS: buscar en varios campos posibles
+            h['DESCRIPCIÓN'] ??
+            h['COMENTARIOS'] ??
+            '';
+        // NO. DE BULTOS: igual que carta_porte_table.dart
         filasControllers[filaIdx][6].text =
             h['CANTIDAD DE LPS'] ?? h['NO. DE BULTOS'] ?? h['BULTOS'] ?? '';
-
+        // DESTINO
         filasControllers[filaIdx][7].text = h['DESTINO'] ?? '';
-        filasControllers[filaIdx][8].text = h['CONTENEDOR O TARIMA'] ?? '';
-        filasControllers[filaIdx][9].text = h['EMBARQUE'] ?? ''; // EMBARQUE 2
-
-        // CONCENTRADO: si no hay, poner embarque1 o embarque2
-        String concentrado = (h['CONCENTRADO'] ?? '').toString().trim();
-        final embarque1 = (h['CONTENEDOR O TARIMA'] ?? '').toString().trim();
-        final embarque2 = (h['EMBARQUE'] ?? '').toString().trim();
-        if (concentrado.isEmpty) {
-          if (embarque1.isNotEmpty) {
-            concentrado = embarque1;
-          } else if (embarque2.isNotEmpty) {
-            concentrado = embarque2;
-          }
-        }
-        filasControllers[filaIdx][10].text = concentrado;
-        // El escaneo siempre en la columna 0
-        filasControllers[filaIdx][0].text = escaneo;
+        filasControllers[filaIdx][8].text = escaneo;
+        final embarque1 = filasControllers[filaIdx][4].text;
+        final embarque2 = filasControllers[filaIdx][9].text;
+        filasControllers[filaIdx][10].text =
+            embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
         return;
       }

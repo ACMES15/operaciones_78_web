@@ -143,19 +143,56 @@ class _HojaDeRutaSkusPageState extends State<HojaDeRutaSkusPage> {
   }
 
   Future<void> _guardarSkus() async {
-    // No permitir guardar si ya se guardó
-    if (isSaved) return;
-    final skus = skuColumns.where((col) => col.isNotEmpty).toList();
-    if (skus.isEmpty) return;
-    await FirebaseFirestore.instance
+    // Permitir guardar solo SKUs nuevos (no duplicados en Firestore)
+    final nuevosSkus = skuColumns.where((col) => col.isNotEmpty).toList();
+    if (nuevosSkus.isEmpty) return;
+
+    // Leer los SKUs ya guardados en Firestore
+    final docRef = FirebaseFirestore.instance
         .collection('hoja_ruta_skus')
-        .doc(widget.numeroControl)
-        .set({'skus': skus});
+        .doc(widget.numeroControl);
+    final docSnap = await docRef.get();
+    List<List<dynamic>> skusGuardados = [];
+    if (docSnap.exists &&
+        docSnap.data() != null &&
+        docSnap.data()!['skus'] != null) {
+      skusGuardados = List<List<dynamic>>.from(docSnap.data()!['skus'] as List);
+    }
+
+    // Aplanar para comparar
+    final setGuardados =
+        skusGuardados.expand((col) => col.map((e) => e.toString())).toSet();
+    final nuevosUnicos = nuevosSkus
+        .map((col) => col.where((sku) => !setGuardados.contains(sku)).toList())
+        .where((col) => col.isNotEmpty)
+        .toList();
+
+    if (nuevosUnicos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay SKUs nuevos para guardar.')),
+      );
+      return;
+    }
+
+    // Combinar los SKUs guardados con los nuevos
+    final todos = <List<String>>[];
+    for (int i = 0; i < skusGuardados.length; i++) {
+      todos.add(List<String>.from(skusGuardados[i].map((e) => e.toString())));
+    }
+    for (int i = 0; i < nuevosUnicos.length; i++) {
+      if (i < todos.length) {
+        todos[i].addAll(nuevosUnicos[i]);
+      } else {
+        todos.add(List<String>.from(nuevosUnicos[i]));
+      }
+    }
+
+    await docRef.set({'skus': todos});
     setState(() {
       isSaved = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SKUs guardados correctamente')),
+      const SnackBar(content: Text('SKUs nuevos guardados correctamente')),
     );
   }
 
