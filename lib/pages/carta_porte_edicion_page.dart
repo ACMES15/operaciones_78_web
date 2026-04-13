@@ -406,13 +406,43 @@ class CartaPorteAgregarFilaPage extends StatefulWidget {
 }
 
 class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
-  Future<void> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
+  // Aquí va la implementación correcta y única de la clase:
+  final List<String> columns = [
+    'ESCANEO',
+    'NO.',
+    'TIPO',
+    'SYS',
+    'EMBARQUE',
+    'DESCRIPCIÓN / COMENTARIOS',
+    'NO. DE BULTOS',
+    'DESTINO',
+    'CONTENEDOR',
+    'EMBARQUE',
+    'CONCENTRADO',
+  ];
+
+  late List<List<TextEditingController>> filasControllers;
+  late List<FocusNode> escaneoFocusNodes;
+  int filasCount = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    filasControllers = List.generate(
+      filasCount,
+      (_) => List.generate(columns.length, (_) => TextEditingController()),
+    );
+    escaneoFocusNodes = List.generate(filasCount, (_) => FocusNode());
+  }
+
+  // Anchos personalizados para cada columna
+
+  Future<bool> _autocompletarPorEscaneo(int filaIdx, int colIdx) async {
     try {
       final escaneo = filasControllers[filaIdx][0].text.trim();
       final escaneoLower = escaneo.toLowerCase();
-      if (escaneo.isEmpty) return;
+      if (escaneo.isEmpty) return false;
 
-      // Buscar en hoja_ruta (todas las coincidencias)
       final hojaRutaSnap = await FirebaseFirestore.instance
           .collection('hoja_ruta')
           .orderBy('fecha', descending: true)
@@ -423,7 +453,6 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
               escaneoLower)
           .toList();
 
-      // Buscar en hoja_de_xd_historial (todas las coincidencias)
       final xdSnap = await FirebaseFirestore.instance
           .collection('hoja_de_xd_historial')
           .orderBy('fecha', descending: true)
@@ -438,7 +467,6 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
               escaneoLower)
           .toList();
 
-      // Si no hay resultados directos, buscar por 'CONTENEDOR' o 'TARIMA' en todos los docs de hoja_de_xd_historial
       if (xd.isEmpty) {
         xd = xdSnap.docs
             .map((doc) => doc.data())
@@ -452,7 +480,6 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
             .toList();
       }
 
-      // Unificar todos los resultados en una lista con tipo y fecha
       final List<Map<String, dynamic>> resultados = [];
       for (final doc in hojaRutaDocs) {
         final data = doc.data();
@@ -473,12 +500,7 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
       }
 
       if (resultados.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'No se encontró información para "$escaneo" en Firestore.')),
-        );
-        return;
+        return false;
       }
 
       DateTime _toDate(dynamic f) {
@@ -578,7 +600,7 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
         filasControllers[filaIdx][10].text =
             embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
-        return;
+        return true;
       } else if (masReciente['tipo'] == 'xd') {
         final h = masReciente['data'];
         filasControllers[filaIdx][2].text = 'PAQ';
@@ -599,41 +621,15 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
         filasControllers[filaIdx][10].text =
             embarque1.isNotEmpty ? embarque1 : embarque2;
         setState(() {});
-        return;
+        return true;
       }
+      return false;
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error inesperado: $e')),
       );
+      return false;
     }
-  }
-
-  final List<String> columns = [
-    'ESCANEO',
-    'NO.',
-    'TIPO',
-    'CLASE',
-    'EMBARQUE 1',
-    'EMBARQUE 2',
-    'NO. DE BULTOS',
-    'DESTINO',
-    'DESCRIPCIÓN / COMENTARIOS',
-    'CONCENTRADO',
-    'OTRO',
-  ];
-
-  late List<List<TextEditingController>> filasControllers;
-  late List<FocusNode> escaneoFocusNodes;
-  int filasCount = 1;
-
-  @override
-  void initState() {
-    super.initState();
-    filasControllers = List.generate(
-      filasCount,
-      (_) => List.generate(columns.length, (_) => TextEditingController()),
-    );
-    escaneoFocusNodes = List.generate(filasCount, (_) => FocusNode());
   }
 
   // Anchos personalizados para cada columna
@@ -668,58 +664,113 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
             const Text('Completa los datos de la nueva fila:',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
+            // Encabezados alineados
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(columns.length, (colIdx) {
+                  return Container(
+                    width: colWidths[colIdx],
+                    alignment: Alignment.center,
+                    margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Text(
+                      columns[colIdx],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1B4332),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 4),
             Expanded(
               child: ListView.builder(
-                itemCount: filasCount,
-                itemBuilder: (context, filaIdx) {
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        children: List.generate(columns.length, (colIdx) {
-                          return Container(
-                            width: colWidths[colIdx],
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 4.0),
-                            child: TextField(
-                              controller: filasControllers[filaIdx][colIdx],
-                              focusNode: colIdx == 0
-                                  ? escaneoFocusNodes[filaIdx]
-                                  : null,
-                              decoration:
-                                  InputDecoration(labelText: columns[colIdx]),
-                              maxLength: colIdx == 1
-                                  ? 2 // NO.
-                                  : colIdx == 6
-                                      ? 4 // NO. DE BULTOS
-                                      : colIdx == 7
-                                          ? 4 // DESTINO
-                                          : null,
-                              buildCounter: (context,
-                                      {required currentLength,
-                                      required isFocused,
-                                      maxLength}) =>
-                                  null,
-                              onChanged: (_) {
-                                if (colIdx == 0) {
-                                  _autocompletarPorEscaneo(filaIdx, colIdx);
-                                }
-                              },
-                              onSubmitted: (value) async {
-                                if (colIdx == 0) {
-                                  await _autocompletarPorEscaneo(
-                                      filaIdx, colIdx);
-                                  if (filaIdx + 1 < filasCount) {
-                                    FocusScope.of(context).requestFocus(
-                                        escaneoFocusNodes[filaIdx + 1]);
-                                  }
-                                }
-                              },
+                scrollDirection: Axis.horizontal,
+                itemCount: 1,
+                itemBuilder: (context, _) {
+                  return SizedBox(
+                    width:
+                        colWidths.reduce((a, b) => a + b) + columns.length * 8,
+                    child: ListView.builder(
+                      itemCount: filasCount,
+                      itemBuilder: (context, filaIdx) {
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: List.generate(columns.length, (colIdx) {
+                                return Container(
+                                  width: colWidths[colIdx],
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 4.0),
+                                  child: TextField(
+                                    controller: filasControllers[filaIdx]
+                                        [colIdx],
+                                    focusNode: colIdx == 0
+                                        ? escaneoFocusNodes[filaIdx]
+                                        : null,
+                                    style: const TextStyle(
+                                        fontSize: 15, color: Color(0xFF2D6A4F)),
+                                    decoration: const InputDecoration(
+                                        isDense: true,
+                                        border: OutlineInputBorder()),
+                                    maxLength: colIdx == 1
+                                        ? 2 // NO.
+                                        : colIdx == 6
+                                            ? 4 // NO. DE BULTOS
+                                            : colIdx == 7
+                                                ? 4 // DESTINO
+                                                : null,
+                                    buildCounter: (context,
+                                            {required currentLength,
+                                            required isFocused,
+                                            maxLength}) =>
+                                        null,
+                                    onSubmitted: (value) async {
+                                      if (colIdx == 0) {
+                                        final found =
+                                            await _autocompletarPorEscaneo(
+                                                filaIdx, colIdx);
+                                        if (!found) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'No se encontró información para "${filasControllers[filaIdx][0].text}" en Firestore.')),
+                                          );
+                                        }
+                                        // Si es la última fila, agrega una nueva
+                                        if (filaIdx == filasCount - 1) {
+                                          setState(() {
+                                            filasCount++;
+                                            filasControllers.add(List.generate(
+                                                columns.length,
+                                                (_) =>
+                                                    TextEditingController()));
+                                            escaneoFocusNodes.add(FocusNode());
+                                          });
+                                          // Espera a que se agregue la fila y enfoca el nuevo ESCANEO
+                                          await Future.delayed(const Duration(
+                                              milliseconds: 100));
+                                          FocusScope.of(context).requestFocus(
+                                              escaneoFocusNodes.last);
+                                        } else {
+                                          FocusScope.of(context).requestFocus(
+                                              escaneoFocusNodes[filaIdx + 1]);
+                                        }
+                                      }
+                                    },
+                                  ),
+                                );
+                              }),
                             ),
-                          );
-                        }),
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   );
                 },
