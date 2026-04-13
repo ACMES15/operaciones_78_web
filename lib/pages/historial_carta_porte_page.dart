@@ -12,6 +12,8 @@ class HistorialCartaPortePage extends StatefulWidget {
 }
 
 class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
+  // Caché local sincronizada con Firestore
+  List<Map<String, dynamic>> _cartasCache = [];
   Future<void> _editarCartaDialog(Map<String, dynamic> carta) async {
     final manifiestoController = TextEditingController(
         text: carta['MANIFIESTO'] ?? carta['manifiesto'] ?? '');
@@ -239,14 +241,16 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                   if (snapshot.hasError) {
                     return Center(child: Text('Error: \\${snapshot.error}'));
                   }
+                  // Actualiza la caché local con los datos más recientes
                   final docs = snapshot.data?.docs ?? [];
-                  final busqueda =
-                      _busquedaController.text.trim().toLowerCase();
-                  final cartas = docs.map((d) {
+                  _cartasCache = docs.map((d) {
                     final data = d.data() as Map<String, dynamic>;
                     data['id'] = d.id;
                     return data;
-                  }).where((carta) {
+                  }).toList();
+                  final busqueda =
+                      _busquedaController.text.trim().toLowerCase();
+                  final cartas = _cartasCache.where((carta) {
                     if (busqueda.isEmpty) return true;
                     return carta.values.any((v) =>
                         v != null &&

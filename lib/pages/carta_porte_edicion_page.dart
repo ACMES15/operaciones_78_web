@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
 import '../utils/skus_utils.dart' as skus_utils;
 import 'carta_porte_imprimir_page.dart';
 
@@ -17,6 +20,8 @@ class CartaPorteEdicionPage extends StatefulWidget {
 }
 
 class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
+  static const String _hiveBoxName = 'carta_porte_edicion_cache';
+  bool _hiveInitialized = false;
   late TextEditingController embarqueController;
   late TextEditingController choferController;
   late TextEditingController destinoController;
@@ -32,26 +37,57 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
   @override
   void initState() {
     super.initState();
-    choferController =
-        TextEditingController(text: widget.carta['chofer'] ?? '');
-    destinoController =
-        TextEditingController(text: widget.carta['destino'] ?? '');
-    fechaController = TextEditingController(text: widget.carta['fecha'] ?? '');
-    numeroControlController =
-        TextEditingController(text: widget.carta['numero_control'] ?? '');
-    embarqueController =
-        TextEditingController(text: widget.carta['embarque'] ?? '');
-    rfcController = TextEditingController(text: widget.carta['rfc'] ?? '');
-    unidadController =
-        TextEditingController(text: widget.carta['unidad'] ?? '');
-    licenciaController =
-        TextEditingController(text: widget.carta['licencia'] ?? '');
-    final rawFilas = widget.carta['filas'];
-    if (rawFilas is List) {
-      filas = rawFilas.map((e) => Map<String, dynamic>.from(e)).toList();
+    _initHiveAndLoadCache();
+  }
+
+  Future<void> _initHiveAndLoadCache() async {
+    if (!_hiveInitialized) {
+      await Hive.initFlutter();
+      _hiveInitialized = true;
     }
-    choferSeleccionado = widget.carta['chofer'];
+    var box = await Hive.openBox(_hiveBoxName);
+    final cached = box.get(widget.docId);
+    if (cached != null && cached is Map) {
+      choferController = TextEditingController(text: cached['chofer'] ?? '');
+      destinoController = TextEditingController(text: cached['destino'] ?? '');
+      fechaController = TextEditingController(text: cached['fecha'] ?? '');
+      numeroControlController =
+          TextEditingController(text: cached['numero_control'] ?? '');
+      embarqueController =
+          TextEditingController(text: cached['embarque'] ?? '');
+      rfcController = TextEditingController(text: cached['rfc'] ?? '');
+      unidadController = TextEditingController(text: cached['unidad'] ?? '');
+      licenciaController =
+          TextEditingController(text: cached['licencia'] ?? '');
+      final rawFilas = cached['filas'];
+      if (rawFilas is List) {
+        filas = rawFilas.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      choferSeleccionado = cached['chofer'];
+    } else {
+      choferController =
+          TextEditingController(text: widget.carta['chofer'] ?? '');
+      destinoController =
+          TextEditingController(text: widget.carta['destino'] ?? '');
+      fechaController =
+          TextEditingController(text: widget.carta['fecha'] ?? '');
+      numeroControlController =
+          TextEditingController(text: widget.carta['numero_control'] ?? '');
+      embarqueController =
+          TextEditingController(text: widget.carta['embarque'] ?? '');
+      rfcController = TextEditingController(text: widget.carta['rfc'] ?? '');
+      unidadController =
+          TextEditingController(text: widget.carta['unidad'] ?? '');
+      licenciaController =
+          TextEditingController(text: widget.carta['licencia'] ?? '');
+      final rawFilas = widget.carta['filas'];
+      if (rawFilas is List) {
+        filas = rawFilas.map((e) => Map<String, dynamic>.from(e)).toList();
+      }
+      choferSeleccionado = widget.carta['chofer'];
+    }
     _cargarChoferes();
+    setState(() {});
   }
 
   Future<void> _cargarChoferes() async {
@@ -79,6 +115,23 @@ class _CartaPorteEdicionPageState extends State<CartaPorteEdicionPage> {
     rfcController.dispose();
     unidadController.dispose();
     licenciaController.dispose();
+
+    Future<void> _guardarCache() async {
+      if (!_hiveInitialized) return;
+      var box = await Hive.openBox(_hiveBoxName);
+      final data = {
+        'chofer': choferSeleccionado ?? '',
+        'destino': destinoController.text,
+        'fecha': fechaController.text,
+        'numero_control': numeroControlController.text,
+        'rfc': rfcController.text,
+        'unidad': unidadController.text,
+        'licencia': licenciaController.text,
+        'filas': filas,
+      };
+      await box.put(widget.docId, data);
+    }
+
     super.dispose();
   }
 
