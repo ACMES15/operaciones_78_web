@@ -601,29 +601,28 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
         return;
       } else if (masReciente['tipo'] == 'xd') {
         final h = masReciente['data'];
-        // Llenar todos los campos relevantes
         filasControllers[filaIdx][2].text = 'PAQ'; // TIPO
-        // Lógica SYS y TU igual que en carta_porte_table
         final tu = (h['TU'] ?? '').toString().trim();
+        final contTarima = (h['CONTENEDOR O TARIMA'] ?? '').toString().trim();
         if (tu.isNotEmpty) {
           filasControllers[filaIdx][3].text = 'MAN';
           filasControllers[filaIdx][4].text = tu; // TU en EMBARQUE 1
+        } else if (contTarima.isNotEmpty) {
+          filasControllers[filaIdx][3].text = 'XD';
+          filasControllers[filaIdx][4].text = contTarima;
         } else {
           filasControllers[filaIdx][3].text = 'XD';
-          filasControllers[filaIdx][4].text = h['CONTENEDOR O TARIMA'] ?? '';
+          filasControllers[filaIdx][4].text = '';
         }
-        // DESCRIPCIÓN / COMENTARIOS: igual que carta_porte_table.dart
-        filasControllers[filaIdx][5].text = h['DESCRIPCIÓN / COMENTARIOS'] ??
-            h['DESCRIPCION'] ??
-            h['DESCRIPCIÓN'] ??
-            h['COMENTARIOS'] ??
-            '';
-        // NO. DE BULTOS: igual que carta_porte_table.dart
-        filasControllers[filaIdx][6].text =
-            h['CANTIDAD DE LPS'] ?? h['NO. DE BULTOS'] ?? h['BULTOS'] ?? '';
+        filasControllers[filaIdx][9].text = '';
+        // DESCRIPCIÓN / COMENTARIOS: usar MANIFIESTO como en carta_porte_table.dart
+        filasControllers[filaIdx][5].text = h['MANIFIESTO'] ?? '';
+        // NO. DE BULTOS: solo CANTIDAD DE LPS como en carta_porte_table.dart
+        filasControllers[filaIdx][6].text = h['CANTIDAD DE LPS'] ?? '';
         // DESTINO
         filasControllers[filaIdx][7].text = h['DESTINO'] ?? '';
         filasControllers[filaIdx][8].text = escaneo;
+        // CONCENTRADO: embarque1 o embarque2
         final embarque1 = filasControllers[filaIdx][4].text;
         final embarque2 = filasControllers[filaIdx][9].text;
         filasControllers[filaIdx][10].text =
@@ -710,6 +709,20 @@ class _CartaPorteAgregarFilaPageState extends State<CartaPorteAgregarFilaPage> {
                               contentPadding: const EdgeInsets.symmetric(
                                   vertical: 8, horizontal: 6),
                             ),
+                            onChanged: (value) {
+                              // Si se edita EMBARQUE 1 o EMBARQUE 2, actualizar CONCENTRADO
+                              if (colIdx == 4 || colIdx == 9) {
+                                final embarque1 =
+                                    filasControllers[filaIdx][4].text;
+                                final embarque2 =
+                                    filasControllers[filaIdx][9].text;
+                                filasControllers[filaIdx][10].text =
+                                    embarque1.isNotEmpty
+                                        ? embarque1
+                                        : embarque2;
+                                setState(() {});
+                              }
+                            },
                             onSubmitted: columns[colIdx]
                                     .toUpperCase()
                                     .contains('ESCANEO')
