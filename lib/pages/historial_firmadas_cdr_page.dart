@@ -339,6 +339,8 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
                                                   'Entregó: ' +
                                                       (entrega['usuarioEntrego']
                                                               ?.toString() ??
+                                                          entrega['usuarioEntrega']
+                                                              ?.toString() ??
                                                           '-'),
                                                   style: const TextStyle(
                                                       fontSize: 15,
@@ -387,7 +389,7 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
       'nombreRecibe',
       'firma',
       'fechaFirma',
-      'usuarioEntrega',
+      'usuarioEntrego',
       'id',
     ];
     for (final k in knownExtras) {
@@ -410,7 +412,7 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
       'nombreRecibe': 'Recibió',
       'firma': 'Firma',
       'fechaFirma': 'Fecha Firma',
-      'usuarioEntrega': 'Usuario Entrega',
+      'usuarioEntrego': 'Usuario Entrega',
       'id': 'ID',
     };
     sheet.appendRow([for (final k in orderedKeys) headerMap[k] ?? k]);

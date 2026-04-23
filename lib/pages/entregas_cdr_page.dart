@@ -98,7 +98,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         // Si es faltante, notificar a ADMIN OMNICANAL y ADMIN ENVIOS
         if (fila['BOX'] == true) {
           final mensaje =
-              'Faltante en Entregas CDR: DOC [200~[201m${fila['DOCUMENTO'] ?? ''}, SKU ${fila['SKU'] ?? ''}, SECCION ${fila['SECCION'] ?? ''}';
+              'Faltante en Entregas CDR: DOC ${fila['DOCUMENTO'] ?? ''}, SKU ${fila['SKU'] ?? ''}, SECCION ${fila['SECCION'] ?? ''}';
           for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
             FirebaseFirestore.instance.collection('notificaciones').add({
               'para': tipo,
@@ -120,11 +120,14 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         const SnackBar(content: Text('Datos guardados en Firestore')),
       );
     } catch (e) {
-      // Si falla, guardar localmente en Hive
+      // Si falla, guardar localmente en Hive usando un id único y consistente
       final box = await Hive.openBox<Map>('historial_entregas_cdr');
       for (final fila in datos) {
-        await box.put(DateTime.now().millisecondsSinceEpoch.toString(),
-            Map<String, dynamic>.from(fila));
+        // Si ya tiene id, úsalo; si no, asígnale uno
+        if (fila['id'] == null) {
+          fila['id'] = UniqueKey().toString();
+        }
+        await box.put(fila['id'], Map<String, dynamic>.from(fila));
       }
       setState(() {
         _rows.clear();
