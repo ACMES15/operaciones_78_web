@@ -7,6 +7,8 @@ import 'dart:html' as html;
 // import 'dart:js' as js; // Eliminado: no se usa
 import 'package:flutter/foundation.dart';
 import 'recepcion_big_ticket_page.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class EntregasCdrPage extends StatefulWidget {
   final String usuario;
@@ -17,6 +19,38 @@ class EntregasCdrPage extends StatefulWidget {
 }
 
 class _EntregasCdrPageState extends State<EntregasCdrPage> {
+  // Sincroniza los datos pendientes en Hive con Firestore
+  Future<void> sincronizarPendientes() async {
+    if (_hivePendientes.isEmpty) return;
+    final col = FirebaseFirestore.instance.collection('entregas_cdr');
+    final batch = FirebaseFirestore.instance.batch();
+    final List<int> toDelete = [];
+    for (final key in _hivePendientes.keys) {
+      final fila = _hivePendientes.get(key);
+      if (fila != null) {
+        final doc = col.doc();
+        batch
+            .set(doc, {...fila, 'id': doc.id, 'usuarioValido': widget.usuario});
+        toDelete.add(key as int);
+      }
+    }
+    try {
+      await batch.commit();
+      for (final key in toDelete) {
+        await _hivePendientes.delete(key);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Firmas pendientes sincronizadas con Firestore.')),
+      );
+    } catch (e) {
+      // Si falla, no borra los pendientes
+    }
+  }
+
+  // Caja Hive para firmas pendientes
+  late Box<Map> _hivePendientes;
+
   final List<String> _tiposDocto = [
     'Remision',
     'O. Venta',
@@ -49,33 +83,83 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
       );
       return;
     }
-    final batch = FirebaseFirestore.instance.batch();
-    final col = FirebaseFirestore.instance.collection('entregas_cdr');
-    for (final fila in datos) {
-      final doc = col.doc();
-      fila['id'] = doc.id; // Guardar el id del documento
-      fila['usuarioValido'] = widget.usuario;
-      batch.set(doc, fila);
-      // Si es faltante, notificar a ADMIN OMNICANAL y ADMIN ENVIOS
-      if (fila['BOX'] == true) {
-        final mensaje =
-            'Faltante en Entregas CDR: DOC ${fila['DOCUMENTO'] ?? ''}, SKU ${fila['SKU'] ?? ''}, SECCION ${fila['SECCION'] ?? ''}';
-        for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
-          FirebaseFirestore.instance.collection('notificaciones').add({
-            'para': tipo,
-            'mensaje': mensaje,
-            'fecha': DateTime.now(),
-            'tipo': 'FALTANTE CDR',
-            'detalle': fila,
-            'leida': false,
-          });
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final col = FirebaseFirestore.instance.collection('entregas_cdr');
+      for (final fila in datos) {
+        final docRef = col.doc();
+        fila['id'] = docRef.id; // Guardar el id del documento
+        fila['usuarioValido'] = widget.usuario;
+        batch.set(docRef, fila);
+        // Si es faltante, notificar a ADMIN OMNICANAL y ADMIN ENVIOS
+        if (fila['BOX'] == true) {
+          final mensaje =
+              'Faltante en Entregas CDR: DOC ${fila['DOCUMENTO'] ?? ''}, SKU ${fila['SKU'] ?? ''}, SECCION ${fila['SECCION'] ?? ''}';
+          for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
+            FirebaseFirestore.instance.collection('notificaciones').add({
+              'para': tipo,
+              'mensaje': mensaje,
+              'fecha': DateTime.now(),
+              'tipo': 'FALTANTE CDR',
+              'detalle': fila,
+              'leida': false,
+            });
+          }
         }
       }
+      await batch.commit();
+      setState(() {
+        _rows.clear();
+        _addRow();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Datos guardados en Firestore')),
+      );
+    } catch (e) {
+      // Si falla, guardar localmente en Hive
+      for (final fila in datos) {
+        await _hivePendientes.add(fila);
+      }
+      setState(() {
+        _rows.clear();
+        _addRow();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
-    await batch.commit();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Datos guardados en Firestore')),
-    );
+    // Sincroniza los datos pendientes en Hive con Firestore
+    Future<void> sincronizarPendientes() async {
+      if (_hivePendientes.isEmpty) return;
+      final col = FirebaseFirestore.instance.collection('entregas_cdr');
+      final batch = FirebaseFirestore.instance.batch();
+      final List<int> toDelete = [];
+      for (final key in _hivePendientes.keys) {
+        final fila = _hivePendientes.get(key);
+        if (fila != null) {
+          final doc = col.doc();
+          batch.set(
+              doc, {...fila, 'id': doc.id, 'usuarioValido': widget.usuario});
+          toDelete.add(key as int);
+        }
+      }
+      try {
+        await batch.commit();
+        for (final key in toDelete) {
+          await _hivePendientes.delete(key);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Firmas pendientes sincronizadas con Firestore.')),
+        );
+      } catch (e) {
+        // Si falla, no borra los pendientes
+      }
+    }
   }
 
   @override
@@ -84,6 +168,12 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
     if (_rows.isEmpty) {
       _addRow();
     }
+    // Abrir caja Hive para firmas pendientes
+    Hive.openBox<Map>('firmas_cdr_pendientes').then((box) {
+      _hivePendientes = box;
+      // Intentar sincronizar pendientes al iniciar
+      sincronizarPendientes();
+    });
   }
 
   final List<String> _headers = [

@@ -5,6 +5,8 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:universal_html/html.dart' as html;
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class HistorialEntregasCdrPage extends StatefulWidget {
   final String usuario;
@@ -21,7 +23,10 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   void initState() {
     super.initState();
     _lpController = TextEditingController();
-    _cargarDesdeFirestore();
+    Hive.openBox<Map>('historial_entregas_cdr').then((box) {
+      _hiveHistorial = box;
+      _cargarDesdeHiveYFirestore();
+    });
     _sincronizarFirmasPendientes();
   }
 
@@ -46,9 +51,75 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           historial.addAll(pendientes.cast<Map<String, dynamic>>());
           await historialDoc.set({'items': historial});
           await prefs.remove(key);
-          await _cargarDesdeFirestore();
+          await _cargarDesdeHiveYFirestore();
         }
       } catch (_) {}
+    }
+  }
+
+  Future<void> _guardarFirmas(List<Map<String, dynamic>> nuevasFirmadas) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final historialDoc =
+          firestore.collection('historial_entregas').doc('cdr_firmadas');
+      final historialSnap = await historialDoc.get();
+      List<dynamic> historial = [];
+      if (historialSnap.exists &&
+          historialSnap.data() != null &&
+          historialSnap.data()!['items'] is List) {
+        historial = List.from(historialSnap.data()!['items']);
+      }
+      historial.addAll(nuevasFirmadas);
+      await historialDoc.set({'items': historial});
+      // También guardar en Hive
+      for (final reg in nuevasFirmadas) {
+        await _hiveHistorial.put(reg['id'], reg);
+      }
+      setState(() => _seleccionados.clear());
+      await _cargarDesdeHiveYFirestore();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Firmas guardadas en Firestore y local.')),
+      );
+    } catch (e) {
+      // Si falla la subida, guardar localmente en Hive
+      for (final reg in nuevasFirmadas) {
+        await _hiveHistorial.put(reg['id'], reg);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  // Sincroniza firmas locales pendientes con Firestore
+  Future<void> sincronizarFirmasLocales() async {
+    final firestore = FirebaseFirestore.instance;
+    final historialDoc =
+        firestore.collection('historial_entregas').doc('cdr_firmadas');
+    final historialSnap = await historialDoc.get();
+    List<dynamic> historial = [];
+    if (historialSnap.exists &&
+        historialSnap.data() != null &&
+        historialSnap.data()!['items'] is List) {
+      historial = List.from(historialSnap.data()!['items']);
+    }
+    bool huboCambios = false;
+    for (final reg in _hiveHistorial.values) {
+      if (reg is Map && !historial.any((h) => h['id'] == reg['id'])) {
+        historial.add(reg);
+        huboCambios = true;
+      }
+    }
+    if (huboCambios) {
+      await historialDoc.set({'items': historial});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Firmas locales sincronizadas con Firestore.')),
+      );
     }
   }
 
@@ -277,100 +348,67 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
             ),
     );
     signatureController.dispose();
-    if (resultado == null) return;
-
-    final firestore = FirebaseFirestore.instance;
-    final List<Map<String, dynamic>> nuevasFirmadas = [];
-    try {
-      for (final entrega in seleccionadas) {
-        final docRef =
-            firestore.collection('entregas_cdr').doc(entrega['id']?.toString());
-        final nuevaEntrega = Map<String, dynamic>.from(entrega);
-        nuevaEntrega['nombreRecibe'] = resultado['nombre'];
-        nuevaEntrega['firma'] = resultado['firma'];
-        nuevaEntrega['fechaFirma'] = DateTime.now().toIso8601String();
-        nuevaEntrega['usuarioEntrega'] = widget.usuario;
-        nuevaEntrega.remove('id');
-        await docRef.delete();
-
-        // Notificar a ADMIN OMNICANAL y ADMIN ENVIOS si es faltante (BOX)
-        if (entrega['BOX'] == true || entrega['BOX'] == 'true') {
-          final mensaje =
-              'Faltante en Entregas CDR: DOC ${entrega['DOCUMENTO'] ?? ''}, SKU ${entrega['SKU'] ?? ''}, SECCION ${entrega['SECCION'] ?? ''}';
-          for (final tipo in ['ADMIN OMNICANAL', 'ADMIN ENVIOS']) {
-            await FirebaseFirestore.instance.collection('notificaciones').add({
-              'mensaje': mensaje,
-              'fecha': DateTime.now(),
-              'destinoTipo': tipo,
-              'tipo': 'FALTANTE CDR',
-              'leido': false,
-              'documento': entrega['DOCUMENTO'] ?? '',
-              'sku': entrega['SKU'] ?? '',
-              'seccion': entrega['SECCION'] ?? '',
-              'usuario': widget.usuario,
-            });
-          }
-        }
-
-        nuevasFirmadas.add(nuevaEntrega);
-      }
-      // Guardar en historial
-      final historialDoc =
-          firestore.collection('historial_entregas').doc('cdr_firmadas');
-      final historialSnap = await historialDoc.get();
-      List<dynamic> historial = [];
-      if (historialSnap.exists &&
-          historialSnap.data() != null &&
-          historialSnap.data()!['items'] is List) {
-        historial = List.from(historialSnap.data()!['items']);
-      }
-      historial.addAll(nuevasFirmadas);
-      await historialDoc.set({'items': historial});
-      setState(() => _seleccionados.clear());
-      await _cargarDesdeFirestore();
-    } catch (e) {
-      // Si falla la subida, guardar localmente como pendiente
-      final prefs = await SharedPreferences.getInstance();
-      final key = 'firmas_pendientes_cdr';
-      List<dynamic> pendientes = [];
-      final data = prefs.getString(key);
-      if (data != null) {
-        try {
-          pendientes = jsonDecode(data);
-        } catch (_) {}
-      }
-      pendientes.addAll(nuevasFirmadas);
-      await prefs.setString(key, jsonEncode(pendientes));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
-        backgroundColor: Colors.orange,
-      ));
-      setState(() => _seleccionados.clear());
-      await _cargarDesdeFirestore();
+    if (resultado != null) {
+      // Agregar datos de firma a cada entrega seleccionada
+      final fechaFirma = DateTime.now().toIso8601String();
+      final nuevasFirmadas = seleccionadas.map((entrega) {
+        final reg = Map<String, dynamic>.from(entrega);
+        reg['nombreRecibe'] = resultado['nombre'];
+        reg['firma'] = resultado['firma'];
+        reg['fechaFirma'] = fechaFirma;
+        reg['id'] = reg['id'] ?? UniqueKey().toString();
+        return reg;
+      }).toList();
+      await _guardarFirmas(nuevasFirmadas);
     }
   }
 
-  Future<void> _cargarDesdeFirestore() async {
+  // Caja Hive para historial local
+  late Box<Map> _hiveHistorial;
+
+  // Cargar historial: primero local, luego intenta sincronizar con Firestore
+  Future<void> _cargarDesdeHiveYFirestore() async {
     setState(() => _cargando = true);
-    final firestore = FirebaseFirestore.instance;
-    final querySnapshot = await firestore.collection('entregas_cdr').get();
-    List<Map<String, dynamic>> nuevos = querySnapshot.docs.map((doc) {
-      final data = doc.data();
-      // Asegura que cada registro tenga el id del documento
-      return {
-        ...data,
-        'id': doc.id,
-      };
-    }).toList();
-    print('DEBUG: Registros obtenidos de entregas_cdr: \\${nuevos.length}');
-    if (nuevos.isNotEmpty) {
-      print('DEBUG: Primer registro: \\${nuevos[0]}');
+    // 1. Cargar local
+    final List<Map<String, dynamic>> local = _hiveHistorial.values
+        .cast<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    if (local.isNotEmpty) {
+      _datosOriginales = List<Map<String, dynamic>>.from(local);
+      _aplicarFiltro();
     }
-    _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
-    _aplicarFiltro();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('historial_entregas_cdr', jsonEncode(nuevos));
+    // 2. Cargar remoto y sincronizar si hay nuevos
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final querySnapshot = await firestore.collection('entregas_cdr').get();
+      List<Map<String, dynamic>> nuevos = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          ...data,
+          'id': doc.id,
+        };
+      }).toList();
+      // Si hay datos nuevos en Firestore, sincroniza Hive
+      if (nuevos.isNotEmpty) {
+        // Solo sincroniza si hay diferencia
+        final localIds = local.map((e) => e['id']).toSet();
+        final nuevosNoLocales =
+            nuevos.where((e) => !localIds.contains(e['id'])).toList();
+        if (nuevosNoLocales.isNotEmpty) {
+          for (final reg in nuevosNoLocales) {
+            await _hiveHistorial.put(reg['id'], reg);
+          }
+        }
+        // Actualiza la lista completa
+        _datosOriginales = List<Map<String, dynamic>>.from(_hiveHistorial.values
+            .cast<Map>()
+            .map((e) => Map<String, dynamic>.from(e)));
+        _aplicarFiltro();
+      }
+    } catch (e) {
+      // Si falla Firestore, solo muestra local
+    }
     setState(() => _cargando = false);
   }
 
@@ -422,7 +460,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Recargar (forzar Firestore)',
-            onPressed: _cargarDesdeFirestore,
+            onPressed: _cargarDesdeHiveYFirestore,
           ),
         ],
       ),
