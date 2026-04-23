@@ -53,7 +53,9 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           await prefs.remove(key);
           await _cargarDesdeHiveYFirestore();
         }
-      } catch (_) {}
+      } catch (e) {
+        print('Error al sincronizar firmas pendientes: ' + e.toString());
+      }
     }
   }
 
@@ -81,14 +83,16 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         const SnackBar(content: Text('Firmas guardadas en Firestore y local.')),
       );
     } catch (e) {
+      print('Error al guardar en Firestore: ' + e.toString());
       // Si falla la subida, guardar localmente en Hive
       for (final reg in nuevasFirmadas) {
         await _hiveHistorial.put(reg['id'], reg);
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'No hay conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+        SnackBar(
+          content: Text('Error al guardar en Firestore: ' +
+              e.toString() +
+              '\nLa firma se guardó localmente y se subirá cuando vuelva el internet.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -407,6 +411,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         _aplicarFiltro();
       }
     } catch (e) {
+      print('Error al cargar desde Hive y Firestore: ' + e.toString());
       // Si falla Firestore, solo muestra local
     }
     setState(() => _cargando = false);
