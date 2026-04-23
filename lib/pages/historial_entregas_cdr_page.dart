@@ -62,6 +62,8 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           .collection('firmas');
       for (final reg in nuevasFirmadas) {
         final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
+        // Agregar usuario que entrega
+        reg['usuarioEntrego'] = widget.usuario;
         await docRef.set(Map<String, dynamic>.from(reg));
         // Eliminar de Hive y de la lista local de pendientes
         await _hiveHistorial.delete(reg['id']);
@@ -390,11 +392,8 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         .cast<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    if (local.isNotEmpty) {
-      _datosOriginales = List<Map<String, dynamic>>.from(local);
-      _aplicarFiltro();
-    }
-    // 2. Cargar remoto y sincronizar si hay nuevos
+    // 2. Cargar ids ya firmados en Firestore
+    Set idsFirmados = {};
     try {
       final firestore = FirebaseFirestore.instance;
       final querySnapshot = await firestore
@@ -402,30 +401,13 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           .doc('cdr_firmadas')
           .collection('firmas')
           .get();
-      List<Map<String, dynamic>> nuevos = querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          ...data,
-          'id': doc.id,
-        };
-      }).toList();
-      if (nuevos.isNotEmpty) {
-        final localIds = local.map((e) => e['id']).toSet();
-        final nuevosNoLocales =
-            nuevos.where((e) => !localIds.contains(e['id'])).toList();
-        if (nuevosNoLocales.isNotEmpty) {
-          for (final reg in nuevosNoLocales) {
-            await _hiveHistorial.put(reg['id'], reg);
-          }
-        }
-        _datosOriginales = List<Map<String, dynamic>>.from(_hiveHistorial.values
-            .cast<Map>()
-            .map((e) => Map<String, dynamic>.from(e)));
-        _aplicarFiltro();
-      }
-    } catch (e) {
-      // Si falla Firestore, solo muestra local
-    }
+      idsFirmados = querySnapshot.docs.map((doc) => doc.id).toSet();
+    } catch (_) {}
+    // 3. Solo mostrar como pendientes los que NO están firmados
+    final pendientes =
+        local.where((e) => !idsFirmados.contains(e['id'])).toList();
+    _datosOriginales = List<Map<String, dynamic>>.from(pendientes);
+    _aplicarFiltro();
     if (mounted) setState(() => _cargando = false);
   }
 
