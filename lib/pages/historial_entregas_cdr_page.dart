@@ -60,26 +60,47 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           .collection('historial_entregas')
           .doc('cdr_firmadas')
           .collection('firmas');
+      List<Map<String, dynamic>> firmadasValidas = [];
+      List<Map<String, dynamic>> firmadasInvalidas = [];
       for (final reg in nuevasFirmadas) {
-        final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
-        // Agregar usuario que entrega
-        reg['usuarioEntrego'] = widget.usuario;
-        await docRef.set(Map<String, dynamic>.from(reg));
-        // Eliminar de Hive y de la lista local de pendientes
-        await _hiveHistorial.delete(reg['id']);
+        final tieneNombre = (reg['nombreRecibe'] != null &&
+            reg['nombreRecibe'].toString().trim().isNotEmpty);
+        final tieneFirma =
+            (reg['firma'] != null && reg['firma'].toString().trim().isNotEmpty);
+        if (tieneNombre && tieneFirma) {
+          final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
+          reg['usuarioEntrego'] = widget.usuario;
+          await docRef.set(Map<String, dynamic>.from(reg));
+          // Eliminar de Hive y de la lista local de pendientes
+          await _hiveHistorial.delete(reg['id']);
+          firmadasValidas.add(reg);
+        } else {
+          // No cumple, se queda como pendiente
+          firmadasInvalidas.add(reg);
+        }
       }
-      // Actualizar la lista local
+      // Actualizar la lista local solo quitando las firmadas válidas
       _datosOriginales
-          .removeWhere((e) => nuevasFirmadas.any((r) => r['id'] == e['id']));
+          .removeWhere((e) => firmadasValidas.any((r) => r['id'] == e['id']));
       setState(() {
         _seleccionados.clear();
         _aplicarFiltro();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Firmas guardadas en Firestore y eliminadas de pendientes.')),
-      );
+      if (firmadasValidas.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Firmas guardadas en Firestore y eliminadas de pendientes: ${firmadasValidas.length}')),
+        );
+      }
+      if (firmadasInvalidas.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Algunos registros no se firmaron por faltar nombre o firma: ${firmadasInvalidas.length}'),
+              backgroundColor: Colors.orange),
+        );
+      }
     } catch (e, stack) {
       // ignore: avoid_print
       print('Error al guardar en Firestore: ' + e.toString());
