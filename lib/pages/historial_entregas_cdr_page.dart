@@ -56,10 +56,11 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   Future<void> _guardarFirmas(List<Map<String, dynamic>> nuevasFirmadas) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      final col = firestore
+      final colFirmadas = firestore
           .collection('historial_entregas')
           .doc('cdr_firmadas')
           .collection('firmas');
+      final colPendientes = firestore.collection('entregas_cdr');
       List<Map<String, dynamic>> firmadasValidas = [];
       List<Map<String, dynamic>> firmadasInvalidas = [];
       for (final reg in nuevasFirmadas) {
@@ -68,11 +69,16 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         final tieneFirma =
             (reg['firma'] != null && reg['firma'].toString().trim().isNotEmpty);
         if (tieneNombre && tieneFirma) {
-          final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
+          final docId = reg['id'] ?? UniqueKey().toString();
+          final docRefFirmadas = colFirmadas.doc(docId);
           reg['usuarioEntrego'] = widget.usuario;
-          await docRef.set(Map<String, dynamic>.from(reg));
+          await docRefFirmadas.set(Map<String, dynamic>.from(reg));
           // Eliminar de Hive y de la lista local de pendientes
-          await _hiveHistorial.delete(reg['id']);
+          await _hiveHistorial.delete(docId);
+          // Eliminar de la colección entregas_cdr
+          try {
+            await colPendientes.doc(docId).delete();
+          } catch (_) {}
           firmadasValidas.add(reg);
         } else {
           // No cumple, se queda como pendiente
@@ -90,7 +96,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'Firmas guardadas en Firestore y eliminadas de pendientes: ${firmadasValidas.length}')),
+                  'Firmas guardadas y movidas correctamente: ${firmadasValidas.length}')),
         );
       }
       if (firmadasInvalidas.isNotEmpty) {
@@ -408,45 +414,19 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   // Cargar historial: primero local, luego intenta sincronizar con Firestore
   Future<void> _cargarDesdeHiveYFirestore() async {
     setState(() => _cargando = true);
-    // 1. Cargar local (Hive)
-    final List<Map<String, dynamic>> local = _hiveHistorial.values
-        .cast<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-
-    // 2. Cargar pendientes de Firestore (entregas_cdr)
-    List<Map<String, dynamic>> firestorePendientes = [];
+    // Solo cargar pendientes de Firestore (entregas_cdr)
     try {
       final firestore = FirebaseFirestore.instance;
       final snap = await firestore.collection('entregas_cdr').get();
-      firestorePendientes = snap.docs
+      _datosOriginales = snap.docs
           .map((doc) => {
                 ...doc.data(),
                 'id': doc.id,
               })
           .toList();
-    } catch (_) {}
-
-    // 3. Cargar ids ya firmados en Firestore
-    Set idsFirmados = {};
-    try {
-      final firestore = FirebaseFirestore.instance;
-      final querySnapshot = await firestore
-          .collection('historial_entregas')
-          .doc('cdr_firmadas')
-          .collection('firmas')
-          .get();
-      idsFirmados = querySnapshot.docs.map((doc) => doc.id).toSet();
-    } catch (_) {}
-
-    // 4. Unir locales y Firestore, quitar duplicados por id
-    final Map<String, Map<String, dynamic>> todos = {};
-    for (final e in [...local, ...firestorePendientes]) {
-      if (e['id'] != null && !idsFirmados.contains(e['id'])) {
-        todos[e['id'].toString()] = e;
-      }
+    } catch (_) {
+      _datosOriginales = [];
     }
-    _datosOriginales = todos.values.toList();
     _aplicarFiltro();
     if (mounted) setState(() => _cargando = false);
   }
