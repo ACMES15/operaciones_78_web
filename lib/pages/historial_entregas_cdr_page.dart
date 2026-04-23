@@ -3,8 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:signature/signature.dart';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'package:universal_html/html.dart' as html;
+// ...existing code...
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -19,16 +18,7 @@ class HistorialEntregasCdrPage extends StatefulWidget {
 }
 
 class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
-  @override
-  void initState() {
-    super.initState();
-    _lpController = TextEditingController();
-    Hive.openBox<Map>('historial_entregas_cdr').then((box) {
-      _hiveHistorial = box;
-      _cargarDesdeHiveYFirestore();
-    });
-    _sincronizarFirmasPendientes();
-  }
+  // ...existing code...
 
   Future<void> _sincronizarFirmasPendientes() async {
     final prefs = await SharedPreferences.getInstance();
@@ -66,20 +56,14 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   Future<void> _guardarFirmas(List<Map<String, dynamic>> nuevasFirmadas) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      final historialDoc =
-          firestore.collection('historial_entregas').doc('cdr_firmadas');
-      final historialSnap = await historialDoc.get();
-      List<dynamic> historial = [];
-      if (historialSnap.exists &&
-          historialSnap.data() != null &&
-          historialSnap.data()!['items'] is List) {
-        historial = List.from(historialSnap.data()!['items']);
-      }
-      historial.addAll(nuevasFirmadas);
-      await historialDoc.set({'items': historial});
-      // También guardar en Hive
+      final col = firestore
+          .collection('historial_entregas')
+          .doc('cdr_firmadas')
+          .collection('firmas');
       for (final reg in nuevasFirmadas) {
-        await _hiveHistorial.put(reg['id'], reg);
+        final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
+        await docRef.set(Map<String, dynamic>.from(reg));
+        await _hiveHistorial.put(reg['id'], reg); // También guardar en Hive
       }
       setState(() => _seleccionados.clear());
       await _cargarDesdeHiveYFirestore();
@@ -87,47 +71,45 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
         const SnackBar(content: Text('Firmas guardadas en Firestore y local.')),
       );
     } catch (e, stack) {
-      // Mostrar el error en consola para web y debug
       // ignore: avoid_print
       print('Error al guardar en Firestore: ' + e.toString());
       // ignore: avoid_print
       print(stack);
-      // Si falla la subida, guardar localmente en Hive
       for (final reg in nuevasFirmadas) {
         await _hiveHistorial.put(reg['id'], reg);
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al guardar en Firestore: ' +
-              e.toString() +
-              '\nLa firma se guardó localmente y se subirá cuando vuelva el internet.'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al guardar en Firestore: ' +
+                e.toString() +
+                '\nLa firma se guardó localmente y se subirá cuando vuelva el internet.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 
   // Sincroniza firmas locales pendientes con Firestore
   Future<void> sincronizarFirmasLocales() async {
+    if (!mounted || _hiveHistorial.isEmpty) return;
     final firestore = FirebaseFirestore.instance;
-    final historialDoc =
-        firestore.collection('historial_entregas').doc('cdr_firmadas');
-    final historialSnap = await historialDoc.get();
-    List<dynamic> historial = [];
-    if (historialSnap.exists &&
-        historialSnap.data() != null &&
-        historialSnap.data()!['items'] is List) {
-      historial = List.from(historialSnap.data()!['items']);
-    }
+    final col = firestore
+        .collection('historial_entregas')
+        .doc('cdr_firmadas')
+        .collection('firmas');
     bool huboCambios = false;
     for (final reg in _hiveHistorial.values) {
-      if (reg is Map && !historial.any((h) => h['id'] == reg['id'])) {
-        historial.add(reg);
+      final docId = reg['id'] ?? UniqueKey().toString();
+      final docRef = col.doc(docId);
+      final docSnap = await docRef.get();
+      if (!docSnap.exists) {
+        await docRef.set(Map<String, dynamic>.from(reg));
         huboCambios = true;
       }
     }
-    if (huboCambios) {
-      await historialDoc.set({'items': historial});
+    if (huboCambios && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('Firmas locales sincronizadas con Firestore.')),
@@ -378,6 +360,20 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
   // Caja Hive para historial local
   late Box<Map> _hiveHistorial;
 
+  @override
+  void initState() {
+    super.initState();
+    _lpController = TextEditingController();
+    Hive.openBox<Map>('historial_entregas_cdr').then((box) {
+      setState(() {
+        _hiveHistorial = box;
+      });
+      _cargarDesdeHiveYFirestore();
+      sincronizarFirmasLocales();
+    });
+    _sincronizarFirmasPendientes();
+  }
+
   // Cargar historial: primero local, luego intenta sincronizar con Firestore
   Future<void> _cargarDesdeHiveYFirestore() async {
     setState(() => _cargando = true);
@@ -393,7 +389,11 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     // 2. Cargar remoto y sincronizar si hay nuevos
     try {
       final firestore = FirebaseFirestore.instance;
-      final querySnapshot = await firestore.collection('entregas_cdr').get();
+      final querySnapshot = await firestore
+          .collection('historial_entregas')
+          .doc('cdr_firmadas')
+          .collection('firmas')
+          .get();
       List<Map<String, dynamic>> nuevos = querySnapshot.docs.map((doc) {
         final data = doc.data();
         return {
@@ -401,9 +401,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           'id': doc.id,
         };
       }).toList();
-      // Si hay datos nuevos en Firestore, sincroniza Hive
       if (nuevos.isNotEmpty) {
-        // Solo sincroniza si hay diferencia
         final localIds = local.map((e) => e['id']).toSet();
         final nuevosNoLocales =
             nuevos.where((e) => !localIds.contains(e['id'])).toList();
@@ -412,17 +410,15 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
             await _hiveHistorial.put(reg['id'], reg);
           }
         }
-        // Actualiza la lista completa
         _datosOriginales = List<Map<String, dynamic>>.from(_hiveHistorial.values
             .cast<Map>()
             .map((e) => Map<String, dynamic>.from(e)));
         _aplicarFiltro();
       }
     } catch (e) {
-      print('Error al cargar desde Hive y Firestore: ' + e.toString());
       // Si falla Firestore, solo muestra local
     }
-    setState(() => _cargando = false);
+    if (mounted) setState(() => _cargando = false);
   }
 
   void _aplicarFiltro() {
@@ -438,9 +434,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     });
   }
 
-  void _descargarExcel() {
-    // Implementar exportación a Excel si se requiere
-  }
+  // ...existing code...
 
   @override
   void dispose() {
