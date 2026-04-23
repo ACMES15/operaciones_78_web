@@ -53,8 +53,12 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
           await prefs.remove(key);
           await _cargarDesdeHiveYFirestore();
         }
-      } catch (e) {
+      } catch (e, stack) {
+        // Mostrar el error en consola para web y debug
+        // ignore: avoid_print
         print('Error al sincronizar firmas pendientes: ' + e.toString());
+        // ignore: avoid_print
+        print(stack);
       }
     }
   }
@@ -82,8 +86,12 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Firmas guardadas en Firestore y local.')),
       );
-    } catch (e) {
+    } catch (e, stack) {
+      // Mostrar el error en consola para web y debug
+      // ignore: avoid_print
       print('Error al guardar en Firestore: ' + e.toString());
+      // ignore: avoid_print
+      print(stack);
       // Si falla la subida, guardar localmente en Hive
       for (final reg in nuevasFirmadas) {
         await _hiveHistorial.put(reg['id'], reg);
