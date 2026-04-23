@@ -58,6 +58,15 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
         'id': doc.id,
       });
     }
+    // Ordenar descendente por fechaFirma si existe, si no por id
+    nuevos.sort((a, b) {
+      final fa = a['fechaFirma'] ?? '';
+      final fb = b['fechaFirma'] ?? '';
+      if (fa is String && fb is String && fa.isNotEmpty && fb.isNotEmpty) {
+        return fb.compareTo(fa);
+      }
+      return (b['id'] ?? '').toString().compareTo((a['id'] ?? '').toString());
+    });
     setState(() {
       _firmadas = nuevos;
       _cargando = false;
@@ -328,7 +337,7 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
                                               const SizedBox(width: 6),
                                               Text(
                                                   'Entregó: ' +
-                                                      (entrega['usuarioEntrega']
+                                                      (entrega['usuarioEntrego']
                                                               ?.toString() ??
                                                           '-'),
                                                   style: const TextStyle(
