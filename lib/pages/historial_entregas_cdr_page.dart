@@ -63,12 +63,20 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
       for (final reg in nuevasFirmadas) {
         final docRef = col.doc(reg['id'] ?? UniqueKey().toString());
         await docRef.set(Map<String, dynamic>.from(reg));
-        await _hiveHistorial.put(reg['id'], reg); // También guardar en Hive
+        // Eliminar de Hive y de la lista local de pendientes
+        await _hiveHistorial.delete(reg['id']);
       }
-      setState(() => _seleccionados.clear());
-      await _cargarDesdeHiveYFirestore();
+      // Actualizar la lista local
+      _datosOriginales
+          .removeWhere((e) => nuevasFirmadas.any((r) => r['id'] == e['id']));
+      setState(() {
+        _seleccionados.clear();
+        _aplicarFiltro();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Firmas guardadas en Firestore y local.')),
+        const SnackBar(
+            content: Text(
+                'Firmas guardadas en Firestore y eliminadas de pendientes.')),
       );
     } catch (e, stack) {
       // ignore: avoid_print

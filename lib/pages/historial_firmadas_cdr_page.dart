@@ -36,6 +36,7 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
         .get();
     final data = doc.exists ? doc.data() : null;
     List<Map<String, dynamic>> nuevos = [];
+    // 1. Versiones viejas (campo items)
     if (data != null && data['items'] is List) {
       for (var e in (data['items'] as List)) {
         if (e is Map) {
@@ -43,6 +44,19 @@ class _HistorialFirmadasCdrPageState extends State<HistorialFirmadasCdrPage> {
               e.map((k, v) => MapEntry(k.toString(), v))));
         }
       }
+    }
+    // 2. Versiones nuevas (subcolección firmas)
+    final firmasSnap = await firestore
+        .collection('historial_entregas')
+        .doc('cdr_firmadas')
+        .collection('firmas')
+        .get();
+    for (final doc in firmasSnap.docs) {
+      final data = doc.data();
+      nuevos.add({
+        ...data,
+        'id': doc.id,
+      });
     }
     setState(() {
       _firmadas = nuevos;
