@@ -353,25 +353,42 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
     );
     signatureController.dispose();
     if (resultado == null) return;
-    // Guardar en historial
-    final nuevasFirmadas = seleccionadas
-        .map((e) => {
-              ...e,
-              'nombreRecibe': resultado['nombre'],
-              'firma': resultado['firma'],
-              'fechaFirma': DateTime.now().toIso8601String(),
-              'usuarioEntrega': widget.usuario,
-            })
-        .toList();
-    final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
-    historialActual.addAll(nuevasFirmadas);
+    final firestore = FirebaseFirestore.instance;
+    final ahora = DateTime.now();
+    final nuevasFirmadas = <Map<String, dynamic>>[];
     try {
-      await guardarDatosFirestoreYCache(
-          'historial_entregas', 'devcan_firmadas', {'items': historialActual});
+      for (final e in seleccionadas) {
+        final nuevo = {
+          ...e,
+          'nombreRecibe': resultado['nombre'],
+          'firma': resultado['firma'],
+          'fechaFirma': ahora.toIso8601String(),
+          'usuarioEntrega': widget.usuario,
+        };
+        final docId = nuevo['id'] ??
+            firestore
+                .collection('historial_entregas')
+                .doc('devcan_firmadas')
+                .collection('firmas')
+                .doc()
+                .id;
+        await firestore
+            .collection('historial_entregas')
+            .doc('devcan_firmadas')
+            .collection('firmas')
+            .doc(docId)
+            .set(nuevo);
+        // Eliminar de la colección de pendientes (ajusta el nombre si es diferente)
+        await firestore.collection('entregas_devcan').doc(nuevo['id']).delete();
+        nuevasFirmadas.add(nuevo);
+      }
       setState(() {
         _seleccionados.clear();
       });
       await _cargarDatos();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Entregas firmadas y movidas a historial.'),
+      ));
     } catch (e) {
       // Si falla la subida, guardar localmente como pendiente
       final prefs = await SharedPreferences.getInstance();

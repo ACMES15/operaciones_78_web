@@ -224,7 +224,16 @@ class _DevXdPageState extends State<DevXdPage> {
         'xd',
         {'items': nuevosItems},
       );
-      setState(() {});
+      setState(() {
+        // Limpiar la tabla después de guardar
+        for (var row in _rows) {
+          for (var ctrl in row) {
+            ctrl.dispose();
+          }
+        }
+        _rows.clear();
+        _addRow();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Información guardada en XD.')),
       );

@@ -341,22 +341,36 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     );
     signatureController.dispose();
     if (resultado == null) return;
-    // Guardar en historial
-    final nuevasFirmadas = seleccionadas
-        .map((e) => {
-              ...e,
-              'nombreRecibe': resultado['nombre'],
-              'firma': resultado['firma'],
-              'fechaFirma': DateTime.now().toIso8601String(),
-              'usuarioEntrega': widget.usuario,
-              'id': e['id']?.toString() ?? (e['LP']?.toString() ?? ''),
-            })
-        .toList();
-    final historialActual = List<Map<String, dynamic>>.from(_historialFirmadas);
-    historialActual.addAll(nuevasFirmadas);
+    final firestore = FirebaseFirestore.instance;
+    final ahora = DateTime.now();
+    final nuevasFirmadas = <Map<String, dynamic>>[];
     try {
-      await guardarDatosFirestoreYCache('historial_entregas',
-          'dev_mbodas_firmadas', {'items': historialActual});
+      for (final e in seleccionadas) {
+        final nuevo = {
+          ...e,
+          'nombreRecibe': resultado['nombre'],
+          'firma': resultado['firma'],
+          'fechaFirma': ahora.toIso8601String(),
+          'usuarioEntrega': widget.usuario,
+          'id': e['id']?.toString() ?? (e['LP']?.toString() ?? ''),
+        };
+        final docId = nuevo['id'] ??
+            firestore
+                .collection('historial_entregas')
+                .doc('dev_mbodas_firmadas')
+                .collection('firmas')
+                .doc()
+                .id;
+        await firestore
+            .collection('historial_entregas')
+            .doc('dev_mbodas_firmadas')
+            .collection('firmas')
+            .doc(docId)
+            .set(nuevo);
+        // Eliminar de la colección de pendientes (ajusta el nombre si es diferente)
+        await firestore.collection('entregas_mbodas').doc(nuevo['id']).delete();
+        nuevasFirmadas.add(nuevo);
+      }
       setState(() {
         _seleccionados.clear();
       });

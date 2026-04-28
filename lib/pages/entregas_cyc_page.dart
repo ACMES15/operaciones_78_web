@@ -292,31 +292,31 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
     final nombre = resultado['nombre'] as String;
     final firma = resultado['firma'] as String;
     final firestore = FirebaseFirestore.instance;
-    final batch = firestore.batch();
-    final historialRef =
-        firestore.collection('historial_entregas').doc('cyc_firmadas');
-    final historialDoc = await historialRef.get();
-    List<dynamic> historial = [];
-    if (historialDoc.exists &&
-        historialDoc.data() != null &&
-        historialDoc.data()!['items'] is List) {
-      historial = List.from(historialDoc.data()!['items']);
-    }
     final ahora = DateTime.now();
     final nuevasFirmadas = <Map<String, dynamic>>[];
-    for (final item in seleccionadas) {
-      final nuevo = Map<String, dynamic>.from(item);
-      nuevo['validadoPor'] = widget.usuario;
-      nuevo['fechaValidacion'] = ahora.toIso8601String();
-      nuevo['recibidoPor'] = nombre;
-      nuevo['firma'] = firma;
-      historial.add(nuevo);
-      nuevasFirmadas.add(nuevo);
-      batch.delete(firestore.collection('entregas_cyc').doc(item['id']));
-    }
     try {
-      batch.set(historialRef, {'items': historial}, SetOptions(merge: true));
-      await batch.commit();
+      for (final item in seleccionadas) {
+        final nuevo = Map<String, dynamic>.from(item);
+        nuevo['validadoPor'] = widget.usuario;
+        nuevo['fechaValidacion'] = ahora.toIso8601String();
+        nuevo['recibidoPor'] = nombre;
+        nuevo['firma'] = firma;
+        final docId = nuevo['id'] ??
+            firestore
+                .collection('historial_entregas')
+                .doc('cyc_firmadas')
+                .collection('firmas')
+                .doc()
+                .id;
+        await firestore
+            .collection('historial_entregas')
+            .doc('cyc_firmadas')
+            .collection('firmas')
+            .doc(docId)
+            .set(nuevo);
+        await firestore.collection('entregas_cyc').doc(nuevo['id']).delete();
+        nuevasFirmadas.add(nuevo);
+      }
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Entregas firmadas y movidas a historial.')));
       await _cargarPendientes();

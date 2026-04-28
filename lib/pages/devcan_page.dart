@@ -223,6 +223,14 @@ class _DevCanPageState extends State<DevCanPage> {
       );
       setState(() {
         _ultimaEntregaGuardada = {'items': nuevosItems};
+        // Limpiar la tabla después de guardar
+        for (var row in _rows) {
+          for (var ctrl in row) {
+            ctrl.dispose();
+          }
+        }
+        _rows.clear();
+        _addRow();
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Información guardada en DevCan.')),

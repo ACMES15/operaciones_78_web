@@ -178,6 +178,16 @@ class _DevCycPageState extends State<DevCycPage> {
       batch.set(doc, fila);
     }
     await batch.commit();
+    // Limpiar la tabla después de guardar
+    setState(() {
+      for (var row in _rows) {
+        for (var ctrl in row) {
+          ctrl.dispose();
+        }
+      }
+      _rows.clear();
+      _addRow();
+    });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Datos guardados en Firestore')),
     );

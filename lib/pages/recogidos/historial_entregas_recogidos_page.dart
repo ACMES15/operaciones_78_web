@@ -44,20 +44,17 @@ class _HistorialEntregasRecogidosPageState
 
   Future<void> _recargarFirestore() async {
     final firestore = FirebaseFirestore.instance;
-    final doc = await firestore
+    final snap = await firestore
         .collection('historial_entregas')
         .doc('recogidos_firmadas')
+        .collection('firmas')
         .get();
-    final data = doc.exists ? doc.data() : null;
-    List<Map<String, dynamic>> nuevos = [];
-    if (data != null && data['items'] is List) {
-      for (var e in (data['items'] as List)) {
-        if (e is Map) {
-          nuevos.add(Map<String, dynamic>.from(
-              e.map((k, v) => MapEntry(k.toString(), v))));
-        }
-      }
-    }
+    final nuevos = snap.docs
+        .map((doc) => {
+              ...doc.data(),
+              'id': doc.id,
+            })
+        .toList();
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     if (_filtro.isNotEmpty) {
       _resultados = _datosOriginales.where((e) {
