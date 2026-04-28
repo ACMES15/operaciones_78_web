@@ -36,17 +36,52 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
     });
     try {
       final firestore = FirebaseFirestore.instance;
+      // Cargar items antiguos
+      final doc = await firestore
+          .collection('historial_entregas')
+          .doc('cyc_firmadas')
+          .get();
+      final data = doc.exists ? doc.data() : null;
+      List<Map<String, dynamic>> antiguos = [];
+      if (data != null && data['items'] is List) {
+        for (var e in (data['items'] as List)) {
+          if (e is Map) {
+            antiguos.add(Map<String, dynamic>.from(
+                e.map((k, v) => MapEntry(k.toString(), v))));
+          }
+        }
+      }
+      // Cargar subcolección firmas
       final snap = await firestore
           .collection('historial_entregas')
           .doc('cyc_firmadas')
           .collection('firmas')
           .get();
-      final nuevos = snap.docs
+      final firmas = snap.docs
           .map((doc) => {
                 ...doc.data(),
                 'id': doc.id,
               })
           .toList();
+      // Unir ambos y eliminar duplicados por id
+      final Map<String, Map<String, dynamic>> unificados = {};
+      for (final reg in antiguos) {
+        final id = reg['id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          unificados[id] = reg;
+        } else {
+          unificados[UniqueKey().toString()] = reg;
+        }
+      }
+      for (final reg in firmas) {
+        final id = reg['id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          unificados[id] = reg;
+        } else {
+          unificados[UniqueKey().toString()] = reg;
+        }
+      }
+      final nuevos = unificados.values.toList();
       // Ordenar descendente por fechaValidacion o fechaFirma o fecha
       nuevos.sort((a, b) {
         final fa = a['fechaValidacion'] ?? a['fechaFirma'] ?? a['fecha'] ?? '';

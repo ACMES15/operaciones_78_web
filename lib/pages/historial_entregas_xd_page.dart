@@ -54,32 +54,52 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
         .doc('dev_xd_firmadas')
         .get();
     final data = doc.exists ? doc.data() : null;
-    print('Firestore data:');
-    print(data);
-    List<Map<String, dynamic>> nuevos = [];
+    List<Map<String, dynamic>> antiguos = [];
     if (data != null && data['items'] is List) {
       for (var e in (data['items'] as List)) {
         if (e is Map) {
-          nuevos.add(Map<String, dynamic>.from(
+          antiguos.add(Map<String, dynamic>.from(
               e.map((k, v) => MapEntry(k.toString(), v))));
         }
       }
     }
-    print('Registros cargados: \\${nuevos.length}');
-    if (nuevos.isNotEmpty) {
-      print('Primer registro:');
-      print(nuevos.first);
-    }
-    // Ordenar descendente por fecha si existe
-    nuevos.sort((a, b) {
-      final fa = a['fecha'] ?? '';
-      final fb = b['fecha'] ?? '';
-      if (fa is String && fb is String && fa.isNotEmpty && fb.isNotEmpty) {
-        try {
-          return DateTime.parse(fb).compareTo(DateTime.parse(fa));
-        } catch (_) {}
+    // Cargar subcolección firmas
+    final firmasSnap = await firestore
+        .collection('historial_entregas')
+        .doc('dev_xd_firmadas')
+        .collection('firmas')
+        .get();
+    final firmas = firmasSnap.docs
+        .map((doc) => {
+              ...doc.data(),
+              'id': doc.id,
+            })
+        .toList();
+    // Unir ambos y eliminar duplicados por id
+    final Map<String, Map<String, dynamic>> unificados = {};
+    for (final reg in antiguos) {
+      final id = reg['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        unificados[id] = reg;
+      } else {
+        // Si no tiene id, igual lo agregamos con un key único
+        unificados[UniqueKey().toString()] = reg;
       }
-      return 0;
+    }
+    for (final reg in firmas) {
+      final id = reg['id']?.toString() ?? '';
+      if (id.isNotEmpty) {
+        unificados[id] = reg;
+      } else {
+        unificados[UniqueKey().toString()] = reg;
+      }
+    }
+    final nuevos = unificados.values.toList();
+    // Ordenar descendente por fechaFirma o fecha
+    nuevos.sort((a, b) {
+      final fa = a['fechaFirma'] ?? a['fecha'] ?? '';
+      final fb = b['fechaFirma'] ?? b['fecha'] ?? '';
+      return fb.compareTo(fa);
     });
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _busquedaController.clear();
