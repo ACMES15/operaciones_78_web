@@ -17,7 +17,7 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
   List<Map<String, dynamic>> _pendientes = [];
   List<Map<String, dynamic>> _originales = [];
   bool _cargando = true;
-  Set<int> _seleccionados = {};
+  Set<int> _seleccionados = {}; // índices de la lista filtrada
   late TextEditingController _busquedaController;
   String _filtro = '';
 
@@ -77,19 +77,25 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
   void _filtrar(String value) {
     setState(() {
       _filtro = value.toLowerCase();
-      _pendientes = _originales
-          .where((e) => e.entries.any((entry) {
-                final v = entry.value;
-                if (v == null) return false;
-                return v.toString().toLowerCase().contains(_filtro);
-              }))
-          .toList();
+      // No modificamos _pendientes, solo el filtro visual
+      _seleccionados.clear();
     });
   }
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
-    final seleccionadas =
-        _seleccionados.map((idx) => _pendientes[idx]).toList();
+    // Usar los índices de la lista filtrada (resultados)
+    final resultados = _pendientes
+        .where((e) =>
+            (_filtro.isEmpty ||
+                e.entries.any((entry) {
+                  final v = entry.value;
+                  if (v == null) return false;
+                  return v.toString().toLowerCase().contains(_filtro);
+                })) &&
+            (_jefaturaSeleccionada.isEmpty ||
+                (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada))
+        .toList();
+    final seleccionadas = _seleccionados.map((idx) => resultados[idx]).toList();
     final nombreController = TextEditingController();
     final signatureController = SignatureController(
       penStrokeWidth: 3,

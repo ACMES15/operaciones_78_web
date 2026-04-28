@@ -47,6 +47,12 @@ class _HistorialEntregasCycPageState extends State<HistorialEntregasCycPage> {
                 'id': doc.id,
               })
           .toList();
+      // Ordenar descendente por fechaValidacion o fechaFirma o fecha
+      nuevos.sort((a, b) {
+        final fa = a['fechaValidacion'] ?? a['fechaFirma'] ?? a['fecha'] ?? '';
+        final fb = b['fechaValidacion'] ?? b['fechaFirma'] ?? b['fecha'] ?? '';
+        return fb.compareTo(fa);
+      });
       setState(() {
         _firmadas = nuevos;
         _cargando = false;

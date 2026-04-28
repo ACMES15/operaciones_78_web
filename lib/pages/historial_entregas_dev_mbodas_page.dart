@@ -55,6 +55,12 @@ class _HistorialEntregasDevMbodasPageState
               'id': doc.id,
             })
         .toList();
+    // Ordenar descendente por fechaFirma o fecha
+    nuevos.sort((a, b) {
+      final fa = a['fechaFirma'] ?? a['fecha'] ?? '';
+      final fb = b['fechaFirma'] ?? b['fecha'] ?? '';
+      return fb.compareTo(fa);
+    });
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     if (_filtro.isNotEmpty) {
       _resultados = _datosOriginales.where((e) {

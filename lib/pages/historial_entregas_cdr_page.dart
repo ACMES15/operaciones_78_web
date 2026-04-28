@@ -411,6 +411,15 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
     _sincronizarFirmasPendientes();
   }
 
+  // Ordenar resultados por fecha descendente
+  void _ordenarResultados() {
+    _resultados.sort((a, b) {
+      final fa = a['fechaFirma'] ?? a['fecha'] ?? '';
+      final fb = b['fechaFirma'] ?? b['fecha'] ?? '';
+      return fb.compareTo(fa);
+    });
+  }
+
   // Cargar historial: primero local, luego intenta sincronizar con Firestore
   Future<void> _cargarDesdeHiveYFirestore() async {
     setState(() => _cargando = true);
@@ -441,6 +450,7 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
               (_jefaturaSeleccionada.isEmpty ||
                   (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada))
           .toList();
+      _ordenarResultados();
     });
   }
 

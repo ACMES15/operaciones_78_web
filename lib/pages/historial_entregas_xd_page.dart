@@ -70,6 +70,17 @@ class _HistorialEntregasXdPageState extends State<HistorialEntregasXdPage> {
       print('Primer registro:');
       print(nuevos.first);
     }
+    // Ordenar descendente por fecha si existe
+    nuevos.sort((a, b) {
+      final fa = a['fecha'] ?? '';
+      final fb = b['fecha'] ?? '';
+      if (fa is String && fb is String && fa.isNotEmpty && fb.isNotEmpty) {
+        try {
+          return DateTime.parse(fb).compareTo(DateTime.parse(fa));
+        } catch (_) {}
+      }
+      return 0;
+    });
     _datosOriginales = List<Map<String, dynamic>>.from(nuevos);
     _busquedaController.clear();
     _filtro = '';
