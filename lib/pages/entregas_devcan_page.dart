@@ -378,8 +378,19 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
             .collection('firmas')
             .doc(docId)
             .set(nuevo);
-        // Eliminar de la colección de pendientes (ajusta el nombre si es diferente)
-        await firestore.collection('entregas_devcan').doc(nuevo['id']).delete();
+        // Eliminar del documento 'entregas' -> 'devcan' (campo items)
+        final entregasDocRef = firestore.collection('entregas').doc('devcan');
+        await firestore.runTransaction((tx) async {
+          final snap = await tx.get(entregasDocRef);
+          if (snap.exists) {
+            final List items = List.from(snap.data()?['items'] ?? []);
+            final filtered = items
+                .where((it) =>
+                    (it is Map ? (it['id'] ?? it['ID']) : null) != nuevo['id'])
+                .toList();
+            await tx.update(entregasDocRef, {'items': filtered});
+          }
+        });
         nuevasFirmadas.add(nuevo);
       }
       setState(() {
