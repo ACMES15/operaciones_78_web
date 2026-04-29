@@ -41,7 +41,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   bool _cargando = true;
 
   Set<String> get _lpsFirmadas => _historialFirmadas
-      .map((e) => e['LP']?.toString())
+      .map((e) => e['LP']?.toString().trim())
       .whereType<String>()
       .toSet();
 
@@ -178,8 +178,13 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
     if (entregasRaw != null && entregasRaw['items'] is List) {
       for (var e in (entregasRaw['items'] as List)) {
         if (e is Map) {
-          entregas.add(Map<String, dynamic>.from(
-              e.map((k, v) => MapEntry(k.toString(), v))));
+          final map = Map<String, dynamic>.from(
+              e.map((k, v) => MapEntry(k.toString(), v)));
+          // Normalizar LP (eliminar espacios) para evitar mismatches
+          if (map.containsKey('LP') && map['LP'] is String) {
+            map['LP'] = (map['LP'] as String).trim();
+          }
+          entregas.add(map);
         }
       }
     }
@@ -193,6 +198,12 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
       }
     }
     setState(() {
+      try {
+        print(
+            'DEBUG: entregas loaded count=${entregas.length} LPs=${entregas.map((e) => e['LP']).toList()}');
+        print(
+            'DEBUG: historial loaded count=${historial.length} LPs=${historial.map((h) => h['LP']).toList()}');
+      } catch (_) {}
       _entregas = entregas;
       _historialFirmadas = historial;
       _cargando = false;
