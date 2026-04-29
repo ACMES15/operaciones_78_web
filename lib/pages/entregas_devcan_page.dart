@@ -132,6 +132,27 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
       entregasRaw = await leerDatosConCache('entregas', 'devcan');
       historialRaw =
           await leerDatosConCache('historial_entregas', 'devcan_firmadas');
+      // Si el cache tiene 0 o 1 items, verificar directamente en Firestore
+      try {
+        final cachedItems =
+            (entregasRaw != null && entregasRaw['items'] is List)
+                ? List.from(entregasRaw['items'])
+                : <dynamic>[];
+        if (cachedItems.length <= 1) {
+          final doc = await FirebaseFirestore.instance
+              .collection('entregas')
+              .doc('devcan')
+              .get();
+          final fsItems = (doc.exists && doc.data()?['items'] is List)
+              ? List.from(doc.data()!['items'])
+              : <dynamic>[];
+          if (fsItems.length > cachedItems.length) {
+            entregasRaw = {'items': fsItems};
+            await guardarDatosFirestoreYCache(
+                'entregas', 'devcan', entregasRaw);
+          }
+        }
+      } catch (_) {}
       // Si el cache no contiene items, intentar leer subcolección 'firmas'
       if ((historialRaw == null || historialRaw['items'] == null)) {
         try {
