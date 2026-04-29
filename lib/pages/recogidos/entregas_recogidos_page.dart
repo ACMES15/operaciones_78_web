@@ -30,13 +30,30 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
       try {
         final List<dynamic> pendientes = jsonDecode(data);
         if (pendientes.isNotEmpty) {
-          final historialActual =
-              List<Map<String, dynamic>>.from(_historialFirmadas);
-          historialActual.addAll(pendientes.cast<Map<String, dynamic>>());
-          await guardarDatosFirestoreYCache('historial_entregas',
-              'recogidos_firmadas', {'items': historialActual});
+          // Enviar pendientes a la subcolección 'firmas' en Firestore
+          final firestore = FirebaseFirestore.instance;
+          final batch = firestore.batch();
+          final coll = firestore
+              .collection('historial_entregas')
+              .doc('recogidos_firmadas')
+              .collection('firmas');
+          for (final p in pendientes) {
+            try {
+              final dataMap = Map<String, dynamic>.from(p);
+              if (dataMap.containsKey('__docId')) {
+                final ref = coll.doc(dataMap['__docId']);
+                batch.set(ref, Map.of(dataMap)..remove('__docId'));
+              } else if (dataMap.containsKey('id')) {
+                batch.set(coll.doc(dataMap['id']), dataMap);
+              } else {
+                final newDoc = coll.doc();
+                batch.set(newDoc, dataMap);
+              }
+            } catch (_) {}
+          }
+          await batch.commit();
           await prefs.remove(key);
-          await _cargarDatos();
+          await _cargarDatos(forzarFirestore: true);
         }
       } catch (_) {}
     }
@@ -73,7 +90,6 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
       .whereType<String>()
       .toSet();
 
-  @override
   Future<void> _cargarDatos({bool forzarFirestore = false}) async {
     setState(() => _cargando = true);
     Map<String, dynamic>? entregasRaw;
@@ -93,10 +109,47 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
           'entregas', 'recogidos', entregasRaw ?? {});
       await guardarDatosFirestoreYCache(
           'historial_entregas', 'recogidos_firmadas', historialRaw ?? {});
+      // Además, leer la subcolección 'firmas' y combinar
+      try {
+        final firmasSnap = await FirebaseFirestore.instance
+            .collection('historial_entregas')
+            .doc('recogidos_firmadas')
+            .collection('firmas')
+            .get();
+        final List<Map<String, dynamic>> extra = firmasSnap.docs
+            .map((d) => Map<String, dynamic>.from(d.data()))
+            .toList();
+        if (extra.isNotEmpty) {
+          final existing = (historialRaw?['items'] is List)
+              ? List<Map<String, dynamic>>.from((historialRaw?['items'] ?? []))
+              : <Map<String, dynamic>>[];
+          existing.addAll(extra);
+          historialRaw = {'items': existing};
+        }
+      } catch (_) {}
     } else {
       entregasRaw = await leerDatosConCache('entregas', 'recogidos');
       historialRaw =
           await leerDatosConCache('historial_entregas', 'recogidos_firmadas');
+      // Si el cache no contiene items, intentar leer subcolección 'firmas'
+      if ((historialRaw == null || historialRaw['items'] == null)) {
+        try {
+          final firmasSnap = await FirebaseFirestore.instance
+              .collection('historial_entregas')
+              .doc('recogidos_firmadas')
+              .collection('firmas')
+              .get();
+          final List<Map<String, dynamic>> extra = firmasSnap.docs
+              .map((d) => Map<String, dynamic>.from(d.data()))
+              .toList();
+          if (extra.isNotEmpty) {
+            historialRaw = {'items': extra};
+            // actualizar cache con los items combinados
+            await guardarDatosFirestoreYCache(
+                'historial_entregas', 'recogidos_firmadas', historialRaw);
+          }
+        } catch (_) {}
+      }
     }
     List<Map<String, dynamic>> entregas = [];
     if (entregasRaw != null && entregasRaw['items'] is List) {
@@ -355,7 +408,11 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
     final firestore = FirebaseFirestore.instance;
     final ahora = DateTime.now();
     final nuevasFirmadas = <Map<String, dynamic>>[];
+    List<Map<String, dynamic>> preparados = [];
     try {
+      // Preparar objetos nuevos y seleccionar ids
+      preparados = [];
+      final Set selectedIds = {};
       for (final e in seleccionadas) {
         final nuevo = {
           ...e,
@@ -371,28 +428,34 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                 .collection('firmas')
                 .doc()
                 .id;
-        await firestore
-            .collection('historial_entregas')
-            .doc('recogidos_firmadas')
-            .collection('firmas')
-            .doc(docId)
-            .set(nuevo);
-        // Eliminar del documento 'entregas' -> 'recogidos' (campo items)
-        final entregasDocRef =
-            firestore.collection('entregas').doc('recogidos');
-        await firestore.runTransaction((tx) async {
-          final snap = await tx.get(entregasDocRef);
-          if (snap.exists) {
-            final List items = List.from(snap.data()?['items'] ?? []);
-            final filtered = items
-                .where((it) =>
-                    (it is Map ? (it['id'] ?? it['ID']) : null) != nuevo['id'])
-                .toList();
-            await tx.update(entregasDocRef, {'items': filtered});
-          }
-        });
-        nuevasFirmadas.add(nuevo);
+        nuevo['__docId'] = docId;
+        preparados.add(nuevo);
+        final idVal = nuevo['id'] ?? nuevo['ID'] ?? docId;
+        if (idVal != null) selectedIds.add(idVal);
       }
+
+      // Ejecutar transacción única: escribir firmas y eliminar solo ids seleccionados
+      final entregasDocRef = firestore.collection('entregas').doc('recogidos');
+      await firestore.runTransaction((tx) async {
+        final snap = await tx.get(entregasDocRef);
+        final List items =
+            List.from(snap.exists ? (snap.data()?['items'] ?? []) : []);
+        final filtered = items
+            .where((it) => !selectedIds
+                .contains(it is Map ? (it['id'] ?? it['ID']) : null))
+            .toList();
+        tx.update(entregasDocRef, {'items': filtered});
+        for (final nuevo in preparados) {
+          final docRef = firestore
+              .collection('historial_entregas')
+              .doc('recogidos_firmadas')
+              .collection('firmas')
+              .doc(nuevo['__docId']);
+          tx.set(docRef, Map.of(nuevo)..remove('__docId'));
+        }
+      });
+      nuevasFirmadas
+          .addAll(preparados.map((p) => Map.of(p)..remove('__docId')));
       setState(() {
         _seleccionados.clear();
       });
@@ -411,7 +474,11 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
           pendientes = jsonDecode(data);
         } catch (_) {}
       }
-      pendientes.addAll(nuevasFirmadas);
+      if (nuevasFirmadas.isNotEmpty) {
+        pendientes.addAll(nuevasFirmadas);
+      } else if (preparados.isNotEmpty) {
+        pendientes.addAll(preparados.map((p) => Map.of(p)..remove('__docId')));
+      }
       await prefs.setString(key, jsonEncode(pendientes));
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text(
