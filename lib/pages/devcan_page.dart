@@ -221,6 +221,10 @@ class _DevCanPageState extends State<DevCanPage> {
         'devcan',
         {'items': nuevosItems},
       );
+      // Debug: registrar cantidad guardada
+      try {
+        print('DEBUG: guardado entregas/devcan items=${nuevosItems.length}');
+      } catch (_) {}
       setState(() {
         _ultimaEntregaGuardada = {'items': nuevosItems};
         // Limpiar la tabla después de guardar
