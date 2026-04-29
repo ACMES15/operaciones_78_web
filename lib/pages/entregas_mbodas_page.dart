@@ -29,13 +29,29 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
       try {
         final List<dynamic> pendientes = jsonDecode(data);
         if (pendientes.isNotEmpty) {
-          final historialActual =
-              List<Map<String, dynamic>>.from(_historialFirmadas);
-          historialActual.addAll(pendientes.cast<Map<String, dynamic>>());
-          await guardarDatosFirestoreYCache('historial_entregas',
-              'dev_mbodas_firmadas', {'items': historialActual});
+          final firestore = FirebaseFirestore.instance;
+          final batch = firestore.batch();
+          final coll = firestore
+              .collection('historial_entregas')
+              .doc('dev_mbodas_firmadas')
+              .collection('firmas');
+          for (final p in pendientes) {
+            try {
+              final dataMap = Map<String, dynamic>.from(p);
+              if (dataMap.containsKey('__docId')) {
+                final ref = coll.doc(dataMap['__docId']);
+                batch.set(ref, Map.of(dataMap)..remove('__docId'));
+              } else if (dataMap.containsKey('id')) {
+                batch.set(coll.doc(dataMap['id']), dataMap);
+              } else {
+                final newDoc = coll.doc();
+                batch.set(newDoc, dataMap);
+              }
+            } catch (_) {}
+          }
+          await batch.commit();
           await prefs.remove(key);
-          await _cargarDatos();
+          await _cargarDatos(forzarFirestore: true);
         }
       } catch (_) {}
     }
@@ -54,7 +70,6 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
       .whereType<String>()
       .toSet();
 
-  @override
   Future<void> _cargarDatos({bool forzarFirestore = false}) async {
     setState(() => _cargando = true);
     Map<String, dynamic>? entregasRaw;
