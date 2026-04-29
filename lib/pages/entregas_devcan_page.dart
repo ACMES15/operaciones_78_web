@@ -206,6 +206,16 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
       } catch (_) {}
       _entregas = entregas;
       _historialFirmadas = historial;
+      try {
+        final lps = entregas
+            .map((e) => e['LP']?.toString().trim())
+            .whereType<String>()
+            .toSet();
+        final firmadas = _lpsFirmadas;
+        final excluded = lps.intersection(firmadas);
+        print(
+            'DEBUG: LPs excluded by historial (intersection) = ${excluded.toList()}');
+      } catch (_) {}
       _cargando = false;
     });
   }
