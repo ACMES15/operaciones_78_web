@@ -360,6 +360,8 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
     final ahora = DateTime.now();
     final nuevasFirmadas = <Map<String, dynamic>>[];
     try {
+      // 1. Guardar en historial y recolectar los ids firmados
+      final idsFirmados = <String>[];
       for (final e in seleccionadas) {
         final nuevo = {
           ...e,
@@ -382,10 +384,28 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
             .collection('firmas')
             .doc(docId)
             .set(nuevo);
-        // Eliminar de la colección de pendientes (ajusta el nombre si es diferente)
-        await firestore.collection('entregas_mbodas').doc(nuevo['id']).delete();
+        idsFirmados.add(nuevo['id']);
         nuevasFirmadas.add(nuevo);
       }
+
+      // 2. Eliminar del array 'items' del doc entregas/mbodas
+      if (idsFirmados.isNotEmpty) {
+        final docRef = firestore.collection('entregas').doc('mbodas');
+        final docSnap = await docRef.get();
+        if (docSnap.exists) {
+          final data = docSnap.data();
+          if (data != null && data['items'] is List) {
+            final List items = List.from(data['items']);
+            items.removeWhere((item) {
+              final itemId =
+                  (item['id']?.toString() ?? item['LP']?.toString() ?? '');
+              return idsFirmados.contains(itemId);
+            });
+            await docRef.update({'items': items});
+          }
+        }
+      }
+
       setState(() {
         _seleccionados.clear();
       });

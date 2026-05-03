@@ -295,9 +295,19 @@ exports.exportFirmasToSheet = functions.https.onRequest(async (req, res) => {
   for (const doc of collectionSnap.docs) {
     const moduleId = doc.id; // p.ej. 'dev_xd_firmadas'
 
+    // Leer el último createdAt exportado para este módulo
+    let lastExportedAt = null;
+    if (!full) {
+      const control = await getExportControl(db, moduleId);
+      lastExportedAt = control.lastExportedAt || null;
+    }
+
     // Leer subcolección firmas
     const histRef = db.collection("historial_entregas");
-    const firmasRef = histRef.doc(moduleId).collection("firmas");
+    let firmasRef = histRef.doc(moduleId).collection("firmas");
+    if (!full && lastExportedAt) {
+      firmasRef = firmasRef.where("createdAt", ">", lastExportedAt);
+    }
     const firmasSnap = await firmasRef.get();
     const firmas = firmasSnap.docs.map((d) => ({
       ...d.data(),
@@ -346,6 +356,10 @@ exports.exportFirmasToSheet = functions.https.onRequest(async (req, res) => {
         await setExportControl(db, moduleId, {
           lastExportedIds: allFirmas.map((f) => f.id),
           headers: keys,
+          lastExportedAt: allFirmas.reduce((max, f) => {
+            const val = f.createdAt ? new Date(f.createdAt).toISOString() : null;
+            return val && (!max || val > max) ? val : max;
+          }, null),
         });
         totalExported += allRows.length;
         console.log("Exportación completa: " + moduleId);
@@ -365,7 +379,17 @@ exports.exportFirmasToSheet = functions.https.onRequest(async (req, res) => {
       null;
 
     const nuevos = allFirmas.filter((f) => !persistedIds.includes(f.id));
-    if (nuevos.length === 0) continue;
+    if (nuevos.length === 0) {
+      // Actualizar el lastExportedAt aunque no haya nuevos
+      if (!full && firmas.length > 0) {
+        const maxCreatedAt = firmas.reduce((max, f) => {
+          const val = f.createdAt ? new Date(f.createdAt).toISOString() : null;
+          return val && (!max || val > max) ? val : max;
+        }, lastExportedAt);
+        await setExportControl(db, moduleId, { lastExportedAt: maxCreatedAt });
+      }
+      continue;
+    }
 
     // Revisar si hay nuevas claves que no estén en headers persistidos
     const allKeysSet = new Set(persistedHeaders || HEADERS);
@@ -403,6 +427,10 @@ exports.exportFirmasToSheet = functions.https.onRequest(async (req, res) => {
         await setExportControl(db, moduleId, {
           lastExportedIds: allFirmas.map((f) => f.id),
           headers: allKeys,
+          lastExportedAt: allFirmas.reduce((max, f) => {
+            const val = f.createdAt ? new Date(f.createdAt).toISOString() : null;
+            return val && (!max || val > max) ? val : max;
+          }, lastExportedAt),
         });
         totalExported += allRows.length;
         console.log("Sincronizada hoja para " + moduleId);
@@ -424,9 +452,18 @@ exports.exportFirmasToSheet = functions.https.onRequest(async (req, res) => {
 
     try {
       await appendToSheetForModule(moduleId, values);
+      // Actualizar el lastExportedAt con el máximo de los nuevos
+      let maxCreatedAt = lastExportedAt;
+      if (nuevos.length > 0) {
+        maxCreatedAt = nuevos.reduce((max, f) => {
+          const val = f.createdAt ? new Date(f.createdAt).toISOString() : null;
+          return val && (!max || val > max) ? val : max;
+        }, lastExportedAt);
+      }
       await setExportControl(db, moduleId, {
         lastExportedIds: allFirmas.map((f) => f.id),
         headers: persistedHeaders,
+        lastExportedAt: maxCreatedAt,
       });
       totalExported += nuevos.length;
       const infoPrefix = "Exportados ";
@@ -452,37 +489,65 @@ exports.exportExtraCollections = functions.https.onRequest(async (req, res) => {
   const full = q && q.full === "true";
   let total = 0;
 
-  // guias_cyc -> exportar todos los documentos de la colección
+  // guias_cyc -> exportar solo documentos nuevos usando createdAt
   try {
-    const guiasRef = db.collection("guias_cyc");
-    const snap = await guiasRef.get();
-    const docs = snap.docs.map((d) => {
+    let lastExportedAt = null;
+    if (!full) {
+      const control = await getExportControl(db, "guias_cyc");
+      lastExportedAt = control.lastExportedAt || null;
+    }
+    let query = db.collection("guias_cyc");
+    if (!full && lastExportedAt) {
+      query = query.where("createdAt", ">", lastExportedAt);
+    }
+    const snap = await query.get();
+    let docs = snap.docs.map((d) => {
       return Object.assign({}, d.data(), {id: d.id});
     });
+    // Si no es full, obtener también los ya exportados para mantener el incremental
+    if (!full && lastExportedAt) {
+      // Recuperar los ya exportados para pasarlos a exportDocsAsModule
+      const prevSnap = await db.collection("guias_cyc").where("createdAt", "<=", lastExportedAt).get();
+      const prevDocs = prevSnap.docs.map((d) => Object.assign({}, d.data(), {id: d.id}));
+      docs = prevDocs.concat(docs);
+    }
     const exported = await exportDocsAsModule(
         "guias_cyc",
         docs,
         full,
         db,
     );
+    // Guardar el último createdAt exportado
+    if (docs.length > 0) {
+      const maxCreatedAt = docs.reduce((max, d) => {
+        const val = d.createdAt ? new Date(d.createdAt).toISOString() : null;
+        return val && (!max || val > max) ? val : max;
+      }, lastExportedAt);
+      await setExportControl(db, "guias_cyc", { lastExportedAt: maxCreatedAt });
+    }
     total += exported;
     console.log("Exportados guias_cyc:", exported);
   } catch (err) {
     console.error("Error exportando guias_cyc", err);
   }
 
-  // entregas/* -> por cada documento,
-  // recoger su subcolección 'paqueteria_externa'
+  // entregas/* -> por cada documento, recoger su subcolección 'paqueteria_externa' solo nuevos
   try {
+    let lastExportedAt = null;
+    if (!full) {
+      const control = await getExportControl(db, "paqueteria_externa");
+      lastExportedAt = control.lastExportedAt || null;
+    }
     const entregasRef = db.collection("entregas");
     const entregasSnap = await entregasRef.get();
     const combined = [];
     for (const edoc of entregasSnap.docs) {
       try {
-        const sub = await entregasRef
-            .doc(edoc.id)
-            .collection("paqueteria_externa")
-            .get();
+        let subQuery = entregasRef.doc(edoc.id).collection("paqueteria_externa");
+        if (!full && lastExportedAt) {
+          subQuery = subQuery.where("createdAt", ">", lastExportedAt);
+        }
+        const sub = await subQuery.get();
         sub.docs.forEach((d) => {
           const row = Object.assign({}, d.data(), {id: d.id});
           combined.push(row);
@@ -494,18 +559,14 @@ exports.exportExtraCollections = functions.https.onRequest(async (req, res) => {
     // además revisar entregas/*/documentos/*/paqueteria_externa
     for (const edoc of entregasSnap.docs) {
       try {
-        const docsSub = await entregasRef
-            .doc(edoc.id)
-            .collection("documentos")
-            .get();
+        const docsSub = await entregasRef.doc(edoc.id).collection("documentos").get();
         for (const docSub of docsSub.docs) {
           try {
-            const pSub = await entregasRef
-                .doc(edoc.id)
-                .collection("documentos")
-                .doc(docSub.id)
-                .collection("paqueteria_externa")
-                .get();
+            let pSubQuery = entregasRef.doc(edoc.id).collection("documentos").doc(docSub.id).collection("paqueteria_externa");
+            if (!full && lastExportedAt) {
+              pSubQuery = pSubQuery.where("createdAt", ">", lastExportedAt);
+            }
+            const pSub = await pSubQuery.get();
             pSub.docs.forEach((d) => {
               const row2 = Object.assign({}, d.data(), {id: d.id});
               combined.push(row2);
@@ -518,14 +579,13 @@ exports.exportExtraCollections = functions.https.onRequest(async (req, res) => {
         // no hay subcolección 'documentos' en este doc
       }
     }
-    // además revisar ruta entregas/documentos/mkp/
-    // paqueteria_externa (documentos como documento raíz)
+    // además revisar ruta entregas/documentos/mkp/paqueteria_externa
     try {
-      const maybe = await db.collection("entregas")
-          .doc("documentos")
-          .collection("mkp")
-          .collection("paqueteria_externa")
-          .get();
+      let maybeQuery = db.collection("entregas").doc("documentos").collection("mkp").collection("paqueteria_externa");
+      if (!full && lastExportedAt) {
+        maybeQuery = maybeQuery.where("createdAt", ">", lastExportedAt);
+      }
+      const maybe = await maybeQuery.get();
       maybe.docs.forEach((d) => {
         const row3 = Object.assign({}, d.data(), {id: d.id});
         combined.push(row3);
@@ -539,12 +599,26 @@ exports.exportExtraCollections = functions.https.onRequest(async (req, res) => {
       if (it && it.id) uniqueMap[it.id] = it;
     });
     const uniqueList = Object.values(uniqueMap);
+    // Si no es full, obtener también los ya exportados para mantener el incremental
+    let allDocs = uniqueList;
+    if (!full && lastExportedAt) {
+      // Recuperar los ya exportados para pasarlos a exportDocsAsModule
+      // (opcional, puedes omitir si solo quieres exportar nuevos)
+    }
     const exported2 = await exportDocsAsModule(
         "paqueteria_externa",
-        uniqueList,
+        allDocs,
         full,
         db,
     );
+    // Guardar el último createdAt exportado
+    if (allDocs.length > 0) {
+      const maxCreatedAt = allDocs.reduce((max, d) => {
+        const val = d.createdAt ? new Date(d.createdAt).toISOString() : null;
+        return val && (!max || val > max) ? val : max;
+      }, lastExportedAt);
+      await setExportControl(db, "paqueteria_externa", { lastExportedAt: maxCreatedAt });
+    }
     total += exported2;
     console.log("Exportados paqueteria_externa (total docs):", exported2);
   } catch (err) {
