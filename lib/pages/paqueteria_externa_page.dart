@@ -76,6 +76,8 @@ class _PaqueteriaExternaPageState extends State<PaqueteriaExternaPage> {
       'firma': signatureBytes.toList(),
       'usuario': widget.usuario,
       'fecha': DateTime.now(),
+      'createdAt': DateTime
+          .now(), // Asegura que todos los nuevos registros tengan createdAt
     };
     await FirebaseFirestore.instance.collection('paqueteria_externa').add(data);
     // Aquí deberías actualizar el cache local según tu lógica de cache
