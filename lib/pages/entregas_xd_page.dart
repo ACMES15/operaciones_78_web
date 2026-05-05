@@ -24,7 +24,7 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
   bool _cargando = true;
 
   Set<String> get _idsFirmados => _historialFirmadas
-      .map((e) => e['id']?.toString())
+      .map((e) => e['id']?.toString().replaceAll(' ', '').toUpperCase())
       .whereType<String>()
       .toSet();
 
@@ -129,7 +129,8 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
   List<Map<String, dynamic>> get _entregasFiltradas {
     final idsFirmados = _idsFirmados;
     return _entregas
-        .where((e) => !idsFirmados.contains(e['id']?.toString()))
+        .where((e) => !idsFirmados
+            .contains(e['id']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
             (e['XD']?.toString().toLowerCase() ?? '')

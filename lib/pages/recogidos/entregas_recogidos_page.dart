@@ -86,7 +86,7 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
   bool _cargando = true;
 
   Set<String> get _lpsFirmadas => _historialFirmadas
-      .map((e) => e['LP']?.toString())
+      .map((e) => e['LP']?.toString().replaceAll(' ', '').toUpperCase())
       .whereType<String>()
       .toSet();
 
@@ -200,7 +200,8 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
   List<Map<String, dynamic>> get _entregasFiltradas {
     final lpsFirmadas = _lpsFirmadas;
     return _entregas
-        .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
+        .where((e) => !lpsFirmadas
+            .contains(e['LP']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
             (e['LP']?.toString().toLowerCase() ?? '')

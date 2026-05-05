@@ -41,7 +41,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   bool _cargando = true;
 
   Set<String> get _lpsFirmadas => _historialFirmadas
-      .map((e) => e['LP']?.toString().trim())
+      .map((e) => e['LP']?.toString().replaceAll(' ', '').toUpperCase())
       .whereType<String>()
       .toSet();
 
@@ -223,7 +223,8 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
   List<Map<String, dynamic>> get _entregasFiltradas {
     final lpsFirmadas = _lpsFirmadas;
     return _entregas
-        .where((e) => !lpsFirmadas.contains(e['LP']?.toString()))
+        .where((e) => !lpsFirmadas
+            .contains(e['LP']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
             (e['LP']?.toString().toLowerCase() ?? '')
