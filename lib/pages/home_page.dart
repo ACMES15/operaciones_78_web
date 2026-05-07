@@ -116,10 +116,11 @@ class _HomePageState extends State<HomePage> {
     'Mensajes':
         MensajesPage(usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
     'Control de usuarios': UserControlPageBody(),
-    'Hoja de ruta': HojaDeRutaPage(),
+    'Hoja de ruta': HojaDeRutaPage(usuario: widget.usuario),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
     'Historial Hoja de XD': HojaDeXDHistorialPage(),
-    'Carta Porte': real_carta_porte.CartaPorteTable(), // Widget real con alias
+    'Carta Porte': real_carta_porte.CartaPorteTable(
+        usuario: widget.usuario), // Widget real con alias
     'Historial Carta Porte': HistorialCartaPortePage(),
     'Plantilla Ejecutiva': PlantillaEjecutivaPage(),
     'DevCan': DevCanPage(usuario: widget.usuario),

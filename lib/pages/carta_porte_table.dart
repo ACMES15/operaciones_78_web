@@ -13,7 +13,8 @@ import '../models/hoja_de_xd_historial.dart';
 import '../utils/skus_utils.dart' as skus_utils;
 
 class CartaPorteTable extends StatefulWidget {
-  const CartaPorteTable({super.key});
+  final String usuario;
+  const CartaPorteTable({Key? key, required this.usuario}) : super(key: key);
   @override
   State<CartaPorteTable> createState() => _CartaPorteTableState();
 }
@@ -442,6 +443,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
       'unidad': _unidadController.text,
       'destino': _destinoController.text,
       'filas': filas,
+      'usuario': widget.usuario,
       'timestamp': FieldValue.serverTimestamp(),
     };
 

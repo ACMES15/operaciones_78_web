@@ -163,7 +163,8 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
 }
 
 class HojaDeRutaPage extends StatefulWidget {
-  const HojaDeRutaPage({super.key});
+  final String usuario;
+  const HojaDeRutaPage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   State<HojaDeRutaPage> createState() => _HojaDeRutaPageState();
@@ -345,9 +346,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () {
-                    final homeState =
-                        context.findAncestorWidgetOfExactType<HomePage>();
-                    final usuario = homeState?.usuario ?? '';
+                    final usuario = widget.usuario;
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => HojaDeRutaExtraPage(usuario: usuario),
@@ -772,9 +771,8 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
             })
         .where((m) => m.values.any((v) => v.isNotEmpty))
         .toList();
-    // Obtener usuario firmado desde HomePage
-    final homeState = context.findAncestorWidgetOfExactType<HomePage>();
-    final usuario = homeState?.usuario ?? '';
+    // Usar el usuario pasado por parámetro
+    final usuario = widget.usuario;
     final sheet = <String, dynamic>{
       'origen': _origen,
       'fecha': _fechaEnvio,
@@ -1196,10 +1194,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                         .where((m) =>
                                             m.values.any((v) => v.isNotEmpty))
                                         .toList();
-                                    final homeState =
-                                        context.findAncestorWidgetOfExactType<
-                                            HomePage>();
-                                    final usuario = homeState?.usuario ?? '';
+                                    final usuario = widget.usuario;
                                     final sheet = <String, dynamic>{
                                       'origen': _origen,
                                       'fecha': _fechaEnvio,

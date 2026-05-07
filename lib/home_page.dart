@@ -79,10 +79,10 @@ class _HomePageState extends State<HomePage> {
   ];
   List<Widget> get _pages => [
         UserControlPageBody(),
-        HojaDeRutaPage(),
+        HojaDeRutaPage(usuario: widget.usuario),
         HojaDeXDPage(usuario: widget.usuario),
         HojaDeXDHistorialPage(),
-        CartaPorteTable(),
+        CartaPorteTable(usuario: widget.usuario), // Widget real con alias
         HistorialCartaPortePage(),
         PlantillaEjecutivaPage(),
         DevCanPage(usuario: widget.usuario),

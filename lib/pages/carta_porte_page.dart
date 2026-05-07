@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
 class CartaPortePage extends StatelessWidget {
-  const CartaPortePage({super.key});
+  final String usuario;
+  const CartaPortePage({Key? key, required this.usuario}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -11,18 +12,19 @@ class CartaPortePage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: CartaPorteTable(),
+        child: CartaPorteTable(usuario: usuario),
       ),
     );
   }
 }
 
 class CartaPorteTable extends StatelessWidget {
-  const CartaPorteTable({Key? key}) : super(key: key);
+  final String usuario;
+  const CartaPorteTable({Key? key, required this.usuario}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Replace with your actual table or content
-    return Center(child: Text('Carta Porte Table'));
+    // Aquí deberías usar el usuario si es necesario
+    return Center(child: Text('Carta Porte Table para $usuario'));
   }
 }
