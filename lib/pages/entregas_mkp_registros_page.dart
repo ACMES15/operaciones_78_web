@@ -5,7 +5,6 @@ import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../utils/firebase_cache_utils.dart';
 
 class EntregasMkpRegistrosPage extends StatefulWidget {
   const EntregasMkpRegistrosPage({Key? key}) : super(key: key);
@@ -19,6 +18,7 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
   List<Map<String, dynamic>> _registros = [];
   List<Map<String, dynamic>> _filtrados = [];
   bool _cargando = true;
+  String? _mesSeleccionado;
   final TextEditingController _busquedaController = TextEditingController();
 
   @override
@@ -28,42 +28,147 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
     _busquedaController.addListener(_filtrar);
   }
 
-  Future<void> _cargarRegistros() async {
-    setState(() => _cargando = true);
-    // Leer SIEMPRE desde Firestore y actualizar el cache local
-    final doc = await FirebaseFirestore.instance
-        .collection('entregas')
-        .doc('mkp')
-        .get();
-    Map<String, dynamic> data = {};
-    if (doc.exists) {
-      data = doc.data() ?? {};
-      // Actualiza el cache local
-      final prefs = await SharedPreferences.getInstance();
-      final cacheKey = 'entregas_mkp';
-      await prefs.setString(cacheKey, jsonEncode(data));
-    }
-    List<Map<String, dynamic>> registros = [];
-    if (data['items'] is List) {
-      registros = List<Map<String, dynamic>>.from(
-        (data['items'] as List).whereType<Map<String, dynamic>>(),
-      );
-    }
-    setState(() {
-      _registros = registros;
-      _filtrados = registros;
-      _cargando = false;
-    });
+  List<Map<String, dynamic>> _extraerRegistros(Map<String, dynamic> data) {
+    if (data['items'] is! List) return [];
+    return List<Map<String, dynamic>>.from(
+      (data['items'] as List).whereType<Map<String, dynamic>>(),
+    );
   }
 
-  void _filtrar() {
-    final filtro = _busquedaController.text.trim().toLowerCase();
-    if (filtro.isEmpty) {
-      setState(() => _filtrados = _registros);
-      return;
+  String _keyMesActual() {
+    final ahora = DateTime.now();
+    return '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}';
+  }
+
+  String? _obtenerKeyMesRegistro(Map<String, dynamic> reg) {
+    final rawFecha = reg['fecha']?.toString();
+    if (rawFecha == null || rawFecha.isEmpty) return null;
+    final fecha = DateTime.tryParse(rawFecha);
+    if (fecha == null) return null;
+    return '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}';
+  }
+
+  List<String> _mesesDisponiblesOrdenados() {
+    final meses = _registros
+        .map(_obtenerKeyMesRegistro)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    meses.sort((a, b) => b.compareTo(a)); // Descendente
+    return meses;
+  }
+
+  List<String> _mesesParaSelector() {
+    final meses = _mesesDisponiblesOrdenados();
+    final actual = _keyMesActual();
+    if (!meses.contains(actual)) {
+      meses.insert(0, actual);
     }
-    setState(() {
-      _filtrados = _registros.where((reg) {
+    if (_mesSeleccionado != null &&
+        _mesSeleccionado != 'all' &&
+        !meses.contains(_mesSeleccionado)) {
+      meses.insert(0, _mesSeleccionado!);
+    }
+    return meses;
+  }
+
+  String _etiquetaMes(String key) {
+    final partes = key.split('-');
+    if (partes.length != 2) return key;
+    final year = int.tryParse(partes[0]);
+    final month = int.tryParse(partes[1]);
+    if (year == null || month == null || month < 1 || month > 12) return key;
+    const nombres = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
+    ];
+    return '${nombres[month - 1]} $year';
+  }
+
+  Future<void> _cargarRegistros() async {
+    setState(() => _cargando = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    const cacheKey = 'entregas_mkp';
+
+    // 1) Mostrar cache primero para abrir la pantalla rápido.
+    final cacheData = prefs.getString(cacheKey);
+    if (cacheData != null) {
+      try {
+        final map = jsonDecode(cacheData);
+        if (map is Map<String, dynamic>) {
+          final cacheRegistros = _extraerRegistros(map);
+          if (mounted) {
+            setState(() {
+              _registros = cacheRegistros;
+              _cargando = false;
+            });
+            _aplicarFiltros();
+          }
+        }
+      } catch (_) {
+        // Ignora cache corrupto y continúa con red.
+      }
+    }
+
+    // 2) Sincronizar en segundo plano con Firestore.
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('mkp')
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 12));
+
+      Map<String, dynamic> data = {};
+      if (doc.exists) {
+        data = doc.data() ?? {};
+        await prefs.setString(cacheKey, jsonEncode(data));
+      }
+
+      final registros = _extraerRegistros(data);
+      if (!mounted) return;
+      setState(() {
+        _registros = registros;
+        _cargando = false;
+      });
+      _aplicarFiltros();
+    } catch (_) {
+      // Si falla red y no hubo cache, quitamos spinner para no bloquear la vista.
+      if (!mounted) return;
+      if (_registros.isEmpty) {
+        setState(() => _cargando = false);
+      }
+    }
+  }
+
+  void _aplicarFiltros() {
+    final filtro = _busquedaController.text.trim().toLowerCase();
+    final actual = _keyMesActual();
+    final meses = _mesesDisponiblesOrdenados();
+
+    // Default: mostrar un solo mes (mes actual; si no existe, el último disponible).
+    _mesSeleccionado ??= meses.contains(actual)
+        ? actual
+        : (meses.isNotEmpty ? meses.first : actual);
+
+    Iterable<Map<String, dynamic>> base = _registros;
+    if (_mesSeleccionado != 'all') {
+      base =
+          base.where((reg) => _obtenerKeyMesRegistro(reg) == _mesSeleccionado);
+    }
+
+    if (filtro.isNotEmpty) {
+      base = base.where((reg) {
         return (reg['empleado'] ?? '')
                 .toString()
                 .toLowerCase()
@@ -76,9 +181,15 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
             ((reg['skus'] as List?)?.join(', ') ?? '')
                 .toLowerCase()
                 .contains(filtro);
-      }).toList();
+      });
+    }
+
+    setState(() {
+      _filtrados = base.toList();
     });
   }
+
+  void _filtrar() => _aplicarFiltros();
 
   Future<void> _exportarAExcel() async {
     if (_filtrados.isEmpty) {
@@ -162,6 +273,31 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
+            DropdownButtonFormField<String>(
+              value: _mesSeleccionado ?? _keyMesActual(),
+              decoration: const InputDecoration(
+                labelText: 'Mes a mostrar',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                ..._mesesParaSelector().map(
+                  (key) => DropdownMenuItem<String>(
+                    value: key,
+                    child: Text(_etiquetaMes(key)),
+                  ),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'all',
+                  child: Text('Histórico completo'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _mesSeleccionado = value);
+                _aplicarFiltros();
+              },
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _busquedaController,
               decoration: const InputDecoration(

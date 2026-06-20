@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
-import '../utils/firebase_cache_utils.dart';
 // imports eliminados porque ya no se usan aquí
 import 'entregas_mkp_registros_page.dart';
 
@@ -21,17 +20,6 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
   bool _guardando = false;
   // List<Map<String, dynamic>> _registros = [];
   // bool _cargando = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarRegistros();
-  }
-
-  Future<void> _cargarRegistros() async {
-    // setState(() => _cargando = true);
-    // Ya no se requiere cargar registros aquí
-  }
 
   // _exportarAExcel eliminado, ahora la exportación está en la página de registros
 
@@ -53,21 +41,12 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
       'usuario': widget.usuario,
       'fecha': DateTime.now().toIso8601String(),
     };
-    // Leer existentes
-    final doc = await FirebaseFirestore.instance
-        .collection('entregas')
-        .doc('mkp')
-        .get();
-    List<dynamic> existentes = [];
-    if (doc.exists && doc.data() != null && doc.data()!.containsKey('items')) {
-      final data = doc.data()!['items'];
-      if (data is List) {
-        existentes = List.from(data);
-      }
-    }
-    final nuevosItems = [...existentes, nuevo];
-    await guardarDatosFirestoreYCache(
-        'entregas', 'mkp', {'items': nuevosItems});
+    await FirebaseFirestore.instance.collection('entregas').doc('mkp').set(
+      {
+        'items': FieldValue.arrayUnion([nuevo]),
+      },
+      SetOptions(merge: true),
+    );
     setState(() {
       _guardando = false;
       _empleadoController.clear();
@@ -77,7 +56,6 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
       }
       _cantidad = 1;
     });
-    await _cargarRegistros();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro guardado.')),
     );
@@ -227,7 +205,9 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
                                         tooltip: 'Eliminar SKU',
                                         onPressed: () {
                                           setState(() {
-                                            _skuControllers.removeAt(idx);
+                                            _skuControllers
+                                                .removeAt(idx)
+                                                .dispose();
                                           });
                                         },
                                       ),
