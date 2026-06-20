@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/sincronizar_devoluciones_mkp.dart';
-import 'reporte_mkp_page.dart';
 import '../utils/firebase_cache_utils.dart';
 
 class GuiasMkpPage extends StatefulWidget {
@@ -168,6 +167,9 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   final TextEditingController _busquedaController = TextEditingController();
   String _filtro = '';
+  String? _mesSeleccionado;
+  bool _mostrarSinGuiaSiempre = true;
+  String _ultimaHuellaNotificada = '';
   bool _editando = true;
   bool _guardando = false;
   final _guiasStream =
@@ -181,6 +183,109 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
       });
     });
     super.initState();
+  }
+
+  String _keyMesActual() {
+    final ahora = DateTime.now();
+    return '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}';
+  }
+
+  String? _keyMesRegistro(Map<String, dynamic> reg) {
+    final raw = (reg['fecha'] ?? '').toString();
+    if (raw.isEmpty) return null;
+    final fecha = DateTime.tryParse(raw);
+    if (fecha == null) return null;
+    return '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}';
+  }
+
+  List<String> _mesesDisponibles(List<Map<String, dynamic>> registros) {
+    final meses = registros
+        .map(_keyMesRegistro)
+        .whereType<String>()
+        .toSet()
+        .toList()
+      ..sort((a, b) => b.compareTo(a));
+    return meses;
+  }
+
+  List<String> _mesesParaSelector(List<Map<String, dynamic>> registros) {
+    final meses = _mesesDisponibles(registros);
+    final actual = _keyMesActual();
+    if (!meses.contains(actual)) meses.insert(0, actual);
+    if (_mesSeleccionado != null &&
+        _mesSeleccionado != 'all' &&
+        !meses.contains(_mesSeleccionado)) {
+      meses.insert(0, _mesSeleccionado!);
+    }
+    return meses;
+  }
+
+  String _etiquetaMes(String key) {
+    final partes = key.split('-');
+    if (partes.length != 2) return key;
+    final y = int.tryParse(partes[0]);
+    final m = int.tryParse(partes[1]);
+    if (y == null || m == null || m < 1 || m > 12) return key;
+    const nombres = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre'
+    ];
+    return '${nombres[m - 1]} $y';
+  }
+
+  List<Map<String, dynamic>> _filtrarRegistros(
+      List<Map<String, dynamic>> registros) {
+    final meses = _mesesDisponibles(registros);
+    final actual = _keyMesActual();
+    _mesSeleccionado ??= meses.contains(actual)
+        ? actual
+        : (meses.isNotEmpty ? meses.first : actual);
+
+    Iterable<Map<String, dynamic>> lista = registros;
+    if (_mesSeleccionado != 'all') {
+      lista = lista.where((r) {
+        final esMes = _keyMesRegistro(r) == _mesSeleccionado;
+        final sinGuia = (r['devolucion'] ?? '').toString().isNotEmpty &&
+            (r['guia'] ?? '').toString().trim().isEmpty;
+        if (_mostrarSinGuiaSiempre) return esMes || sinGuia;
+        return esMes;
+      });
+    }
+
+    if (_filtro.isNotEmpty) {
+      lista = lista.where((r) {
+        final dev = (r['devolucion'] ?? '').toString().toLowerCase();
+        final devMkp = (r['devolucion_mkp'] ?? '').toString().toLowerCase();
+        final guia = (r['guia'] ?? '').toString().toLowerCase();
+        final fecha = (r['fecha'] ?? '').toString().toLowerCase();
+        return dev.contains(_filtro) ||
+            devMkp.contains(_filtro) ||
+            guia.contains(_filtro) ||
+            fecha.contains(_filtro);
+      });
+    }
+
+    return lista.toList();
+  }
+
+  void _programarNotificacionSiCambio(List<Map<String, dynamic>> registros) {
+    final huella = registros
+        .map((r) =>
+            '${r['devolucion'] ?? ''}|${r['guia'] ?? ''}|${r['fecha'] ?? ''}')
+        .join('||');
+    if (huella == _ultimaHuellaNotificada) return;
+    _ultimaHuellaNotificada = huella;
+    Future.microtask(() => _notificarDevolucionesSinGuia(registros));
   }
 
   void _agregarFila(List<Map<String, dynamic>> registros) async {
@@ -247,25 +352,16 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
         final registros = List<Map<String, dynamic>>.from(
           items.whereType<Map<String, dynamic>>(),
         );
-        final registrosFiltrados = _filtro.isEmpty
-            ? List<Map<String, dynamic>>.from(registros)
-            : registros.where((r) {
-                final dev = (r['devolucion'] ?? '').toString().toLowerCase();
-                final devMkp =
-                    (r['devolucion_mkp'] ?? '').toString().toLowerCase();
-                final guia = (r['guia'] ?? '').toString().toLowerCase();
-                return dev.contains(_filtro) ||
-                    devMkp.contains(_filtro) ||
-                    guia.contains(_filtro);
-              }).toList();
+        final registrosFiltrados = _filtrarRegistros(registros);
+        final mesesSelector = _mesesParaSelector(registros);
         // No ordenar aquí para evitar que la fila se mueva al editar
         final int devolucionesSinGuia = registros
             .where((r) =>
                 (r['devolucion'] ?? '').toString().isNotEmpty &&
                 (r['guia'] ?? '').toString().isEmpty)
             .length;
-        // Notificar devoluciones sin guía >24h (solo si hay cambios)
-        _notificarDevolucionesSinGuia(registros);
+        // Notificar devoluciones sin guía >24h (solo cuando cambien datos)
+        _programarNotificacionSiCambio(registros);
         return Scaffold(
           appBar: AppBar(
             title: Row(
@@ -417,6 +513,56 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                       ],
                     ),
                     const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 320,
+                          child: DropdownButtonFormField<String>(
+                            value: _mesSeleccionado ?? _keyMesActual(),
+                            decoration: InputDecoration(
+                              labelText: 'Mes a mostrar',
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            items: [
+                              ...mesesSelector.map(
+                                (key) => DropdownMenuItem<String>(
+                                  value: key,
+                                  child: Text(_etiquetaMes(key)),
+                                ),
+                              ),
+                              const DropdownMenuItem<String>(
+                                value: 'all',
+                                child: Text('Histórico completo'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setState(() => _mesSeleccionado = value);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 320,
+                          child: CheckboxListTile(
+                            value: _mostrarSinGuiaSiempre,
+                            onChanged: (v) => setState(
+                                () => _mostrarSinGuiaSiempre = v ?? true),
+                            title: const Text('Incluir pendientes sin guía'),
+                            dense: true,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: 420,
                       child: TextField(
@@ -489,8 +635,8 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                               width: 80, child: Text(''))),
                                     ],
                                     rows: List.generate(
-                                      (registros.length > 8
-                                          ? registros.length
+                                      (registrosFiltrados.length > 8
+                                          ? registrosFiltrados.length
                                           : 8),
                                       (idx) {
                                         if (idx < registrosFiltrados.length) {
@@ -528,29 +674,39 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                                                                     '';
                                                           }
                                                         }
-                                                        return TextField(
-                                                          controller:
-                                                              _devolucionControllers[
-                                                                  key],
-                                                          decoration:
-                                                              const InputDecoration(
-                                                            border: InputBorder
-                                                                .none,
-                                                            hintText:
-                                                                'Devolución',
+                                                        return Focus(
+                                                          child: TextField(
+                                                            controller:
+                                                                _devolucionControllers[
+                                                                    key],
+                                                            decoration:
+                                                                const InputDecoration(
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                              hintText:
+                                                                  'Devolución',
+                                                            ),
+                                                            style: const TextStyle(
+                                                                fontSize: 15,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w500),
+                                                            enabled: true,
                                                           ),
-                                                          style: const TextStyle(
-                                                              fontSize: 15,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w500),
-                                                          onChanged: (v) =>
+                                                          onFocusChange:
+                                                              (hasFocus) {
+                                                            if (!hasFocus) {
                                                               _actualizarCampoPorClave(
                                                                   registros,
                                                                   reg,
                                                                   'devolucion',
-                                                                  v),
-                                                          enabled: true,
+                                                                  _devolucionControllers[
+                                                                              key]
+                                                                          ?.text ??
+                                                                      '');
+                                                            }
+                                                          },
                                                         );
                                                       },
                                                     ),
