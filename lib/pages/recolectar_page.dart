@@ -248,10 +248,22 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                           final items = (doc.data()?['items'] ??
                                               []) as List;
                                           items.addAll(registros);
+
+                                          // 1. Guardar en array (legado)
                                           await FirebaseFirestore.instance
                                               .collection('entregas')
                                               .doc('mkp')
                                               .set({'items': items});
+
+                                          // 2. Guardar cada registro en la subcolección (rápido)
+                                          for (final reg in registros) {
+                                            await FirebaseFirestore.instance
+                                                .collection('entregas')
+                                                .doc('mkp')
+                                                .collection('items')
+                                                .add(reg);
+                                          }
+
                                           setState(() {
                                             _pendientes.removeWhere((e) =>
                                                 seleccionados.contains(e));

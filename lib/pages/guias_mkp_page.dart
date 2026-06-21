@@ -352,13 +352,41 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
         return {...r, 'bloqueado': false};
       }
     }).toList();
-    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
-    setState(() {
-      _guardando = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registros guardados.')),
-    );
+
+    try {
+      // 1. Guardar en array del doc (legado)
+      await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
+
+      // 2. Guardar cada registro nuevo/actualizado también en la subcolección
+      for (final item in items) {
+        final clave = '${item['fecha']}_${item['devolucion']}';
+        await FirebaseFirestore.instance
+            .collection('guias')
+            .doc('mkp')
+            .collection('items')
+            .doc(clave)
+            .set(item, SetOptions(merge: true));
+      }
+
+      setState(() {
+        _guardando = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registros guardados.'),
+          backgroundColor: Color(0xFF2D6A4F),
+        ),
+      );
+    } catch (e) {
+      setState(() => _guardando = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _actualizarCampoPorClave(List<Map<String, dynamic>> registros,
