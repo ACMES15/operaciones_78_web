@@ -172,8 +172,48 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   String _ultimaHuellaNotificada = '';
   bool _editando = true;
   bool _guardando = false;
-  final _guiasStream =
-      FirebaseFirestore.instance.collection('guias').doc('mkp').snapshots();
+
+  // Stream que combina doc antiguo + subcolección nueva
+  Stream<List<Map<String, dynamic>>> _guiasStreamCombinado() {
+    final docStream =
+        FirebaseFirestore.instance.collection('guias').doc('mkp').snapshots();
+
+    final subStream = FirebaseFirestore.instance
+        .collection('guias')
+        .doc('mkp')
+        .collection('items')
+        .orderBy('fecha', descending: true)
+        .snapshots();
+
+    return docStream.asyncExpand((docSnap) async* {
+      // Leer items del doc antiguo (array legado)
+      final oldItems = (docSnap.data()?['items'] ?? []) as List;
+      final oldRegistros = oldItems.whereType<Map<String, dynamic>>().toList();
+
+      // Escuchar cambios en la subcolección
+      await for (final subSnap in subStream) {
+        // Items de la subcolección nueva
+        final newItems = subSnap.docs
+            .map((d) => Map<String, dynamic>.from(d.data()))
+            .toList();
+
+        // Fusionar sin duplicados (clave: fecha + devolucion)
+        final seen = <String>{};
+        final merged = <Map<String, dynamic>>[];
+        for (final item in [...newItems, ...oldRegistros]) {
+          final key = '${item['fecha']}_${item['devolucion']}';
+          if (seen.add(key)) merged.add(item);
+        }
+
+        // Ordenar más reciente primero
+        merged.sort((a, b) => (b['fecha'] ?? '')
+            .toString()
+            .compareTo((a['fecha'] ?? '').toString()));
+
+        yield merged;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -339,19 +379,15 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _guiasStream,
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: _guiasStreamCombinado(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        final data = snapshot.data!.data() ?? {};
-        final items = (data['items'] ?? []) as List;
-        final registros = List<Map<String, dynamic>>.from(
-          items.whereType<Map<String, dynamic>>(),
-        );
+        final registros = snapshot.data ?? [];
         final registrosFiltrados = _filtrarRegistros(registros);
         final mesesSelector = _mesesParaSelector(registros);
         // No ordenar aquí para evitar que la fila se mueva al editar
