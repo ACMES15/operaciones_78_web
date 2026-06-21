@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:typed_data';
@@ -18,6 +19,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   final Map<String, TextEditingController> _devolucionControllers = {};
   final Map<String, TextEditingController> _guiaControllers = {};
   final Map<String, FocusNode> _guiaFocusNodes = {};
+  Timer? _notificacionDebounce;
 
   // Genera una clave única para cada fila
   String _rowKey(Map<String, dynamic> reg) =>
@@ -25,6 +27,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   @override
   void dispose() {
+    _notificacionDebounce?.cancel();
     for (final c in _devolucionControllers.values) {
       c.dispose();
     }
@@ -172,32 +175,35 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   String _ultimaHuellaNotificada = '';
   bool _editando = true;
   bool _guardando = false;
+  late final Stream<List<Map<String, dynamic>>> _guiasStream;
 
   // Stream que combina doc antiguo + subcolección nueva
   Stream<List<Map<String, dynamic>>> _guiasStreamCombinado() {
-    final docStream =
-        FirebaseFirestore.instance.collection('guias').doc('mkp').snapshots();
+    return (() async* {
+      List<Map<String, dynamic>> oldRegistros = [];
+      try {
+        final docSnap = await FirebaseFirestore.instance
+            .collection('guias')
+            .doc('mkp')
+            .get(const GetOptions(source: Source.serverAndCache));
+        final oldItems = (docSnap.data()?['items'] ?? []) as List;
+        oldRegistros = oldItems.whereType<Map<String, dynamic>>().toList();
+      } catch (_) {
+        oldRegistros = [];
+      }
 
-    final subStream = FirebaseFirestore.instance
-        .collection('guias')
-        .doc('mkp')
-        .collection('items')
-        .orderBy('fecha', descending: true)
-        .snapshots();
+      final subStream = FirebaseFirestore.instance
+          .collection('guias')
+          .doc('mkp')
+          .collection('items')
+          .orderBy('fecha', descending: true)
+          .snapshots();
 
-    return docStream.asyncExpand((docSnap) async* {
-      // Leer items del doc antiguo (array legado)
-      final oldItems = (docSnap.data()?['items'] ?? []) as List;
-      final oldRegistros = oldItems.whereType<Map<String, dynamic>>().toList();
-
-      // Escuchar cambios en la subcolección
       await for (final subSnap in subStream) {
-        // Items de la subcolección nueva
         final newItems = subSnap.docs
             .map((d) => Map<String, dynamic>.from(d.data()))
             .toList();
 
-        // Fusionar sin duplicados (clave: fecha + devolucion)
         final seen = <String>{};
         final merged = <Map<String, dynamic>>[];
         for (final item in [...newItems, ...oldRegistros]) {
@@ -205,18 +211,21 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
           if (seen.add(key)) merged.add(item);
         }
 
-        // Ordenar más reciente primero
         merged.sort((a, b) => (b['fecha'] ?? '')
             .toString()
             .compareTo((a['fecha'] ?? '').toString()));
 
+        // Notificación fuera de build (con debounce)
+        _programarNotificacionSiCambio(List<Map<String, dynamic>>.from(merged));
+
         yield merged;
       }
-    });
+    })();
   }
 
   @override
   void initState() {
+    _guiasStream = _guiasStreamCombinado();
     _busquedaController.addListener(() {
       setState(() {
         _filtro = _busquedaController.text.trim().toLowerCase();
@@ -325,7 +334,10 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
         .join('||');
     if (huella == _ultimaHuellaNotificada) return;
     _ultimaHuellaNotificada = huella;
-    Future.microtask(() => _notificarDevolucionesSinGuia(registros));
+    _notificacionDebounce?.cancel();
+    _notificacionDebounce = Timer(const Duration(milliseconds: 700), () {
+      _notificarDevolucionesSinGuia(registros);
+    });
   }
 
   void _agregarFila(List<Map<String, dynamic>> registros) async {
@@ -408,7 +420,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _guiasStreamCombinado(),
+      stream: _guiasStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
@@ -424,8 +436,6 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                 (r['devolucion'] ?? '').toString().isNotEmpty &&
                 (r['guia'] ?? '').toString().isEmpty)
             .length;
-        // Notificar devoluciones sin guía >24h (solo cuando cambien datos)
-        _programarNotificacionSiCambio(registros);
         return Scaffold(
           appBar: AppBar(
             title: Row(
