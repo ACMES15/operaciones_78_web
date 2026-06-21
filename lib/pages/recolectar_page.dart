@@ -17,8 +17,6 @@ class RecolectarPage extends StatefulWidget {
 }
 
 class _RecolectarPageState extends State<RecolectarPage> {
-  List<Map<String, dynamic>> _firmasHistorial = [];
-
   @override
   void initState() {
     super.initState();
@@ -28,22 +26,24 @@ class _RecolectarPageState extends State<RecolectarPage> {
 
   Future<void> _sincronizarFirmasPendientes() async {
     final prefs = await SharedPreferences.getInstance();
-    final key = 'firmas_pendientes_recolectar';
+    const key = 'firmas_pendientes_recolectar';
     final data = prefs.getString(key);
-    if (data != null) {
-      try {
-        final List<dynamic> pendientes = jsonDecode(data);
-        if (pendientes.isNotEmpty) {
-          final historialActual =
-              List<Map<String, dynamic>>.from(_firmasHistorial);
-          historialActual.addAll(pendientes.cast<Map<String, dynamic>>());
-          await FirebaseFirestore.instance
-              .collection('reporte_mkp_no_entregado')
-              .doc('firmas')
-              .set({'items': historialActual});
-          await prefs.remove(key);
-        }
-      } catch (_) {}
+    if (data == null) return;
+    try {
+      final List<dynamic> pendientes = jsonDecode(data);
+      if (pendientes.isEmpty) return;
+      final registros = pendientes.cast<Map<String, dynamic>>();
+      // Guardar en subcolección (rápido, sin leer doc completo)
+      for (final reg in registros) {
+        await FirebaseFirestore.instance
+            .collection('entregas')
+            .doc('mkp')
+            .collection('items')
+            .add(reg);
+      }
+      await prefs.remove(key);
+    } catch (_) {
+      // Sin conexión, se reintentará la próxima vez
     }
   }
 
@@ -427,9 +427,7 @@ class _RecolectarPageState extends State<RecolectarPage> {
                             signatureController.isEmpty
                         ? null
                         : () async {
-                            setStateDialog(() {
-                              guardando = true;
-                            });
+                            setStateDialog(() => guardando = true);
                             final signatureData =
                                 await signatureController.toPngBytes();
                             final firmaBase64 =
@@ -459,35 +457,66 @@ class _RecolectarPageState extends State<RecolectarPage> {
                                 ...e,
                               };
                             }).toList();
-                            final doc = await FirebaseFirestore.instance
-                                .collection('entregas')
-                                .doc('mkp')
-                                .get();
-                            final items = (doc.data()?['items'] ?? []) as List;
-                            items.addAll(registros);
-                            await FirebaseFirestore.instance
-                                .collection('entregas')
-                                .doc('mkp')
-                                .set({'items': items});
-                            setState(() {
-                              _pendientes.removeWhere(
-                                  (e) => seleccionados.contains(e));
-                              _seleccionados.clear();
-                            });
-                            final nuevosPendientes = _pendientes;
-                            html.window
-                                    .localStorage['reporte_mkp_no_entregado'] =
-                                jsonEncode(nuevosPendientes);
-                            await FirebaseFirestore.instance
-                                .collection('reporte_mkp_no_entregado')
-                                .doc('pendientes')
-                                .set({'items': nuevosPendientes});
-                            Navigator.of(ctx).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
+                            try {
+                              // Guardar en subcolección (rápido, sin leer doc)
+                              for (final reg in registros) {
+                                await FirebaseFirestore.instance
+                                    .collection('entregas')
+                                    .doc('mkp')
+                                    .collection('items')
+                                    .add(reg)
+                                    .timeout(
+                                      const Duration(seconds: 15),
+                                      onTimeout: () =>
+                                          throw Exception('Sin conexión'),
+                                    );
+                              }
+                              setState(() {
+                                _pendientes.removeWhere(
+                                    (e) => seleccionados.contains(e));
+                                _seleccionados.clear();
+                              });
+                              final nuevosPendientes = _pendientes;
+                              html.window.localStorage[
+                                      'reporte_mkp_no_entregado'] =
+                                  jsonEncode(nuevosPendientes);
+                              await FirebaseFirestore.instance
+                                  .collection('reporte_mkp_no_entregado')
+                                  .doc('pendientes')
+                                  .set({'items': nuevosPendientes});
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
                                   content:
-                                      Text('Entrega registrada y guardada.')),
-                            );
+                                      Text('Entrega registrada y guardada.'),
+                                  backgroundColor: Color(0xFF2D6A4F),
+                                ),
+                              );
+                            } catch (_) {
+                              // Sin conexión: guardar localmente para subir después
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              const key = 'firmas_pendientes_recolectar';
+                              List<dynamic> pendientes = [];
+                              final data = prefs.getString(key);
+                              if (data != null) {
+                                try {
+                                  pendientes = jsonDecode(data);
+                                } catch (_) {}
+                              }
+                              pendientes.addAll(registros);
+                              await prefs.setString(
+                                  key, jsonEncode(pendientes));
+                              Navigator.of(ctx).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Sin conexión. La firma se guardó localmente y se subirá cuando vuelva el internet.'),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                              setState(() => _seleccionados.clear());
+                            }
                           },
                   ),
                 ],
