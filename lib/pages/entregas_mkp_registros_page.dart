@@ -99,55 +99,80 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
     setState(() => _cargando = true);
 
     final prefs = await SharedPreferences.getInstance();
-    const cacheKey = 'entregas_mkp';
+    // v2 = lista fusionada (array antiguo + subcolección nueva)
+    const cacheKey = 'entregas_mkp_v2';
 
-    // 1) Mostrar cache primero para abrir la pantalla rápido.
+    // 1) Mostrar caché primero para abrir la pantalla rápido.
     final cacheData = prefs.getString(cacheKey);
     if (cacheData != null) {
       try {
-        final map = jsonDecode(cacheData);
-        if (map is Map<String, dynamic>) {
-          final cacheRegistros = _extraerRegistros(map);
-          if (mounted) {
-            setState(() {
-              _registros = cacheRegistros;
-              _cargando = false;
-            });
-            _aplicarFiltros();
-          }
+        final list = jsonDecode(cacheData) as List;
+        final cacheRegistros = list.whereType<Map<String, dynamic>>().toList();
+        if (mounted && cacheRegistros.isNotEmpty) {
+          setState(() {
+            _registros = cacheRegistros;
+            _cargando = false;
+          });
+          _aplicarFiltros();
         }
       } catch (_) {
-        // Ignora cache corrupto y continúa con red.
+        // Ignora caché corrupto y continúa con red.
       }
     }
 
-    // 2) Sincronizar en segundo plano con Firestore.
+    // 2) Leer en paralelo: doc antiguo (array) + subcolección nueva.
     try {
-      final doc = await FirebaseFirestore.instance
+      final docFuture = FirebaseFirestore.instance
           .collection('entregas')
           .doc('mkp')
           .get(const GetOptions(source: Source.server))
           .timeout(const Duration(seconds: 12));
 
-      Map<String, dynamic> data = {};
-      if (doc.exists) {
-        data = doc.data() ?? {};
-        await prefs.setString(cacheKey, jsonEncode(data));
-      }
+      final subFuture = FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('mkp')
+          .collection('items')
+          .orderBy('fecha', descending: true)
+          .get(const GetOptions(source: Source.server))
+          .timeout(const Duration(seconds: 12));
 
-      final registros = _extraerRegistros(data);
+      final results = await Future.wait<dynamic>([docFuture, subFuture]);
+
+      final docSnap = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final subSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
+
+      // Items del doc antiguo (array legado)
+      final oldItems = docSnap.exists
+          ? _extraerRegistros(docSnap.data() ?? {})
+          : <Map<String, dynamic>>[];
+
+      // Items de la subcolección nueva
+      final newItems =
+          subSnap.docs.map((d) => Map<String, dynamic>.from(d.data())).toList();
+
+      // Fusionar sin duplicados (clave: fecha + empleado)
+      final seen = <String>{};
+      final merged = <Map<String, dynamic>>[];
+      for (final item in [...newItems, ...oldItems]) {
+        final key = '${item['fecha']}_${item['empleado']}';
+        if (seen.add(key)) merged.add(item);
+      }
+      // Ordenar más reciente primero
+      merged.sort((a, b) => (b['fecha'] ?? '')
+          .toString()
+          .compareTo((a['fecha'] ?? '').toString()));
+
+      await prefs.setString(cacheKey, jsonEncode(merged));
+
       if (!mounted) return;
       setState(() {
-        _registros = registros;
+        _registros = merged;
         _cargando = false;
       });
       _aplicarFiltros();
     } catch (_) {
-      // Si falla red y no hubo cache, quitamos spinner para no bloquear la vista.
       if (!mounted) return;
-      if (_registros.isEmpty) {
-        setState(() => _cargando = false);
-      }
+      if (_registros.isEmpty) setState(() => _cargando = false);
     }
   }
 
@@ -315,7 +340,7 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
                       : ListView.builder(
                           itemCount: _filtrados.length,
                           itemBuilder: (context, idx) {
-                            final reg = _filtrados[_filtrados.length - 1 - idx];
+                            final reg = _filtrados[idx];
                             return Card(
                               margin: const EdgeInsets.symmetric(vertical: 4),
                               child: ListTile(

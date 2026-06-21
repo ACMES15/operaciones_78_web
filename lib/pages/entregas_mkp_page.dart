@@ -32,7 +32,9 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
       );
       return;
     }
+
     setState(() => _guardando = true);
+
     final nuevo = {
       'empleado': _empleadoController.text.trim(),
       'devolucion_mkp': _devolucionController.text.trim(),
@@ -41,24 +43,53 @@ class _EntregasMkpPageState extends State<EntregasMkpPage> {
       'usuario': widget.usuario,
       'fecha': DateTime.now().toIso8601String(),
     };
-    await FirebaseFirestore.instance.collection('entregas').doc('mkp').set(
-      {
-        'items': FieldValue.arrayUnion([nuevo]),
-      },
-      SetOptions(merge: true),
-    );
-    setState(() {
-      _guardando = false;
-      _empleadoController.clear();
-      _devolucionController.clear();
-      for (final c in _skuControllers) {
-        c.clear();
-      }
-      _cantidad = 1;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registro guardado.')),
-    );
+
+    try {
+      // Cada registro es su propio documento → escritura siempre rápida (O(1))
+      await FirebaseFirestore.instance
+          .collection('entregas')
+          .doc('mkp')
+          .collection('items')
+          .add(nuevo)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception(
+                'Tiempo de espera agotado. Revisa tu conexión.'),
+          );
+
+      if (!mounted) return;
+
+      setState(() {
+        _empleadoController.clear();
+        _devolucionController.clear();
+        for (final c in _skuControllers) {
+          c.clear();
+        }
+        _cantidad = 1;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registro guardado correctamente.'),
+          backgroundColor: Color(0xFF2D6A4F),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().contains('Tiempo')
+                ? 'Tiempo agotado. Verifica tu conexión e intenta de nuevo.'
+                : 'Error al guardar. Intenta de nuevo.',
+          ),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _guardando = false);
+    }
   }
 
   @override
