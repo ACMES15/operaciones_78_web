@@ -15,20 +15,119 @@ class EntregasDevCanPage extends StatefulWidget {
 }
 
 class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
-  Widget _mobileField(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
-        ],
+  DateTime? _toDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      final parsed = DateTime.tryParse(value);
+      return parsed;
+    }
+    if (value is Map && value['_seconds'] != null) {
+      final seconds = value['_seconds'];
+      final nanoseconds = value['_nanoseconds'] ?? 0;
+      final millis = (seconds is num ? seconds.toInt() : 0) * 1000 +
+          (nanoseconds is num ? (nanoseconds / 1000000).round() : 0);
+      return DateTime.fromMillisecondsSinceEpoch(millis);
+    }
+    return null;
+  }
+
+  DateTime? _fechaRegistro(Map<String, dynamic> entrega) {
+    const keys = [
+      'fechaFirma',
+      'createdAt',
+      'fecha',
+      'timestamp',
+      'fechaValidacion',
+      'date',
+    ];
+    for (final key in keys) {
+      final dt = _toDate(entrega[key]);
+      if (dt != null) return dt;
+    }
+    return null;
+  }
+
+  String _formatearFecha(dynamic value) {
+    final dt = _toDate(value);
+    if (dt == null) return '-';
+    final local = dt.toLocal();
+    final dd = local.day.toString().padLeft(2, '0');
+    final mm = local.month.toString().padLeft(2, '0');
+    final yyyy = local.year.toString();
+    final hh = local.hour.toString().padLeft(2, '0');
+    final min = local.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/$yyyy $hh:$min';
+  }
+
+  Widget _campoUniforme(String label, dynamic value,
+      {double? width, int maxLines = 2}) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF6FBF7),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF2D6A4F).withOpacity(0.35)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF2D6A4F),
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${value ?? '-'}',
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.15,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _detalleEntrega(
+      Map<String, dynamic> entrega, bool isMobile, double maxWidth) {
+    final fecha = _formatearFecha(_fechaRegistro(entrega));
+    final fieldWidth =
+        isMobile ? ((maxWidth - 20) / 2).clamp(140.0, 220.0) : 170.0;
+
+    final campos = [
+      _campoUniforme('LP', entrega['LP'], width: fieldWidth),
+      _campoUniforme('SKU', entrega['SKU'], width: fieldWidth),
+      _campoUniforme('CANTIDAD', entrega['CANTIDAD'], width: fieldWidth),
+      _campoUniforme('SECCION', entrega['SECCION'], width: fieldWidth),
+      _campoUniforme('JEFATURA', entrega['JEFATURA'], width: fieldWidth),
+      _campoUniforme('DESCRIPCION', entrega['DESCRIPCION'], width: fieldWidth),
+      _campoUniforme('DEVOLUCION', entrega['DEVOLUCION'], width: fieldWidth),
+      _campoUniforme('VALIDACION', entrega['VALIDACION'], width: fieldWidth),
+      _campoUniforme('VALIDO', entrega['usuarioValido'] ?? '-',
+          width: fieldWidth),
+      _campoUniforme('FECHA', fecha, width: fieldWidth),
+    ];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: campos,
     );
   }
 
@@ -222,7 +321,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
 
   List<Map<String, dynamic>> get _entregasFiltradas {
     final lpsFirmadas = _lpsFirmadas;
-    return _entregas
+    final filtradas = _entregas
         .where((e) => !lpsFirmadas
             .contains(e['LP']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
@@ -233,6 +332,15 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
         .toList();
+    filtradas.sort((a, b) {
+      final fechaA = _fechaRegistro(a);
+      final fechaB = _fechaRegistro(b);
+      if (fechaA == null && fechaB == null) return 0;
+      if (fechaA == null) return 1;
+      if (fechaB == null) return -1;
+      return fechaB.compareTo(fechaA);
+    });
+    return filtradas;
   }
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
@@ -647,44 +755,76 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                 ),
                                 color:
                                     esFaltante ? Colors.red[50] : Colors.white,
-                                child: isMobile
-                                    ? CheckboxListTile(
-                                        value: seleccionado,
-                                        onChanged: (checked) {
-                                          setState(() {
-                                            if (checked == true) {
-                                              _seleccionados.add(index);
-                                            } else {
-                                              _seleccionados.remove(index);
-                                            }
-                                          });
-                                        },
-                                        title: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileField('LP', entrega['LP']),
-                                            _mobileField('SKU', entrega['SKU']),
-                                            _mobileField('CANTIDAD',
-                                                entrega['CANTIDAD']),
-                                            _mobileField(
-                                                'SECCION', entrega['SECCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _mobileField('DESCRIPCION',
-                                                entrega['DESCRIPCION']),
-                                            _mobileField('DEVOLUCION',
-                                                entrega['DEVOLUCION']),
-                                            _mobileField('VALIDACION',
-                                                entrega['VALIDACION']),
-                                            _mobileField(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                            if (esFaltante)
+                                child: CheckboxListTile(
+                                  value: seleccionado,
+                                  onChanged: (checked) {
+                                    setState(() {
+                                      if (checked == true) {
+                                        _seleccionados.add(index);
+                                      } else {
+                                        _seleccionados.remove(index);
+                                      }
+                                    });
+                                  },
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final fechaTexto = _formatearFecha(
+                                          _fechaRegistro(entrega));
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  'LP: ${entrega['LP'] ?? '-'}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
                                               Container(
-                                                margin: const EdgeInsets.only(
-                                                    top: 8),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFE9F5EC),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color:
+                                                        const Color(0xFF2D6A4F),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  fechaTexto,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          _detalleEntrega(
+                                            entrega,
+                                            isMobile,
+                                            constraints.maxWidth,
+                                          ),
+                                          if (esFaltante)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 10),
+                                              child: Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
                                                         horizontal: 10,
@@ -694,8 +834,8 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                                   borderRadius:
                                                       BorderRadius.circular(8),
                                                   border: Border.all(
-                                                      color:
-                                                          Colors.red.shade400),
+                                                    color: Colors.red.shade400,
+                                                  ),
                                                 ),
                                                 child: const Text(
                                                   'FALTANTE',
@@ -707,90 +847,19 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                                   ),
                                                 ),
                                               ),
-                                          ],
-                                        ),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 2),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      )
-                                    : CheckboxListTile(
-                                        value: seleccionado,
-                                        onChanged: (checked) {
-                                          setState(() {
-                                            if (checked == true) {
-                                              _seleccionados.add(index);
-                                            } else {
-                                              _seleccionados.remove(index);
-                                            }
-                                          });
-                                        },
-                                        title: Row(
-                                          children: [
-                                            _infoChip('LP', entrega['LP']),
-                                            _infoChip('SKU', entrega['SKU']),
-                                            _infoChip(
-                                                'CANT', entrega['CANTIDAD']),
-                                            _infoChip(
-                                                'SECC', entrega['SECCION']),
-                                            _infoChip(
-                                                'JEF', entrega['JEFATURA']),
-                                            _infoChip(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                            if (esFaltante)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    left: 8),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                      color:
-                                                          Colors.red.shade400),
-                                                ),
-                                                child: const Text(
-                                                  'FALTANTE',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    letterSpacing: 1.2,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        subtitle: esFaltante
-                                            ? const Text(
-                                                'Este LP está marcado como FALTANTE',
-                                                style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.w500,
-                                                    fontSize: 13),
-                                              )
-                                            : null,
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 2),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
+                                            ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -814,20 +883,6 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: ${value ?? '-'}',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 
