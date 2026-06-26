@@ -88,10 +88,9 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
+            SelectableText(
               '${value ?? '-'}',
               maxLines: maxLines,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -804,7 +803,7 @@ class _EntregasDevCanPageState extends State<EntregasDevCanPage> {
                                                         const Color(0xFF2D6A4F),
                                                   ),
                                                 ),
-                                                child: Text(
+                                                child: SelectableText(
                                                   fechaTexto,
                                                   style: const TextStyle(
                                                     fontSize: 12,

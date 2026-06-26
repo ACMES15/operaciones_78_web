@@ -19,26 +19,6 @@ class EntregasCdrPage extends StatefulWidget {
 }
 
 class _EntregasCdrPageState extends State<EntregasCdrPage> {
-  String _formatearFecha(dynamic value) {
-    DateTime? dt;
-    if (value is DateTime) {
-      dt = value;
-    } else if (value is Timestamp) {
-      dt = value.toDate();
-    } else if (value is String) {
-      dt = DateTime.tryParse(value);
-    }
-
-    if (dt == null) return '-';
-    final local = dt.toLocal();
-    final dd = local.day.toString().padLeft(2, '0');
-    final mm = local.month.toString().padLeft(2, '0');
-    final yyyy = local.year.toString();
-    final hh = local.hour.toString().padLeft(2, '0');
-    final min = local.minute.toString().padLeft(2, '0');
-    return '$dd/$mm/$yyyy $hh:$min';
-  }
-
   // Sincroniza los datos pendientes en Hive con Firestore
   Future<void> sincronizarPendientes() async {
     if (_hivePendientes.isEmpty) return;
@@ -83,8 +63,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
   ];
   Future<void> _guardarEnFirestore() async {
     final List<Map<String, dynamic>> datos = [];
-    for (int rowIdx = 0; rowIdx < _rows.length; rowIdx++) {
-      final row = _rows[rowIdx];
+    for (final row in _rows) {
       final fila = <String, dynamic>{};
       for (int i = 0; i < _headers.length; i++) {
         if (_headers[i] == 'BOX') {
@@ -93,9 +72,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           fila[_headers[i]] = row[i].text.trim();
         }
       }
-      fila['fechaRegistro'] =
-          (rowIdx < _rowFechas.length ? _rowFechas[rowIdx] : DateTime.now())
-              .toIso8601String();
       // Solo guardar filas que tengan al menos un campo relevante lleno
       if (fila.values.any((v) => v != null && v.toString().isNotEmpty)) {
         datos.add(fila);
@@ -137,7 +113,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
       }
       await batch.commit();
       setState(() {
-        _rowFechas.clear();
         _rows.clear();
         _addRow();
       });
@@ -155,7 +130,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         await box.put(fila['id'], Map<String, dynamic>.from(fila));
       }
       setState(() {
-        _rowFechas.clear();
         _rows.clear();
         _addRow();
       });
@@ -166,6 +140,34 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           backgroundColor: Colors.orange,
         ),
       );
+    }
+    // Sincroniza los datos pendientes en Hive con Firestore
+    Future<void> sincronizarPendientes() async {
+      if (_hivePendientes.isEmpty) return;
+      final col = FirebaseFirestore.instance.collection('entregas_cdr');
+      final batch = FirebaseFirestore.instance.batch();
+      final List<int> toDelete = [];
+      for (final key in _hivePendientes.keys) {
+        final fila = _hivePendientes.get(key);
+        if (fila != null) {
+          final doc = col.doc();
+          batch.set(
+              doc, {...fila, 'id': doc.id, 'usuarioValido': widget.usuario});
+          toDelete.add(key as int);
+        }
+      }
+      try {
+        await batch.commit();
+        for (final key in toDelete) {
+          await _hivePendientes.delete(key);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Firmas pendientes sincronizadas con Firestore.')),
+        );
+      } catch (e) {
+        // Si falla, no borra los pendientes
+      }
     }
   }
 
@@ -196,7 +198,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
     'BOX', // Nuevo campo para marcar faltante
   ];
   final List<List<TextEditingController>> _rows = [];
-  final List<DateTime> _rowFechas = [];
   final TextEditingController _scanController = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
   // String _scanSeccion = '';
@@ -209,128 +210,7 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           (i) => _headers[i] == 'BOX'
               ? TextEditingController(text: 'false')
               : TextEditingController()));
-      _rowFechas.add(DateTime.now());
     });
-  }
-
-  Widget _campoUniformeCdr(String label, Widget child, {double? width}) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF6FBF7),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF2D6A4F).withOpacity(0.35)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF2D6A4F),
-                letterSpacing: 0.3,
-              ),
-            ),
-            const SizedBox(height: 4),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _editorCampoCdr(int rowIdx, int colIdx) {
-    final header = _headers[colIdx];
-    final isSeccion = header == 'SECCION';
-
-    if (header == 'BOX') {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Checkbox(
-          value: _rows[rowIdx][colIdx].text == 'true',
-          onChanged: (val) {
-            setState(() {
-              _rows[rowIdx][colIdx].text = val == true ? 'true' : 'false';
-            });
-          },
-        ),
-      );
-    }
-
-    if (header == 'JEFATURA') {
-      return Text(
-        _rows[rowIdx][colIdx].text,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF2D6A4F),
-        ),
-      );
-    }
-
-    if (header == 'TIPO DOCTO') {
-      return DropdownButtonFormField<String>(
-        value: _rows[rowIdx][colIdx].text.isNotEmpty
-            ? _rows[rowIdx][colIdx].text
-            : null,
-        items: [
-          ..._tiposDocto.map(
-            (tipo) => DropdownMenuItem(
-              value: tipo,
-              child: Text(tipo),
-            ),
-          ),
-          if (_rows[rowIdx][colIdx].text.isNotEmpty &&
-              !_tiposDocto.contains(_rows[rowIdx][colIdx].text))
-            DropdownMenuItem(
-              value: _rows[rowIdx][colIdx].text,
-              child: Text('${_rows[rowIdx][colIdx].text} (importado)'),
-            ),
-        ],
-        onChanged: (value) {
-          setState(() {
-            _rows[rowIdx][colIdx].text = value ?? '';
-          });
-        },
-        decoration: const InputDecoration(
-          isDense: true,
-          border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        ),
-        style: const TextStyle(fontSize: 14, color: Colors.black),
-        isExpanded: true,
-      );
-    }
-
-    return TextField(
-      controller: _rows[rowIdx][colIdx],
-      textAlign: TextAlign.left,
-      decoration: const InputDecoration(
-        isDense: true,
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      ),
-      style: const TextStyle(fontSize: 14),
-      onChanged: isSeccion
-          ? (value) {
-              _rows[rowIdx][_headers.indexOf('JEFATURA')].text = '';
-              _buscarJefaturaFirestore(value.trim()).then((jefatura) {
-                setState(() {
-                  _rows[rowIdx][_headers.indexOf('JEFATURA')].text = jefatura;
-                });
-              });
-            }
-          : null,
-    );
   }
 
   Future<String> _buscarJefaturaFirestore(String seccion) async {
@@ -393,7 +273,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
           }
         }
         List<List<TextEditingController>> nuevasFilas = [];
-        List<DateTime> nuevasFechas = [];
         List<Future<void>> jefaturaFutures = [];
         for (final fila in datos) {
           final List<TextEditingController> ctrls =
@@ -402,7 +281,6 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
             ctrl.text = i < 8 ? (i < fila.length ? fila[i] : '') : '';
             return ctrl;
           });
-          nuevasFechas.add(DateTime.now());
           final idxSeccion = _headers.indexOf('SECCION');
           final idxJefatura = _headers.indexOf('JEFATURA');
           if (idxSeccion != -1 && idxJefatura != -1) {
@@ -420,12 +298,8 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
         if (nuevasFilas.isEmpty) {
           nuevasFilas.add(
               List.generate(_headers.length, (_) => TextEditingController()));
-          nuevasFechas.add(DateTime.now());
         }
         setState(() {
-          _rowFechas
-            ..clear()
-            ..addAll(nuevasFechas);
           _rows.clear();
           _rows.addAll(nuevasFilas);
           if (_rows.isEmpty) {
@@ -450,9 +324,12 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final isMobile =
-        mediaQuery.size.shortestSide <= 600 || mediaQuery.size.width < 700;
+    // Considerar "mobile" sólo por plataforma (Android/iOS). En web/desktop
+    // aunque la ventana sea pequeña, queremos mostrar la tabla.
+    final bool isMobilePlatform =
+        defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS;
+    final isMobile = isMobilePlatform;
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       body: Padding(
@@ -565,112 +442,280 @@ class _EntregasCdrPageState extends State<EntregasCdrPage> {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: ListView.builder(
-                  itemCount: _rows.length,
-                  itemBuilder: (context, rowIdx) {
-                    final isFaltante = _headers.contains('BOX') &&
-                        _rows[rowIdx][_headers.indexOf('BOX')].text == 'true';
-                    final fechaRegistro = rowIdx < _rowFechas.length
-                        ? _rowFechas[rowIdx]
-                        : DateTime.now();
-
-                    return Card(
-                      elevation: 4,
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 7, horizontal: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        side: BorderSide(
-                          color: isFaltante
-                              ? Colors.red.shade300
-                              : const Color(0xFF2D6A4F),
-                          width: isFaltante ? 2.2 : 1.2,
-                        ),
-                      ),
-                      color: isFaltante ? Colors.red[50] : Colors.white,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12.0),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final maxWidth = constraints.maxWidth;
-                            final fieldWidth =
-                                ((maxWidth - 30) / 3).clamp(180.0, 260.0);
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFE9F5EC),
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: const Color(0xFF2D6A4F),
-                                        ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: _headers.length * 140,
+                    child: Column(
+                      children: [
+                        Container(
+                          color: const Color(0xFFE9ECEF),
+                          child: Row(
+                            children: List.generate(_headers.length, (i) {
+                              final isJefatura = _headers[i] == 'JEFATURA';
+                              return Expanded(
+                                flex: isJefatura ? 2 : 1,
+                                child: Container(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      right: BorderSide(
+                                        color: const Color(0xFFBDBDBDBD),
+                                        width: 1,
                                       ),
-                                      child: Text(
-                                        'Fecha: ${_formatearFecha(fechaRegistro)}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
+                                      left: i == 0
+                                          ? const BorderSide(
+                                              color: Color(0xFFBDBDBD),
+                                              width: 1)
+                                          : BorderSide.none,
                                     ),
-                                    if (isFaltante) ...[
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade100,
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          border: Border.all(
-                                              color: Colors.red.shade400),
-                                        ),
-                                        child: const Text(
-                                          'FALTANTE',
-                                          style: TextStyle(
-                                            color: Colors.red,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            letterSpacing: 1.0,
-                                          ),
-                                        ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _headers[i],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        letterSpacing: 0.5,
                                       ),
-                                    ],
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: _rows.length,
+                            itemBuilder: (context, rowIdx) {
+                              final isFaltante = _headers.contains('BOX') &&
+                                  _rows[rowIdx][_headers.indexOf('BOX')].text ==
+                                      'true';
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: isFaltante
+                                      ? const Color(0xFFFFCDD2)
+                                      : null, // Rojo claro si faltante
+                                  border: const Border(
+                                    bottom: BorderSide(
+                                        color: Color(0xFFBDBDBD), width: 1),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    ...List.generate(_headers.length, (colIdx) {
+                                      final isJefatura =
+                                          _headers[colIdx] == 'JEFATURA';
+                                      final isSeccion =
+                                          _headers[colIdx] == 'SECCION';
+                                      final isBox = _headers[colIdx] == 'BOX';
+                                      return Expanded(
+                                        flex: isJefatura ? 2 : 1,
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              right: BorderSide(
+                                                color: const Color(0xFFBDBDBD),
+                                                width: 1,
+                                              ),
+                                              left: colIdx == 0
+                                                  ? const BorderSide(
+                                                      color: Color(0xFFBDBDBD),
+                                                      width: 1)
+                                                  : BorderSide.none,
+                                            ),
+                                          ),
+                                          child: isBox
+                                              ? Checkbox(
+                                                  value: _rows[rowIdx][colIdx]
+                                                          .text ==
+                                                      'true',
+                                                  onChanged: (val) {
+                                                    setState(() {
+                                                      _rows[rowIdx][colIdx]
+                                                              .text =
+                                                          val == true
+                                                              ? 'true'
+                                                              : 'false';
+                                                    });
+                                                  },
+                                                )
+                                              : isJefatura
+                                                  ? Center(
+                                                      child: Text(
+                                                        _rows[rowIdx][colIdx]
+                                                            .text,
+                                                        style: const TextStyle(
+                                                            fontSize: 14,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: Color(
+                                                                0xFF2D6A4F)),
+                                                        textAlign:
+                                                            TextAlign.center,
+                                                      ),
+                                                    )
+                                                  : isSeccion
+                                                      ? TextField(
+                                                          controller:
+                                                              _rows[rowIdx]
+                                                                  [colIdx],
+                                                          textAlign:
+                                                              TextAlign.center,
+                                                          decoration:
+                                                              const InputDecoration(
+                                                            border: InputBorder
+                                                                .none,
+                                                            isDense: true,
+                                                            contentPadding:
+                                                                EdgeInsets
+                                                                    .symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                          ),
+                                                          style:
+                                                              const TextStyle(
+                                                                  fontSize: 14),
+                                                          onChanged: (value) {
+                                                            _rows[rowIdx][_headers
+                                                                    .indexOf(
+                                                                        'JEFATURA')]
+                                                                .text = '';
+                                                            _buscarJefaturaFirestore(
+                                                                    value
+                                                                        .trim())
+                                                                .then(
+                                                                    (jefatura) {
+                                                              setState(() {
+                                                                _rows[rowIdx][_headers
+                                                                        .indexOf(
+                                                                            'JEFATURA')]
+                                                                    .text = jefatura;
+                                                              });
+                                                            });
+                                                          },
+                                                        )
+                                                      : _headers[colIdx] ==
+                                                              'TIPO DOCTO'
+                                                          ? DropdownButtonFormField<
+                                                              String>(
+                                                              value: _rows[rowIdx]
+                                                                          [
+                                                                          colIdx]
+                                                                      .text
+                                                                      .isNotEmpty
+                                                                  ? (_tiposDocto.contains(_rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text)
+                                                                      ? _rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text
+                                                                      : _rows[rowIdx]
+                                                                              [
+                                                                              colIdx]
+                                                                          .text)
+                                                                  : null,
+                                                              items: [
+                                                                ..._tiposDocto
+                                                                    .map((tipo) =>
+                                                                        DropdownMenuItem(
+                                                                          value:
+                                                                              tipo,
+                                                                          child:
+                                                                              Text(tipo),
+                                                                        )),
+                                                                if (_rows[rowIdx]
+                                                                            [
+                                                                            colIdx]
+                                                                        .text
+                                                                        .isNotEmpty &&
+                                                                    !_tiposDocto
+                                                                        .contains(
+                                                                            _rows[rowIdx][colIdx].text))
+                                                                  DropdownMenuItem(
+                                                                    value: _rows[rowIdx]
+                                                                            [
+                                                                            colIdx]
+                                                                        .text,
+                                                                    child: Text(
+                                                                        _rows[rowIdx][colIdx].text +
+                                                                            ' (importado)'),
+                                                                  ),
+                                                              ],
+                                                              onChanged:
+                                                                  (value) {
+                                                                setState(() {
+                                                                  _rows[rowIdx][
+                                                                              colIdx]
+                                                                          .text =
+                                                                      value ??
+                                                                          '';
+                                                                });
+                                                              },
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                              isExpanded: true,
+                                                            )
+                                                          : TextField(
+                                                              controller:
+                                                                  _rows[rowIdx]
+                                                                      [colIdx],
+                                                              textAlign:
+                                                                  TextAlign
+                                                                      .center,
+                                                              decoration:
+                                                                  const InputDecoration(
+                                                                border:
+                                                                    InputBorder
+                                                                        .none,
+                                                                isDense: true,
+                                                                contentPadding:
+                                                                    EdgeInsets.symmetric(
+                                                                        vertical:
+                                                                            8,
+                                                                        horizontal:
+                                                                            4),
+                                                              ),
+                                                              style:
+                                                                  const TextStyle(
+                                                                      fontSize:
+                                                                          14),
+                                                            ),
+                                        ),
+                                      );
+                                    }),
+                                    //
                                   ],
                                 ),
-                                const SizedBox(height: 10),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 8,
-                                  children:
-                                      List.generate(_headers.length, (colIdx) {
-                                    final label = _headers[colIdx];
-                                    final width = (label == 'DESCRIPCION' ||
-                                            label == 'TIPO DOCTO')
-                                        ? fieldWidth + 40
-                                        : (label == 'JEFATURA'
-                                            ? fieldWidth + 20
-                                            : fieldWidth);
-                                    return _campoUniformeCdr(
-                                      label,
-                                      _editorCampoCdr(rowIdx, colIdx),
-                                      width: width,
-                                    );
-                                  }),
-                                ),
-                              ],
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

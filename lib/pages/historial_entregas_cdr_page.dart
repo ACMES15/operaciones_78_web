@@ -627,11 +627,23 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                   title: LayoutBuilder(
                                     builder: (context, constraints) {
                                       final maxWidth = constraints.maxWidth;
-                                      final isMobileLayout = maxWidth < 600;
-                                      final fieldWidth = isMobileLayout
-                                          ? ((maxWidth - 20) / 2)
-                                              .clamp(140.0, 220.0)
-                                          : 160.0;
+                                      final isMobileLayout = maxWidth < 700;
+                                      double fieldWidth;
+                                      if (isMobileLayout) {
+                                        // Adaptar número de columnas según ancho
+                                        if (maxWidth < 380) {
+                                          fieldWidth = (maxWidth - 24) / 2;
+                                        } else if (maxWidth < 520) {
+                                          fieldWidth = (maxWidth - 30) / 3;
+                                        } else {
+                                          fieldWidth = (maxWidth - 40) / 2;
+                                        }
+                                        fieldWidth = fieldWidth
+                                            .clamp(100.0, 160.0)
+                                            .toDouble();
+                                      } else {
+                                        fieldWidth = 160.0;
+                                      }
 
                                       return Column(
                                         crossAxisAlignment:
@@ -669,35 +681,54 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                                             spacing: 10,
                                             runSpacing: 8,
                                             children: [
-                                              campoUniforme(
-                                                  'HOJA DE RUTA', hojaRuta,
-                                                  width: fieldWidth),
-                                              campoUniforme(
-                                                  'TIPO DOCTO', tipoDocto,
-                                                  width: fieldWidth),
-                                              campoUniforme(
-                                                  'DOCUMENTO', documento,
-                                                  width: fieldWidth),
-                                              campoUniforme(
-                                                  'SKU', entrega['SKU'],
-                                                  width: fieldWidth),
-                                              campoUniforme('CANTIDAD',
-                                                  entrega['CANTIDAD'],
-                                                  width: fieldWidth),
-                                              campoUniforme(
-                                                  'SECCION', entrega['SECCION'],
-                                                  width: fieldWidth),
-                                              campoUniforme('JEFATURA',
-                                                  entrega['JEFATURA'],
-                                                  width: fieldWidth),
-                                              campoUniforme('DESCRIPCION',
-                                                  entrega['DESCRIPCION'],
-                                                  width: isMobileLayout
-                                                      ? maxWidth - 20
-                                                      : fieldWidth),
-                                              campoUniforme(
-                                                  'VALIDADO', validado,
-                                                  width: fieldWidth),
+                                              if (isMobileLayout) ...[
+                                                campoUniforme(
+                                                    'TIPO DOCTO', tipoDocto,
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'DOCUMENTO', documento,
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'SKU', entrega['SKU'],
+                                                    width: fieldWidth),
+                                                campoUniforme('CANTIDAD',
+                                                    entrega['CANTIDAD'],
+                                                    width: fieldWidth),
+                                                campoUniforme('JEFATURA',
+                                                    entrega['JEFATURA'],
+                                                    width: fieldWidth),
+                                                campoUniforme('DESCRIPCION',
+                                                    entrega['DESCRIPCION'],
+                                                    width: (maxWidth - 20)),
+                                              ] else ...[
+                                                campoUniforme(
+                                                    'HOJA DE RUTA', hojaRuta,
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'TIPO DOCTO', tipoDocto,
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'DOCUMENTO', documento,
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'SKU', entrega['SKU'],
+                                                    width: fieldWidth),
+                                                campoUniforme('CANTIDAD',
+                                                    entrega['CANTIDAD'],
+                                                    width: fieldWidth),
+                                                campoUniforme('SECCION',
+                                                    entrega['SECCION'],
+                                                    width: fieldWidth),
+                                                campoUniforme('JEFATURA',
+                                                    entrega['JEFATURA'],
+                                                    width: fieldWidth),
+                                                campoUniforme('DESCRIPCION',
+                                                    entrega['DESCRIPCION'],
+                                                    width: fieldWidth),
+                                                campoUniforme(
+                                                    'VALIDADO', validado,
+                                                    width: fieldWidth),
+                                              ]
                                             ],
                                           ),
                                           if (entrega['firma'] != null)
