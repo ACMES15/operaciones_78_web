@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../utils/fecha_helper.dart';
 
 // Clon de EntregasMbodasPage adaptado para XD
 class EntregasXdPage extends StatefulWidget {
@@ -128,7 +129,7 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
 
   List<Map<String, dynamic>> get _entregasFiltradas {
     final idsFirmados = _idsFirmados;
-    return _entregas
+    final filtradas = _entregas
         .where((e) => !idsFirmados
             .contains(e['id']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
@@ -139,6 +140,9 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
         .toList();
+
+    ordenarPorFechaDescendente(filtradas);
+    return filtradas;
   }
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
@@ -515,49 +519,136 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
                                       }
                                     });
                                   },
-                                  title: isMobile
-                                      ? Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileField('XD', entrega['XD']),
-                                            _mobileField('SKU', entrega['SKU']),
-                                            _mobileField('CANTIDAD',
-                                                entrega['CANTIDAD']),
-                                            _mobileField(
-                                                'SECCION', entrega['SECCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _mobileField('DESCRIPCION',
-                                                entrega['DESCRIPCION']),
-                                            _mobileField(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            _infoChip('XD', entrega['XD']),
-                                            _infoChip('SKU', entrega['SKU']),
-                                            _infoChip(
-                                                'CANT', entrega['CANTIDAD']),
-                                            _infoChip(
-                                                'SECC', entrega['SECCION']),
-                                            _infoChip(
-                                                'JEF', entrega['JEFATURA']),
-                                            _infoChip(
-                                                'DESC', entrega['DESCRIPCION']),
-                                            _infoChip(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                          ],
-                                        ),
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final maxWidth = constraints.maxWidth;
+                                      final isMobileLayout = maxWidth < 600;
+                                      final fieldWidth = isMobileLayout
+                                          ? ((maxWidth - 20) / 2)
+                                              .clamp(140.0, 220.0)
+                                          : 160.0;
+                                      final fecha = fechaRegistro(entrega);
+
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (fecha != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 8.0),
+                                              child: Chip(
+                                                label: Text(
+                                                  formatearFecha(fecha),
+                                                  style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600),
+                                                ),
+                                                backgroundColor:
+                                                    const Color(0xFF2D6A4F)
+                                                        .withOpacity(0.15),
+                                              ),
+                                            ),
+                                          isMobileLayout
+                                              ? Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    campoUniforme(
+                                                      'XD',
+                                                      entrega['XD'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'SKU',
+                                                      entrega['SKU'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'CANTIDAD',
+                                                      entrega['CANTIDAD'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'SECCION',
+                                                      entrega['SECCION'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'JEFATURA',
+                                                      entrega['JEFATURA'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'DESCRIPCION',
+                                                      entrega['DESCRIPCION'],
+                                                      width: maxWidth - 20,
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    campoUniforme(
+                                                      'VALIDADO',
+                                                      entrega['usuarioValido'] ??
+                                                          '-',
+                                                      width: fieldWidth,
+                                                    ),
+                                                  ],
+                                                )
+                                              : Wrap(
+                                                  spacing: 10,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    campoUniforme(
+                                                      'XD',
+                                                      entrega['XD'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'SKU',
+                                                      entrega['SKU'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'CANTIDAD',
+                                                      entrega['CANTIDAD'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'SECCION',
+                                                      entrega['SECCION'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'JEFATURA',
+                                                      entrega['JEFATURA'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'DESCRIPCION',
+                                                      entrega['DESCRIPCION'],
+                                                      width: fieldWidth,
+                                                    ),
+                                                    campoUniforme(
+                                                      'VALIDADO',
+                                                      entrega['usuarioValido'] ??
+                                                          '-',
+                                                      width: fieldWidth,
+                                                    ),
+                                                  ],
+                                                ),
+                                        ],
+                                      );
+                                    },
+                                  ),
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
+                                      horizontal: 12, vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -585,37 +676,6 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _mobileField(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: ${value ?? '-'}',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 
