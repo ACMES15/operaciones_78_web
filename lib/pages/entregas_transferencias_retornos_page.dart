@@ -4,6 +4,7 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/fecha_helper.dart';
 
 class EntregasTransferenciasRetornosPage extends StatefulWidget {
   const EntregasTransferenciasRetornosPage({Key? key}) : super(key: key);
@@ -150,7 +151,7 @@ class _EntregasTransferenciasRetornosPageState
 
   List<Map<String, dynamic>> get _entregasFiltradas {
     final idsFirmados = _idsFirmados;
-    return _entregas
+    final filtradas = _entregas
         .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _busqueda.isEmpty ||
@@ -164,6 +165,14 @@ class _EntregasTransferenciasRetornosPageState
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
         .toList();
+    ordenarPorFechaDescendente(filtradas, camposPersonalizados: [
+      'fechaFirma',
+      'createdAt',
+      'fecha',
+      'timestamp',
+      'date'
+    ]);
+    return filtradas;
   }
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
@@ -523,6 +532,24 @@ class _EntregasTransferenciasRetornosPageState
                               final entrega = _entregasFiltradas[index];
                               final seleccionado =
                                   _seleccionados.contains(index);
+                              final tfODev = entrega['TF O DEV'] ??
+                                  entrega['TRANSFERENCIA'] ??
+                                  entrega['TF'] ??
+                                  entrega['DEV'] ??
+                                  '-';
+                              final origen = entrega['ORIGEN'] ?? '-';
+                              final destino = entrega['DESTINO'] ?? '-';
+                              final seccion = entrega['SECCION'] ?? '-';
+                              final jefatura = entrega['JEFATURA'] ?? '-';
+                              final valido = entrega['usuarioValido'] ?? '-';
+                              final fecha = fechaRegistro(entrega,
+                                  camposPersonalizados: [
+                                    'fechaFirma',
+                                    'createdAt',
+                                    'fecha',
+                                    'timestamp',
+                                    'date'
+                                  ]);
                               return Card(
                                 elevation: 4,
                                 margin: const EdgeInsets.symmetric(
@@ -546,47 +573,83 @@ class _EntregasTransferenciasRetornosPageState
                                       }
                                     });
                                   },
-                                  title: isMobile
-                                      ? Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileFieldTFODEV(entrega),
-                                            _mobileField(
-                                                'ORIGEN', entrega['ORIGEN']),
-                                            _mobileField(
-                                                'DESTINO', entrega['DESTINO']),
-                                            _mobileField(
-                                                'SECCION', entrega['SECCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _mobileField(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            _infoChipTFODEV(entrega),
-                                            _infoChip(
-                                                'ORIGEN', entrega['ORIGEN']),
-                                            _infoChip(
-                                                'DESTINO', entrega['DESTINO']),
-                                            _infoChip(
-                                                'SECCION', entrega['SECCION']),
-                                            _infoChip('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _infoChip(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                          ],
-                                        ),
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final fieldWidth =
+                                          ((constraints.maxWidth - 20) / 2)
+                                              .clamp(140.0, 220.0);
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (fecha != null)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFE9F5EC),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color:
+                                                      const Color(0xFF2D6A4F),
+                                                ),
+                                              ),
+                                              child: SelectableText(
+                                                formatearFecha(fecha),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 10,
+                                            runSpacing: 8,
+                                            children: [
+                                              campoUniforme(
+                                                'TF O DEV',
+                                                tfODev,
+                                                width: fieldWidth,
+                                              ),
+                                              campoUniforme(
+                                                'ORIGEN',
+                                                origen,
+                                                width: fieldWidth,
+                                              ),
+                                              campoUniforme(
+                                                'DESTINO',
+                                                destino,
+                                                width: fieldWidth,
+                                              ),
+                                              campoUniforme(
+                                                'SECCION',
+                                                seccion,
+                                                width: fieldWidth,
+                                              ),
+                                              campoUniforme(
+                                                'JEFATURA',
+                                                jefatura,
+                                                width: fieldWidth,
+                                              ),
+                                              campoUniforme(
+                                                'VALIDO',
+                                                valido,
+                                                width: fieldWidth,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
+                                      horizontal: 12, vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -615,56 +678,6 @@ class _EntregasTransferenciasRetornosPageState
               ),
             ),
     );
-  }
-
-  Widget _mobileField(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
-        ],
-      ),
-    );
-  }
-
-  Widget _mobileFieldTFODEV(Map<String, dynamic> entrega) {
-    final value = entrega['TF O DEV'] ??
-        entrega['TRANSFERENCIA'] ??
-        entrega['TF'] ??
-        entrega['DEV'] ??
-        '-';
-    print('UI TF O DEV: $value id: ${entrega['id']}');
-    return _mobileField('TF O DEV', value);
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: ${value ?? '-'}',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
-    );
-  }
-
-  Widget _infoChipTFODEV(Map<String, dynamic> entrega) {
-    final value = entrega['TF O DEV'] ??
-        entrega['TRANSFERENCIA'] ??
-        entrega['TF'] ??
-        entrega['DEV'] ??
-        '-';
-    return _infoChip('TF O DEV', value);
   }
 
   @override

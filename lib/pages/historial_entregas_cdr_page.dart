@@ -6,6 +6,7 @@ import 'dart:convert';
 // ...existing code...
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../utils/fecha_helper.dart';
 
 class HistorialEntregasCdrPage extends StatefulWidget {
   final String usuario;
@@ -413,11 +414,16 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
 
   // Ordenar resultados por fecha descendente
   void _ordenarResultados() {
-    _resultados.sort((a, b) {
-      final fa = a['fechaFirma'] ?? a['fecha'] ?? '';
-      final fb = b['fechaFirma'] ?? b['fecha'] ?? '';
-      return fb.compareTo(fa);
-    });
+    ordenarPorFechaDescendente(
+      _resultados,
+      camposPersonalizados: const [
+        'fechaFirma',
+        'fecha',
+        'createdAt',
+        'timestamp',
+        'date',
+      ],
+    );
   }
 
   // Cargar historial: primero local, luego intenta sincronizar con Firestore
@@ -549,286 +555,201 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                             itemCount: _resultados.length,
                             itemBuilder: (context, index) {
                               final entrega = _resultados[index];
-                              // DEPURACIÓN: mostrar las claves de cada registro en consola
-                              print('ENTREGA KEYS: ' + entrega.keys.join(', '));
-                              print(
-                                  'VALORES - HOJA DE RUTA: \\${entrega['HOJA DE RUTA']}, TIPO DOCTO: \\${entrega['TIPO DOCTO']}, DOCUMENTO: \\${entrega['DOCUMENTO']}');
                               final seleccionado =
                                   _seleccionados.contains(index);
                               final isFaltante = entrega['BOX'] == true ||
                                   entrega['BOX'] == 'true';
+                              final hojaRuta = _getCampoFlexible(entrega, [
+                                    'HOJA DE RUTA',
+                                    'hojaDeRuta',
+                                    'hoja_de_ruta',
+                                    'hojaderuta'
+                                  ]) ??
+                                  '-';
+                              final tipoDocto = _getCampoFlexible(entrega, [
+                                    'TIPO DOCTO',
+                                    'tipoDocto',
+                                    'tipo_docto',
+                                    'tipodocto'
+                                  ]) ??
+                                  '-';
+                              final documento = _getCampoFlexible(
+                                      entrega, ['DOCUMENTO', 'documento']) ??
+                                  '-';
+                              final validado = _getCampoFlexible(entrega, [
+                                    'validadoPor',
+                                    'Valido',
+                                    'validado',
+                                    'usuarioValido',
+                                    'usuario_valido',
+                                    'validado_por',
+                                    'validado por'
+                                  ]) ??
+                                  '-';
+                              final fecha = fechaRegistro(
+                                entrega,
+                                camposPersonalizados: const [
+                                  'fechaFirma',
+                                  'fecha',
+                                  'createdAt',
+                                  'timestamp',
+                                  'date',
+                                ],
+                              );
+
                               return Card(
                                 elevation: 4,
                                 margin: const EdgeInsets.symmetric(
                                     vertical: 7, horizontal: 2),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
-                                  side: const BorderSide(
-                                    color: Color(0xFF2D6A4F),
-                                    width: 1.2,
+                                  side: BorderSide(
+                                    color: isFaltante
+                                        ? Colors.red.shade300
+                                        : const Color(0xFF2D6A4F),
+                                    width: isFaltante ? 2.2 : 1.2,
                                   ),
                                 ),
                                 color: isFaltante
                                     ? const Color(0xFFFFCDD2)
                                     : Colors.white,
-                                child: isMobile
-                                    ? CheckboxListTile(
-                                        value: seleccionado,
-                                        onChanged: (checked) {
-                                          setState(() {
-                                            if (checked == true) {
-                                              _seleccionados.add(index);
-                                            } else {
-                                              _seleccionados.remove(index);
-                                            }
-                                          });
-                                        },
-                                        title: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileField(
-                                                'HOJA DE RUTA',
-                                                _getCampoFlexible(entrega, [
-                                                  'HOJA DE RUTA',
-                                                  'hojaDeRuta',
-                                                  'hoja_de_ruta',
-                                                  'hojaderuta'
-                                                ])),
-                                            _mobileField(
-                                                'TIPO DOCTO',
-                                                _getCampoFlexible(entrega, [
-                                                  'TIPO DOCTO',
-                                                  'tipoDocto',
-                                                  'tipo_docto',
-                                                  'tipodocto'
-                                                ])),
-                                            _mobileField(
-                                                'DOCUMENTO',
-                                                _getCampoFlexible(entrega, [
-                                                  'DOCUMENTO',
-                                                  'documento'
-                                                ])),
-                                            _mobileField('SKU', entrega['SKU']),
-                                            _mobileField('Cantidad',
-                                                entrega['CANTIDAD']),
-                                            _mobileField(
-                                                'Sección', entrega['SECCION']),
-                                            _mobileField('Jefatura',
-                                                entrega['JEFATURA']),
-                                            _mobileField('Descripción',
-                                                entrega['DESCRIPCION']),
-                                            _mobileField(
-                                                'Valido',
-                                                _getCampoFlexible(entrega, [
-                                                      'validadoPor',
-                                                      'Valido',
-                                                      'validado',
-                                                      'usuarioValido',
-                                                      'usuario_valido',
-                                                      'validado_por',
-                                                      'validado por'
-                                                    ]) ??
-                                                    '-'),
-                                            if (entrega['firma'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 8.0),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text('Firma:',
-                                                        style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold)),
-                                                    SizedBox(
-                                                      height: 80,
-                                                      child: entrega['firma']
-                                                              is String
-                                                          ? Image.memory(
-                                                              base64Decode(
-                                                                  entrega[
-                                                                      'firma']),
-                                                              fit: BoxFit
-                                                                  .contain)
-                                                          : const Text(
-                                                              'Firma no disponible'),
-                                                    ),
-                                                  ],
+                                child: CheckboxListTile(
+                                  value: seleccionado,
+                                  onChanged: (checked) {
+                                    setState(() {
+                                      if (checked == true) {
+                                        _seleccionados.add(index);
+                                      } else {
+                                        _seleccionados.remove(index);
+                                      }
+                                    });
+                                  },
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final maxWidth = constraints.maxWidth;
+                                      final isMobileLayout = maxWidth < 600;
+                                      final fieldWidth = isMobileLayout
+                                          ? ((maxWidth - 20) / 2)
+                                              .clamp(140.0, 220.0)
+                                          : 160.0;
+
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (fecha != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 8.0),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFE9F5EC),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color:
+                                                        const Color(0xFF2D6A4F),
+                                                  ),
+                                                ),
+                                                child: SelectableText(
+                                                  formatearFecha(fecha),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                                 ),
                                               ),
-                                            if (entrega['nombreRecibe'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 4.0),
-                                                child: Text(
-                                                    'Recibió: ${entrega['nombreRecibe']}',
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold)),
-                                              ),
-                                            if (entrega['fechaFirma'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 2.0),
-                                                child: Text(
-                                                    'Fecha: ${entrega['fechaFirma']}'),
-                                              ),
-                                          ],
-                                        ),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 2),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      )
-                                    : CheckboxListTile(
-                                        value: seleccionado,
-                                        onChanged: (checked) {
-                                          setState(() {
-                                            if (checked == true) {
-                                              _seleccionados.add(index);
-                                            } else {
-                                              _seleccionados.remove(index);
-                                            }
-                                          });
-                                        },
-                                        title: Row(
-                                          children: [
-                                            Builder(
-                                              builder: (context) {
-                                                print(
-                                                    'DEBUG PC - HOJA DE RUTA: \\${entrega['HOJA DE RUTA']}');
-                                                print(
-                                                    'DEBUG PC - TIPO DOCTO: \\${entrega['TIPO DOCTO']}');
-                                                print(
-                                                    'DEBUG PC - DOCUMENTO: \\${entrega['DOCUMENTO']}');
-                                                return Wrap(
-                                                  spacing: 4,
-                                                  runSpacing: 4,
-                                                  children: [
-                                                    _infoChip(
-                                                        'HOJA DE RUTA',
-                                                        _getCampoFlexible(
-                                                            entrega, [
-                                                          'HOJA DE RUTA',
-                                                          'hojaDeRuta',
-                                                          'hoja_de_ruta',
-                                                          'hojaderuta'
-                                                        ])),
-                                                    _infoChip(
-                                                        'TIPO DOCTO',
-                                                        _getCampoFlexible(
-                                                            entrega, [
-                                                          'TIPO DOCTO',
-                                                          'tipoDocto',
-                                                          'tipo_docto',
-                                                          'tipodocto'
-                                                        ])),
-                                                    _infoChip(
-                                                        'DOCUMENTO',
-                                                        _getCampoFlexible(
-                                                            entrega, [
-                                                          'DOCUMENTO',
-                                                          'documento'
-                                                        ])),
-                                                    _infoChip(
-                                                        'SKU', entrega['SKU']),
-                                                    _infoChip('CANT',
-                                                        entrega['CANTIDAD']),
-                                                    _infoChip('SECC',
-                                                        entrega['SECCION']),
-                                                    _infoChip('JEF',
-                                                        entrega['JEFATURA']),
-                                                    _infoChip('DESC',
-                                                        entrega['DESCRIPCION']),
-                                                    _infoChip(
-                                                        'Valido',
-                                                        _getCampoFlexible(
-                                                                entrega, [
-                                                              'validadoPor',
-                                                              'Valido',
-                                                              'validado',
-                                                              'usuarioValido',
-                                                              'usuario_valido',
-                                                              'validado_por',
-                                                              'validado por'
-                                                            ]) ??
-                                                            '-'),
-                                                  ],
-                                                );
-                                              },
                                             ),
-                                          ],
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            if (entrega['firma'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 8.0),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    const Text('Firma:',
-                                                        style: TextStyle(
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold)),
-                                                    SizedBox(
-                                                      height: 80,
-                                                      child: entrega['firma']
-                                                              is String
-                                                          ? Image.memory(
-                                                              base64Decode(
-                                                                  entrega[
-                                                                      'firma']),
-                                                              fit: BoxFit
-                                                                  .contain)
-                                                          : const Text(
-                                                              'Firma no disponible'),
-                                                    ),
-                                                  ],
-                                                ),
+                                          Wrap(
+                                            spacing: 10,
+                                            runSpacing: 8,
+                                            children: [
+                                              campoUniforme(
+                                                  'HOJA DE RUTA', hojaRuta,
+                                                  width: fieldWidth),
+                                              campoUniforme(
+                                                  'TIPO DOCTO', tipoDocto,
+                                                  width: fieldWidth),
+                                              campoUniforme(
+                                                  'DOCUMENTO', documento,
+                                                  width: fieldWidth),
+                                              campoUniforme(
+                                                  'SKU', entrega['SKU'],
+                                                  width: fieldWidth),
+                                              campoUniforme('CANTIDAD',
+                                                  entrega['CANTIDAD'],
+                                                  width: fieldWidth),
+                                              campoUniforme(
+                                                  'SECCION', entrega['SECCION'],
+                                                  width: fieldWidth),
+                                              campoUniforme('JEFATURA',
+                                                  entrega['JEFATURA'],
+                                                  width: fieldWidth),
+                                              campoUniforme('DESCRIPCION',
+                                                  entrega['DESCRIPCION'],
+                                                  width: isMobileLayout
+                                                      ? maxWidth - 20
+                                                      : fieldWidth),
+                                              campoUniforme(
+                                                  'VALIDADO', validado,
+                                                  width: fieldWidth),
+                                            ],
+                                          ),
+                                          if (entrega['firma'] != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 10.0),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  const Text('Firma:',
+                                                      style: TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
+                                                  SizedBox(
+                                                    height: 80,
+                                                    child: entrega['firma']
+                                                            is String
+                                                        ? Image.memory(
+                                                            base64Decode(
+                                                                entrega[
+                                                                    'firma']),
+                                                            fit: BoxFit.contain)
+                                                        : const Text(
+                                                            'Firma no disponible'),
+                                                  ),
+                                                ],
                                               ),
-                                            if (entrega['nombreRecibe'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 4.0),
-                                                child: Text(
-                                                    'Recibió: ${entrega['nombreRecibe']}',
-                                                    style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold)),
+                                            ),
+                                          if (entrega['nombreRecibe'] != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 4.0),
+                                              child: Text(
+                                                'Recibió: ${entrega['nombreRecibe']}',
+                                                style: const TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold),
                                               ),
-                                            if (entrega['fechaFirma'] != null)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 2.0),
-                                                child: Text(
-                                                    'Fecha: ${entrega['fechaFirma']}'),
-                                              ),
-                                          ],
-                                        ),
-                                        controlAffinity:
-                                            ListTileControlAffinity.leading,
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 2),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
+                                            ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
                               );
                             },
                           ),
@@ -852,45 +773,6 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _mobileField(String label, dynamic value) {
-    final displayValue =
-        (value == null || (value is String && value.trim().isEmpty))
-            ? '-'
-            : value;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child:
-                  Text('$displayValue', style: const TextStyle(fontSize: 16))),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    final displayValue =
-        (value == null || (value is String && value.trim().isEmpty))
-            ? '-'
-            : value;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: $displayValue',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }

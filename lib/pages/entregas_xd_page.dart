@@ -552,7 +552,7 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
                                                         const Color(0xFF2D6A4F),
                                                   ),
                                                 ),
-                                                child: Text(
+                                                child: SelectableText(
                                                   formatearFecha(fecha),
                                                   style: const TextStyle(
                                                     fontSize: 12,

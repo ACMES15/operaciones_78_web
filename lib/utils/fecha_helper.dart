@@ -81,10 +81,9 @@ Widget campoUniforme(String label, dynamic value,
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          SelectableText(
             '${value ?? '-'}',
             maxLines: maxLines,
-            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
