@@ -67,9 +67,8 @@ Widget _campoUniforme(String label, dynamic value, {double? width}) {
                   color: Color(0xFF2D6A4F),
                   letterSpacing: 0.3)),
           const SizedBox(height: 4),
-          Text('${value ?? '-'}',
+          SelectableText('${value ?? '-'}',
               maxLines: 2,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.w600, height: 1.15)),
         ],
@@ -731,7 +730,7 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                                         const Color(0xFF2D6A4F),
                                                   ),
                                                 ),
-                                                child: Text(
+                                                child: SelectableText(
                                                   _formatearFecha(
                                                       fechaRegistro),
                                                   style: const TextStyle(
