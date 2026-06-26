@@ -5,6 +5,79 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+DateTime? _toDate(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate();
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  if (value is Map && value['_seconds'] != null) {
+    final sec = (value['_seconds'] is num ? value['_seconds'] : 0);
+    final nsec = (value['_nanoseconds'] is num ? value['_nanoseconds'] : 0);
+    return DateTime.fromMillisecondsSinceEpoch(
+        sec.toInt() * 1000 + (nsec / 1000000).round());
+  }
+  return null;
+}
+
+DateTime? _fechaRegistro(Map<String, dynamic> entrega) {
+  const keys = [
+    'fechaFirma',
+    'createdAt',
+    'fecha',
+    'timestamp',
+    'date',
+    'fechaValidacion'
+  ];
+  for (final key in keys) {
+    final dt = _toDate(entrega[key]);
+    if (dt != null) return dt;
+  }
+  return null;
+}
+
+String _formatearFecha(dynamic value) {
+  final dt = _toDate(value);
+  if (dt == null) return '-';
+  final local = dt.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+Widget _campoUniforme(String label, dynamic value, {double? width}) {
+  return SizedBox(
+    width: width,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6FBF7),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2D6A4F).withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2D6A4F),
+                  letterSpacing: 0.3)),
+          const SizedBox(height: 4),
+          Text('${value ?? '-'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600, height: 1.15)),
+        ],
+      ),
+    ),
+  );
+}
+
 class EntregasRecogidosPage extends StatefulWidget {
   final String usuario;
   const EntregasRecogidosPage({Key? key, required this.usuario})
@@ -57,24 +130,6 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
         }
       } catch (_) {}
     }
-  }
-  // ...existing code...
-
-  Widget _mobileField(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
-        ],
-      ),
-    );
   }
 
   final TextEditingController _lpController = TextEditingController();
@@ -199,7 +254,7 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
 
   List<Map<String, dynamic>> get _entregasFiltradas {
     final lpsFirmadas = _lpsFirmadas;
-    return _entregas
+    final result = _entregas
         .where((e) => !lpsFirmadas
             .contains(e['LP']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
@@ -210,6 +265,18 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
         .toList();
+
+    // Ordenar por fecha descendente (más nuevo primero)
+    result.sort((a, b) {
+      final fechaA = _fechaRegistro(a);
+      final fechaB = _fechaRegistro(b);
+      if (fechaA == null && fechaB == null) return 0;
+      if (fechaA == null) return 1;
+      if (fechaB == null) return -1;
+      return fechaB.compareTo(fechaA);
+    });
+
+    return result;
   }
 
   Future<void> _firmarSeleccionados(BuildContext context) async {
@@ -631,97 +698,183 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                       }
                                     });
                                   },
-                                  title: isMobile
-                                      ? Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileField('LP', entrega['LP']),
-                                            _mobileField('SKU', entrega['SKU']),
-                                            _mobileField('CANTIDAD',
-                                                entrega['CANTIDAD']),
-                                            _mobileField(
-                                                'SECCION', entrega['SECCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _mobileField('DESCRIPCION',
-                                                entrega['DESCRIPCION']),
-                                            _mobileField('VALIDACION',
-                                                entrega['VALIDACION']),
-                                            _mobileField(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                            if (esFaltante)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    top: 8),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                      color:
-                                                          Colors.red.shade400),
-                                                ),
-                                                child: const Text(
-                                                  'FALTANTE',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    letterSpacing: 1.2,
-                                                  ),
-                                                ),
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final maxWidth = constraints.maxWidth;
+                                      final isMobileLayout = maxWidth < 600;
+                                      final fieldWidth = isMobileLayout
+                                          ? ((maxWidth - 20) / 2)
+                                              .clamp(140.0, 220.0)
+                                          : 160.0;
+                                      final fechaRegistro =
+                                          _fechaRegistro(entrega);
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (fechaRegistro != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 8.0),
+                                              child: Chip(
+                                                label: Text(
+                                                    _formatearFecha(
+                                                        fechaRegistro),
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600)),
+                                                backgroundColor:
+                                                    const Color(0xFF2D6A4F)
+                                                        .withOpacity(0.15),
                                               ),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            _infoChip('LP', entrega['LP']),
-                                            _infoChip('SKU', entrega['SKU']),
-                                            _infoChip(
-                                                'CANT', entrega['CANTIDAD']),
-                                            _infoChip(
-                                                'SECC', entrega['SECCION']),
-                                            _infoChip(
-                                                'JEF', entrega['JEFATURA']),
-                                            _infoChip(
-                                                'Valido',
-                                                entrega['usuarioValido'] ??
-                                                    '-'),
-                                            if (esFaltante)
-                                              Container(
-                                                margin: const EdgeInsets.only(
-                                                    left: 8),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 4),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.red.shade100,
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                  border: Border.all(
-                                                      color:
-                                                          Colors.red.shade400),
+                                            ),
+                                          isMobileLayout
+                                              ? Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    _campoUniforme(
+                                                        'LP', entrega['LP'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'SKU', entrega['SKU'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme('CANTIDAD',
+                                                        entrega['CANTIDAD'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme('SECCION',
+                                                        entrega['SECCION'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme('JEFATURA',
+                                                        entrega['JEFATURA'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'DESCRIPCION',
+                                                        entrega['DESCRIPCION'],
+                                                        width: maxWidth - 20),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme('VALIDACION',
+                                                        entrega['VALIDACION'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'Validado',
+                                                        entrega['usuarioValido'] ??
+                                                            '-',
+                                                        width: fieldWidth),
+                                                    if (esFaltante)
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(top: 8.0),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      10,
+                                                                  vertical: 4),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors
+                                                                .red.shade100,
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8),
+                                                            border: Border.all(
+                                                                color: Colors
+                                                                    .red
+                                                                    .shade400),
+                                                          ),
+                                                          child: const Text(
+                                                            'FALTANTE',
+                                                            style: TextStyle(
+                                                              color: Colors.red,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 14,
+                                                              letterSpacing:
+                                                                  1.2,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                )
+                                              : Wrap(
+                                                  spacing: 10,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    _campoUniforme(
+                                                        'LP', entrega['LP'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'SKU', entrega['SKU'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme('CANTIDAD',
+                                                        entrega['CANTIDAD'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme('SECCION',
+                                                        entrega['SECCION'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme('JEFATURA',
+                                                        entrega['JEFATURA'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'DESCRIPCION',
+                                                        entrega['DESCRIPCION'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme('VALIDACION',
+                                                        entrega['VALIDACION'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'Validado',
+                                                        entrega['usuarioValido'] ??
+                                                            '-',
+                                                        width: fieldWidth),
+                                                    if (esFaltante)
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 10,
+                                                                vertical: 4),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors
+                                                              .red.shade100,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(8),
+                                                          border: Border.all(
+                                                              color: Colors.red
+                                                                  .shade400),
+                                                        ),
+                                                        child: const Text(
+                                                          'FALTANTE',
+                                                          style: TextStyle(
+                                                            color: Colors.red,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 14,
+                                                            letterSpacing: 1.2,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
                                                 ),
-                                                child: const Text(
-                                                  'FALTANTE',
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                    letterSpacing: 1.2,
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
+                                        ],
+                                      );
+                                    },
+                                  ),
                                   subtitle: esFaltante
                                       ? const Text(
                                           'Este LP está marcado como FALTANTE',
@@ -734,7 +887,7 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
+                                      horizontal: 12, vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -762,20 +915,6 @@ class _EntregasRecogidosPageState extends State<EntregasRecogidosPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: ${value ?? '-'}',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 

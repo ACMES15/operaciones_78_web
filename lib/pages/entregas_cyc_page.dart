@@ -4,6 +4,72 @@ import 'package:signature/signature.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+DateTime? _toDate(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate();
+  if (value is String) {
+    return DateTime.tryParse(value);
+  }
+  if (value is Map && value['_seconds'] != null) {
+    final sec = (value['_seconds'] is num ? value['_seconds'] : 0);
+    final nsec = (value['_nanoseconds'] is num ? value['_nanoseconds'] : 0);
+    return DateTime.fromMillisecondsSinceEpoch(
+        sec.toInt() * 1000 + (nsec / 1000000).round());
+  }
+  return null;
+}
+
+DateTime? _fechaRegistro(Map<String, dynamic> entrega) {
+  const keys = ['fechaValidacion', 'createdAt', 'fecha', 'timestamp', 'date'];
+  for (final key in keys) {
+    final dt = _toDate(entrega[key]);
+    if (dt != null) return dt;
+  }
+  return null;
+}
+
+String _formatearFecha(dynamic value) {
+  final dt = _toDate(value);
+  if (dt == null) return '-';
+  final local = dt.toLocal();
+  return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year} ${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+}
+
+Widget _campoUniforme(String label, dynamic value, {double? width}) {
+  return SizedBox(
+    width: width,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF6FBF7),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF2D6A4F).withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2D6A4F),
+                  letterSpacing: 0.3)),
+          const SizedBox(height: 4),
+          Text('${value ?? '-'}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600, height: 1.15)),
+        ],
+      ),
+    ),
+  );
+}
+
 class EntregasCycPage extends StatefulWidget {
   final String usuario;
   const EntregasCycPage({Key? key, required this.usuario}) : super(key: key);
@@ -15,7 +81,6 @@ class EntregasCycPage extends StatefulWidget {
 class _EntregasCycPageState extends State<EntregasCycPage> {
   String _jefaturaSeleccionada = '';
   List<Map<String, dynamic>> _pendientes = [];
-  List<Map<String, dynamic>> _originales = [];
   bool _cargando = true;
   Set<int> _seleccionados = {}; // índices de la lista filtrada
   late TextEditingController _busquedaController;
@@ -68,7 +133,6 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
     }).toList();
     setState(() {
       _pendientes = nuevos;
-      _originales = nuevos;
       _cargando = false;
       _seleccionados.clear();
     });
@@ -376,6 +440,16 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                 (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada))
         .toList();
 
+    // Ordenar por fecha descendente (más nuevo primero)
+    resultados.sort((a, b) {
+      final fechaA = _fechaRegistro(a);
+      final fechaB = _fechaRegistro(b);
+      if (fechaA == null && fechaB == null) return 0;
+      if (fechaA == null) return 1;
+      if (fechaB == null) return -1;
+      return fechaB.compareTo(fechaA);
+    });
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F9F6),
       appBar: AppBar(
@@ -456,6 +530,7 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                               final entrega = resultados[index];
                               final seleccionado =
                                   _seleccionados.contains(index);
+                              final fechaRegistro = _fechaRegistro(entrega);
                               return Card(
                                 elevation: 4,
                                 margin: const EdgeInsets.symmetric(
@@ -479,37 +554,96 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                       }
                                     });
                                   },
-                                  title: isMobile
-                                      ? Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _mobileField('LP', entrega['LP']),
-                                            _mobileField('SKU', entrega['SKU']),
-                                            _mobileField('DESCRIPCION',
-                                                entrega['DESCRIPCION']),
-                                            _mobileField('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _mobileField('Valido',
-                                                entrega['validadoPor'] ?? '-'),
-                                          ],
-                                        )
-                                      : Row(
-                                          children: [
-                                            _infoChip('LP', entrega['LP']),
-                                            _infoChip('SKU', entrega['SKU']),
-                                            _infoChip('DESCRIPCION',
-                                                entrega['DESCRIPCION']),
-                                            _infoChip('JEFATURA',
-                                                entrega['JEFATURA']),
-                                            _infoChip('Valido',
-                                                entrega['validadoPor'] ?? '-'),
-                                          ],
-                                        ),
+                                  title: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final maxWidth = constraints.maxWidth;
+                                      final isMobileLayout = maxWidth < 600;
+                                      final fieldWidth = isMobileLayout
+                                          ? ((maxWidth - 20) / 2)
+                                              .clamp(140.0, 220.0)
+                                          : 160.0;
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          if (fechaRegistro != null)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  bottom: 8.0),
+                                              child: Chip(
+                                                label: Text(
+                                                    _formatearFecha(
+                                                        fechaRegistro),
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600)),
+                                                backgroundColor:
+                                                    const Color(0xFF2D6A4F)
+                                                        .withOpacity(0.15),
+                                              ),
+                                            ),
+                                          isMobileLayout
+                                              ? Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    _campoUniforme(
+                                                        'LP', entrega['LP'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'SKU', entrega['SKU'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'DESCRIPCION',
+                                                        entrega['DESCRIPCION'],
+                                                        width: maxWidth - 20),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme('JEFATURA',
+                                                        entrega['JEFATURA'],
+                                                        width: fieldWidth),
+                                                    const SizedBox(height: 8),
+                                                    _campoUniforme(
+                                                        'Validado',
+                                                        entrega['validadoPor'] ??
+                                                            '-',
+                                                        width: fieldWidth),
+                                                  ],
+                                                )
+                                              : Wrap(
+                                                  spacing: 10,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    _campoUniforme(
+                                                        'LP', entrega['LP'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'SKU', entrega['SKU'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'DESCRIPCION',
+                                                        entrega['DESCRIPCION'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme('JEFATURA',
+                                                        entrega['JEFATURA'],
+                                                        width: fieldWidth),
+                                                    _campoUniforme(
+                                                        'Validado',
+                                                        entrega['validadoPor'] ??
+                                                            '-',
+                                                        width: fieldWidth),
+                                                  ],
+                                                ),
+                                        ],
+                                      );
+                                    },
+                                  ),
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 2),
+                                      horizontal: 12, vertical: 8),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(12),
                                   ),
@@ -537,37 +671,6 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _mobileField(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label: ',
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          Expanded(
-              child: Text('${value ?? '-'}',
-                  style: const TextStyle(fontSize: 16))),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoChip(String label, dynamic value) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE9F5EC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2D6A4F)),
-      ),
-      child: Text('$label: ${value ?? '-'}',
-          style: const TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }
