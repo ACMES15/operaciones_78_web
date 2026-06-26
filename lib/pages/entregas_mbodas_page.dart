@@ -650,17 +650,29 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                                             Padding(
                                               padding: const EdgeInsets.only(
                                                   bottom: 8.0),
-                                              child: Chip(
-                                                label: Text(
-                                                    _formatearFecha(
-                                                        fechaRegistro),
-                                                    style: const TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600)),
-                                                backgroundColor:
-                                                    const Color(0xFF2D6A4F)
-                                                        .withOpacity(0.15),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color:
+                                                      const Color(0xFFE9F5EC),
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color:
+                                                        const Color(0xFF2D6A4F),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  _formatearFecha(
+                                                      fechaRegistro),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
                                               ),
                                             ),
                                           isMobileLayout
