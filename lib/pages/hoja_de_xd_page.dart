@@ -465,13 +465,29 @@ class _HojaDeXDPageState extends State<HojaDeXDPage> {
                                             data[_columns[i]] =
                                                 rowCtrls[i].text;
                                           }
-                                          // Si el destino es 880, imprime primero hoja de ruta especial y luego carátula normal
-                                          if ((data['DESTINO'] ?? '').trim() ==
-                                              '880') {
-                                            await _printHojaRutaXD880(data);
+                                          // Si el destino es 880 (variantes con espacios/prefijos),
+                                          // imprimir primero la hoja de ruta especial y luego la carátula.
+                                          final destinoRaw =
+                                              (data['DESTINO'] ?? '')
+                                                  .toString();
+                                          final destinoNorm = destinoRaw.trim();
+                                          final is880 = destinoNorm == '880' ||
+                                              destinoNorm.endsWith('880') ||
+                                              RegExp(r'\b880\b')
+                                                  .hasMatch(destinoNorm);
+                                          // Log para depuración
+                                          // ignore: avoid_print
+                                          print(
+                                              'HojaXD: destino="$destinoRaw" -> is880=$is880');
+                                          try {
+                                            if (is880) {
+                                              await _printHojaRutaXD880(data);
+                                            }
                                             await _printXDCaratula(data);
-                                          } else {
-                                            await _printXDCaratula(data);
+                                          } catch (err) {
+                                            // ignore: avoid_print
+                                            print(
+                                                'Error imprimiendo carátula/hojaRuta: $err');
                                           }
                                           // Guardar registro en historial XD (Firestore/cache)
                                           final now = DateTime.now();
