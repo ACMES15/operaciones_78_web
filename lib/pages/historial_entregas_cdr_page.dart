@@ -451,8 +451,14 @@ class _HistorialEntregasCdrPageState extends State<HistorialEntregasCdrPage> {
       _resultados = _datosOriginales
           .where((e) =>
               (_lpBusqueda.isEmpty ||
-                  (e['LP']?.toString().toLowerCase() ?? '')
-                      .contains(_lpBusqueda.toLowerCase())) &&
+                  e.entries.any((entry) {
+                    final v = entry.value;
+                    if (v == null) return false;
+                    return v
+                        .toString()
+                        .toLowerCase()
+                        .contains(_lpBusqueda.toLowerCase());
+                  })) &&
               (_jefaturaSeleccionada.isEmpty ||
                   (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada))
           .toList();

@@ -205,8 +205,14 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
         .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
-            (e['LP']?.toString().toLowerCase() ?? '')
-                .contains(_lpBusqueda.toLowerCase()))
+            e.entries.any((entry) {
+              final v = entry.value;
+              if (v == null) return false;
+              return v
+                  .toString()
+                  .toLowerCase()
+                  .contains(_lpBusqueda.toLowerCase());
+            }))
         .where((e) =>
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)
@@ -679,9 +685,7 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.start,
                                                   children: [
-                                                    _campoUniforme(
-                                                        'LP', entrega['LP'],
-                                                        width: fieldWidth),
+                                                    // LP eliminado de la vista según solicitud
                                                     const SizedBox(height: 8),
                                                     _campoUniforme(
                                                         'SKU', entrega['SKU'],
@@ -719,9 +723,7 @@ class _EntregasMbodasPageState extends State<EntregasMbodasPage> {
                                                   spacing: 10,
                                                   runSpacing: 8,
                                                   children: [
-                                                    _campoUniforme(
-                                                        'LP', entrega['LP'],
-                                                        width: fieldWidth),
+                                                    // LP eliminado de la vista según solicitud
                                                     _campoUniforme(
                                                         'SKU', entrega['SKU'],
                                                         width: fieldWidth),

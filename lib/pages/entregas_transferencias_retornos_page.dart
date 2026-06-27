@@ -155,12 +155,14 @@ class _EntregasTransferenciasRetornosPageState
         .where((e) => !idsFirmados.contains(e['id']?.toString()))
         .where((e) =>
             _busqueda.isEmpty ||
-            (e['TF O DEV ']?.toString().toLowerCase() ?? '')
-                .contains(_busqueda.toLowerCase()) ||
-            (e['ORIGEN']?.toString().toLowerCase() ?? '')
-                .contains(_busqueda.toLowerCase()) ||
-            (e['DESTINO']?.toString().toLowerCase() ?? '')
-                .contains(_busqueda.toLowerCase()))
+            e.entries.any((entry) {
+              final v = entry.value;
+              if (v == null) return false;
+              return v
+                  .toString()
+                  .toLowerCase()
+                  .contains(_busqueda.toLowerCase());
+            }))
         .where((e) =>
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)

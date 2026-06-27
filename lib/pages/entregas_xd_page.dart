@@ -134,8 +134,14 @@ class _EntregasXdPageState extends State<EntregasXdPage> {
             .contains(e['id']?.toString().replaceAll(' ', '').toUpperCase()))
         .where((e) =>
             _lpBusqueda.isEmpty ||
-            (e['XD']?.toString().toLowerCase() ?? '')
-                .contains(_lpBusqueda.toLowerCase()))
+            e.entries.any((entry) {
+              final v = entry.value;
+              if (v == null) return false;
+              return v
+                  .toString()
+                  .toLowerCase()
+                  .contains(_lpBusqueda.toLowerCase());
+            }))
         .where((e) =>
             _jefaturaSeleccionada.isEmpty ||
             (e['JEFATURA']?.toString() ?? '') == _jefaturaSeleccionada)

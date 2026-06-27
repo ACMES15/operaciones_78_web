@@ -557,14 +557,16 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   }
 
   // Modificado: impresión usando compute y enviando a impresora seleccionada (si existe)
-  Future<void> _printCaratulaHojaRuta() async {
+  Future<void> _printCaratulaHojaRuta({bool foraneo = false}) async {
     // Obtener datos principales
     final origen = _origen;
-    final destino = _controllers.isNotEmpty &&
-            _idxNombreAlm >= 0 &&
-            _controllers[0].length > _idxNombreAlm
-        ? _controllers[0][_idxNombreAlm].text.trim()
-        : '';
+    final destino = foraneo
+        ? '880 PLAN'
+        : (_controllers.isNotEmpty &&
+                _idxNombreAlm >= 0 &&
+                _controllers[0].length > _idxNombreAlm
+            ? _controllers[0][_idxNombreAlm].text.trim()
+            : '');
     final fechaEnvio = _fechaEnvio;
     final caja = _cajaController.text.trim();
     final tipoHoja =
@@ -893,6 +895,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
+        bool foraneo = false;
         return StatefulBuilder(builder: (context, setModalState) {
           Future<bool> _confirmarSalir() async {
             final tieneDatos = _controllers
@@ -1017,21 +1020,40 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                               color: Colors.green,
                                               fontWeight: FontWeight.bold)),
                                     const SizedBox(width: 8),
-                                    ElevatedButton(
-                                      onPressed: () async {
-                                        final nuevo =
-                                            await getNextNumeroControlFirestore();
-                                        setModalState(() {
-                                          _numeroControlActual = nuevo;
-                                        });
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              const Color(0xFF2D6A4F),
-                                          foregroundColor: Colors.white),
-                                      child: const Text(
-                                          'Generar número de control'),
-                                    )
+                                    Row(children: [
+                                      ElevatedButton(
+                                        onPressed: () async {
+                                          final nuevo =
+                                              await getNextNumeroControlFirestore();
+                                          setModalState(() {
+                                            _numeroControlActual = nuevo;
+                                          });
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                const Color(0xFF2D6A4F),
+                                            foregroundColor: Colors.white),
+                                        child: const Text(
+                                            'Generar número de control'),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      OutlinedButton(
+                                        onPressed: () => setModalState(
+                                            () => foraneo = !foraneo),
+                                        style: OutlinedButton.styleFrom(
+                                          side: BorderSide(
+                                              color: foraneo
+                                                  ? Colors.orange
+                                                  : Colors.grey),
+                                          backgroundColor: foraneo
+                                              ? Colors.orange.withOpacity(0.12)
+                                              : null,
+                                        ),
+                                        child: Text(foraneo
+                                            ? 'Foráneo: ON'
+                                            : 'Foráneo'),
+                                      ),
+                                    ])
                                   ]),
                                 ],
                               ),
@@ -1155,7 +1177,14 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                     foregroundColor: Colors.white),
                                 onPressed: () async {
                                   FocusScope.of(context).unfocus();
-                                  await _printCaratulaHojaRuta();
+                                  // usar flag foraneo del diálogo si está activo
+                                  // `foraneo` es capturado en el closure del diálogo
+                                  try {
+                                    await _printCaratulaHojaRuta(
+                                        foraneo: foraneo);
+                                  } catch (_) {
+                                    await _printCaratulaHojaRuta();
+                                  }
                                 }),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(

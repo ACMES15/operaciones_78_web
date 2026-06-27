@@ -20,6 +20,27 @@ class HojaDeXDHistorialPage extends StatefulWidget {
 class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
   List<HojaDeXDHistorial> historial = [];
   String filtro = '';
+  Timer? _cleanupTimer;
+  bool _cleanupRunning = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Ejecutar limpieza automática de registros mayores a 2 meses
+    // (se ejecuta al inicializar la página)
+    // no await on purpose
+    _cleanupOldEntries();
+    // Ejecutar diariamente mientras la página esté abierta
+    _cleanupTimer = Timer.periodic(const Duration(days: 1), (_) {
+      _cleanupOldEntries();
+    });
+  }
+
+  @override
+  void dispose() {
+    _cleanupTimer?.cancel();
+    super.dispose();
+  }
 
   Future<void> _saveHistorialToFirestore() async {
     // Guardar solo como documentos individuales, no en 'main'
@@ -334,5 +355,68 @@ class _HojaDeXDHistorialPageState extends State<HojaDeXDHistorialPage> {
         );
       },
     );
+  }
+
+  Future<void> _cleanupOldEntries() async {
+    if (_cleanupRunning) return;
+    _cleanupRunning = true;
+    try {
+      final now = DateTime.now();
+      // Usar 60 días como aproximación de 2 meses para evitar problemas con meses negativos
+      final cutoff = now.subtract(const Duration(days: 60));
+      final coll =
+          FirebaseFirestore.instance.collection('hoja_de_xd_historial');
+      final snap = await coll.get();
+      final docsToDelete = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final fechaStr = data['fecha']?.toString();
+        if (fechaStr == null) continue;
+        DateTime? fecha;
+        try {
+          fecha = DateTime.parse(fechaStr);
+        } catch (_) {
+          continue;
+        }
+        if (fecha.isBefore(cutoff)) {
+          docsToDelete.add(doc);
+        }
+      }
+      if (docsToDelete.isEmpty) return;
+
+      // Firestore batch write limit = 500, procesar en chunks
+      const int batchSize = 500;
+      int deleted = 0;
+      for (var i = 0; i < docsToDelete.length; i += batchSize) {
+        final end = (i + batchSize < docsToDelete.length)
+            ? i + batchSize
+            : docsToDelete.length;
+        final batch = FirebaseFirestore.instance.batch();
+        for (var j = i; j < end; j++) {
+          batch.delete(docsToDelete[j].reference);
+        }
+        await batch.commit();
+        deleted += (end - i);
+      }
+
+      try {
+        await invalidateCache('hoja_de_xd_historial', 'main');
+      } catch (_) {}
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Limpieza automática: $deleted registros >2 meses eliminados.'),
+        ));
+      }
+    } catch (e) {
+      // ignore errors to avoid crashing the UI
+      try {
+        // ignore: avoid_print
+        print('Error limpieza hoja_de_xd_historial: $e');
+      } catch (_) {}
+    } finally {
+      _cleanupRunning = false;
+    }
   }
 }

@@ -618,7 +618,9 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                                     const SizedBox(height: 8),
                                                     _campoUniforme(
                                                         'Validado',
-                                                        entrega['validadoPor'] ??
+                                                        entrega['usuarioValido'] ??
+                                                            entrega[
+                                                                'validadoPor'] ??
                                                             '-',
                                                         width: fieldWidth),
                                                   ],
@@ -642,7 +644,9 @@ class _EntregasCycPageState extends State<EntregasCycPage> {
                                                         width: fieldWidth),
                                                     _campoUniforme(
                                                         'Validado',
-                                                        entrega['validadoPor'] ??
+                                                        entrega['usuarioValido'] ??
+                                                            entrega[
+                                                                'validadoPor'] ??
                                                             '-',
                                                         width: fieldWidth),
                                                   ],
