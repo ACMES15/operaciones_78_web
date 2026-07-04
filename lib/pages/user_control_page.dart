@@ -48,6 +48,7 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     // Debe coincidir con el menú de HomePage
     return [
       'Control de usuarios',
+      'Inventarios',
       'Hoja de ruta',
       'Hoja de XD',
       'Historial Hoja de XD',

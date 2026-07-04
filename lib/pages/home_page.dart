@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../pages/user_control_page.dart';
+import '../pages/inventarios_page.dart';
 import '../pages/hoja_de_ruta_page.dart';
 import '../pages/hoja_de_xd_page.dart';
 import '../pages/hoja_de_xd_historial_page.dart';
@@ -88,6 +89,7 @@ class _HomePageState extends State<HomePage> {
     'Dev XD': Icons.extension,
     'Historial Entregas XD': Icons.history,
     'Dev CyC': Icons.assignment,
+    'Inventarios': Icons.inventory,
     // 'Entregas CyC': Icons.assignment_turned_in, // No debe estar en menú
     'Recogidos': Icons.shopping_bag_outlined,
     'Historial Entregas Recogidos': Icons.list_alt,
@@ -116,6 +118,7 @@ class _HomePageState extends State<HomePage> {
     'Mensajes':
         MensajesPage(usuario: widget.usuario, tipoUsuario: widget.tipoUsuario),
     'Control de usuarios': UserControlPageBody(),
+    'Inventarios': InventariosPage(usuario: widget.usuario),
     'Hoja de ruta': HojaDeRutaPage(usuario: widget.usuario),
     'Hoja de XD': HojaDeXDPage(usuario: widget.usuario),
     'Historial Hoja de XD': HojaDeXDHistorialPage(),
@@ -165,6 +168,7 @@ class _HomePageState extends State<HomePage> {
       'Bienvenida',
       'Mensajes',
       'Control de usuarios',
+      'Inventarios',
       'Carta Porte',
       'Historial Carta Porte',
       'Hoja de ruta',
