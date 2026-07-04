@@ -187,58 +187,77 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
   // Métodos permisos por tipo (esqueleto)
   Future<void> _cargarPermisosTipoUsuario() async {
     setState(() => _cargandoPermisos = true);
-    final doc = await FirebaseFirestore.instance
-        .collection('permisos_tipo_usuario')
-        .doc('permisos')
-        .get();
-    if (doc.exists) {
-      final data = doc.data() as Map<String, dynamic>;
-      final nuevosPermisos =
-          data.map((k, v) => MapEntry(k, Map<String, bool>.from(v)));
-      // Unificar tipos de usuario de usuarios y permisos
-      final tiposUsuariosDeUsuarios = usuarios
-          .map((u) => (u['tipo'] ?? '').toString())
-          .where((t) => t.isNotEmpty)
-          .toSet();
-      final tiposUsuariosDePermisos = nuevosPermisos.keys.toSet();
-      final todosLosTipos = {
-        ...tiposUsuariosDeUsuarios,
-        ...tiposUsuariosDePermisos
-      }.toList()
-        ..sort();
-      setState(() {
-        permisosPorTipo = nuevosPermisos;
-        tiposUsuario = todosLosTipos;
-        _cargandoPermisos = false;
-      });
-    } else {
-      final tiposUsuariosDeUsuarios = usuarios
-          .map((u) => (u['tipo'] ?? '').toString())
-          .where((t) => t.isNotEmpty)
-          .toSet();
-      setState(() {
-        permisosPorTipo = {};
-        tiposUsuario = tiposUsuariosDeUsuarios.toList()..sort();
-        _cargandoPermisos = false;
-      });
+    // Intentar ambos formatos que la app ha usado históricamente.
+    Map<String, Map<String, bool>> nuevosPermisos = {};
+
+    try {
+      final docA = await FirebaseFirestore.instance
+          .collection('permisos_tipo_usuario')
+          .doc('permisos_tipo_usuario')
+          .get();
+      if (docA.exists && docA.data() != null) {
+        final d = Map<String, dynamic>.from(docA.data() ?? {});
+        final permisosField = Map<String, dynamic>.from(d['permisos'] ?? {});
+        permisosField.forEach((k, v) {
+          nuevosPermisos[k] = Map<String, bool>.from(v);
+        });
+      } else {
+        final docB = await FirebaseFirestore.instance
+            .collection('permisos_tipo_usuario')
+            .doc('permisos')
+            .get();
+        if (docB.exists && docB.data() != null) {
+          final data = Map<String, dynamic>.from(docB.data() ?? {});
+          data.forEach((k, v) {
+            nuevosPermisos[k] = Map<String, bool>.from(v);
+          });
+        }
+      }
+    } catch (e) {
+      nuevosPermisos = {};
     }
+
+    // Unificar tipos de usuario de usuarios y permisos
+    final tiposUsuariosDeUsuarios = usuarios
+        .map((u) => (u['tipo'] ?? '').toString())
+        .where((t) => t.isNotEmpty)
+        .toSet();
+    final tiposUsuariosDePermisos = nuevosPermisos.keys.toSet();
+    final todosLosTipos = {
+      ...tiposUsuariosDeUsuarios,
+      ...tiposUsuariosDePermisos
+    }.toList()
+      ..sort();
+
+    setState(() {
+      permisosPorTipo = nuevosPermisos;
+      tiposUsuario = todosLosTipos;
+      _cargandoPermisos = false;
+    });
   }
 
   Future<void> _guardarPermisosTipoUsuario() async {
     if (tipoSeleccionadoPermisos == null) return;
-    final docRef = FirebaseFirestore.instance
+    // Guardar en ambos formatos para compatibilidad con las distintas lecturas
+    final docRefA = FirebaseFirestore.instance
+        .collection('permisos_tipo_usuario')
+        .doc('permisos_tipo_usuario');
+    final docA = await docRefA.get();
+    Map<String, dynamic> dataA = {};
+    if (docA.exists) dataA = Map<String, dynamic>.from(docA.data() ?? {});
+    dataA['permisos'] = permisosPorTipo;
+    await docRefA.set(dataA);
+
+    final docRefB = FirebaseFirestore.instance
         .collection('permisos_tipo_usuario')
         .doc('permisos');
-    final doc = await docRef.get();
-    Map<String, dynamic> data = {};
-    if (doc.exists) {
-      // Protección: si doc.data() es null, usar mapa vacío
-      data = Map<String, dynamic>.from(doc.data() ?? {});
-    }
-    // Actualizar solo el tipo seleccionado
-    data[tipoSeleccionadoPermisos!] =
+    final docB = await docRefB.get();
+    Map<String, dynamic> dataB = {};
+    if (docB.exists) dataB = Map<String, dynamic>.from(docB.data() ?? {});
+    // Actualizar solo el tipo seleccionado en el formato antiguo
+    dataB[tipoSeleccionadoPermisos!] =
         permisosPorTipo[tipoSeleccionadoPermisos!];
-    await docRef.set(data);
+    await docRefB.set(dataB);
     ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Permisos guardados en Firestore')));
     _cargarPermisosTipoUsuario();

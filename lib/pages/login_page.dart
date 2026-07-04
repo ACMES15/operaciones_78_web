@@ -151,24 +151,44 @@ class _LoginPageState extends State<LoginPage> {
                       }
                       // Si ya cambió la contraseña, validar normalmente
                       if (passDb == passInput) {
-                        // Obtener páginas permitidas desde permisos_tipo_usuario/permisos/{tipoUsuario}
-                        final permisosSnap = await FirebaseFirestore.instance
-                            .collection('permisos_tipo_usuario')
-                            .doc('permisos')
-                            .get();
-                        print(
-                            '[DEBUG][LOGIN] permisosSnap.exists: ${permisosSnap.exists}');
-                        print(
-                            '[DEBUG][LOGIN] permisosSnap.data(): ${permisosSnap.data()}');
-                        final allPermisos = permisosSnap.data() ?? {};
-                        final permisosData = allPermisos[tipoUsuario] ?? {};
-                        print('[DEBUG][LOGIN] permisosData Firestore:');
-                        if (permisosData is Map) {
-                          permisosData.forEach((k, v) => print('  - "$k": $v'));
-                        } else {
-                          print(
-                              '  [ADVERTENCIA] permisosData no es un mapa. Valor: $permisosData');
+                        // Obtener páginas permitidas: soportar ambos formatos en Firestore
+                        Map<String, dynamic> permisosData = {};
+                        try {
+                          // Formato antiguo: documento 'permisos' con mapa directo
+                          final permisosSnap = await FirebaseFirestore.instance
+                              .collection('permisos_tipo_usuario')
+                              .doc('permisos')
+                              .get();
+                          if (permisosSnap.exists &&
+                              permisosSnap.data() != null) {
+                            final allPermisos = Map<String, dynamic>.from(
+                                permisosSnap.data() ?? {});
+                            permisosData = Map<String, dynamic>.from(
+                                allPermisos[tipoUsuario] ?? {});
+                          }
+                          // Si no se obtuvo nada, intentar formato nuevo: doc 'permisos_tipo_usuario' -> field 'permisos'
+                          if (permisosData.isEmpty) {
+                            final permisosSnap2 = await FirebaseFirestore
+                                .instance
+                                .collection('permisos_tipo_usuario')
+                                .doc('permisos_tipo_usuario')
+                                .get();
+                            if (permisosSnap2.exists &&
+                                permisosSnap2.data() != null) {
+                              final docData = Map<String, dynamic>.from(
+                                  permisosSnap2.data() ?? {});
+                              final permisosField = Map<String, dynamic>.from(
+                                  docData['permisos'] ?? {});
+                              permisosData = Map<String, dynamic>.from(
+                                  permisosField[tipoUsuario] ?? {});
+                            }
+                          }
+                        } catch (e) {
+                          permisosData = {};
                         }
+                        print(
+                            '[DEBUG][LOGIN] permisosData Firestore: $permisosData');
+                        print('[DEBUG][LOGIN] permisosData Firestore:');
                         final paginasPermitidas = <String>[];
                         if (permisosData is Map) {
                           permisosData.forEach((key, value) {
