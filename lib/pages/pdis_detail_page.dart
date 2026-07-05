@@ -83,11 +83,36 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       DateTime? max;
       for (final r in rows) {
         final id = (r['__id'] ?? '').toString();
-        await box.put(id, jsonEncode(r));
-        final imported = r['importedAt'];
+        // ensure we store serializable values (DateTime/Timestamp -> ISO string)
+        final toStore = <String, dynamic>{};
+        r.forEach((k, v) {
+          if (v is Timestamp)
+            toStore[k] = v.toDate().toIso8601String();
+          else if (v is DateTime)
+            toStore[k] = v.toIso8601String();
+          else
+            toStore[k] = v;
+        });
+
+        // if importedAt missing, assign local now (helps incremental sync)
+        DateTime now = DateTime.now().toUtc();
+        if (toStore['importedAt'] == null ||
+            toStore['importedAt'].toString().isEmpty) {
+          toStore['importedAt'] = now.toIso8601String();
+        }
+
+        await box.put(id, jsonEncode(toStore));
+
         DateTime? d;
-        if (imported is Timestamp) d = imported.toDate();
-        if (imported is DateTime) d = imported;
+        final impVal = toStore['importedAt'];
+        if (impVal is String) d = DateTime.tryParse(impVal);
+        if (d == null && impVal is int) {
+          try {
+            d = DateTime.fromMillisecondsSinceEpoch(impVal);
+          } catch (_) {
+            d = null;
+          }
+        }
         if (d != null && (max == null || d.isAfter(max))) max = d;
       }
       if (max != null) await box.put('__lastImportedAt', max.toIso8601String());
@@ -111,11 +136,38 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     try {
       if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
       final box = Hive.box(_boxName);
-      String? lastStr = box.get('__lastImportedAt') as String?;
-      DateTime? last = lastStr != null ? DateTime.tryParse(lastStr) : null;
+      final rawLast = box.get('__lastImportedAt');
+      DateTime? last;
+      if (rawLast is String) {
+        last = DateTime.tryParse(rawLast);
+        if (last == null) {
+          final n = int.tryParse(rawLast);
+          if (n != null) {
+            try {
+              last = DateTime.fromMillisecondsSinceEpoch(n);
+            } catch (_) {
+              last = null;
+            }
+          }
+        }
+      } else if (rawLast is int) {
+        try {
+          last = DateTime.fromMillisecondsSinceEpoch(rawLast);
+        } catch (_) {
+          last = null;
+        }
+      } else if (rawLast is DateTime) {
+        last = rawLast;
+      } else {
+        last = null;
+      }
       Query q = FirebaseFirestore.instance.collection('ohpdis');
       if (last != null) {
-        q = q.where('importedAt', isGreaterThan: Timestamp.fromDate(last));
+        try {
+          q = q.where('importedAt', isGreaterThan: Timestamp.fromDate(last));
+        } catch (_) {
+          // ignore invalid last
+        }
       }
       final snap = await q.get();
       if (snap.docs.isEmpty) return;
