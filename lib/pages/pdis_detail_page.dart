@@ -303,9 +303,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             if (key.isNotEmpty) headerIndex[norm(key)] = i;
           }
 
-          // validate that all expected headers exist in the sheet header (case-insensitive, normalized)
-          final missing = <String>[];
+          // build expectedIndex mapping from expectedHeaders -> column index (normalized)
           final Map<String, int> expectedIndex = {};
+          final missing = <String>[];
           for (final h in expectedHeaders) {
             final nh = norm(h);
             if (headerIndex.containsKey(nh)) {
@@ -321,62 +321,67 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             setState(() => _loading = false);
             return;
           }
-
           for (int r = 1; r < sheet.maxRows; r++) {
-            final row = sheet.row(r);
-            if (row.every((c) => (c?.value?.toString() ?? '').isEmpty))
-              continue;
-            final Map<String, dynamic> obj = {};
-            for (final h in expectedHeaders) {
-              final idx = expectedIndex[h] ?? -1;
-              final cell = (idx >= 0 && idx < row.length) ? row[idx] : null;
-              obj[h] = cell?.value ?? '';
-            }
-
-            // Normalize keys: ensure required keys exist with fallback names
-            String seccion = (obj['Sección'] ??
-                    obj['Seccion'] ??
-                    obj['SECCIÓN'] ??
-                    obj['SECTION'] ??
-                    '')
-                .toString();
-            String referencia = (obj['REFERENCIA'] ??
-                    obj['Referencia'] ??
-                    obj['Descripcion'] ??
-                    obj['DESCRIPCIÓN'] ??
-                    obj['Descripción'] ??
-                    '')
-                .toString();
-            String pdisStr = (obj['PDIS'] ??
-                    obj['Pdis'] ??
-                    obj['Total \$ PDIS'] ??
-                    obj['Total PDIS'] ??
-                    '')
-                .toString();
-            double pdisNum = 0;
             try {
-              pdisNum = double.parse(pdisStr
-                  .toString()
-                  .replaceAll(RegExp(r'[^0-9\\.,-]'), '')
-                  .replaceAll(',', '.'));
-            } catch (_) {
-              pdisNum = 0;
+              final row = sheet.row(r);
+              if (row.every((c) => (c?.value?.toString() ?? '').isEmpty))
+                continue;
+              final Map<String, dynamic> obj = {};
+              for (final h in expectedHeaders) {
+                final idx = expectedIndex[h] ?? -1;
+                final cell = (idx >= 0 && idx < row.length) ? row[idx] : null;
+                // read everything as text to avoid numeric/date auto-parsing issues
+                obj[h] = (cell?.value ?? '').toString();
+              }
+
+              // Normalize keys: ensure required keys exist with fallback names
+              String seccion = (obj['Sección'] ??
+                      obj['Seccion'] ??
+                      obj['SECCIÓN'] ??
+                      obj['SECTION'] ??
+                      '')
+                  .toString();
+              String referencia = (obj['REFERENCIA'] ??
+                      obj['Referencia'] ??
+                      obj['Descripcion'] ??
+                      obj['DESCRIPCIÓN'] ??
+                      obj['Descripción'] ??
+                      '')
+                  .toString();
+              String pdisStr = (obj['PDIS'] ??
+                      obj['Pdis'] ??
+                      obj['Total \$ PDIS'] ??
+                      obj['Total PDIS'] ??
+                      '')
+                  .toString();
+              double pdisNum = 0;
+              try {
+                pdisNum = double.parse(pdisStr
+                    .toString()
+                    .replaceAll(RegExp(r'[^0-9\\.,-]'), '')
+                    .replaceAll(',', '.'));
+              } catch (_) {
+                pdisNum = 0;
+              }
+              obj['__pdis_num'] = pdisNum;
+
+              // Determine Jefatura
+              String jef = (obj['Jefatura'] ?? obj['JEFTURA'] ?? '').toString();
+              if (jef.isEmpty && seccion.isNotEmpty) {
+                jef = _seccionToJefatura[seccion] ?? '';
+              }
+              obj['Jefatura'] = jef;
+
+              // generate id to avoid duplicates
+              final idKey = '$seccion|$referencia|$pdisNum';
+              final id = base64Url.encode(utf8.encode(idKey));
+              obj['__id'] = id;
+
+              parsed.add(obj);
+            } catch (e) {
+              print('Fila $r omitida por error al parsear: $e');
+              continue;
             }
-            obj['__pdis_num'] = pdisNum;
-
-            // Determine Jefatura
-            String jef = (obj['Jefatura'] ?? obj['JEFTURA'] ?? '').toString();
-            if (jef.isEmpty && seccion.isNotEmpty) {
-              jef = _seccionToJefatura[seccion] ?? '';
-            }
-            obj['Jefatura'] = jef;
-
-            // generate id to avoid duplicates
-            final idKey = '$seccion|$referencia|$pdisNum';
-            final id = base64Url.encode(utf8.encode(idKey));
-            obj['__id'] = id;
-
-            parsed.add(obj);
           }
 
           setState(() {
