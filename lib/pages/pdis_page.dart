@@ -8,10 +8,11 @@ class PdisPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: Colors.black,
         title: const Text('PDIS - Auditoría',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -24,13 +25,13 @@ class PdisPage extends StatelessWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black87,
+                      backgroundColor: Colors.black,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
-                    icon: const Icon(Icons.visibility),
-                    label:
-                        const Text('OH PDIS', style: TextStyle(fontSize: 16)),
+                    icon: const Icon(Icons.visibility, color: Colors.white),
+                    label: const Text('OH PDIS',
+                        style: TextStyle(fontSize: 16, color: Colors.white)),
                     onPressed: () {
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => PdisDetailPage(usuario: usuario),

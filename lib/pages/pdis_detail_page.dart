@@ -156,6 +156,12 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
               }
             }
             obj['Jefatura'] = jef;
+            // generar id simple para la fila (Seccion|Referencia|PDIS)
+            final idKey =
+                '${seccion}|${(obj['REFERENCIA'] ?? obj['Descripcion'] ?? obj['Descripción'] ?? '')}|${pdisNum.toString()}';
+            final idBytes = utf8.encode(idKey);
+            final id = base64Url.encode(idBytes);
+            obj['__id'] = id;
             parsed.add(obj);
           }
         }
@@ -183,14 +189,19 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
   // Load local cache (Hive preferred) and check cloud updatedAt to avoid unnecessary reads
   Future<void> _loadCacheThenMaybeCloud() async {
     try {
+      print('PDIS: iniciando Hive...');
       if (!Hive.isBoxOpen('pdis_cache')) {
         await Hive.initFlutter();
         _hiveBox = await Hive.openBox('pdis_cache');
+        print('PDIS: box pdis_cache abierto');
       } else {
         _hiveBox = Hive.box('pdis_cache');
+        print('PDIS: box pdis_cache ya estaba abierto');
       }
       _hiveAvailable = true;
-    } catch (_) {
+    } catch (e, st) {
+      print('PDIS: Hive no disponible: $e');
+      print(st);
       _hiveAvailable = false;
       _hiveBox = null;
     }
@@ -202,6 +213,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         if (data is Map) {
           final rows =
               List<Map<String, dynamic>>.from((data['rows'] ?? []) as List);
+          print('PDIS: cargadas ${rows.length} filas desde Hive cache');
           setState(() => _rows = rows);
         }
       } else {
@@ -209,55 +221,80 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         if (cache != null) {
           final parsed = jsonDecode(cache) as Map<String, dynamic>;
           final rows = List<Map<String, dynamic>>.from(parsed['rows'] ?? []);
+          print('PDIS: cargadas ${rows.length} filas desde localStorage cache');
           setState(() => _rows = rows);
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      print('PDIS: error cargando cache local: $e');
+      print(st);
+    }
 
-    // Check cloud updatedAt
+    // Check Firestore for row-level updates and merge only changes
     try {
-      final docRef =
-          FirebaseFirestore.instance.collection('pdis').doc('latest');
-      final doc = await docRef.get();
-      if (doc.exists && doc.data() != null) {
-        final docData = Map<String, dynamic>.from(doc.data()!);
-        final cloudUpdated = docData['updatedAt'];
-        DateTime? cloudDt;
-        if (cloudUpdated is Timestamp)
-          cloudDt = cloudUpdated.toDate();
-        else if (cloudUpdated is String)
-          cloudDt = DateTime.tryParse(cloudUpdated);
-
-        DateTime? localDt;
-        if (_hiveAvailable &&
-            _hiveBox != null &&
-            _hiveBox!.containsKey('data')) {
-          try {
-            final data = Map<String, dynamic>.from(_hiveBox!.get('data'));
-            localDt = data['syncedAt'] != null
-                ? DateTime.tryParse(data['syncedAt'])
+      DateTime? localDt;
+      if (_hiveAvailable && _hiveBox != null && _hiveBox!.containsKey('data')) {
+        try {
+          final data = Map<String, dynamic>.from(_hiveBox!.get('data'));
+          localDt = data['syncedAt'] != null
+              ? DateTime.tryParse(data['syncedAt'])
+              : null;
+        } catch (_) {}
+      } else {
+        try {
+          final cache = html.window.localStorage['pdis_cache'];
+          if (cache != null) {
+            final parsed = jsonDecode(cache) as Map<String, dynamic>;
+            localDt = parsed['syncedAt'] != null
+                ? DateTime.tryParse(parsed['syncedAt'])
                 : null;
-          } catch (_) {}
-        } else {
-          try {
-            final cache = html.window.localStorage['pdis_cache'];
-            if (cache != null) {
-              final parsed = jsonDecode(cache) as Map<String, dynamic>;
-              localDt = parsed['syncedAt'] != null
-                  ? DateTime.tryParse(parsed['syncedAt'])
-                  : null;
-            }
-          } catch (_) {}
-        }
+          }
+        } catch (_) {}
+      }
 
-        if (cloudDt != null && (localDt == null || cloudDt.isAfter(localDt))) {
-          final cloudRows =
-              List<Map<String, dynamic>>.from(docData['rows'] ?? []);
-          setState(() => _rows = cloudRows);
-          await _saveLocalCache(cloudRows, syncedAt: cloudDt.toIso8601String());
+      final col = FirebaseFirestore.instance.collection('pdis_rows');
+      if (localDt == null) {
+        // sin cache previa, leer todo
+        final snap = await col.get();
+        final cloudRows = snap.docs
+            .map((d) => {...Map<String, dynamic>.from(d.data()), '__id': d.id})
+            .toList();
+        setState(() => _rows = List<Map<String, dynamic>>.from(cloudRows));
+        await _saveLocalCache(_rows,
+            syncedAt: DateTime.now().toIso8601String());
+      } else {
+        // solo leer filas actualizadas desde localDt
+        try {
+          final snap = await col
+              .where('updatedAt', isGreaterThan: Timestamp.fromDate(localDt))
+              .get();
+          if (snap.docs.isNotEmpty) {
+            final changed = snap.docs
+                .map((d) =>
+                    {...Map<String, dynamic>.from(d.data()), '__id': d.id})
+                .toList();
+            // merge cambios en _rows
+            for (final r in changed) {
+              final idx =
+                  _rows.indexWhere((e) => (e['__id'] ?? '') == r['__id']);
+              if (idx >= 0) {
+                _rows[idx] = r;
+              } else {
+                _rows.add(r);
+              }
+            }
+            setState(() => _rows = _rows);
+            await _saveLocalCache(_rows,
+                syncedAt: DateTime.now().toIso8601String());
+          }
+        } catch (e) {
+          print('PDIS: error consultando pdis_rows delta: $e');
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      print('PDIS: error al sincronizar cambios desde Firestore: $e');
+      print(st);
+    }
   }
 
   Future<void> _saveLocalCache(List<Map<String, dynamic>> rows,
@@ -279,35 +316,35 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     try {
       // Asegurar Firebase inicializado
       if (Firebase.apps.isEmpty) {
-        print('Inicializando Firebase antes de escribir pdis/latest');
+        print('Inicializando Firebase antes de escribir pdis_rows');
         await Firebase.initializeApp();
       }
-      final docRef =
-          FirebaseFirestore.instance.collection('pdis').doc('latest');
-      // Normalizar datos para evitar tipos no serializables
-      final normalized = jsonDecode(jsonEncode(rows));
-      print('PDIS: subiendo ${normalized.length} filas a Firestore...');
-      await docRef
-          .set({'rows': normalized, 'updatedAt': FieldValue.serverTimestamp()});
-
-      // Leer documento para obtener el timestamp del servidor y guardarlo en cache local
-      final fresh = await docRef.get();
-      if (fresh.exists && fresh.data() != null) {
-        final data = Map<String, dynamic>.from(fresh.data()!);
-        final cloudUpdated = data['updatedAt'];
-        DateTime? cloudDt;
-        if (cloudUpdated is Timestamp)
-          cloudDt = cloudUpdated.toDate();
-        else if (cloudUpdated is String)
-          cloudDt = DateTime.tryParse(cloudUpdated);
-        if (cloudDt != null) {
-          await _saveLocalCache(
-              List<Map<String, dynamic>>.from(data['rows'] ?? []),
-              syncedAt: cloudDt.toIso8601String());
-          print(
-              'PDIS: guardado en Firestore y cache sincronizada con updatedAt $cloudDt');
-        }
+      final batch = FirebaseFirestore.instance.batch();
+      final col = FirebaseFirestore.instance.collection('pdis_rows');
+      int count = 0;
+      for (final r in rows) {
+        final id = (r['__id'] ?? '').toString();
+        if (id.isEmpty) continue;
+        final docRef = col.doc(id);
+        final payload = Map<String, dynamic>.from(r);
+        payload.remove('__id');
+        payload['__pdis_num'] = (r['__pdis_num'] ?? 0);
+        payload['updatedAt'] = FieldValue.serverTimestamp();
+        batch.set(docRef, payload, SetOptions(merge: true));
+        count++;
       }
+      print('PDIS: subiendo $count filas a pdis_rows (batch)');
+      await batch.commit();
+      print('PDIS: batch commit completado');
+      // actualizar metadato de sincronización
+      try {
+        await FirebaseFirestore.instance
+            .collection('pdis')
+            .doc('last_sync')
+            .set({'updatedAt': FieldValue.serverTimestamp()});
+      } catch (_) {}
+      // actualizar cache local
+      await _saveLocalCache(rows, syncedAt: DateTime.now().toIso8601String());
     } catch (e, st) {
       print('Error en _saveToFirestore: $e');
       print(st);
@@ -335,9 +372,11 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         .toSet()
         .toList();
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
-        title: const Text('OH PDIS - Detalle ejecutivo'),
+        backgroundColor: Colors.black,
+        title: const Text('OH PDIS - Detalle ejecutivo',
+            style: TextStyle(color: Colors.white)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -349,7 +388,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                 Expanded(
                     child: Text('Detalle PDIS',
                         style: TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.bold))),
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black))),
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -383,9 +424,11 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   },
                 ),
                 const SizedBox(width: 16),
+                // Import action lives in the detail page only (kept here)
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Importar desde Excel'),
+                  icon: const Icon(Icons.file_upload, color: Colors.black),
+                  label: const Text('Importar desde Excel',
+                      style: TextStyle(color: Colors.black)),
                   onPressed: _importExcel,
                 ),
               ],
