@@ -4,6 +4,7 @@ import 'dart:html' as html;
 import 'package:excel/excel.dart' as ex;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class PdisDetailPage extends StatefulWidget {
@@ -164,10 +165,17 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         // Save locally and to Firestore
         try {
           await _saveLocalCache(parsed);
-        } catch (_) {}
+          print('PDIS: guardado localmente en caché tras import');
+        } catch (e, st) {
+          print('PDIS: error guardando cache local: $e');
+          print(st);
+        }
         try {
           await _saveToFirestore(parsed);
-        } catch (_) {}
+        } catch (e, st) {
+          print('PDIS: error guardando en Firestore: $e');
+          print(st);
+        }
       });
     });
   }
@@ -269,11 +277,42 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
 
   Future<void> _saveToFirestore(List<Map<String, dynamic>> rows) async {
     try {
+      // Asegurar Firebase inicializado
+      if (Firebase.apps.isEmpty) {
+        print('Inicializando Firebase antes de escribir pdis/latest');
+        await Firebase.initializeApp();
+      }
       final docRef =
           FirebaseFirestore.instance.collection('pdis').doc('latest');
+      // Normalizar datos para evitar tipos no serializables
+      final normalized = jsonDecode(jsonEncode(rows));
+      print('PDIS: subiendo ${normalized.length} filas a Firestore...');
       await docRef
-          .set({'rows': rows, 'updatedAt': FieldValue.serverTimestamp()});
-    } catch (_) {}
+          .set({'rows': normalized, 'updatedAt': FieldValue.serverTimestamp()});
+
+      // Leer documento para obtener el timestamp del servidor y guardarlo en cache local
+      final fresh = await docRef.get();
+      if (fresh.exists && fresh.data() != null) {
+        final data = Map<String, dynamic>.from(fresh.data()!);
+        final cloudUpdated = data['updatedAt'];
+        DateTime? cloudDt;
+        if (cloudUpdated is Timestamp)
+          cloudDt = cloudUpdated.toDate();
+        else if (cloudUpdated is String)
+          cloudDt = DateTime.tryParse(cloudUpdated);
+        if (cloudDt != null) {
+          await _saveLocalCache(
+              List<Map<String, dynamic>>.from(data['rows'] ?? []),
+              syncedAt: cloudDt.toIso8601String());
+          print(
+              'PDIS: guardado en Firestore y cache sincronizada con updatedAt $cloudDt');
+        }
+      }
+    } catch (e, st) {
+      print('Error en _saveToFirestore: $e');
+      print(st);
+      rethrow;
+    }
   }
 
   List<Map<String, dynamic>> get _filteredRows {
