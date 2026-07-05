@@ -317,7 +317,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   children: [
                     const Text('Total PDIS',
                         style: TextStyle(color: Colors.black54)),
-                    Text('\$${_totalPdisFiltered.toStringAsFixed(2)}',
+                    Text(_totalPdisFiltered.toStringAsFixed(2),
                         style: const TextStyle(
                             fontSize: 18, fontWeight: FontWeight.bold)),
                   ],
@@ -393,7 +393,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                        'PDIS: \$${(row['__pdis_num'] ?? 0).toStringAsFixed(2)}',
+                                        'PDIS: ${(row['__pdis_num'] ?? 0).toStringAsFixed(2)}',
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 6),

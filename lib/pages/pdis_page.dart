@@ -18,39 +18,15 @@ class PdisPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Auditoría PDIS',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Usuario: $usuario',
-                style: const TextStyle(color: Colors.black54)),
-            const SizedBox(height: 20),
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text('Resumen ejecutivo',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 8),
-                    Text(
-                        'KPIs y estado de auditoría PDIS se muestran aquí de forma breve.'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+            // Botón principal colocado arriba con contraste
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D6A4F),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      backgroundColor: Colors.black87,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     icon: const Icon(Icons.visibility),
                     label:
@@ -62,25 +38,20 @@ class PdisPage extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.file_upload),
-                  label: const Text('Importar Excel'),
-                  onPressed: () {
-                    // Navega directamente al detalle donde está el importador
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => PdisDetailPage(usuario: usuario),
-                    ));
-                  },
-                )
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            const Text('Auditoría PDIS',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Usuario: $usuario',
+                style: const TextStyle(color: Colors.black54)),
+            const SizedBox(height: 24),
+            // Mensaje guía
             Expanded(
               child: Center(
-                child: Text(
-                    'Seleccione "OH PDIS" para ver detalles e importar datos',
-                    style: TextStyle(color: Colors.black45)),
+                child:
+                    Text(' "OH PDIS"', style: TextStyle(color: Colors.black45)),
               ),
             ),
           ],
