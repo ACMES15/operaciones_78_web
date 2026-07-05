@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../utils/firebase_cache_utils.dart';
 
 class PdisDetailPage extends StatefulWidget {
   final String usuario;
@@ -123,46 +124,6 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     return out;
   }
 
-  Future<void> _syncFromFirestore() async {
-    try {
-      if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
-      final box = Hive.box(_boxName);
-      final rawLast = box.get('__lastImportedAt');
-      // use robust parser to avoid RangeError for malformed/magnitude-unexpected values
-      DateTime? last = _safeParseDate(rawLast);
-      Query q = FirebaseFirestore.instance
-          .collection('ohpdis')
-          .where('owner', isEqualTo: widget.usuario);
-      if (last != null) {
-        try {
-          q = q.where('importedAt', isGreaterThan: Timestamp.fromDate(last));
-        } catch (_) {
-          // ignore invalid last
-        }
-      }
-      final snap = await q.get();
-      if (snap.docs.isEmpty) return;
-      DateTime? max;
-      for (final doc in snap.docs) {
-        final raw = doc.data();
-        if (raw is! Map) continue;
-        final data = Map<String, dynamic>.from(raw.cast<String, dynamic>());
-        data['__id'] = doc.id;
-        final norm = _normalizeFirestoreData(data);
-        await box.put(doc.id, jsonEncode(norm));
-        final imp = data['importedAt'];
-        if (imp is Timestamp) {
-          final d = imp.toDate();
-          if (max == null || d.isAfter(max)) max = d;
-        }
-      }
-      if (max != null) await box.put('__lastImportedAt', max.toIso8601String());
-      await _loadFromHiveToState();
-    } catch (e) {
-      print('Error syncing from Firestore: $e');
-    }
-  }
-
   DateTime? _safeParseDate(dynamic val) {
     if (val == null) return null;
     try {
@@ -171,14 +132,13 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       if (val is String) {
         final parsed = DateTime.tryParse(val);
         if (parsed != null) return parsed.toUtc();
-        // maybe it's numeric in string
         final n = int.tryParse(val);
         if (n != null) return _safeParseDate(n);
         return null;
       }
       if (val is int) {
         final int raw = val;
-        const int maxAllow = 8640000000000000; // safe range used by DateTime
+        const int maxAllow = 8640000000000000;
         final List<int> divisors = [1000000000, 1000000, 1000, 1];
         for (final div in divisors) {
           final cand = raw ~/ div;
@@ -187,11 +147,8 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             final dt = DateTime.fromMillisecondsSinceEpoch(cand);
             final y = dt.year;
             if (y >= 1970 && y <= 2100) return dt.toUtc();
-          } catch (_) {
-            // try next
-          }
+          } catch (_) {}
         }
-        // try microseconds directly if within safe bounds
         if (raw.abs() <= maxAllow) {
           try {
             final dtm = DateTime.fromMicrosecondsSinceEpoch(raw);
@@ -199,7 +156,6 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             if (y >= 1970 && y <= 2100) return dtm.toUtc();
           } catch (_) {}
         }
-        // excel serial days fallback (typical small numbers)
         if (raw > 0 && raw < 200000) {
           try {
             final excelEpoch = DateTime.utc(1899, 12, 30);
@@ -210,6 +166,45 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       }
     } catch (_) {}
     return null;
+  }
+
+  Future<void> _syncFromFirestore() async {
+    try {
+      if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
+      final box = Hive.box(_boxName);
+      final doc = await FirebaseFirestore.instance
+          .collection('ohpdis')
+          .doc('datos')
+          .get();
+      if (!doc.exists || doc.data() == null) return;
+      final raw = doc.data()!;
+      if (raw['datos'] is! List) return;
+      final List items = raw['datos'];
+      DateTime? max;
+      for (final it in items) {
+        if (it is! Map) continue;
+        final Map<String, dynamic> data =
+            Map<String, dynamic>.from(it.cast<String, dynamic>());
+        String id = data['__id']?.toString() ?? '';
+        if (id.isEmpty) {
+          final seccion = (data['Sección'] ?? '').toString();
+          final referencia =
+              (data['REFERENCIA'] ?? data['Referencia'] ?? '').toString();
+          final pdisNum = (data['__pdis_num'] ?? 0).toString();
+          id = base64Url.encode(utf8.encode('$seccion|$referencia|$pdisNum'));
+          data['__id'] = id;
+        }
+        final norm = _normalizeFirestoreData(data);
+        await box.put(id, jsonEncode(norm));
+        final parsed = _safeParseDate(data['importedAt']);
+        if (parsed != null && (max == null || parsed.isAfter(max)))
+          max = parsed;
+      }
+      if (max != null) await box.put('__lastImportedAt', max.toIso8601String());
+      await _loadFromHiveToState();
+    } catch (e) {
+      print('Error syncing from Firestore: $e');
+    }
   }
 
   Future<void> _ensureFirebase() async {
@@ -401,19 +396,19 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     if (_rows.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final col = FirebaseFirestore.instance.collection('ohpdis');
-      final batch = FirebaseFirestore.instance.batch();
-      for (final r in _rows) {
-        final id = (r['__id'] ?? '').toString();
-        final docRef = col.doc(id);
-        final payload = Map<String, dynamic>.from(r);
-        payload.remove('__id');
-        payload['__pdis_num'] = (r['__pdis_num'] ?? 0);
-        payload['owner'] = widget.usuario;
-        payload['importedAt'] = Timestamp.now();
-        batch.set(docRef, payload, SetOptions(merge: true));
-      }
-      await batch.commit();
+      // Option B: save all rows into single document ohpdis/datos
+      final List<Map<String, dynamic>> datosMapeados = _rows.map((r) {
+        final m = Map<String, dynamic>.from(r);
+        // keep fields but remove any non-serializable
+        m.remove('__id');
+        return m;
+      }).toList();
+      final payload = {
+        'datos': datosMapeados,
+        'owner': widget.usuario,
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      await guardarDatosFirestoreYCache('ohpdis', 'datos', payload);
       await _saveRowsToHive(_rows);
       await _loadFromHiveToState();
       ScaffoldMessenger.of(context).showSnackBar(
