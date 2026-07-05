@@ -429,9 +429,32 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         .toList();
   }
 
+  double _getPdisValue(Map<String, dynamic> r) {
+    try {
+      final candidates = [
+        r['__pdis_num'],
+        r['PDIS'],
+        r['Total \$ PDIS'],
+        r['Total PDIS']
+      ];
+      for (final c in candidates) {
+        if (c == null) continue;
+        if (c is num) return c.toDouble();
+        final s = c.toString().trim();
+        if (s.isEmpty) continue;
+        // remove currency and thousands separators, allow negative and decimals
+        final cleaned =
+            s.replaceAll(RegExp(r"[^0-9\-\.,]"), '').replaceAll(',', '.');
+        if (cleaned.isEmpty) continue;
+        final v = double.tryParse(cleaned);
+        if (v != null) return v;
+      }
+    } catch (_) {}
+    return 0.0;
+  }
+
   double get _totalPdisFiltered {
-    return _filteredRows.fold(
-        0.0, (s, r) => s + ((r['__pdis_num'] ?? 0) as double));
+    return _filteredRows.fold(0.0, (double s, r) => s + _getPdisValue(r));
   }
 
   int get _countFiltered {
@@ -445,108 +468,221 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         .where((s) => s.isNotEmpty)
         .toSet()
         .toList();
-    final columns = [
-      'Sección',
-      'SKU',
-      'PDIS',
-      'REFERENCIA',
-      'Tex.Cab.Doc.',
-      'Descripción',
-      'Total \$ PDIS',
-      'Documento',
-      'Fecha Documento',
-      'Antigüedad Documento dias',
-      'Jefatura'
-    ];
 
     return Scaffold(
       appBar: AppBar(title: const Text('PDIS - Detalle')),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Text('Filtrar Jefatura: '),
-                const SizedBox(width: 8),
-                DropdownButton<String>(
-                  value: _filterJefatura ?? '',
-                  items: [
-                    const DropdownMenuItem(value: '', child: Text('Todas'))
-                  ]
-                      .followedBy(jefaturas.map(
-                          (j) => DropdownMenuItem(value: j, child: Text(j))))
-                      .toList(),
-                  onChanged: (v) {
-                    setState(() {
-                      _filterJefatura = (v == null || v.isEmpty) ? null : v;
-                    });
-                  },
-                ),
-                const SizedBox(width: 16),
-                Text('Filtradas: ${_countFiltered.toString()}'),
-                const SizedBox(width: 12),
-                Text('Total PDIS: ${_totalPdisFiltered.toStringAsFixed(2)}'),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _loading ? null : _importExcel,
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Importar Excel'),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: (_loading || _rows.isEmpty)
-                      ? null
-                      : _saveToFirestoreFromState,
-                  icon: const Icon(Icons.save),
-                  label: const Text('Guardar'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns:
-                      columns.map((c) => DataColumn(label: Text(c))).toList(),
-                  rows: () {
-                    if (_filteredRows.isEmpty) {
-                      // show a single example row with header names to help identification
-                      return [
-                        DataRow(
-                          cells: columns
-                              .map((c) => DataCell(Text(c,
-                                  style: const TextStyle(color: Colors.grey))))
-                              .toList(),
-                        )
-                      ];
-                    }
-                    return _filteredRows.map((r) {
-                      String cell(String k) =>
-                          (r[k] ?? r[k.trim()] ?? '').toString();
-                      return DataRow(cells: [
-                        DataCell(Text(cell('Sección'))),
-                        DataCell(Text(cell('SKU'))),
-                        DataCell(Text((r['__pdis_num'] ?? 0).toString())),
-                        DataCell(Text(cell('REFERENCIA'))),
-                        DataCell(Text(cell('Tex.Cab.Doc.'))),
-                        DataCell(Text(cell('Descripción'))),
-                        DataCell(Text(cell('Total \$ PDIS'))),
-                        DataCell(Text(cell('Documento'))),
-                        DataCell(Text(cell('Fecha Documento'))),
-                        DataCell(Text(cell('Antigüedad Documento dias'))),
-                        DataCell(Text(cell('Jefatura'))),
-                      ]);
-                    }).toList();
-                  }(),
-                ),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 900;
+
+          // Controls area with Wrap to avoid overflow
+          final controls = Card(
+            elevation: 1,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  const Text('Filtrar Jefatura: '),
+                  DropdownButton<String>(
+                    value: _filterJefatura ?? '',
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('Todas'))
+                    ]
+                        .followedBy(jefaturas.map(
+                            (j) => DropdownMenuItem(value: j, child: Text(j))))
+                        .toList(),
+                    onChanged: (v) {
+                      setState(() {
+                        _filterJefatura = (v == null || v.isEmpty) ? null : v;
+                      });
+                    },
+                  ),
+                  Text('Filtradas: ${_countFiltered.toString()}'),
+                  Text('Total PDIS: ${_totalPdisFiltered.toStringAsFixed(2)}'),
+                  TextButton.icon(
+                    onPressed: _loading ? null : _importExcel,
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Importar Excel'),
+                  ),
+                  TextButton.icon(
+                    onPressed: (_loading || _rows.isEmpty)
+                        ? null
+                        : _saveToFirestoreFromState,
+                    icon: const Icon(Icons.save),
+                    label: const Text('Guardar'),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          );
+
+          // Executive card view for narrow screens
+          if (isNarrow) {
+            return Column(
+              children: [
+                controls,
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _filteredRows.isEmpty
+                      ? Center(
+                          child: Text(
+                              'Sin datos. Usa "Importar Excel" para cargar una vista previa.',
+                              style: TextStyle(color: Colors.grey[700])),
+                        )
+                      : ListView.builder(
+                          itemCount: _filteredRows.length,
+                          itemBuilder: (context, idx) {
+                            final r = _filteredRows[idx];
+                            final title =
+                                '${(r['Sección'] ?? '-')} - ${(r['REFERENCIA'] ?? r['Referencia'] ?? '-')}';
+                            final pdis = (r['__pdis_num'] ?? 0) as double;
+                            return Card(
+                              margin: const EdgeInsets.symmetric(vertical: 6),
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                            child: SelectableText(title,
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 14))),
+                                        SelectableText(
+                                            '\$${pdis.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 14)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 6,
+                                      children: [
+                                        _smallField('SKU', r['SKU']),
+                                        _smallField(
+                                            'Documento', r['Documento']),
+                                        _smallField(
+                                            'Fecha', r['Fecha Documento']),
+                                        _smallField('Antigüedad',
+                                            r['Antigüedad Documento dias']),
+                                        _smallField('Jefatura', r['Jefatura']),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            );
+          }
+
+          // Wide screen: keep table but allow scrolling both axes
+          final columns = [
+            'Sección',
+            'SKU',
+            'PDIS',
+            'REFERENCIA',
+            'Tex.Cab.Doc.',
+            'Descripción',
+            'Total \$ PDIS',
+            'Documento',
+            'Fecha Documento',
+            'Antigüedad Documento dias',
+            'Jefatura'
+          ];
+
+          return Column(
+            children: [
+              controls,
+              const SizedBox(height: 8),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: SingleChildScrollView(
+                      child: DataTable(
+                        columns: columns
+                            .map((c) => DataColumn(label: Text(c)))
+                            .toList(),
+                        rows: () {
+                          if (_filteredRows.isEmpty) {
+                            return [
+                              DataRow(
+                                cells: columns
+                                    .map((c) => DataCell(Text(c,
+                                        style: const TextStyle(
+                                            color: Colors.grey))))
+                                    .toList(),
+                              )
+                            ];
+                          }
+                          return _filteredRows.map((r) {
+                            String cell(String k) =>
+                                (r[k] ?? r[k.trim()] ?? '').toString();
+                            final pdis = (r['__pdis_num'] ?? 0) as double;
+                            return DataRow(cells: [
+                              DataCell(SelectableText(cell('Sección'))),
+                              DataCell(SelectableText(cell('SKU'))),
+                              DataCell(SelectableText(pdis.toStringAsFixed(2))),
+                              DataCell(SelectableText(cell('REFERENCIA'))),
+                              DataCell(SelectableText(cell('Tex.Cab.Doc.'))),
+                              DataCell(SelectableText(cell('Descripción'))),
+                              DataCell(SelectableText(cell('Total \$ PDIS'))),
+                              DataCell(SelectableText(cell('Documento'))),
+                              DataCell(SelectableText(cell('Fecha Documento'))),
+                              DataCell(SelectableText(
+                                  cell('Antigüedad Documento dias'))),
+                              DataCell(SelectableText(cell('Jefatura'))),
+                            ]);
+                          }).toList();
+                        }(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _smallField(String label, dynamic value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F9FA),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style:
+                  const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          SizedBox(
+              width: 140,
+              child: Text((value ?? '-').toString(),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  style: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600))),
+        ],
       ),
     );
   }
