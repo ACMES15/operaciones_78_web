@@ -103,16 +103,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
 
         await box.put(id, jsonEncode(toStore));
 
-        DateTime? d;
-        final impVal = toStore['importedAt'];
-        if (impVal is String) d = DateTime.tryParse(impVal);
-        if (d == null && impVal is int) {
-          try {
-            d = DateTime.fromMillisecondsSinceEpoch(impVal);
-          } catch (_) {
-            d = null;
-          }
-        }
+        DateTime? d = _safeParseDate(toStore['importedAt']);
         if (d != null && (max == null || d.isAfter(max))) max = d;
       }
       if (max != null) await box.put('__lastImportedAt', max.toIso8601String());
@@ -190,6 +181,51 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     } catch (e) {
       print('Error syncing from Firestore: $e');
     }
+  }
+
+  DateTime? _safeParseDate(dynamic val) {
+    if (val == null) return null;
+    try {
+      if (val is DateTime) return val.toUtc();
+      if (val is Timestamp) return val.toDate().toUtc();
+      if (val is String) {
+        final parsed = DateTime.tryParse(val);
+        if (parsed != null) return parsed.toUtc();
+        // maybe it's numeric in string
+        final n = int.tryParse(val);
+        if (n != null) return _safeParseDate(n);
+        return null;
+      }
+      if (val is int) {
+        final int raw = val;
+        final List<int> divisors = [1, 1000, 1000000, 1000000000];
+        for (final div in divisors) {
+          try {
+            final cand = raw ~/ div;
+            final dt = DateTime.fromMillisecondsSinceEpoch(cand);
+            final y = dt.year;
+            if (y >= 1970 && y <= 2100) return dt.toUtc();
+          } catch (_) {
+            // try next
+          }
+        }
+        // try microseconds directly
+        try {
+          final dtm = DateTime.fromMicrosecondsSinceEpoch(raw);
+          final y = dtm.year;
+          if (y >= 1970 && y <= 2100) return dtm.toUtc();
+        } catch (_) {}
+        // excel serial days fallback (typical small numbers)
+        if (raw > 0 && raw < 200000) {
+          try {
+            final excelEpoch = DateTime.utc(1899, 12, 30);
+            return excelEpoch.add(Duration(days: raw)).toUtc();
+          } catch (_) {}
+        }
+        return null;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> _ensureFirebase() async {
