@@ -470,33 +470,43 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             ),
             const SizedBox(height: 12),
             Expanded(
-              child: _filteredRows.isEmpty
-                  ? const Center(child: Text('No hay datos importados'))
-                  : SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columns: columns
-                            .map((c) => DataColumn(label: Text(c)))
-                            .toList(),
-                        rows: _filteredRows.map((r) {
-                          String cell(String k) =>
-                              (r[k] ?? r[k.trim()] ?? '').toString();
-                          return DataRow(cells: [
-                            DataCell(Text(cell('Sección'))),
-                            DataCell(Text(cell('SKU'))),
-                            DataCell(Text((r['__pdis_num'] ?? 0).toString())),
-                            DataCell(Text(cell('REFERENCIA'))),
-                            DataCell(Text(cell('Tex.Cab.Doc.'))),
-                            DataCell(Text(cell('Descripción'))),
-                            DataCell(Text(cell('Total \$ PDIS'))),
-                            DataCell(Text(cell('Documento'))),
-                            DataCell(Text(cell('Fecha Documento'))),
-                            DataCell(Text(cell('Antigüedad Documento dias'))),
-                            DataCell(Text(cell('Jefatura'))),
-                          ]);
-                        }).toList(),
-                      ),
-                    ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns:
+                      columns.map((c) => DataColumn(label: Text(c))).toList(),
+                  rows: () {
+                    if (_filteredRows.isEmpty) {
+                      // show a single example row with header names to help identification
+                      return [
+                        DataRow(
+                          cells: columns
+                              .map((c) => DataCell(Text(c,
+                                  style: const TextStyle(color: Colors.grey))))
+                              .toList(),
+                        )
+                      ];
+                    }
+                    return _filteredRows.map((r) {
+                      String cell(String k) =>
+                          (r[k] ?? r[k.trim()] ?? '').toString();
+                      return DataRow(cells: [
+                        DataCell(Text(cell('Sección'))),
+                        DataCell(Text(cell('SKU'))),
+                        DataCell(Text((r['__pdis_num'] ?? 0).toString())),
+                        DataCell(Text(cell('REFERENCIA'))),
+                        DataCell(Text(cell('Tex.Cab.Doc.'))),
+                        DataCell(Text(cell('Descripción'))),
+                        DataCell(Text(cell('Total \$ PDIS'))),
+                        DataCell(Text(cell('Documento'))),
+                        DataCell(Text(cell('Fecha Documento'))),
+                        DataCell(Text(cell('Antigüedad Documento dias'))),
+                        DataCell(Text(cell('Jefatura'))),
+                      ]);
+                    }).toList();
+                  }(),
+                ),
+              ),
             ),
           ],
         ),
