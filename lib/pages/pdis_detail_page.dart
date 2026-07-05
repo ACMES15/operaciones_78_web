@@ -36,7 +36,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     await _syncFromFirestore();
   }
 
-  final String _boxName = 'ohpdis_cache';
+  String get _boxName => 'ohpdis_cache_${widget.usuario}';
 
   Future<void> _ensureHive() async {
     try {
@@ -152,7 +152,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       } else {
         last = null;
       }
-      Query q = FirebaseFirestore.instance.collection('ohpdis');
+      Query q = FirebaseFirestore.instance
+          .collection('ohpdis')
+          .where('owner', isEqualTo: widget.usuario);
       if (last != null) {
         try {
           q = q.where('importedAt', isGreaterThan: Timestamp.fromDate(last));
@@ -369,7 +371,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
               final payload = Map<String, dynamic>.from(r);
               payload.remove('__id');
               payload['__pdis_num'] = (r['__pdis_num'] ?? 0);
-              payload['importedAt'] = FieldValue.serverTimestamp();
+              // ensure owner and immediate timestamp so Firestore doc is readable right away
+              payload['owner'] = widget.usuario;
+              payload['importedAt'] = Timestamp.now();
               batch.set(docRef, payload, SetOptions(merge: true));
             }
             await batch.commit();
