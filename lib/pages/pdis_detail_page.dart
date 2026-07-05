@@ -200,10 +200,12 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       }
       if (val is int) {
         final int raw = val;
-        final List<int> divisors = [1, 1000, 1000000, 1000000000];
+        const int maxAllow = 8640000000000000; // safe range used by DateTime
+        final List<int> divisors = [1000000000, 1000000, 1000, 1];
         for (final div in divisors) {
+          final cand = raw ~/ div;
+          if (cand.abs() > maxAllow) continue;
           try {
-            final cand = raw ~/ div;
             final dt = DateTime.fromMillisecondsSinceEpoch(cand);
             final y = dt.year;
             if (y >= 1970 && y <= 2100) return dt.toUtc();
@@ -211,12 +213,14 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             // try next
           }
         }
-        // try microseconds directly
-        try {
-          final dtm = DateTime.fromMicrosecondsSinceEpoch(raw);
-          final y = dtm.year;
-          if (y >= 1970 && y <= 2100) return dtm.toUtc();
-        } catch (_) {}
+        // try microseconds directly if within safe bounds
+        if (raw.abs() <= maxAllow) {
+          try {
+            final dtm = DateTime.fromMicrosecondsSinceEpoch(raw);
+            final y = dtm.year;
+            if (y >= 1970 && y <= 2100) return dtm.toUtc();
+          } catch (_) {}
+        }
         // excel serial days fallback (typical small numbers)
         if (raw > 0 && raw < 200000) {
           try {
@@ -292,13 +296,52 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             return;
           }
 
-          // Headers expected (case-insensitive): Sección, SKU, PDIS, REFERENCIA, Tex.Cab.Doc., Descripción, Total $ PDIS, Documento, Fecha Documento, Antigüedad Documento dias, Jefatura
+          // Expected headers (in this exact semantic set)
+          final expectedHeaders = [
+            'Sección',
+            'SKU',
+            'PDIS',
+            'REFERENCIA',
+            'Tex.Cab.Doc.',
+            'Descripción',
+            'Total \$ PDIS',
+            'Documento',
+            'Fecha Documento',
+            'Antigüedad Documento dias',
+            'Jefatura'
+          ];
+
+          String norm(String s) => s
+              .toString()
+              .trim()
+              .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+              .toLowerCase();
+
           final headerRow = sheet.row(0);
           final Map<String, int> headerIndex = {};
           for (int i = 0; i < headerRow.length; i++) {
             final cell = headerRow[i];
             final key = cell?.value?.toString().trim() ?? '';
-            if (key.isNotEmpty) headerIndex[key] = i;
+            if (key.isNotEmpty) headerIndex[norm(key)] = i;
+          }
+
+          // validate that all expected headers exist in the sheet header (case-insensitive, normalized)
+          final missing = <String>[];
+          final Map<String, int> expectedIndex = {};
+          for (final h in expectedHeaders) {
+            final nh = norm(h);
+            if (headerIndex.containsKey(nh)) {
+              expectedIndex[h] = headerIndex[nh]!;
+            } else {
+              missing.add(h);
+            }
+          }
+          if (missing.isNotEmpty) {
+            final msg = 'Faltan encabezados: ${missing.join(', ')}';
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(msg)));
+            setState(() => _loading = false);
+            return;
           }
 
           for (int r = 1; r < sheet.maxRows; r++) {
@@ -306,10 +349,11 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             if (row.every((c) => (c?.value?.toString() ?? '').isEmpty))
               continue;
             final Map<String, dynamic> obj = {};
-            headerIndex.forEach((key, idx) {
-              final cell = idx < row.length ? row[idx] : null;
-              obj[key] = cell?.value ?? '';
-            });
+            for (final h in expectedHeaders) {
+              final idx = expectedIndex[h] ?? -1;
+              final cell = (idx >= 0 && idx < row.length) ? row[idx] : null;
+              obj[h] = cell?.value ?? '';
+            }
 
             // Normalize keys: ensure required keys exist with fallback names
             String seccion = (obj['Sección'] ??
@@ -393,6 +437,36 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     });
   }
 
+  Future<void> _saveToFirestoreFromState() async {
+    if (_rows.isEmpty) return;
+    setState(() => _loading = true);
+    try {
+      final col = FirebaseFirestore.instance.collection('ohpdis');
+      final batch = FirebaseFirestore.instance.batch();
+      for (final r in _rows) {
+        final id = (r['__id'] ?? '').toString();
+        final docRef = col.doc(id);
+        final payload = Map<String, dynamic>.from(r);
+        payload.remove('__id');
+        payload['__pdis_num'] = (r['__pdis_num'] ?? 0);
+        payload['owner'] = widget.usuario;
+        payload['importedAt'] = Timestamp.now();
+        batch.set(docRef, payload, SetOptions(merge: true));
+      }
+      await batch.commit();
+      await _saveRowsToHive(_rows);
+      await _loadFromHiveToState();
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Datos guardados en Firestore')));
+    } catch (e) {
+      print('Error guardando desde estado: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error guardando: $e')));
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
   List<Map<String, dynamic>> get _filteredRows {
     if (_filterJefatura == null || _filterJefatura!.isEmpty) return _rows;
     return _rows
@@ -465,6 +539,14 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   onPressed: _loading ? null : _importExcel,
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Importar Excel'),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: (_loading || _rows.isEmpty)
+                      ? null
+                      : _saveToFirestoreFromState,
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar'),
                 ),
               ],
             ),
