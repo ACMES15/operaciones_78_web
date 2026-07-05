@@ -402,32 +402,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           }
 
           setState(() {
-            _rows = parsed;
+            _rows =
+                parsed; // preview only; user must press 'Guardar' to persist
           });
-
-          // Save to Firestore collection 'ohpdis'
-          try {
-            final col = FirebaseFirestore.instance.collection('ohpdis');
-            final batch = FirebaseFirestore.instance.batch();
-            for (final r in parsed) {
-              final id = (r['__id'] ?? '').toString();
-              final docRef = col.doc(id);
-              final payload = Map<String, dynamic>.from(r);
-              payload.remove('__id');
-              payload['__pdis_num'] = (r['__pdis_num'] ?? 0);
-              // ensure owner and immediate timestamp so Firestore doc is readable right away
-              payload['owner'] = widget.usuario;
-              payload['importedAt'] = Timestamp.now();
-              batch.set(docRef, payload, SetOptions(merge: true));
-            }
-            await batch.commit();
-            // update local cache (Hive) with parsed rows
-            await _saveRowsToHive(parsed);
-            await _loadFromHiveToState();
-          } catch (e) {
-            // ignore write errors but print
-            print('Error guardando ohpdis: $e');
-          }
         } catch (e) {
           print('Error importando excel: $e');
         } finally {
