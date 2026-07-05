@@ -128,30 +128,8 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
       final box = Hive.box(_boxName);
       final rawLast = box.get('__lastImportedAt');
-      DateTime? last;
-      if (rawLast is String) {
-        last = DateTime.tryParse(rawLast);
-        if (last == null) {
-          final n = int.tryParse(rawLast);
-          if (n != null) {
-            try {
-              last = DateTime.fromMillisecondsSinceEpoch(n);
-            } catch (_) {
-              last = null;
-            }
-          }
-        }
-      } else if (rawLast is int) {
-        try {
-          last = DateTime.fromMillisecondsSinceEpoch(rawLast);
-        } catch (_) {
-          last = null;
-        }
-      } else if (rawLast is DateTime) {
-        last = rawLast;
-      } else {
-        last = null;
-      }
+      // use robust parser to avoid RangeError for malformed/magnitude-unexpected values
+      DateTime? last = _safeParseDate(rawLast);
       Query q = FirebaseFirestore.instance
           .collection('ohpdis')
           .where('owner', isEqualTo: widget.usuario);
