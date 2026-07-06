@@ -608,7 +608,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 48),
                         child: SizedBox(
-                          width: math.min(constraints.maxWidth, 900),
+                          width: math.min(constraints.maxWidth, 1200),
                           child: DefaultTextStyle.merge(
                             style: const TextStyle(color: Colors.black),
                             child: SizedBox(
@@ -627,49 +627,59 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                     child: Row(
                                       children: [
                                         SizedBox(
-                                            width: 220,
+                                            width: 200,
                                             child: Text('Sección',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     color: Colors.black,
                                                     fontWeight:
                                                         FontWeight.w700))),
                                         SizedBox(
-                                            width: 120,
+                                            width: 100,
                                             child: Center(
                                                 child: Text('SKU',
-                                                    style: TextStyle(
+                                                    style: const TextStyle(
                                                         color: Colors.black,
                                                         fontWeight:
                                                             FontWeight.w700)))),
                                         SizedBox(
-                                            width: 160,
+                                            width: 140,
                                             child: Text('Referencia',
-                                                style: TextStyle(
+                                                style: const TextStyle(
                                                     color: Colors.black,
                                                     fontWeight:
                                                         FontWeight.w700))),
-                                        SizedBox(
-                                            width: 360,
-                                            child: Text('Descripción',
-                                                style: TextStyle(
-                                                    color: Colors.black,
-                                                    fontWeight:
-                                                        FontWeight.w700))),
-                                        SizedBox(
-                                            width: 200,
+                                        Expanded(
+                                          flex: 3,
+                                          child: Text('Descripción',
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight: FontWeight.w700)),
+                                        ),
+                                        Expanded(
+                                          flex: 2,
+                                          child: Tooltip(
+                                            message: 'Jefatura',
                                             child: Text('Jefatura',
-                                                style: TextStyle(
+                                                overflow: TextOverflow.ellipsis,
+                                                maxLines: 2,
+                                                style: const TextStyle(
                                                     color: Colors.black,
                                                     fontWeight:
-                                                        FontWeight.w700))),
+                                                        FontWeight.w700)),
+                                          ),
+                                        ),
                                         SizedBox(
                                             width: 120,
-                                            child: Text('PDIS',
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                    color: Colors.black,
-                                                    fontWeight:
-                                                        FontWeight.w700))),
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text('PDIS',
+                                                  textAlign: TextAlign.right,
+                                                  style: const TextStyle(
+                                                      color: Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                            )),
                                       ],
                                     ),
                                   ),
@@ -692,15 +702,15 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                           child: Row(
                                             children: [
                                               SizedBox(
-                                                  width: 220,
+                                                  width: 200,
                                                   child: Text(
                                                       row['Sección'] ?? '',
-                                                      style: TextStyle(
+                                                      style: const TextStyle(
                                                           color: Colors.black,
                                                           fontWeight: FontWeight
                                                               .w600))),
                                               SizedBox(
-                                                  width: 120,
+                                                  width: 100,
                                                   child: Center(
                                                       child: Text(
                                                           row['SKU'] ?? '',
@@ -708,7 +718,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                                               color: Colors
                                                                   .black)))),
                                               SizedBox(
-                                                  width: 160,
+                                                  width: 140,
                                                   child: Text(
                                                       row['REFERENCIA'] ?? '',
                                                       overflow:
@@ -716,8 +726,8 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                                       style: const TextStyle(
                                                           color:
                                                               Colors.black))),
-                                              SizedBox(
-                                                  width: 360,
+                                              Expanded(
+                                                  flex: 3,
                                                   child: Text(
                                                       row['Descripción'] ?? '',
                                                       overflow:
@@ -725,24 +735,39 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                                       style: const TextStyle(
                                                           color:
                                                               Colors.black))),
-                                              SizedBox(
-                                                  width: 200,
-                                                  child: Text(
+                                              Expanded(
+                                                flex: 2,
+                                                child: Tooltip(
+                                                  message:
                                                       row['Jefatura'] ?? '',
-                                                      style: const TextStyle(
-                                                          color:
-                                                              Colors.black))),
+                                                  waitDuration: const Duration(
+                                                      milliseconds: 200),
+                                                  child: Text(
+                                                    row['Jefatura'] ?? '',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    maxLines: 2,
+                                                    style: const TextStyle(
+                                                        color: Colors.black),
+                                                  ),
+                                                ),
+                                              ),
                                               SizedBox(
                                                   width: 120,
-                                                  child: Text(
-                                                      _getPdisValue(row)
-                                                          .toStringAsFixed(2),
-                                                      textAlign:
-                                                          TextAlign.right,
-                                                      style: TextStyle(
-                                                          color: Colors.black,
-                                                          fontWeight: FontWeight
-                                                              .w700))),
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerRight,
+                                                    child: Text(
+                                                        _getPdisValue(row)
+                                                            .toStringAsFixed(2),
+                                                        textAlign:
+                                                            TextAlign.right,
+                                                        style: const TextStyle(
+                                                            color: Colors.black,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w700)),
+                                                  )),
                                             ],
                                           ),
                                         );
