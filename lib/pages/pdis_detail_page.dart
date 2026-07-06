@@ -20,6 +20,8 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
   List<Map<String, dynamic>> _rows = [];
   Map<String, String> _seccionToJefatura = {};
   bool _loading = false;
+  String? _selectedJefatura;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -104,6 +106,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                 e['NOMBRE'].toString();
           }
         }
+        setState(() {});
       }
     } catch (_) {}
   }
@@ -142,6 +145,46 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     } catch (e) {
       print('Error syncing from Firestore: $e');
     }
+  }
+
+  List<Map<String, dynamic>> get _visibleRows {
+    var rows = _rows;
+    if (_selectedJefatura != null &&
+        _selectedJefatura!.isNotEmpty &&
+        _selectedJefatura != 'Todas') {
+      rows = rows
+          .where((r) => (r['Jefatura'] ?? '').toString() == _selectedJefatura)
+          .toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      rows = rows.where((r) {
+        final desc = (r['Descripción'] ?? '').toString().toLowerCase();
+        final ref =
+            (r['REFERENCIA'] ?? r['Referencia'] ?? '').toString().toLowerCase();
+        return desc.contains(q) || ref.contains(q);
+      }).toList();
+    }
+    return rows;
+  }
+
+  Map<String, double> get _totalesPorJefatura {
+    final map = <String, double>{};
+    for (final r in _rows) {
+      final j = (r['Jefatura'] ?? 'Sin Jefatura').toString();
+      final val = _getPdisValue(r);
+      map[j] = (map[j] ?? 0) + val;
+    }
+    return map;
+  }
+
+  double get _totalVisible =>
+      _visibleRows.fold(0.0, (s, r) => s + _getPdisValue(r));
+
+  double get _selectedTotal {
+    final sel = _selectedJefatura ?? 'Todas';
+    if (sel == 'Todas') return _totalVisible;
+    return _totalesPorJefatura[sel] ?? 0.0;
   }
 
   double _getPdisValue(Map<String, dynamic> r) {
@@ -310,54 +353,260 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _loading ? null : _importExcel,
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Importar .xlsx'),
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _loading ? null : _importExcel,
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Importar .xlsx'),
+                    ),
+                    SizedBox(
+                      width: 320,
+                      child: TextField(
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          hintText: 'Buscar descripción o referencia',
+                          isDense: true,
+                          filled: true,
+                          fillColor: Colors.grey[50],
+                          suffixIcon: _searchQuery.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () =>
+                                      setState(() => _searchQuery = ''),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onChanged: (v) =>
+                            setState(() => _searchQuery = v.trim()),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 240,
+                      child: DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                            labelText: 'Filtrar por Jefatura', isDense: true),
+                        value: _selectedJefatura ?? 'Todas',
+                        items: <String>[
+                          'Todas',
+                          ..._seccionToJefatura.values.toSet().toList()
+                        ].map((s) {
+                          final total =
+                              (_totalesPorJefatura[s] ?? 0).toStringAsFixed(2);
+                          return DropdownMenuItem(
+                            value: s,
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(s)),
+                                Text(total,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (v) => setState(() => _selectedJefatura = v),
+                      ),
+                    ),
+                    Chip(
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.12),
+                      avatar: Icon(Icons.summarize,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 18),
+                      label: Text('Total: ${_selectedTotal.toStringAsFixed(2)}',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary)),
+                    ),
+                    if (_loading)
+                      const SizedBox(
+                          width: 8,
+                          height: 24,
+                          child: CircularProgressIndicator()),
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: Text('Filas: ${_visibleRows.length}'),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                if (_loading) const CircularProgressIndicator(),
-                const Spacer(),
-                Text('Filas: ${_rows.length}'),
-              ],
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(
               child: LayoutBuilder(builder: (context, constraints) {
                 final wide = constraints.maxWidth > 900;
                 if (wide) {
+                  final visible = _visibleRows;
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: ConstrainedBox(
                       constraints:
                           BoxConstraints(minWidth: constraints.maxWidth),
-                      child: ListView.builder(
-                        itemCount: _rows.length,
-                        itemBuilder: (context, index) {
-                          final row = _rows[index];
-                          return ListTile(
-                            title: Text(
-                                row['Descripción'] ?? row['REFERENCIA'] ?? ''),
-                            subtitle: Text(
-                                'Jefatura: ${row['Jefatura'] ?? ''} — PDIS: ${_getPdisValue(row)}'),
-                          );
-                        },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // header
+                          Container(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.06),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
+                            child: Row(
+                              children: const [
+                                SizedBox(
+                                    width: 220,
+                                    child: Text('Sección',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                                SizedBox(
+                                    width: 160,
+                                    child: Text('Referencia',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                                SizedBox(
+                                    width: 360,
+                                    child: Text('Descripción',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                                SizedBox(
+                                    width: 200,
+                                    child: Text('Jefatura',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                                SizedBox(
+                                    width: 120,
+                                    child: Text('PDIS',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700))),
+                              ],
+                            ),
+                          ),
+                          ConstrainedBox(
+                            constraints:
+                                BoxConstraints(minHeight: 200, maxHeight: 9999),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const ClampingScrollPhysics(),
+                              itemCount: visible.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final row = visible[index];
+                                final bg = index.isEven
+                                    ? Colors.white
+                                    : Colors.grey[50];
+                                return Container(
+                                  color: bg,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                          width: 220,
+                                          child: Text(row['Sección'] ?? '',
+                                              style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w600))),
+                                      SizedBox(
+                                          width: 160,
+                                          child: Text(row['REFERENCIA'] ?? '',
+                                              overflow: TextOverflow.ellipsis)),
+                                      SizedBox(
+                                          width: 360,
+                                          child: Text(row['Descripción'] ?? '',
+                                              overflow: TextOverflow.ellipsis)),
+                                      SizedBox(
+                                          width: 200,
+                                          child: Text(row['Jefatura'] ?? '')),
+                                      SizedBox(
+                                          width: 120,
+                                          child: Text(
+                                              _getPdisValue(row)
+                                                  .toStringAsFixed(2),
+                                              textAlign: TextAlign.right,
+                                              style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.w700))),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 }
+                final visible = _visibleRows;
                 return ListView.builder(
-                  itemCount: _rows.length,
+                  itemCount: visible.length,
                   itemBuilder: (context, index) {
-                    final row = _rows[index];
+                    final row = visible[index];
+                    final initials = (row['Sección'] ?? '')
+                        .toString()
+                        .split(' ')
+                        .where((s) => s.isNotEmpty)
+                        .map((s) => s[0])
+                        .take(2)
+                        .join();
                     return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
                       child: ListTile(
-                        title:
-                            Text(row['Descripción'] ?? row['REFERENCIA'] ?? ''),
-                        subtitle: Text(
-                            'Jefatura: ${row['Jefatura'] ?? ''} — PDIS: ${_getPdisValue(row)}'),
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.12),
+                          child: Text(initials,
+                              style: TextStyle(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        title: Text(
+                            row['Descripción'] ?? row['REFERENCIA'] ?? '',
+                            style: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w600)),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6.0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                  child: Text(
+                                      'Jefatura: ${row['Jefatura'] ?? ''}')),
+                              Chip(
+                                backgroundColor: Colors.green.shade50,
+                                label: Text(
+                                    _getPdisValue(row).toStringAsFixed(2),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     );
                   },
