@@ -234,8 +234,10 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
       await docRef.set(payload);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Guardado en Firestore')));
+      // After saving, sync back from Firestore into Hive cache
+      await _syncFromFirestore();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Guardado en Firestore y cacheado localmente')));
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error guardando: $e')));
