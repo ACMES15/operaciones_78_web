@@ -270,17 +270,25 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           final parsed = <Map<String, dynamic>>[];
 
           ex.Sheet? sheet;
-          for (final name in excel.tables.keys) {
-            final s = excel.tables[name];
-            if (s != null && s.maxRows > 0) {
+          String? sheetNameChosen;
+          // Pick the sheet with the largest reported row count (better chance
+          // to pick the data sheet when the workbook has multiple small tables)
+          for (final entry in excel.tables.entries) {
+            final s = entry.value;
+            final currentMax = sheet?.maxRows ?? -1;
+            if (s.maxRows > currentMax) {
               sheet = s;
-              break;
+              sheetNameChosen = entry.key;
             }
           }
           if (sheet == null) {
             setState(() => _loading = false);
             return;
           }
+
+          // Debug info: report which sheet we chose and its size
+          print(
+              'Import: chosen sheet=${sheetNameChosen ?? "?"} maxRows=${sheet.maxRows} maxCols=${sheet.maxCols}');
 
           final expectedHeaders = [
             'Sección',
@@ -300,14 +308,42 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
               .trim()
               .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
               .toLowerCase();
-          final headerRow = sheet.row(0);
-          final headerIndex = <String, int>{};
-          for (int i = 0; i < headerRow.length; i++) {
-            final cell = headerRow[i];
-            final key = cell?.value?.toString().trim() ?? '';
-            if (key.isNotEmpty) headerIndex[norm(key)] = i;
+
+          // Try to detect the header row within the first N rows (some files
+          // have top metadata rows before the actual header).
+          final headerCandidates = <int, Map<String, int>>{};
+          final maxHeaderScan = math.min(10, math.max(1, sheet.maxRows));
+          for (int hr = 0; hr < maxHeaderScan; hr++) {
+            final row = sheet.row(hr);
+            final headerIndex = <String, int>{};
+            for (int i = 0; i < row.length; i++) {
+              final cell = row[i];
+              final key = cell?.value?.toString().trim() ?? '';
+              if (key.isNotEmpty) headerIndex[norm(key)] = i;
+            }
+            headerCandidates[hr] = headerIndex;
           }
 
+          int headerRowIndex = -1;
+          Map<String, int> chosenHeaderIndex = {};
+          for (final entry in headerCandidates.entries) {
+            final matches = expectedHeaders
+                .where((h) => entry.value.containsKey(norm(h)))
+                .length;
+            // choose the row that matches the most expected headers
+            if (matches >= (expectedHeaders.length / 2).floor()) {
+              headerRowIndex = entry.key;
+              chosenHeaderIndex = entry.value;
+              break;
+            }
+          }
+          // fallback: pick first candidate if none matched sufficiently
+          if (headerRowIndex < 0 && headerCandidates.isNotEmpty) {
+            headerRowIndex = headerCandidates.keys.first;
+            chosenHeaderIndex = headerCandidates[headerRowIndex]!;
+          }
+
+          final headerIndex = chosenHeaderIndex;
           final expectedIndex = <String, int>{};
           final missing = <String>[];
           for (final h in expectedHeaders) {
@@ -319,16 +355,28 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           }
           if (missing.isNotEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text('Faltan encabezados: ${missing.join(', ')}')));
+                content: Text(
+                    'Faltan encabezados: ${missing.join(', ')} (buscado en fila $headerRowIndex)')));
             setState(() => _loading = false);
             return;
           }
 
-          for (int r = 1; r < sheet.maxRows; r++) {
+          // Some Excel files report a small maxRows; scan forward robustly and
+          // stop after N consecutive empty rows. This captures large sheets.
+          final int maxScan = math.max(sheet.maxRows, 2000);
+          int emptyStreak = 0;
+          const int stopAfterEmpty = 200;
+          for (int r = headerRowIndex + 1; r < maxScan; r++) {
             try {
               final row = sheet.row(r);
-              if (row.every((c) => (c?.value?.toString() ?? '').isEmpty))
+              final isEmpty =
+                  row.every((c) => (c?.value?.toString() ?? '').isEmpty);
+              if (isEmpty) {
+                emptyStreak++;
+                if (emptyStreak >= stopAfterEmpty) break;
                 continue;
+              }
+              emptyStreak = 0;
               final obj = <String, dynamic>{};
               for (final h in expectedHeaders) {
                 final idx = expectedIndex[h] ?? -1;
@@ -358,12 +406,17 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
               obj['__id'] = id;
               parsed.add(obj);
             } catch (e) {
+              // ignore row parse errors and continue scanning
               continue;
             }
           }
 
           setState(() => _rows = parsed);
           await _saveRowsToHive(parsed);
+          // show debug summary so user can tell if parsing scanned full sheet
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(
+                  'Importadas ${parsed.length} filas (sheet=${sheetNameChosen ?? "?"} rows:${sheet.maxRows} cols:${sheet.maxCols})')));
         } catch (e) {
           print('Error importando excel: $e');
         } finally {
