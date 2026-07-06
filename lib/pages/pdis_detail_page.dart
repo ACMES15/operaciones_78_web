@@ -22,6 +22,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
   Map<String, String> _seccionToJefatura = {};
   bool _loading = false;
   String? _filterJefatura;
+  // Performance / pagination
+  int _rowsPerPage = 100; // show 100 rows per page as requested
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -71,7 +74,11 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
         }
         rows.add(m);
       }
-      setState(() => _rows = rows);
+      setState(() {
+        _rows = rows;
+        _currentPage = 0;
+      });
+      _recomputeAggregates();
     } catch (e) {
       print('Error loading hive: $e');
     }
@@ -382,7 +389,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           setState(() {
             _rows =
                 parsed; // preview only; user must press 'Guardar' to persist
+            _currentPage = 0;
           });
+          _recomputeAggregates();
         } catch (e) {
           print('Error importando excel: $e');
         } finally {
@@ -453,12 +462,30 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     return 0.0;
   }
 
-  double get _totalPdisFiltered {
-    return _filteredRows.fold(0.0, (double s, r) => s + _getPdisValue(r));
+  // Cached aggregates to avoid repeated computation on every build
+  int _countFilteredCached = 0;
+  double _totalPdisFilteredCached = 0.0;
+
+  double get _totalPdisFiltered => _totalPdisFilteredCached;
+
+  int get _countFiltered => _countFilteredCached;
+
+  List<Map<String, dynamic>> get _paginatedRows {
+    final f = _filteredRows;
+    final start = _currentPage * _rowsPerPage;
+    if (start >= f.length) return [];
+    final end =
+        (start + _rowsPerPage) > f.length ? f.length : (start + _rowsPerPage);
+    return f.sublist(start, end);
   }
 
-  int get _countFiltered {
-    return _filteredRows.length;
+  void _recomputeAggregates() {
+    final f = _filteredRows;
+    double total = 0.0;
+    for (final r in f) total += _getPdisValue(r);
+    _countFilteredCached = f.length;
+    _totalPdisFilteredCached = total;
+    setState(() {});
   }
 
   @override
@@ -498,7 +525,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                     onChanged: (v) {
                       setState(() {
                         _filterJefatura = (v == null || v.isEmpty) ? null : v;
+                        _currentPage = 0;
                       });
+                      _recomputeAggregates();
                     },
                   ),
                   Text('Filtradas: ${_countFiltered.toString()}'),
@@ -527,16 +556,16 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                 controls,
                 const SizedBox(height: 8),
                 Expanded(
-                  child: _filteredRows.isEmpty
+                  child: (_countFiltered == 0)
                       ? Center(
                           child: Text(
                               'Sin datos. Usa "Importar Excel" para cargar una vista previa.',
                               style: TextStyle(color: Colors.grey[700])),
                         )
                       : ListView.builder(
-                          itemCount: _filteredRows.length,
+                          itemCount: _paginatedRows.length,
                           itemBuilder: (context, idx) {
-                            final r = _filteredRows[idx];
+                            final r = _paginatedRows[idx];
                             final title =
                                 '${(r['Sección'] ?? '-')} - ${(r['REFERENCIA'] ?? r['Referencia'] ?? '-')}';
                             final pdis = (r['__pdis_num'] ?? 0) as double;
@@ -602,18 +631,21 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             'Antigüedad Documento dias',
             'Jefatura'
           ];
+          // Column widths approximated from requested character widths (char ~8px + padding)
+          // Sección:4, SKU:10, PDIS:1, Referencia:20, Tex.Cab.Doc:20, Descripción:20,
+          // Total $ PDIS:10, Documento:11, Fecha:10, Antigüedad:3, Jefatura:20
           final columnWidths = [
-            140.0,
-            100.0,
-            100.0,
-            220.0,
-            140.0,
-            300.0,
-            120.0,
-            160.0,
-            140.0,
-            120.0,
-            160.0
+            56.0, // Sección (4 chars)
+            104.0, // SKU (10 chars)
+            32.0, // PDIS (1 char)
+            184.0, // REFERENCIA (20 chars)
+            184.0, // Tex.Cab.Doc. (20 chars)
+            184.0, // Descripción (20 chars)
+            104.0, // Total $ PDIS (10 chars)
+            112.0, // Documento (11 chars)
+            104.0, // Fecha (10 chars)
+            48.0, // Antigüedad (3 chars)
+            184.0, // Jefatura (20 chars)
           ];
           final totalPreferred = columnWidths.fold(0.0, (a, b) => a + b);
           final available = constraints.maxWidth - 40.0; // padding allowance
@@ -638,19 +670,21 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                             DataColumn(
                                 label: Container(
                                     width: finalWidths[i],
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 6, horizontal: 6),
                                     decoration: BoxDecoration(
                                       border: Border(
                                         right: i == columns.length - 1
                                             ? BorderSide.none
                                             : BorderSide(
-                                                color: Colors.grey.shade300),
+                                                color: Colors.grey.shade300,
+                                                width: 1),
                                       ),
                                     ),
                                     child: Text(columns[i],
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.w700))))
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 12))))
                         ],
                         rows: () {
                           if (_filteredRows.isEmpty) {
@@ -733,15 +767,16 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           SizedBox(
-              width: 140,
-              child: SelectableText((value ?? '-').toString(),
-                  maxLines: 2,
-                  showCursor: true,
-                  toolbarOptions:
-                      const ToolbarOptions(copy: true, selectAll: true),
-                  style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  onTap: null)),
+            width: 140,
+            child: SelectableText(
+              (value ?? '-').toString(),
+              maxLines: 1,
+              showCursor: true,
+              toolbarOptions: const ToolbarOptions(copy: true, selectAll: true),
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w600, height: 1.1),
+            ),
+          ),
         ],
       ),
     );
@@ -751,24 +786,24 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       {double width = 160, bool showRightBorder = true}) {
     final s = text.toString();
     return ConstrainedBox(
-      constraints: BoxConstraints(minWidth: 60, maxWidth: width),
+      constraints: BoxConstraints(minWidth: 40, maxWidth: width),
       child: Container(
         width: width,
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
         decoration: BoxDecoration(
           border: Border(
             right: showRightBorder
-                ? BorderSide(color: Colors.grey.shade300)
+                ? BorderSide(color: Colors.grey.shade300, width: 1)
                 : BorderSide.none,
           ),
         ),
         child: SelectableText(
           s,
-          maxLines: 2,
+          maxLines: 1,
           showCursor: true,
           toolbarOptions: const ToolbarOptions(copy: true, selectAll: true),
-          scrollPhysics: const NeverScrollableScrollPhysics(),
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, height: 1.1),
         ),
       ),
     );
