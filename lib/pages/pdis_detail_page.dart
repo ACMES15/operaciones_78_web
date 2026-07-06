@@ -545,6 +545,28 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                             horizontal: 12, vertical: 10),
                       ),
                     ),
+                    IconButton(
+                      tooltip: 'Recargar desde Firestore',
+                      onPressed: _loading
+                          ? null
+                          : () async {
+                              setState(() => _loading = true);
+                              try {
+                                await _ensureFirebase();
+                                await _syncFromFirestore();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Datos recargados desde Firestore')));
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')));
+                              } finally {
+                                setState(() => _loading = false);
+                              }
+                            },
+                      icon: const Icon(Icons.refresh),
+                    ),
                     if (_loading)
                       const SizedBox(
                           width: 8,
