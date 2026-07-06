@@ -210,6 +210,40 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
     return 0.0;
   }
 
+  Future<void> _saveToFirestore() async {
+    setState(() => _loading = true);
+    try {
+      await _ensureFirebase();
+      final docRef =
+          FirebaseFirestore.instance.collection('ohpdis').doc('datos');
+      final payload = {
+        'datos': _rows.map((r) {
+          final m = <String, dynamic>{};
+          r.forEach((k, v) {
+            if (v is DateTime)
+              m[k] = v.toIso8601String();
+            else if (v is Timestamp)
+              m[k] = v.toDate().toIso8601String();
+            else if (v is num || v is bool)
+              m[k] = v;
+            else
+              m[k] = v?.toString();
+          });
+          return m;
+        }).toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      await docRef.set(payload);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Guardado en Firestore')));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error guardando: $e')));
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
   Future<void> _importExcel() async {
     setState(() => _loading = true);
     await _fetchPlantillaIfNeeded();
@@ -446,6 +480,15 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                       label: Text('Total: ${_selectedTotal.toStringAsFixed(2)}',
                           style: TextStyle(
                               color: Theme.of(context).colorScheme.primary)),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _loading ? null : _saveToFirestore,
+                      icon: const Icon(Icons.save),
+                      label: const Text('Guardar'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                      ),
                     ),
                     if (_loading)
                       const SizedBox(
