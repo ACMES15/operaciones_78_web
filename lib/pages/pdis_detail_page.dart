@@ -588,7 +588,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             );
           }
 
-          // Wide screen: keep table but allow scrolling both axes
+          // Wide screen: keep table but allow scrolling both axes, scale columns to fit
           final columns = [
             'Sección',
             'SKU',
@@ -602,6 +602,25 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
             'Antigüedad Documento dias',
             'Jefatura'
           ];
+          final columnWidths = [
+            140.0,
+            100.0,
+            100.0,
+            220.0,
+            140.0,
+            300.0,
+            120.0,
+            160.0,
+            140.0,
+            120.0,
+            160.0
+          ];
+          final totalPreferred = columnWidths.fold(0.0, (a, b) => a + b);
+          final available = constraints.maxWidth - 40.0; // padding allowance
+          final scale = (totalPreferred > 0 && totalPreferred > available)
+              ? (available / totalPreferred)
+              : 1.0;
+          final finalWidths = columnWidths.map((w) => w * scale).toList();
 
           return Column(
             children: [
@@ -614,9 +633,25 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: SingleChildScrollView(
                       child: DataTable(
-                        columns: columns
-                            .map((c) => DataColumn(label: Text(c)))
-                            .toList(),
+                        columns: [
+                          for (var i = 0; i < columns.length; i++)
+                            DataColumn(
+                                label: Container(
+                                    width: finalWidths[i],
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        right: i == columns.length - 1
+                                            ? BorderSide.none
+                                            : BorderSide(
+                                                color: Colors.grey.shade300),
+                                      ),
+                                    ),
+                                    child: Text(columns[i],
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w700))))
+                        ],
                         rows: () {
                           if (_filteredRows.isEmpty) {
                             return [
@@ -634,18 +669,40 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                                 (r[k] ?? r[k.trim()] ?? '').toString();
                             final pdis = (r['__pdis_num'] ?? 0) as double;
                             return DataRow(cells: [
-                              DataCell(SelectableText(cell('Sección'))),
-                              DataCell(SelectableText(cell('SKU'))),
-                              DataCell(SelectableText(pdis.toStringAsFixed(2))),
-                              DataCell(SelectableText(cell('REFERENCIA'))),
-                              DataCell(SelectableText(cell('Tex.Cab.Doc.'))),
-                              DataCell(SelectableText(cell('Descripción'))),
-                              DataCell(SelectableText(cell('Total \$ PDIS'))),
-                              DataCell(SelectableText(cell('Documento'))),
-                              DataCell(SelectableText(cell('Fecha Documento'))),
-                              DataCell(SelectableText(
-                                  cell('Antigüedad Documento dias'))),
-                              DataCell(SelectableText(cell('Jefatura'))),
+                              DataCell(_cellSelectable(cell('Sección'),
+                                  width: finalWidths[0],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('SKU'),
+                                  width: finalWidths[1],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(pdis.toStringAsFixed(2),
+                                  width: finalWidths[2],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('REFERENCIA'),
+                                  width: finalWidths[3],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Tex.Cab.Doc.'),
+                                  width: finalWidths[4],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Descripción'),
+                                  width: finalWidths[5],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Total \$ PDIS'),
+                                  width: finalWidths[6],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Documento'),
+                                  width: finalWidths[7],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Fecha Documento'),
+                                  width: finalWidths[8],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(
+                                  cell('Antigüedad Documento dias'),
+                                  width: finalWidths[9],
+                                  showRightBorder: true)),
+                              DataCell(_cellSelectable(cell('Jefatura'),
+                                  width: finalWidths[10],
+                                  showRightBorder: false)),
                             ]);
                           }).toList();
                         }(),
@@ -677,12 +734,42 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           const SizedBox(height: 4),
           SizedBox(
               width: 140,
-              child: Text((value ?? '-').toString(),
-                  overflow: TextOverflow.ellipsis,
+              child: SelectableText((value ?? '-').toString(),
                   maxLines: 2,
+                  showCursor: true,
+                  toolbarOptions:
+                      const ToolbarOptions(copy: true, selectAll: true),
                   style: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600))),
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                  onTap: null)),
         ],
+      ),
+    );
+  }
+
+  Widget _cellSelectable(String text,
+      {double width = 160, bool showRightBorder = true}) {
+    final s = text.toString();
+    return ConstrainedBox(
+      constraints: BoxConstraints(minWidth: 60, maxWidth: width),
+      child: Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+        decoration: BoxDecoration(
+          border: Border(
+            right: showRightBorder
+                ? BorderSide(color: Colors.grey.shade300)
+                : BorderSide.none,
+          ),
+        ),
+        child: SelectableText(
+          s,
+          maxLines: 2,
+          showCursor: true,
+          toolbarOptions: const ToolbarOptions(copy: true, selectAll: true),
+          scrollPhysics: const NeverScrollableScrollPhysics(),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
