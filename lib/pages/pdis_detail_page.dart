@@ -513,117 +513,149 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Center(
-                      child: SizedBox(
-                        width: math.min(constraints.maxWidth, 1200),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // header
-                            Container(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withOpacity(0.06),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 12),
-                              child: Row(
-                                children: const [
-                                  SizedBox(
-                                      width: 220,
-                                      child: Text('Sección',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w700))),
-                                  SizedBox(
-                                      width: 120,
-                                      child: Center(
-                                          child: Text('SKU',
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 48),
+                        child: SizedBox(
+                          width: math.min(constraints.maxWidth, 1200),
+                          child: DefaultTextStyle.merge(
+                            style: const TextStyle(color: Colors.black),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // header
+                                Container(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.06),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                          width: 220,
+                                          child: Text('Sección',
                                               style: TextStyle(
+                                                  color: Colors.black,
                                                   fontWeight:
-                                                      FontWeight.w700)))),
-                                  SizedBox(
-                                      width: 160,
-                                      child: Text('Referencia',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w700))),
-                                  SizedBox(
-                                      width: 360,
-                                      child: Text('Descripción',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w700))),
-                                  SizedBox(
-                                      width: 200,
-                                      child: Text('Jefatura',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w700))),
-                                  SizedBox(
-                                      width: 120,
-                                      child: Text('PDIS',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.w700))),
-                                ],
-                              ),
+                                                      FontWeight.w700))),
+                                      SizedBox(
+                                          width: 120,
+                                          child: Center(
+                                              child: Text('SKU',
+                                                  style: TextStyle(
+                                                      color: Colors.black,
+                                                      fontWeight:
+                                                          FontWeight.w700)))),
+                                      SizedBox(
+                                          width: 160,
+                                          child: Text('Referencia',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight:
+                                                      FontWeight.w700))),
+                                      SizedBox(
+                                          width: 360,
+                                          child: Text('Descripción',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight:
+                                                      FontWeight.w700))),
+                                      SizedBox(
+                                          width: 200,
+                                          child: Text('Jefatura',
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight:
+                                                      FontWeight.w700))),
+                                      SizedBox(
+                                          width: 120,
+                                          child: Text('PDIS',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontWeight:
+                                                      FontWeight.w700))),
+                                    ],
+                                  ),
+                                ),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                      minHeight: 200, maxHeight: 9999),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const ClampingScrollPhysics(),
+                                    itemCount: visible.length,
+                                    separatorBuilder: (_, __) =>
+                                        const Divider(height: 1),
+                                    itemBuilder: (context, index) {
+                                      final row = visible[index];
+                                      final bg = index.isEven
+                                          ? Colors.white
+                                          : Colors.grey[50];
+                                      return Container(
+                                        color: bg,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 10),
+                                        child: Row(
+                                          children: [
+                                            SizedBox(
+                                                width: 220,
+                                                child: Text(
+                                                    row['Sección'] ?? '',
+                                                    style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontWeight:
+                                                            FontWeight.w600))),
+                                            SizedBox(
+                                                width: 120,
+                                                child: Center(
+                                                    child: Text(
+                                                        row['SKU'] ?? '',
+                                                        style: const TextStyle(
+                                                            color: Colors
+                                                                .black)))),
+                                            SizedBox(
+                                                width: 160,
+                                                child: Text(
+                                                    row['REFERENCIA'] ?? '',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                        color: Colors.black))),
+                                            SizedBox(
+                                                width: 360,
+                                                child: Text(
+                                                    row['Descripción'] ?? '',
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                        color: Colors.black))),
+                                            SizedBox(
+                                                width: 200,
+                                                child: Text(
+                                                    row['Jefatura'] ?? '',
+                                                    style: const TextStyle(
+                                                        color: Colors.black))),
+                                            SizedBox(
+                                                width: 120,
+                                                child: Text(
+                                                    _getPdisValue(row)
+                                                        .toStringAsFixed(2),
+                                                    textAlign: TextAlign.right,
+                                                    style: TextStyle(
+                                                        color: Colors.black,
+                                                        fontWeight:
+                                                            FontWeight.w700))),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
                             ),
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                  minHeight: 200, maxHeight: 9999),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                physics: const ClampingScrollPhysics(),
-                                itemCount: visible.length,
-                                separatorBuilder: (_, __) =>
-                                    const Divider(height: 1),
-                                itemBuilder: (context, index) {
-                                  final row = visible[index];
-                                  final bg = index.isEven
-                                      ? Colors.white
-                                      : Colors.grey[50];
-                                  return Container(
-                                    color: bg,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 10),
-                                    child: Row(
-                                      children: [
-                                        SizedBox(
-                                            width: 220,
-                                            child: Text(row['Sección'] ?? '',
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w600))),
-                                        SizedBox(
-                                            width: 120,
-                                            child: Center(
-                                                child: Text(row['SKU'] ?? ''))),
-                                        SizedBox(
-                                            width: 160,
-                                            child: Text(row['REFERENCIA'] ?? '',
-                                                overflow:
-                                                    TextOverflow.ellipsis)),
-                                        SizedBox(
-                                            width: 360,
-                                            child: Text(
-                                                row['Descripción'] ?? '',
-                                                overflow:
-                                                    TextOverflow.ellipsis)),
-                                        SizedBox(
-                                            width: 200,
-                                            child: Text(row['Jefatura'] ?? '')),
-                                        SizedBox(
-                                            width: 120,
-                                            child: Text(
-                                                _getPdisValue(row)
-                                                    .toStringAsFixed(2),
-                                                textAlign: TextAlign.right,
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w700))),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -657,22 +689,28 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         title: Text(
-                            row['Descripción'] ?? row['REFERENCIA'] ?? '',
-                            style: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w600)),
+                          row['Descripción'] ?? row['REFERENCIA'] ?? '',
+                          style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600),
+                        ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 6.0),
                           child: Row(
                             children: [
                               Expanded(
                                   child: Text(
-                                      'Jefatura: ${row['Jefatura'] ?? ''}')),
+                                      'Jefatura: ${row['Jefatura'] ?? ''}',
+                                      style: const TextStyle(
+                                          color: Colors.black))),
                               Chip(
                                 backgroundColor: Colors.green.shade50,
                                 label: Text(
                                     _getPdisValue(row).toStringAsFixed(2),
                                     style: const TextStyle(
-                                        fontWeight: FontWeight.w700)),
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black)),
                               ),
                             ],
                           ),
@@ -682,7 +720,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                   },
                 );
               }),
-            )
+            ),
           ],
         ),
       ),
