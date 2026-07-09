@@ -121,6 +121,27 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                         child: Text('Calidad: ${quality.toStringAsFixed(1)}%'))
                   ]),
                   const SizedBox(height: 12),
+                  // mostrar respuestas del formulario q1..q4
+                  if (data['q1'] != null ||
+                      data['q2'] != null ||
+                      data['q3'] != null ||
+                      data['q4'] != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Respuestas:'),
+                        const SizedBox(height: 6),
+                        Text(
+                            '1) Mercancía identificada con SKU y PDIS?: ${data['q1'] == true ? 'Sí' : 'No'}'),
+                        Text(
+                            '2) Se tuvo faltante en el primer escaneo?: ${data['q2'] == true ? 'Sí' : 'No'}'),
+                        Text(
+                            '3) Hay mercancía dañada?: ${data['q3'] == true ? 'Sí' : 'No'}'),
+                        Text(
+                            '4) Hay mercancía en bodega?: ${data['q4'] == true ? 'Sí' : 'No'}'),
+                        const SizedBox(height: 12),
+                      ],
+                    ),
                   const Divider(),
                   const SizedBox(height: 8),
                   const Text('SKUs'),

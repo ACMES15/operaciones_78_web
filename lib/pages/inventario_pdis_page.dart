@@ -310,6 +310,94 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     html.Url.revokeObjectUrl(url);
   }
 
+  void _showFaltantesDialog() {
+    final faltantes = <Map<String, dynamic>>[];
+    _pdisBySku.forEach((sku, pdis) {
+      final scanned = _scannedBySku[sku] ?? 0;
+      final falta = pdis.round() - scanned;
+      if (falta > 0) {
+        faltantes.add({
+          'sku': sku,
+          'pdis': pdis.round(),
+          'scanned': scanned,
+          'falta': falta
+        });
+      }
+    });
+    faltantes.sort((a, b) => (b['falta'] as int).compareTo(a['falta'] as int));
+
+    showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text('Faltantes',
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.black)),
+            content: SizedBox(
+              width: 600,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (faltantes.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12.0),
+                      child: Text('No hay SKUs con faltante',
+                          style: TextStyle(color: Colors.black)),
+                    )
+                  else
+                    SizedBox(
+                      height: 320,
+                      child: ListView.builder(
+                        itemCount: faltantes.length,
+                        itemBuilder: (context, i) {
+                          final row = faltantes[i];
+                          return ListTile(
+                            dense: true,
+                            title: Text(row['sku'] ?? '',
+                                style: const TextStyle(color: Colors.black)),
+                            trailing: SizedBox(
+                                width: 180,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Text('${row['pdis']}',
+                                        style: const TextStyle(
+                                            color: Colors.black)),
+                                    const SizedBox(width: 12),
+                                    Text('${row['scanned']}',
+                                        style: const TextStyle(
+                                            color: Colors.black)),
+                                    const SizedBox(width: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text('${row['falta']}',
+                                          style: const TextStyle(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.bold)),
+                                    )
+                                  ],
+                                )),
+                          );
+                        },
+                      ),
+                    )
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'))
+            ],
+          );
+        });
+  }
+
   @override
   void dispose() {
     _scanController.dispose();
@@ -320,7 +408,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.black,
         title: const Text('Inventario PDIS',
@@ -358,8 +446,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                       ElevatedButton(
                           onPressed: _buildSkuAggregates,
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black),
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white),
                           child: const Text('Cargar'))
                     ],
                   ),
@@ -379,78 +467,109 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                         const SizedBox(width: 12),
                         Column(children: [
                           Text('Total PDIS: $_totalPdis',
-                              style: const TextStyle(color: Colors.white)),
+                              style: const TextStyle(color: Colors.black)),
                           Text('Escaneado: $_totalScanned',
-                              style: const TextStyle(color: Colors.white)),
+                              style: const TextStyle(color: Colors.black)),
                           Text('Faltante: ${_totalPdis - _totalScanned}',
-                              style: const TextStyle(color: Colors.white)),
+                              style: const TextStyle(color: Colors.black)),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: _showFaltantesDialog,
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8)),
+                            child: const Text('Faltantes'),
+                          )
                         ])
                       ],
                     ),
                     const SizedBox(height: 12),
                     Expanded(
+                        flex: 3,
                         child: Card(
-                      color: Colors.white,
-                      elevation: 2,
-                      child: Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                    child: Text('SKU',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.w700))),
-                                SizedBox(
-                                    width: 120,
-                                    child: Text('PDIS',
-                                        textAlign: TextAlign.right)),
-                                SizedBox(
-                                    width: 120,
-                                    child: Text('Escaneado',
-                                        textAlign: TextAlign.right))
-                              ],
-                            ),
+                          color: Colors.white,
+                          elevation: 2,
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                        child: Text('SKU',
+                                            style: TextStyle(
+                                                fontWeight: FontWeight.w700))),
+                                    SizedBox(
+                                        width: 120,
+                                        child: Text('PDIS',
+                                            textAlign: TextAlign.right)),
+                                    SizedBox(
+                                        width: 120,
+                                        child: Text('Escaneado',
+                                            textAlign: TextAlign.right))
+                                  ],
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              Expanded(child: Builder(builder: (context) {
+                                final sortedKeys = _pdisBySku.keys.toList()
+                                  ..sort((a, b) {
+                                    final remA = (_pdisBySku[a]?.round() ?? 0) -
+                                        (_scannedBySku[a] ?? 0);
+                                    final remB = (_pdisBySku[b]?.round() ?? 0) -
+                                        (_scannedBySku[b] ?? 0);
+                                    if (remA != remB)
+                                      return remB.compareTo(remA);
+                                    return a.compareTo(b);
+                                  });
+
+                                return ListView.builder(
+                                  itemCount: sortedKeys.length,
+                                  itemBuilder: (context, index) {
+                                    final sku = sortedKeys[index];
+                                    final pdis = _pdisBySku[sku] ?? 0.0;
+                                    final scanned = _scannedBySku[sku] ?? 0;
+                                    return ListTile(
+                                      title: Text(sku,
+                                          style: const TextStyle(
+                                              color: Colors.black)),
+                                      trailing: SizedBox(
+                                          width: 240,
+                                          child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.end,
+                                              children: [
+                                                SizedBox(
+                                                    width: 110,
+                                                    child: Text(
+                                                        pdis.toStringAsFixed(0),
+                                                        textAlign:
+                                                            TextAlign.right,
+                                                        style: const TextStyle(
+                                                            color:
+                                                                Colors.black))),
+                                                const SizedBox(width: 12),
+                                                SizedBox(
+                                                    width: 110,
+                                                    child: Text(
+                                                        scanned.toString(),
+                                                        textAlign:
+                                                            TextAlign.right,
+                                                        style: TextStyle(
+                                                            color: scanned == 0
+                                                                ? Colors.red
+                                                                : Colors
+                                                                    .black)))
+                                              ])),
+                                    );
+                                  },
+                                );
+                              }))
+                            ],
                           ),
-                          const Divider(height: 1),
-                          Expanded(
-                              child: ListView.builder(
-                            itemCount: _pdisBySku.keys.length,
-                            itemBuilder: (context, index) {
-                              final sku = _pdisBySku.keys.elementAt(index);
-                              final pdis = _pdisBySku[sku] ?? 0.0;
-                              final scanned = _scannedBySku[sku] ?? 0;
-                              return ListTile(
-                                title: Text(sku,
-                                    style: TextStyle(color: Colors.black)),
-                                trailing: SizedBox(
-                                    width: 240,
-                                    child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.end,
-                                        children: [
-                                          SizedBox(
-                                              width: 110,
-                                              child: Text(
-                                                  pdis.toStringAsFixed(0),
-                                                  textAlign: TextAlign.right,
-                                                  style: const TextStyle(
-                                                      color: Colors.black))),
-                                          const SizedBox(width: 12),
-                                          SizedBox(
-                                              width: 110,
-                                              child: Text(scanned.toString(),
-                                                  textAlign: TextAlign.right,
-                                                  style: const TextStyle(
-                                                      color: Colors.black)))
-                                        ])),
-                              );
-                            },
-                          ))
-                        ],
-                      ),
-                    )),
+                        )),
                     const SizedBox(height: 12),
                     Card(
                         color: Colors.white,
@@ -462,6 +581,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                   style:
                                       TextStyle(fontWeight: FontWeight.w700)),
                               SwitchListTile(
+                                  activeColor: Colors.black,
                                   title: const Text(
                                       'Mercancía identificada con SKU y PDIS?'),
                                   value: q1,
@@ -469,6 +589,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                     setState(() => q1 = v);
                                   }),
                               SwitchListTile(
+                                  activeColor: Colors.black,
                                   title: const Text(
                                       'Se tuvo faltante en el primer escaneo?'),
                                   value: q2,
@@ -476,12 +597,14 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                     setState(() => q2 = v);
                                   }),
                               SwitchListTile(
+                                  activeColor: Colors.black,
                                   title: const Text('Hay mercancía dañada?'),
                                   value: q3,
                                   onChanged: (v) {
                                     setState(() => q3 = v);
                                   }),
                               SwitchListTile(
+                                  activeColor: Colors.black,
                                   title: const Text('Hay mercancía en bodega?'),
                                   value: q4,
                                   onChanged: (v) {
@@ -541,9 +664,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                       });
                                     },
                                     style: OutlinedButton.styleFrom(
+                                        backgroundColor: Colors.black,
                                         foregroundColor: Colors.white,
                                         side: const BorderSide(
-                                            color: Colors.white)),
+                                            color: Colors.black)),
                                     child: const Text('Cancelar'))
                               ])
                             ]))),
@@ -551,7 +675,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                     const Center(
                         child: Text(
                             'Seleccione una jefatura para cargar inventario',
-                            style: TextStyle(color: Colors.white)))
+                            style: TextStyle(color: Colors.black)))
                 ],
               ),
       ),

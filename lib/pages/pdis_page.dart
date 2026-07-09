@@ -353,15 +353,22 @@ class _PdisPageState extends State<PdisPage> {
                       ],
                     );
                   } else {
-                    // Mobile / narrow: stacked
+                    // Mobile / narrow: stacked with a scrollable actions panel
                     return Column(
                       children: [
                         _buildChartCard(context),
                         const SizedBox(height: 12),
                         Expanded(flex: 2, child: _buildJefesList(context)),
                         const SizedBox(height: 12),
-                        SizedBox(
-                            height: 140, child: _buildActionsPanel(context)),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minHeight: 140,
+                            maxHeight: 380,
+                          ),
+                          child: SingleChildScrollView(
+                            child: _buildActionsPanel(context),
+                          ),
+                        ),
                       ],
                     );
                   }
