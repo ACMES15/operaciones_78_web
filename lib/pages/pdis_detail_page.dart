@@ -114,6 +114,7 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
 
   Future<void> _syncFromFirestore() async {
     try {
+      await _ensureFirebase();
       if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
       final box = Hive.box(_boxName);
       final doc = await FirebaseFirestore.instance
@@ -124,10 +125,11 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       final raw = doc.data()!;
       if (raw['datos'] is! List) return;
       final List items = raw['datos'];
-      // diagnostic counts
       final totalInFirestore = items.length;
-      final seenIds = <String, int>{};
+
+      final Set<String> newStoredKeys = {};
       int stored = 0;
+
       for (int idx = 0; idx < items.length; idx++) {
         final it = items[idx];
         if (it is! Map) continue;
@@ -142,24 +144,95 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           id = base64Url.encode(utf8.encode('$seccion|$referencia|$pdisNum'));
           data['__id'] = id;
         }
-        // if id already seen, append suffix to avoid overwriting in Hive
-        final prev = seenIds[id] ?? 0;
-        seenIds[id] = prev + 1;
-        final storeId = prev == 0 ? id : '$id|dup$prev';
+        // Always write using canonical id (overwrite previous), so cache
+        // reflects current Firestore state for that id.
+        final storeId = id;
         await box.put(
             storeId,
+            jsonEncode(data.map((k, v) => MapEntry(
+                k, v is Timestamp ? v.toDate().toIso8601String() : v))));
+        newStoredKeys.add(storeId);
+        stored++;
+      }
+
+      // Remove stale cached entries that are not present in the latest
+      // Firestore fetch (except meta keys).
+      final List<dynamic> toRemove = [];
+      for (final k in box.keys) {
+        if (k == '__lastImportedAt') continue;
+        if (!newStoredKeys.contains(k)) toRemove.add(k);
+      }
+      for (final k in toRemove) {
+        await box.delete(k);
+      }
+
+      // record last import timestamp
+      await box.put('__lastImportedAt', DateTime.now().toIso8601String());
+
+      await _loadFromHiveToState();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Firestore: $totalInFirestore filas — cache actualizada: guardadas $stored, eliminadas ${toRemove.length}')));
+    } catch (e) {
+      print('Error syncing from Firestore: $e');
+    }
+  }
+
+  /// Fuerza la recarga completa desde Firestore: limpia la caja Hive y
+  /// vuelve a guardar todos los items desde `ohpdis/datos`.
+  Future<void> _forceReloadFromFirestore() async {
+    try {
+      await _ensureFirebase();
+      if (!Hive.isBoxOpen(_boxName)) await Hive.openBox(_boxName);
+      final box = Hive.box(_boxName);
+      await box.clear();
+
+      final doc = await FirebaseFirestore.instance
+          .collection('ohpdis')
+          .doc('datos')
+          .get();
+      if (!doc.exists || doc.data() == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No hay datos en Firestore')));
+        return;
+      }
+      final raw = doc.data()!;
+      if (raw['datos'] is! List) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Formato inválido en Firestore')));
+        return;
+      }
+      final List items = raw['datos'];
+      int stored = 0;
+      for (int idx = 0; idx < items.length; idx++) {
+        final it = items[idx];
+        if (it is! Map) continue;
+        final Map<String, dynamic> data =
+            Map<String, dynamic>.from(it.cast<String, dynamic>());
+        String id = data['__id']?.toString() ?? '';
+        if (id.isEmpty) {
+          final seccion = (data['Sección'] ?? '').toString();
+          final referencia =
+              (data['REFERENCIA'] ?? data['Referencia'] ?? '').toString();
+          final pdisNum = (data['__pdis_num'] ?? 0).toString();
+          // include idx to guarantee unique id if fields are empty
+          id = base64Url
+              .encode(utf8.encode('$seccion|$referencia|$pdisNum|$idx'));
+          data['__id'] = id;
+        }
+        await box.put(
+            id,
             jsonEncode(data.map((k, v) => MapEntry(
                 k, v is Timestamp ? v.toDate().toIso8601String() : v))));
         stored++;
       }
       await _loadFromHiveToState();
-      // show diagnostic snackbar
-      final uniqueBefore = seenIds.length;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
-              'Firestore: $totalInFirestore filas — almacenadas en cache: $stored (ids únicos: $uniqueBefore)')));
+              'Forzada recarga desde Firestore: $stored filas guardadas en cache')));
     } catch (e) {
-      print('Error syncing from Firestore: $e');
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error forzando recarga: $e')));
     }
   }
 
@@ -565,14 +638,38 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
                       onPressed: _loading
                           ? null
                           : () async {
+                              final choice = await showDialog<String>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                        title: const Text(
+                                            'Recargar desde Firestore'),
+                                        content: const Text(
+                                            'Elija acción: "Recargar" fusiona/actualiza cache; "Forzar" limpiará cache y cargará todo desde Firestore.'),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, 'merge'),
+                                              child: const Text('Recargar')),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, 'force'),
+                                              child: const Text(
+                                                  'Forzar (limpiar cache)')),
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(ctx, null),
+                                              child: const Text('Cancelar')),
+                                        ],
+                                      ));
+                              if (choice == null) return;
                               setState(() => _loading = true);
                               try {
                                 await _ensureFirebase();
-                                await _syncFromFirestore();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Datos recargados desde Firestore')));
+                                if (choice == 'force') {
+                                  await _forceReloadFromFirestore();
+                                } else {
+                                  await _syncFromFirestore();
+                                }
                               } catch (e) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('Error: $e')));
