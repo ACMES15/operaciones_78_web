@@ -130,6 +130,9 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
       final Set<String> newStoredKeys = {};
       int stored = 0;
 
+      // Preserve all rows (including duplicates) by using a unique key per
+      // row that includes the index. This ensures the UI can display the
+      // full set returned by Firestore.
       for (int idx = 0; idx < items.length; idx++) {
         final it = items[idx];
         if (it is! Map) continue;
@@ -144,9 +147,8 @@ class _PdisDetailPageState extends State<PdisDetailPage> {
           id = base64Url.encode(utf8.encode('$seccion|$referencia|$pdisNum'));
           data['__id'] = id;
         }
-        // Always write using canonical id (overwrite previous), so cache
-        // reflects current Firestore state for that id.
-        final storeId = id;
+        // Use idx to ensure unique store key per row so duplicates are kept.
+        final storeId = '$id|$idx';
         await box.put(
             storeId,
             jsonEncode(data.map((k, v) => MapEntry(

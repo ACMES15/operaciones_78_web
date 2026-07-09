@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'pdis_detail_page.dart';
+import 'inventario_pdis_page.dart';
 
 class PdisPage extends StatefulWidget {
   final String usuario;
@@ -273,7 +274,8 @@ class _PdisPageState extends State<PdisPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => PdisDetailPage(usuario: widget.usuario)));
+                    builder: (_) =>
+                        InventarioPdisPage(usuario: widget.usuario)));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.black,
