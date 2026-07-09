@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'pdis_detail_page.dart';
 import 'inventario_pdis_page.dart';
+import 'inventario_historico_page.dart';
 
 class PdisPage extends StatefulWidget {
   final String usuario;
@@ -291,8 +292,8 @@ class _PdisPageState extends State<PdisPage> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Abrir Histórico')));
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const InventarioHistoricoPage()));
               },
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
