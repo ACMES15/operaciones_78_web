@@ -320,10 +320,12 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: Colors.black,
         title: const Text('Inventario PDIS',
-            style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -338,9 +340,14 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           value: _selectedJefe,
                           items: [
                             const DropdownMenuItem<String?>(
-                                value: null, child: Text('Seleccione Jefe')),
+                                value: null,
+                                child: Text('Seleccione Jefe',
+                                    style: TextStyle(color: Colors.black))),
                             ..._jefes.map((j) => DropdownMenuItem<String?>(
-                                value: j, child: Text(j)))
+                                value: j,
+                                child: Text(j,
+                                    style:
+                                        const TextStyle(color: Colors.black))))
                           ],
                           onChanged: _onSelectJefe,
                           decoration: const InputDecoration(
@@ -350,6 +357,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                       const SizedBox(width: 12),
                       ElevatedButton(
                           onPressed: _buildSkuAggregates,
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: Colors.black),
                           child: const Text('Cargar'))
                     ],
                   ),
@@ -368,15 +378,19 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                         )),
                         const SizedBox(width: 12),
                         Column(children: [
-                          Text('Total PDIS: $_totalPdis'),
-                          Text('Escaneado: $_totalScanned'),
-                          Text('Faltante: ${_totalPdis - _totalScanned}'),
+                          Text('Total PDIS: $_totalPdis',
+                              style: const TextStyle(color: Colors.white)),
+                          Text('Escaneado: $_totalScanned',
+                              style: const TextStyle(color: Colors.white)),
+                          Text('Faltante: ${_totalPdis - _totalScanned}',
+                              style: const TextStyle(color: Colors.white)),
                         ])
                       ],
                     ),
                     const SizedBox(height: 12),
                     Expanded(
                         child: Card(
+                      color: Colors.white,
                       elevation: 2,
                       child: Column(
                         children: [
@@ -408,7 +422,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                               final pdis = _pdisBySku[sku] ?? 0.0;
                               final scanned = _scannedBySku[sku] ?? 0;
                               return ListTile(
-                                title: Text(sku),
+                                title: Text(sku,
+                                    style: TextStyle(color: Colors.black)),
                                 trailing: SizedBox(
                                     width: 240,
                                     child: Row(
@@ -419,12 +434,16 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                               width: 110,
                                               child: Text(
                                                   pdis.toStringAsFixed(0),
-                                                  textAlign: TextAlign.right)),
+                                                  textAlign: TextAlign.right,
+                                                  style: const TextStyle(
+                                                      color: Colors.black))),
                                           const SizedBox(width: 12),
                                           SizedBox(
                                               width: 110,
                                               child: Text(scanned.toString(),
-                                                  textAlign: TextAlign.right))
+                                                  textAlign: TextAlign.right,
+                                                  style: const TextStyle(
+                                                      color: Colors.black)))
                                         ])),
                               );
                             },
@@ -434,6 +453,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                     )),
                     const SizedBox(height: 12),
                     Card(
+                        color: Colors.white,
                         elevation: 2,
                         child: Padding(
                             padding: const EdgeInsets.all(12.0),
@@ -503,6 +523,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                               Row(children: [
                                 Expanded(
                                     child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.black,
+                                            foregroundColor: Colors.white),
                                         onPressed: _finishInventory,
                                         child:
                                             const Text('Terminar inventario'))),
@@ -517,13 +540,18 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                         _totalScanned = 0;
                                       });
                                     },
+                                    style: OutlinedButton.styleFrom(
+                                        foregroundColor: Colors.white,
+                                        side: const BorderSide(
+                                            color: Colors.white)),
                                     child: const Text('Cancelar'))
                               ])
                             ]))),
                   ] else
                     const Center(
                         child: Text(
-                            'Seleccione una jefatura para cargar inventario'))
+                            'Seleccione una jefatura para cargar inventario',
+                            style: TextStyle(color: Colors.white)))
                 ],
               ),
       ),
