@@ -7,7 +7,10 @@ import 'package:flutter/material.dart';
 
 class InventarioPdisPage extends StatefulWidget {
   final String usuario;
-  const InventarioPdisPage({Key? key, required this.usuario}) : super(key: key);
+  final Map<String, dynamic>? initialPayload;
+  const InventarioPdisPage(
+      {Key? key, required this.usuario, this.initialPayload})
+      : super(key: key);
 
   @override
   State<InventarioPdisPage> createState() => _InventarioPdisPageState();
@@ -24,9 +27,12 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   // Aggregated by SKU for selected jefe
   final Map<String, double> _pdisBySku = {};
   final Map<String, int> _scannedBySku = {};
+  // SKUs scanned but not present in plantilla for the selected jefe
+  final Map<String, int> _sobrantesBySku = {};
 
   int _totalPdis = 0;
   int _totalScanned = 0;
+  int _totalSobrantes = 0;
 
   // scanner controller
   final TextEditingController _scanController = TextEditingController();
@@ -85,6 +91,53 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     setState(() {
       _loading = false;
     });
+    // If page was opened to edit a historic inventory, apply payload
+    if (widget.initialPayload != null) {
+      Future.microtask(() => _applyInitialPayload(widget.initialPayload!));
+    }
+  }
+
+  void _applyInitialPayload(Map<String, dynamic> payload) {
+    final jefe = payload['jefe']?.toString();
+    if (jefe == null) return;
+    setState(() {
+      _selectedJefe = jefe;
+    });
+    _buildSkuAggregates();
+
+    // apply scanned counts from payload skus
+    if (payload['skus'] is Map) {
+      (payload['skus'] as Map).forEach((k, v) {
+        final key = k.toString();
+        if (v is Map && v['scanned'] != null) {
+          final sv = v['scanned'];
+          final scanned =
+              sv is num ? sv.toInt() : int.tryParse(sv.toString()) ?? 0;
+          if (_scannedBySku.containsKey(key)) _scannedBySku[key] = scanned;
+        }
+      });
+    }
+
+    // apply sobrantes
+    if (payload['sobrantes'] is Map) {
+      (payload['sobrantes'] as Map).forEach((k, v) {
+        final key = k.toString();
+        final val = v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+        _sobrantesBySku[key] = val;
+      });
+    }
+
+    setState(() {
+      q1 = payload['q1'] == true;
+      q2 = payload['q2'] == true;
+      q3 = payload['q3'] == true;
+      q4 = payload['q4'] == true;
+    });
+
+    _recalcTotals();
+    // focus scan field after applying
+    Future.delayed(
+        const Duration(milliseconds: 100), () => _scanFocus.requestFocus());
   }
 
   String _getJefeFromRow(Map<String, dynamic> r) {
@@ -118,6 +171,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   void _buildSkuAggregates() {
     _pdisBySku.clear();
     _scannedBySku.clear();
+    _sobrantesBySku.clear();
     _totalPdis = 0;
     _totalScanned = 0;
     if (_selectedJefe == null) return;
@@ -178,14 +232,21 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       _scanFocus.requestFocus();
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('SKU "$sku" no encontrado en inventario del jefe')));
+    // No está en la plantilla del jefe: registrar como sobrante (solo en este reporte)
+    _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + 1;
+    _recalcTotals();
     _scanController.clear();
     _scanFocus.requestFocus();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'SKU "$sku" registrado como SOBRANTE (no se modifica OHPDIS)')));
   }
 
   void _recalcTotals() {
-    _totalScanned = _scannedBySku.values.fold(0, (s, v) => s + v);
+    final scannedFromPdis = _scannedBySku.values.fold(0, (s, v) => s + v);
+    final scannedSobrantes = _sobrantesBySku.values.fold(0, (s, v) => s + v);
+    _totalScanned = scannedFromPdis; // Escaneado = dentro de plantilla
+    _totalSobrantes = scannedSobrantes; // sobrantes detectados al escanear
     _totalPdis = _pdisBySku.values.fold(0.0, (s, v) => s + v).round();
     setState(() {});
   }
@@ -261,6 +322,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       'q4': q4,
       'skus': _pdisBySku.map(
           (k, v) => MapEntry(k, {'pdis': v, 'scanned': _scannedBySku[k] ?? 0})),
+      'sobrantes': _sobrantesBySku,
     };
     await doc.set(payload);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -281,12 +343,19 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     sheet.appendRow(['Total PDIS', _totalPdis]);
     sheet.appendRow(['Total Escaneado', _totalScanned]);
     sheet.appendRow([]);
-    sheet.appendRow(['SKU', 'PDIS', 'Escaneado']);
+    sheet.appendRow(['SKU', 'PDIS', 'Escaneado', 'Tipo']);
 
+    // primero los SKUs de la plantilla
     for (final sku in _pdisBySku.keys) {
       final pdis = _pdisBySku[sku] ?? 0.0;
       final scanned = _scannedBySku[sku] ?? 0;
-      sheet.appendRow([sku, pdis.toStringAsFixed(0), scanned]);
+      sheet.appendRow([sku, pdis.toStringAsFixed(0), scanned, '']);
+    }
+    // luego los sobrantes detectados al escanear
+    for (final sku in _sobrantesBySku.keys) {
+      if (_pdisBySku.containsKey(sku)) continue;
+      final scanned = _sobrantesBySku[sku] ?? 0;
+      sheet.appendRow([sku, '0', scanned, 'SOBRANTE']);
     }
 
     final bytes = workbook.encode();
@@ -329,15 +398,32 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     showDialog(
         context: context,
         builder: (ctx) {
+          final isMobile = MediaQuery.of(ctx).size.width < 600;
           return AlertDialog(
-            title: const Text('Faltantes',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.black)),
-            content: SizedBox(
-              width: 600,
+            title: Row(children: const [
+              Icon(Icons.info_outline, color: Colors.black),
+              SizedBox(width: 8),
+              Expanded(
+                  child: Text('Faltantes',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.black)))
+            ]),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxWidth: isMobile ? double.infinity : 800,
+                  maxHeight: isMobile ? 520 : 420),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const Text(
+                    'Definiciones:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                      'PDIS: cantidad registrada en la plantilla para ese SKU.\nFaltante: PDIS menos la cantidad escaneada. Aquí se muestran los SKUs que requieren atención.'),
+                  const SizedBox(height: 12),
                   if (faltantes.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12.0),
@@ -345,45 +431,80 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           style: TextStyle(color: Colors.black)),
                     )
                   else
-                    SizedBox(
-                      height: 320,
-                      child: ListView.builder(
-                        itemCount: faltantes.length,
-                        itemBuilder: (context, i) {
-                          final row = faltantes[i];
-                          return ListTile(
-                            dense: true,
-                            title: Text(row['sku'] ?? '',
-                                style: const TextStyle(color: Colors.black)),
-                            trailing: SizedBox(
-                                width: 180,
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Text('${row['pdis']}',
-                                        style: const TextStyle(
-                                            color: Colors.black)),
-                                    const SizedBox(width: 12),
-                                    Text('${row['scanned']}',
-                                        style: const TextStyle(
-                                            color: Colors.black)),
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red.shade50,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text('${row['falta']}',
-                                          style: const TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold)),
-                                    )
-                                  ],
-                                )),
-                          );
-                        },
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                            color: Colors.grey.shade100,
+                            child: Row(
+                              children: const [
+                                Expanded(
+                                    child: Text('SKU',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                SizedBox(
+                                    width: 80,
+                                    child: Text('PDIS',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                SizedBox(
+                                    width: 80,
+                                    child: Text('Escaneado',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold))),
+                                SizedBox(
+                                    width: 80,
+                                    child: Text('Faltante',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red))),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 1),
+                          Expanded(
+                            child: ListView.separated(
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemCount: faltantes.length,
+                              itemBuilder: (context, i) {
+                                final row = faltantes[i];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0, vertical: 10),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                          child: Text(row['sku'] ?? '',
+                                              style: const TextStyle(
+                                                  color: Colors.black))),
+                                      SizedBox(
+                                          width: 80,
+                                          child: Text('${row['pdis']}',
+                                              textAlign: TextAlign.right)),
+                                      SizedBox(
+                                          width: 80,
+                                          child: Text('${row['scanned']}',
+                                              textAlign: TextAlign.right)),
+                                      SizedBox(
+                                          width: 80,
+                                          child: Text('${row['falta']}',
+                                              textAlign: TextAlign.right,
+                                              style: const TextStyle(
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.bold)))
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          )
+                        ],
                       ),
                     )
                 ],
@@ -448,234 +569,549 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
                               foregroundColor: Colors.white),
-                          child: const Text('Cargar'))
+                          child: const Text('Cargar')),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                          onPressed: _exportToExcel,
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white),
+                          child: const Text('Exportar Excel'))
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (_selectedJefe != null) ...[
-                    Row(
-                      children: [
+                  Builder(builder: (context) {
+                    if (_selectedJefe == null) {
+                      return const Center(
+                          child: Text(
+                              'Seleccione una jefatura para cargar inventario',
+                              style: TextStyle(color: Colors.black)));
+                    }
+                    final isMobile = MediaQuery.of(context).size.width < 600;
+
+                    // Desktop / Tablet: keep existing spacious layout
+                    if (!isMobile) {
+                      return Column(children: [
+                        Row(
+                          children: [
+                            Expanded(
+                                child: TextField(
+                              controller: _scanController,
+                              focusNode: _scanFocus,
+                              decoration: const InputDecoration(
+                                  labelText: 'Escanear SKU',
+                                  border: OutlineInputBorder()),
+                              onSubmitted: _onScanSubmitted,
+                            )),
+                            const SizedBox(width: 12),
+                            Column(children: [
+                              Text('Total PDIS: $_totalPdis',
+                                  style: const TextStyle(color: Colors.black)),
+                              Text(
+                                  'Escaneado: $_totalScanned (Sobrantes: $_totalSobrantes)',
+                                  style: const TextStyle(color: Colors.black)),
+                              Text('Faltante: ${_totalPdis - _totalScanned}',
+                                  style: const TextStyle(color: Colors.black)),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _showFaltantesDialog,
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 8)),
+                                child: const Text('Faltantes'),
+                              )
+                            ])
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         Expanded(
-                            child: TextField(
-                          controller: _scanController,
-                          focusNode: _scanFocus,
-                          decoration: const InputDecoration(
-                              labelText: 'Escanear SKU',
-                              border: OutlineInputBorder()),
-                          onSubmitted: _onScanSubmitted,
-                        )),
-                        const SizedBox(width: 12),
-                        Column(children: [
-                          Text('Total PDIS: $_totalPdis',
-                              style: const TextStyle(color: Colors.black)),
-                          Text('Escaneado: $_totalScanned',
-                              style: const TextStyle(color: Colors.black)),
-                          Text('Faltante: ${_totalPdis - _totalScanned}',
-                              style: const TextStyle(color: Colors.black)),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _showFaltantesDialog,
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8)),
-                            child: const Text('Faltantes'),
-                          )
-                        ])
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                        flex: 3,
-                        child: Card(
-                          color: Colors.white,
-                          elevation: 2,
-                          child: Column(
-                            children: [
-                              Padding(
+                            flex: 3,
+                            child: Card(
+                              color: Colors.white,
+                              elevation: 2,
+                              child: Column(
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(12.0),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                            child: Text('SKU',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.w700))),
+                                        SizedBox(
+                                            width: 120,
+                                            child: Text('PDIS',
+                                                textAlign: TextAlign.right)),
+                                        SizedBox(
+                                            width: 120,
+                                            child: Text('Escaneado',
+                                                textAlign: TextAlign.right))
+                                      ],
+                                    ),
+                                  ),
+                                  const Divider(height: 1),
+                                  Expanded(child: Builder(builder: (context) {
+                                    final pdisKeys = _pdisBySku.keys.toList()
+                                      ..sort((a, b) {
+                                        final remA =
+                                            (_pdisBySku[a]?.round() ?? 0) -
+                                                (_scannedBySku[a] ?? 0);
+                                        final remB =
+                                            (_pdisBySku[b]?.round() ?? 0) -
+                                                (_scannedBySku[b] ?? 0);
+                                        if (remA != remB)
+                                          return remB.compareTo(remA);
+                                        return a.compareTo(b);
+                                      });
+                                    final sobranteKeys = _sobrantesBySku.keys
+                                        .where(
+                                            (k) => !_pdisBySku.containsKey(k))
+                                        .toList();
+                                    final totalCount =
+                                        pdisKeys.length + sobranteKeys.length;
+
+                                    return ListView.builder(
+                                      itemCount: totalCount,
+                                      itemBuilder: (context, index) {
+                                        final isPdis = index < pdisKeys.length;
+                                        final sku = isPdis
+                                            ? pdisKeys[index]
+                                            : sobranteKeys[
+                                                index - pdisKeys.length];
+                                        final pdis = _pdisBySku[sku] ?? 0.0;
+                                        final scanned = isPdis
+                                            ? (_scannedBySku[sku] ?? 0)
+                                            : (_sobrantesBySku[sku] ?? 0);
+                                        return ListTile(
+                                          title: Text(
+                                              isPdis ? sku : '$sku (SOBRANTE)',
+                                              style: const TextStyle(
+                                                  color: Colors.black)),
+                                          trailing: SizedBox(
+                                              width: 240,
+                                              child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    SizedBox(
+                                                        width: 110,
+                                                        child: Text(
+                                                            pdis.toStringAsFixed(
+                                                                0),
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                            style: const TextStyle(
+                                                                color: Colors
+                                                                    .black))),
+                                                    const SizedBox(width: 12),
+                                                    SizedBox(
+                                                        width: 110,
+                                                        child: Text(
+                                                            scanned.toString(),
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                            style: TextStyle(
+                                                                color: scanned ==
+                                                                        0
+                                                                    ? Colors.red
+                                                                    : Colors
+                                                                        .black)))
+                                                  ])),
+                                        );
+                                      },
+                                    );
+                                  }))
+                                ],
+                              ),
+                            )),
+                        const SizedBox(height: 12),
+                        Card(
+                            color: Colors.white,
+                            elevation: 2,
+                            child: Padding(
                                 padding: const EdgeInsets.all(12.0),
-                                child: Row(
-                                  children: [
+                                child: Column(children: [
+                                  const Text('Formulario de resultado',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700)),
+                                  SwitchListTile(
+                                      activeColor: Colors.black,
+                                      title: const Text(
+                                          'Mercancía identificada con SKU y PDIS?'),
+                                      value: q1,
+                                      onChanged: (v) {
+                                        setState(() => q1 = v);
+                                      }),
+                                  SwitchListTile(
+                                      activeColor: Colors.black,
+                                      title: const Text(
+                                          'Se tuvo faltante en el primer escaneo?'),
+                                      value: q2,
+                                      onChanged: (v) {
+                                        setState(() => q2 = v);
+                                      }),
+                                  SwitchListTile(
+                                      activeColor: Colors.black,
+                                      title:
+                                          const Text('Hay mercancía dañada?'),
+                                      value: q3,
+                                      onChanged: (v) {
+                                        setState(() => q3 = v);
+                                      }),
+                                  SwitchListTile(
+                                      activeColor: Colors.black,
+                                      title: const Text(
+                                          'Hay mercancía en bodega?'),
+                                      value: q4,
+                                      onChanged: (v) {
+                                        setState(() => q4 = v);
+                                      }),
+                                  const SizedBox(height: 8),
+                                  Row(children: [
                                     Expanded(
-                                        child: Text('SKU',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w700))),
-                                    SizedBox(
-                                        width: 120,
-                                        child: Text('PDIS',
-                                            textAlign: TextAlign.right)),
-                                    SizedBox(
-                                        width: 120,
-                                        child: Text('Escaneado',
-                                            textAlign: TextAlign.right))
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                          Text(
+                                              'Porcentaje escaneado: ${(_percentScanned() * 100).toStringAsFixed(1)}%'),
+                                          SizedBox(height: 6),
+                                          LinearProgressIndicator(
+                                              value: _percentScanned()),
+                                        ])),
+                                    const SizedBox(width: 12),
+                                    Column(children: [
+                                      Text(
+                                          'Calidad: ${_computeQualityScore().toStringAsFixed(1)}%'),
+                                      SizedBox(height: 8),
+                                      SizedBox(
+                                          width: 80,
+                                          height: 80,
+                                          child: Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                CircularProgressIndicator(
+                                                    value:
+                                                        _computeQualityScore() /
+                                                            100),
+                                                Text(
+                                                    '${_computeQualityScore().toStringAsFixed(0)}%')
+                                              ]))
+                                    ])
+                                  ]),
+                                  const SizedBox(height: 12),
+                                  Row(children: [
+                                    Expanded(
+                                        child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.black,
+                                                foregroundColor: Colors.white),
+                                            onPressed: _finishInventory,
+                                            child: const Text(
+                                                'Terminar inventario'))),
+                                    const SizedBox(width: 12),
+                                    OutlinedButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _pdisBySku.clear();
+                                            _scannedBySku.clear();
+                                            _sobrantesBySku.clear();
+                                            _selectedJefe = null;
+                                            _totalPdis = 0;
+                                            _totalScanned = 0;
+                                          });
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                            backgroundColor: Colors.black,
+                                            foregroundColor: Colors.white,
+                                            side: const BorderSide(
+                                                color: Colors.black)),
+                                        child: const Text('Cancelar'))
+                                  ])
+                                ])))
+                      ]);
+                    }
+
+                    // Mobile layout: totals above scan field, scan area includes Faltantes button,
+                    // constrained list height and single scrollable column so form/buttons can be reached.
+                    final listHeight =
+                        MediaQuery.of(context).size.height * 0.36;
+                    return Expanded(
+                        child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Card(
+                            color: Colors.white,
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Flexible(
+                                          child: Text('Total PDIS: $_totalPdis',
+                                              style: const TextStyle(
+                                                  color: Colors.black))),
+                                      Flexible(
+                                          child: Text(
+                                              'Escaneado: $_totalScanned (Sobrantes: $_totalSobrantes)',
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                  color: Colors.black))),
+                                      Flexible(
+                                          child: Text(
+                                              'Faltante: ${_totalPdis - _totalScanned}',
+                                              textAlign: TextAlign.right,
+                                              style: const TextStyle(
+                                                  color: Colors.black))),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(children: [
+                                    Expanded(
+                                        child: TextField(
+                                      controller: _scanController,
+                                      focusNode: _scanFocus,
+                                      decoration: const InputDecoration(
+                                          labelText: 'Escanear SKU',
+                                          border: OutlineInputBorder()),
+                                      onSubmitted: _onScanSubmitted,
+                                    )),
+                                    const SizedBox(width: 8),
+                                    ElevatedButton(
+                                      onPressed: _showFaltantesDialog,
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.black,
+                                          foregroundColor: Colors.white),
+                                      child: const Text('Faltantes'),
+                                    )
+                                  ])
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                              height: listHeight.clamp(220.0, 420.0),
+                              child: Card(
+                                color: Colors.white,
+                                elevation: 2,
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                              child: Text('SKU',
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700))),
+                                          SizedBox(
+                                              width: 100,
+                                              child: Text('PDIS',
+                                                  textAlign: TextAlign.right)),
+                                          SizedBox(
+                                              width: 100,
+                                              child: Text('Escaneado',
+                                                  textAlign: TextAlign.right)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Divider(height: 1),
+                                    Expanded(child: Builder(builder: (context) {
+                                      final pdisKeys = _pdisBySku.keys.toList()
+                                        ..sort((a, b) {
+                                          final remA =
+                                              (_pdisBySku[a]?.round() ?? 0) -
+                                                  (_scannedBySku[a] ?? 0);
+                                          final remB =
+                                              (_pdisBySku[b]?.round() ?? 0) -
+                                                  (_scannedBySku[b] ?? 0);
+                                          if (remA != remB)
+                                            return remB.compareTo(remA);
+                                          return a.compareTo(b);
+                                        });
+                                      final sobranteKeys = _sobrantesBySku.keys
+                                          .where(
+                                              (k) => !_pdisBySku.containsKey(k))
+                                          .toList();
+                                      final totalCount =
+                                          pdisKeys.length + sobranteKeys.length;
+
+                                      return ListView.builder(
+                                        itemCount: totalCount,
+                                        itemBuilder: (context, index) {
+                                          final isPdis =
+                                              index < pdisKeys.length;
+                                          final sku = isPdis
+                                              ? pdisKeys[index]
+                                              : sobranteKeys[
+                                                  index - pdisKeys.length];
+                                          final pdis = _pdisBySku[sku] ?? 0.0;
+                                          final scanned = isPdis
+                                              ? (_scannedBySku[sku] ?? 0)
+                                              : (_sobrantesBySku[sku] ?? 0);
+                                          return ListTile(
+                                            title: Text(
+                                                isPdis
+                                                    ? sku
+                                                    : '$sku (SOBRANTE)',
+                                                style: const TextStyle(
+                                                    color: Colors.black)),
+                                            trailing: SizedBox(
+                                                width: 200,
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.end,
+                                                  children: [
+                                                    SizedBox(
+                                                        width: 80,
+                                                        child: Text(
+                                                            pdis.toStringAsFixed(
+                                                                0),
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                            style: const TextStyle(
+                                                                color: Colors
+                                                                    .black))),
+                                                    const SizedBox(width: 8),
+                                                    SizedBox(
+                                                        width: 80,
+                                                        child: Text(
+                                                            scanned.toString(),
+                                                            textAlign:
+                                                                TextAlign.right,
+                                                            style: TextStyle(
+                                                                color: scanned ==
+                                                                        0
+                                                                    ? Colors.red
+                                                                    : Colors
+                                                                        .black))),
+                                                  ],
+                                                )),
+                                          );
+                                        },
+                                      );
+                                    }))
                                   ],
                                 ),
-                              ),
-                              const Divider(height: 1),
-                              Expanded(child: Builder(builder: (context) {
-                                final sortedKeys = _pdisBySku.keys.toList()
-                                  ..sort((a, b) {
-                                    final remA = (_pdisBySku[a]?.round() ?? 0) -
-                                        (_scannedBySku[a] ?? 0);
-                                    final remB = (_pdisBySku[b]?.round() ?? 0) -
-                                        (_scannedBySku[b] ?? 0);
-                                    if (remA != remB)
-                                      return remB.compareTo(remA);
-                                    return a.compareTo(b);
-                                  });
-
-                                return ListView.builder(
-                                  itemCount: sortedKeys.length,
-                                  itemBuilder: (context, index) {
-                                    final sku = sortedKeys[index];
-                                    final pdis = _pdisBySku[sku] ?? 0.0;
-                                    final scanned = _scannedBySku[sku] ?? 0;
-                                    return ListTile(
-                                      title: Text(sku,
-                                          style: const TextStyle(
-                                              color: Colors.black)),
-                                      trailing: SizedBox(
-                                          width: 240,
-                                          child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.end,
+                              )),
+                          const SizedBox(height: 12),
+                          Card(
+                              color: Colors.white,
+                              elevation: 2,
+                              child: Padding(
+                                  padding: const EdgeInsets.all(12.0),
+                                  child: Column(children: [
+                                    const Text('Formulario de resultado',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700)),
+                                    SwitchListTile(
+                                        activeColor: Colors.black,
+                                        title: const Text(
+                                            'Mercancía identificada con SKU y PDIS?'),
+                                        value: q1,
+                                        onChanged: (v) =>
+                                            setState(() => q1 = v)),
+                                    SwitchListTile(
+                                        activeColor: Colors.black,
+                                        title: const Text(
+                                            'Se tuvo faltante en el primer escaneo?'),
+                                        value: q2,
+                                        onChanged: (v) =>
+                                            setState(() => q2 = v)),
+                                    SwitchListTile(
+                                        activeColor: Colors.black,
+                                        title:
+                                            const Text('Hay mercancía dañada?'),
+                                        value: q3,
+                                        onChanged: (v) =>
+                                            setState(() => q3 = v)),
+                                    SwitchListTile(
+                                        activeColor: Colors.black,
+                                        title: const Text(
+                                            'Hay mercancía en bodega?'),
+                                        value: q4,
+                                        onChanged: (v) =>
+                                            setState(() => q4 = v)),
+                                    const SizedBox(height: 8),
+                                    Row(children: [
+                                      Expanded(
+                                          child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
-                                                SizedBox(
-                                                    width: 110,
-                                                    child: Text(
-                                                        pdis.toStringAsFixed(0),
-                                                        textAlign:
-                                                            TextAlign.right,
-                                                        style: const TextStyle(
-                                                            color:
-                                                                Colors.black))),
-                                                const SizedBox(width: 12),
-                                                SizedBox(
-                                                    width: 110,
-                                                    child: Text(
-                                                        scanned.toString(),
-                                                        textAlign:
-                                                            TextAlign.right,
-                                                        style: TextStyle(
-                                                            color: scanned == 0
-                                                                ? Colors.red
-                                                                : Colors
-                                                                    .black)))
-                                              ])),
-                                    );
-                                  },
-                                );
-                              }))
-                            ],
-                          ),
-                        )),
-                    const SizedBox(height: 12),
-                    Card(
-                        color: Colors.white,
-                        elevation: 2,
-                        child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(children: [
-                              const Text('Formulario de resultado',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w700)),
-                              SwitchListTile(
-                                  activeColor: Colors.black,
-                                  title: const Text(
-                                      'Mercancía identificada con SKU y PDIS?'),
-                                  value: q1,
-                                  onChanged: (v) {
-                                    setState(() => q1 = v);
-                                  }),
-                              SwitchListTile(
-                                  activeColor: Colors.black,
-                                  title: const Text(
-                                      'Se tuvo faltante en el primer escaneo?'),
-                                  value: q2,
-                                  onChanged: (v) {
-                                    setState(() => q2 = v);
-                                  }),
-                              SwitchListTile(
-                                  activeColor: Colors.black,
-                                  title: const Text('Hay mercancía dañada?'),
-                                  value: q3,
-                                  onChanged: (v) {
-                                    setState(() => q3 = v);
-                                  }),
-                              SwitchListTile(
-                                  activeColor: Colors.black,
-                                  title: const Text('Hay mercancía en bodega?'),
-                                  value: q4,
-                                  onChanged: (v) {
-                                    setState(() => q4 = v);
-                                  }),
-                              const SizedBox(height: 8),
-                              Row(children: [
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(
-                                          'Porcentaje escaneado: ${(_percentScanned() * 100).toStringAsFixed(1)}%'),
-                                      SizedBox(height: 6),
-                                      LinearProgressIndicator(
-                                          value: _percentScanned()),
-                                    ])),
-                                const SizedBox(width: 12),
-                                Column(children: [
-                                  Text(
-                                      'Calidad: ${_computeQualityScore().toStringAsFixed(1)}%'),
-                                  SizedBox(height: 8),
-                                  SizedBox(
-                                      width: 80,
-                                      height: 80,
-                                      child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            CircularProgressIndicator(
-                                                value: _computeQualityScore() /
-                                                    100),
                                             Text(
-                                                '${_computeQualityScore().toStringAsFixed(0)}%')
-                                          ]))
-                                ])
-                              ]),
-                              const SizedBox(height: 12),
-                              Row(children: [
-                                Expanded(
-                                    child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.black,
-                                            foregroundColor: Colors.white),
-                                        onPressed: _finishInventory,
-                                        child:
-                                            const Text('Terminar inventario'))),
-                                const SizedBox(width: 12),
-                                OutlinedButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _pdisBySku.clear();
-                                        _scannedBySku.clear();
-                                        _selectedJefe = null;
-                                        _totalPdis = 0;
-                                        _totalScanned = 0;
-                                      });
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white,
-                                        side: const BorderSide(
-                                            color: Colors.black)),
-                                    child: const Text('Cancelar'))
-                              ])
-                            ]))),
-                  ] else
-                    const Center(
-                        child: Text(
-                            'Seleccione una jefatura para cargar inventario',
-                            style: TextStyle(color: Colors.black)))
+                                                'Porcentaje escaneado: ${(_percentScanned() * 100).toStringAsFixed(1)}%'),
+                                            SizedBox(height: 6),
+                                            LinearProgressIndicator(
+                                                value: _percentScanned())
+                                          ])),
+                                      const SizedBox(width: 12),
+                                      Column(children: [
+                                        Text(
+                                            'Calidad: ${_computeQualityScore().toStringAsFixed(1)}%'),
+                                        SizedBox(height: 8),
+                                        SizedBox(
+                                            width: 80,
+                                            height: 80,
+                                            child: Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  CircularProgressIndicator(
+                                                      value:
+                                                          _computeQualityScore() /
+                                                              100),
+                                                  Text(
+                                                      '${_computeQualityScore().toStringAsFixed(0)}%')
+                                                ]))
+                                      ])
+                                    ]),
+                                    const SizedBox(height: 12),
+                                    Row(children: [
+                                      Expanded(
+                                          child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.black,
+                                                  foregroundColor:
+                                                      Colors.white),
+                                              onPressed: _finishInventory,
+                                              child: const Text(
+                                                  'Terminar inventario'))),
+                                      const SizedBox(width: 12),
+                                      OutlinedButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              _pdisBySku.clear();
+                                              _scannedBySku.clear();
+                                              _sobrantesBySku.clear();
+                                              _selectedJefe = null;
+                                              _totalPdis = 0;
+                                              _totalScanned = 0;
+                                            });
+                                          },
+                                          style: OutlinedButton.styleFrom(
+                                              backgroundColor: Colors.black,
+                                              foregroundColor: Colors.white,
+                                              side: const BorderSide(
+                                                  color: Colors.black)),
+                                          child: const Text('Cancelar'))
+                                    ])
+                                  ])))
+                        ],
+                      ),
+                    ));
+                  })
                 ],
               ),
       ),

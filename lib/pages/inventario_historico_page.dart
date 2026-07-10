@@ -1,5 +1,10 @@
+import 'dart:html' as html;
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:excel/excel.dart' as ex;
 import 'package:flutter/material.dart';
+import 'inventario_pdis_page.dart';
 
 class InventarioHistoricoPage extends StatefulWidget {
   const InventarioHistoricoPage({Key? key}) : super(key: key);
@@ -74,6 +79,10 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                       const SizedBox(height: 6),
                       Text('Calidad ${quality.toStringAsFixed(0)}%',
                           style: const TextStyle(color: Colors.black54)),
+                      const SizedBox(height: 6),
+                      TextButton(
+                          onPressed: () => _editInventory(context, data),
+                          child: const Text('Editar'))
                     ],
                   ),
                 ),
@@ -83,6 +92,17 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
         },
       ),
     );
+  }
+
+  void _editInventory(BuildContext context, Map<String, dynamic> data) {
+    final usuario = data['usuario']?.toString() ?? '';
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => InventarioPdisPage(
+                  usuario: usuario,
+                  initialPayload: data,
+                )));
   }
 
   void _openDetails(BuildContext context, Map<String, dynamic> data) {
@@ -95,6 +115,12 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
               skus.add(MapEntry(k.toString(), v));
             });
           }
+          final sobrantes = <MapEntry<String, dynamic>>[];
+          if (data['sobrantes'] is Map) {
+            (data['sobrantes'] as Map).forEach((k, v) {
+              sobrantes.add(MapEntry(k.toString(), v));
+            });
+          }
           final percent = (data['percentScanned'] is num)
               ? (data['percentScanned'] as num).toDouble()
               : 0.0;
@@ -102,49 +128,163 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
               ? (data['qualityScore'] as num).toDouble()
               : 0.0;
 
+          // build question percentages (Sí -> 100, No -> 0)
+          final q = [
+            data['q1'] == true ? 1.0 : 0.0,
+            data['q2'] == true ? 1.0 : 0.0,
+            data['q3'] == true ? 1.0 : 0.0,
+            data['q4'] == true ? 1.0 : 0.0,
+          ];
+
           return AlertDialog(
             title: Text('Resultado - ${data['jefe'] ?? 'Jefe'}'),
             content: SizedBox(
-              width: 600,
+              width: 820,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(children: [
-                    Expanded(
-                        child: Text(
-                            'Escaneado: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')),
-                    Text('${(percent * 100).toStringAsFixed(1)}%')
-                  ]),
+                  // Top graphics: percent scanned and quality
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Card(
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              children: [
+                                const Text('Escaneo',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Stack(alignment: Alignment.center, children: [
+                                  SizedBox(
+                                      width: 120,
+                                      height: 120,
+                                      child: CircularProgressIndicator(
+                                          value: percent,
+                                          strokeWidth: 12,
+                                          color: Colors.blue)),
+                                  Text('${(percent * 100).toStringAsFixed(1)}%',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold))
+                                ]),
+                                const SizedBox(height: 8),
+                                Text(
+                                    'Scanned: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Card(
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              children: [
+                                const Text('Calidad',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                Stack(alignment: Alignment.center, children: [
+                                  SizedBox(
+                                      width: 120,
+                                      height: 120,
+                                      child: CircularProgressIndicator(
+                                          value: (quality / 100),
+                                          strokeWidth: 12,
+                                          color: Colors.green)),
+                                  Text('${quality.toStringAsFixed(0)}%',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold))
+                                ]),
+                                const SizedBox(height: 8),
+                                Text('Calidad calculada')
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                        child: Text('Calidad: ${quality.toStringAsFixed(1)}%'))
-                  ]),
+                  // Questions summary
+                  Card(
+                      elevation: 1,
+                      child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Formulario (resumen)',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Row(children: [
+                                Expanded(
+                                    child: _buildQuestionChip(
+                                        '1) Mercancía identificada', q[0])),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: _buildQuestionChip(
+                                        '2) Faltante primer escaneo', q[1])),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: _buildQuestionChip(
+                                        '3) Mercancía dañada', q[2])),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: _buildQuestionChip(
+                                        '4) En bodega', q[3])),
+                              ])
+                            ],
+                          ))),
                   const SizedBox(height: 12),
-                  // mostrar respuestas del formulario q1..q4
-                  if (data['q1'] != null ||
-                      data['q2'] != null ||
-                      data['q3'] != null ||
-                      data['q4'] != null)
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Respuestas:'),
-                        const SizedBox(height: 6),
-                        Text(
-                            '1) Mercancía identificada con SKU y PDIS?: ${data['q1'] == true ? 'Sí' : 'No'}'),
-                        Text(
-                            '2) Se tuvo faltante en el primer escaneo?: ${data['q2'] == true ? 'Sí' : 'No'}'),
-                        Text(
-                            '3) Hay mercancía dañada?: ${data['q3'] == true ? 'Sí' : 'No'}'),
-                        Text(
-                            '4) Hay mercancía en bodega?: ${data['q4'] == true ? 'Sí' : 'No'}'),
-                        const SizedBox(height: 12),
-                      ],
-                    ),
-                  const Divider(),
-                  const SizedBox(height: 8),
-                  const Text('SKUs'),
+                  // Sobrantes
+                  if (sobrantes.isNotEmpty)
+                    Card(
+                        color: Colors.red.shade50,
+                        elevation: 1,
+                        child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Sobrantes detectados',
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red)),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 140,
+                                  child: ListView.builder(
+                                    itemCount: sobrantes.length,
+                                    itemBuilder: (context, i) {
+                                      final k = sobrantes[i].key;
+                                      final v = sobrantes[i].value;
+                                      return ListTile(
+                                        dense: true,
+                                        title: Text(k,
+                                            style: const TextStyle(
+                                                color: Colors.black)),
+                                        trailing: Text('${v ?? 0}',
+                                            style: const TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold)),
+                                      );
+                                    },
+                                  ),
+                                )
+                              ],
+                            ))),
+                  const SizedBox(height: 12),
+                  // Full SKU table
+                  const Text('Detalle de SKUs',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 260,
@@ -163,7 +303,7 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                           dense: true,
                           title: Text(k),
                           trailing: SizedBox(
-                              width: 140,
+                              width: 220,
                               child: Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
@@ -181,9 +321,101 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cerrar'))
+                  child: const Text('Cerrar')),
+              TextButton(
+                  onPressed: () => _exportHistoricoToExcel(data),
+                  child: const Text('Exportar Excel'))
             ],
           );
         });
+  }
+
+  Widget _buildQuestionChip(String label, double value) {
+    final pct = (value * 100).toInt();
+    final color = value >= 1.0 ? Colors.green : Colors.red;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+                child: LinearProgressIndicator(
+                    value: value,
+                    color: color,
+                    backgroundColor: Colors.grey.shade200)),
+            const SizedBox(width: 8),
+            Text('$pct%',
+                style: TextStyle(fontWeight: FontWeight.bold, color: color))
+          ],
+        )
+      ],
+    );
+  }
+
+  Future<void> _exportHistoricoToExcel(Map<String, dynamic> payload) async {
+    final workbook = ex.Excel.createExcel();
+    final summary = workbook['Resumen'];
+    final skusSheet = workbook['SKUs'];
+    final sobrantesSheet = workbook['Sobrantes'];
+
+    // metadata
+    summary.appendRow(['Jefatura', payload['jefe'] ?? '']);
+    summary.appendRow([
+      'Fecha',
+      (payload['createdAt'] is Timestamp)
+          ? (payload['createdAt'] as Timestamp).toDate().toString()
+          : ''
+    ]);
+    summary.appendRow(['Total PDIS', payload['totalPdis'] ?? 0]);
+    summary.appendRow(['Total Escaneado', payload['totalScanned'] ?? 0]);
+    summary.appendRow(['% Escaneado', (payload['percentScanned'] ?? 0.0)]);
+    summary.appendRow(['Calidad', (payload['qualityScore'] ?? 0.0)]);
+    summary.appendRow([]);
+    summary.appendRow(['Formulario', 'Valor']);
+    summary.appendRow(
+        ['1) Mercancía identificada', payload['q1'] == true ? 'Sí' : 'No']);
+    summary.appendRow(
+        ['2) Faltante primer escaneo', payload['q2'] == true ? 'Sí' : 'No']);
+    summary.appendRow(
+        ['3) Mercancía dañada', payload['q3'] == true ? 'Sí' : 'No']);
+    summary.appendRow(['4) En bodega', payload['q4'] == true ? 'Sí' : 'No']);
+
+    // SKUs
+    skusSheet.appendRow(['SKU', 'PDIS', 'Escaneado']);
+    if (payload['skus'] is Map) {
+      (payload['skus'] as Map).forEach((k, v) {
+        final pdis =
+            (v is Map && v['pdis'] != null) ? v['pdis'].toString() : '0';
+        final scanned =
+            (v is Map && v['scanned'] != null) ? v['scanned'].toString() : '0';
+        skusSheet.appendRow([k.toString(), pdis, scanned]);
+      });
+    }
+
+    // Sobrantes
+    sobrantesSheet.appendRow(['SKU', 'Cantidad']);
+    if (payload['sobrantes'] is Map) {
+      (payload['sobrantes'] as Map).forEach((k, v) {
+        sobrantesSheet.appendRow([k.toString(), v.toString()]);
+      });
+    }
+
+    final bytes = workbook.encode();
+    if (bytes == null) return;
+    final bytesData = Uint8List.fromList(bytes);
+    final blob = html.Blob([bytesData],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.document.createElement('a') as html.AnchorElement
+      ..href = url
+      ..style.display = 'none'
+      ..download =
+          'inventario_historico_${payload['jefe'] ?? 'jefe'}_${DateTime.now().toIso8601String()}.xlsx';
+    html.document.body?.children.add(anchor);
+    anchor.click();
+    html.document.body?.children.remove(anchor);
+    html.Url.revokeObjectUrl(url);
   }
 }
