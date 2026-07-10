@@ -398,6 +398,230 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     }
   }
 
+  void _showHistoricoListPage() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return Scaffold(
+        appBar: AppBar(
+            backgroundColor: Colors.black,
+            title: const Text('Histórico Caminatas',
+                style: TextStyle(color: Colors.white))),
+        body: FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('caminatas')
+              .orderBy('createdAt', descending: true)
+              .limit(200)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text('No hay caminatas registradas'));
+            }
+            final docs = snapshot.data!.docs;
+            return ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                final seccion = data['seccion'] ?? '';
+                final score = data['score'] ?? '';
+                String dateStr = '';
+                if (data['date'] is Timestamp) {
+                  dateStr =
+                      (data['date'] as Timestamp).toDate().toLocal().toString();
+                } else if (data['createdAt'] is Timestamp) {
+                  dateStr = (data['createdAt'] as Timestamp)
+                      .toDate()
+                      .toLocal()
+                      .toString();
+                }
+
+                // thumbnail candidate
+                Widget thumb = const SizedBox.shrink();
+                try {
+                  final bphotos = (data['bodega']?['photos']) ?? [];
+                  final pphotos = (data['piso']?['photos']) ?? [];
+                  final cand = (bphotos.isNotEmpty)
+                      ? bphotos.first
+                      : (pphotos.isNotEmpty ? pphotos.first : null);
+                  if (cand != null) {
+                    if (cand is String) {
+                      final bytes = base64Decode(cand);
+                      thumb = ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(bytes,
+                              width: 80, height: 80, fit: BoxFit.cover));
+                    } else if (cand is Uint8List) {
+                      thumb = ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(cand,
+                              width: 80, height: 80, fit: BoxFit.cover));
+                    }
+                  }
+                } catch (_) {}
+
+                return Card(
+                  elevation: 2,
+                  child: ListTile(
+                    leading: thumb,
+                    title: Text('Sección: $seccion'),
+                    subtitle: Text('Fecha: $dateStr\nScore: $score'),
+                    isThreeLine: true,
+                    onTap: () => _showCaminataDialog(doc.id),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      );
+    }));
+  }
+
+  Future<void> _showCaminataDialog(String docId) async {
+    showDialog(
+        context: context,
+        builder: (ctx) {
+          return FutureBuilder<Map<String, dynamic>?>(
+              future: _getCaminataData(docId),
+              builder: (context, snap) {
+                if (snap.connectionState != ConnectionState.done) {
+                  return AlertDialog(
+                      content: SizedBox(
+                          height: 120,
+                          child: Center(child: CircularProgressIndicator())));
+                }
+                final data = snap.data;
+                if (data == null) {
+                  return AlertDialog(
+                      content: const Text('No se encontró la caminata'),
+                      actions: [
+                        TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cerrar'))
+                      ]);
+                }
+
+                final seccion = data['seccion'] ?? '';
+                final notes = data['notes'] ?? '';
+                final score = data['score'] ?? '';
+                final tsVal = data['date'];
+                String dateStr = '';
+                if (tsVal is Timestamp)
+                  dateStr = tsVal.toDate().toLocal().toString();
+                else if (data['createdAt'] is Timestamp)
+                  dateStr = (data['createdAt'] as Timestamp)
+                      .toDate()
+                      .toLocal()
+                      .toString();
+
+                Widget _photosWrap(List<dynamic> list) {
+                  if (list.isEmpty) return const SizedBox.shrink();
+                  return Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: list.map((s) {
+                      if (s is Uint8List) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(s,
+                              width: 100, height: 100, fit: BoxFit.cover),
+                        );
+                      }
+                      if (s is String) {
+                        try {
+                          final bytes = base64Decode(s);
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.memory(bytes,
+                                width: 100, height: 100, fit: BoxFit.cover),
+                          );
+                        } catch (_) {
+                          return const SizedBox.shrink();
+                        }
+                      }
+                      return const SizedBox.shrink();
+                    }).toList(),
+                  );
+                }
+
+                return AlertDialog(
+                  content: SingleChildScrollView(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            SizedBox(
+                              width: 100,
+                              height: 100,
+                              child:
+                                  Stack(alignment: Alignment.center, children: [
+                                CircularProgressIndicator(
+                                    value: (score is num) ? (score / 100) : 0,
+                                    strokeWidth: 8,
+                                    color: Colors.blue,
+                                    backgroundColor:
+                                        Colors.blue.withOpacity(0.2)),
+                                Text('${score.toString()}%',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold)),
+                              ]),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text('Sección: $seccion',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 6),
+                                  Text('Fecha: $dateStr')
+                                ])),
+                          ]),
+                          const SizedBox(height: 12),
+                          if (notes.toString().isNotEmpty) ...[
+                            const Text('Notas:',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 6),
+                            Text(notes.toString()),
+                            const SizedBox(height: 8),
+                          ],
+                          if ((data['bodega']?['photos'] ?? []).isNotEmpty) ...[
+                            const Text('Fotos Bodega:',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _photosWrap(data['bodega']?['photos'] ?? []),
+                            const SizedBox(height: 8),
+                          ],
+                          if ((data['piso']?['photos'] ?? []).isNotEmpty) ...[
+                            const Text('Fotos Piso:',
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            _photosWrap(data['piso']?['photos'] ?? []),
+                          ],
+                        ]),
+                  ),
+                  actions: [
+                    TextButton(
+                        onPressed: () async {
+                          Navigator.of(ctx).pop();
+                          await _exportCaminataPdf(data, docId);
+                        },
+                        child: const Text('Exportar PDF')),
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Cerrar'))
+                  ],
+                );
+              });
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -427,20 +651,7 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                               style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.black,
                                   foregroundColor: Colors.white),
-                              onPressed: () {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => Scaffold(
-                                    appBar: AppBar(
-                                        backgroundColor: Colors.black,
-                                        title: const Text('Histórico Caminatas',
-                                            style: TextStyle(
-                                                color: Colors.white))),
-                                    body: const Center(
-                                        child: Text(
-                                            'Histórico - implementar vista')),
-                                  ),
-                                ));
-                              },
+                              onPressed: _showHistoricoListPage,
                               child: const Text('Historico'),
                             ),
                           ),
@@ -536,23 +747,7 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.black,
                                         foregroundColor: Colors.white),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => Scaffold(
-                                            appBar: AppBar(
-                                                backgroundColor: Colors.black,
-                                                title: const Text(
-                                                    'Histórico Caminatas',
-                                                    style: TextStyle(
-                                                        color: Colors.white))),
-                                            body: const Center(
-                                                child: Text(
-                                                    'Histórico - implementar vista')),
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    onPressed: _showHistoricoListPage,
                                     child: const Text('Historico'),
                                   ),
                                 ]),
