@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'pdis_detail_page.dart';
 import 'inventario_pdis_page.dart';
 import 'inventario_historico_page.dart';
+import 'metricas_page.dart';
 
 class PdisPage extends StatefulWidget {
   final String usuario;
@@ -304,6 +305,23 @@ class _PdisPageState extends State<PdisPage> {
                     borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text('Histórico',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MetricasPage()));
+              },
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                side: const BorderSide(color: Colors.black87, width: 1.5),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Metricas',
                   style: TextStyle(fontWeight: FontWeight.w700)),
             ),
             const Spacer(),

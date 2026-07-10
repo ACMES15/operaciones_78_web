@@ -16,35 +16,7 @@ class InventarioHistoricoPage extends StatefulWidget {
       _InventarioHistoricoPageState();
 }
 
-// DataTable source for paginated SKU table in details dialog
-class _SkusDataSource extends DataTableSource {
-  final List<MapEntry<String, dynamic>> skus;
-  _SkusDataSource(this.skus);
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= skus.length) return null;
-    final k = skus[index].key;
-    final v = skus[index].value;
-    final pdis = (v is Map && v['pdis'] != null) ? v['pdis'].toString() : '0';
-    final scanned =
-        (v is Map && v['scanned'] != null) ? v['scanned'].toString() : '0';
-    return DataRow.byIndex(index: index, cells: [
-      DataCell(Text(k)),
-      DataCell(Text(pdis)),
-      DataCell(Text(scanned)),
-    ]);
-  }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => skus.length;
-
-  @override
-  int get selectedRowCount => 0;
-}
+// SKU table is rendered directly in the dialog using a DataTable built from the filtered SKUs.
 
 class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
   @override
@@ -161,12 +133,7 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
           return AlertDialog(
             title: Text('Resultado - ${data['jefe'] ?? 'Jefe'}'),
             content: StatefulBuilder(builder: (ctx2, setState) {
-              final rowsPerPage = filteredSkus.isEmpty
-                  ? 1
-                  : (filteredSkus.length > 8 ? 8 : filteredSkus.length);
-              final totalPages = (filteredSkus.isEmpty)
-                  ? 1
-                  : ((filteredSkus.length / rowsPerPage).ceil());
+              // rowsPerPage not needed for DataTable view
               return SizedBox(
                 width: 820,
                 child: SingleChildScrollView(
@@ -275,7 +242,7 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                                 ),
                               ),
                             ),
-                          )
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -372,24 +339,41 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  PaginatedDataTable(
-                                    header: const Text('SKUs'),
-                                    columns: const [
-                                      DataColumn(label: Text('SKU')),
-                                      DataColumn(
-                                          label: Text('PDIS'), numeric: true),
-                                      DataColumn(
-                                          label: Text('Escaneado'),
-                                          numeric: true),
-                                    ],
-                                    source: _SkusDataSource(filteredSkus),
-                                    rowsPerPage: rowsPerPage,
-                                    columnSpacing: 24,
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: DataTable(
+                                      columns: const [
+                                        DataColumn(label: Text('SKU')),
+                                        DataColumn(
+                                            label: Text('PDIS'), numeric: true),
+                                        DataColumn(
+                                            label: Text('Escaneado'),
+                                            numeric: true),
+                                      ],
+                                      rows: filteredSkus.map((e) {
+                                        final k = e.key;
+                                        final v = e.value;
+                                        final pdis =
+                                            (v is Map && v['pdis'] != null)
+                                                ? v['pdis'].toString()
+                                                : '0';
+                                        final scanned =
+                                            (v is Map && v['scanned'] != null)
+                                                ? v['scanned'].toString()
+                                                : '0';
+                                        return DataRow(cells: [
+                                          DataCell(Text(k)),
+                                          DataCell(Text(pdis)),
+                                          DataCell(Text(scanned)),
+                                        ]);
+                                      }).toList(),
+                                    ),
                                   ),
                                   const SizedBox(height: 6),
                                   Align(
                                       alignment: Alignment.centerRight,
-                                      child: Text('Páginas: $totalPages'))
+                                      child:
+                                          Text('SKUs: ${filteredSkus.length}'))
                                 ],
                               ),
                             ),
