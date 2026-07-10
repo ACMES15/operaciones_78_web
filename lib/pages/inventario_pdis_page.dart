@@ -591,7 +591,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
                     // Desktop / Tablet: keep existing spacious layout
                     if (!isMobile) {
-                      return Column(children: [
+                      return Expanded(
+                          child: SingleChildScrollView(
+                              child: Column(children: [
                         Row(
                           children: [
                             Expanded(
@@ -834,7 +836,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                         child: const Text('Cancelar'))
                                   ])
                                 ])))
-                      ]);
+                      ])));
                     }
 
                     // Mobile layout: totals above scan field, scan area includes Faltantes button,

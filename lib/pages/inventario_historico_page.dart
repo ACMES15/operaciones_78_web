@@ -59,12 +59,58 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                   ? (data['qualityScore'] as num).toDouble()
                   : 0.0;
 
+              final isMobile = MediaQuery.of(context).size.width < 600;
+
+              if (isMobile) {
+                return Card(
+                    color: Colors.white,
+                    elevation: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(jefe,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black)),
+                          const SizedBox(height: 6),
+                          Text(created != null ? created.toString() : '',
+                              style: const TextStyle(color: Colors.black54)),
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            Expanded(
+                                child: ElevatedButton(
+                                    onPressed: () =>
+                                        _openDetails(context, data),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    child: const Text('Detalles'))),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: ElevatedButton(
+                                    onPressed: () =>
+                                        _editInventory(context, data),
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    child: const Text('Editar')))
+                          ])
+                        ],
+                      ),
+                    ));
+              }
+
               return Card(
                 color: Colors.white,
                 elevation: 4,
                 margin: const EdgeInsets.symmetric(vertical: 8),
                 child: ListTile(
                   onTap: () => _openDetails(context, data),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   title: Text('$jefe',
                       style: const TextStyle(
                           fontWeight: FontWeight.w700, color: Colors.black)),
@@ -184,7 +230,7 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                                 ]),
                                 const SizedBox(height: 8),
                                 Text(
-                                    'Scanned: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')
+                                    'Escaneado: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')
                               ],
                             ),
                           ),
