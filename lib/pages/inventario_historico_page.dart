@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' as ex;
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
 import 'package:flutter/material.dart';
 import 'inventario_pdis_page.dart';
 
@@ -79,10 +81,17 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                       const SizedBox(height: 6),
                       Text('Calidad ${quality.toStringAsFixed(0)}%',
                           style: const TextStyle(color: Colors.black54)),
-                      const SizedBox(height: 6),
-                      TextButton(
-                          onPressed: () => _editInventory(context, data),
-                          child: const Text('Editar'))
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => _editInventory(context, data),
+                        icon: const Icon(Icons.edit, size: 16),
+                        label: const Text('Editar'),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6)),
+                      )
                     ],
                   ),
                 ),
@@ -288,31 +297,30 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                   const SizedBox(height: 8),
                   SizedBox(
                     height: 260,
-                    child: ListView.builder(
-                      itemCount: skus.length,
-                      itemBuilder: (context, i) {
-                        final k = skus[i].key;
-                        final v = skus[i].value;
-                        final pdis = (v is Map && v['pdis'] != null)
-                            ? v['pdis'].toString()
-                            : '';
-                        final scanned = (v is Map && v['scanned'] != null)
-                            ? v['scanned'].toString()
-                            : '0';
-                        return ListTile(
-                          dense: true,
-                          title: Text(k),
-                          trailing: SizedBox(
-                              width: 220,
-                              child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Text(pdis),
-                                    const SizedBox(width: 12),
-                                    Text(scanned)
-                                  ])),
-                        );
-                      },
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: const [
+                          DataColumn(label: Text('SKU')),
+                          DataColumn(label: Text('PDIS'), numeric: true),
+                          DataColumn(label: Text('Escaneado'), numeric: true),
+                        ],
+                        rows: skus.map((e) {
+                          final k = e.key;
+                          final v = e.value;
+                          final pdis = (v is Map && v['pdis'] != null)
+                              ? v['pdis'].toString()
+                              : '';
+                          final scanned = (v is Map && v['scanned'] != null)
+                              ? v['scanned'].toString()
+                              : '0';
+                          return DataRow(cells: [
+                            DataCell(Text(k)),
+                            DataCell(Text(pdis)),
+                            DataCell(Text(scanned)),
+                          ]);
+                        }).toList(),
+                      ),
                     ),
                   )
                 ],
@@ -324,10 +332,142 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                   child: const Text('Cerrar')),
               TextButton(
                   onPressed: () => _exportHistoricoToExcel(data),
-                  child: const Text('Exportar Excel'))
+                  child: const Text('Exportar Excel')),
+              TextButton(
+                  onPressed: () => _exportHistoricoToPdf(data),
+                  child: const Text('Exportar PDF'))
             ],
           );
         });
+  }
+
+  Future<void> _exportHistoricoToPdf(Map<String, dynamic> payload) async {
+    final doc = pw.Document();
+
+    final percent = (payload['percentScanned'] is num)
+        ? (payload['percentScanned'] as num).toDouble()
+        : 0.0;
+    final quality = (payload['qualityScore'] is num)
+        ? (payload['qualityScore'] as num).toDouble()
+        : 0.0;
+
+    final headers = ['SKU', 'PDIS', 'Escaneado'];
+    final rows = <List<String>>[];
+    if (payload['skus'] is Map) {
+      (payload['skus'] as Map).forEach((k, v) {
+        final pdis =
+            (v is Map && v['pdis'] != null) ? v['pdis'].toString() : '0';
+        final scanned =
+            (v is Map && v['scanned'] != null) ? v['scanned'].toString() : '0';
+        rows.add([k.toString(), pdis, scanned]);
+      });
+    }
+
+    final sobrantesRows = <List<String>>[];
+    if (payload['sobrantes'] is Map) {
+      (payload['sobrantes'] as Map).forEach((k, v) {
+        sobrantesRows.add([k.toString(), v.toString()]);
+      });
+    }
+
+    doc.addPage(pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (context) => [
+              pw.Container(
+                  padding: const pw.EdgeInsets.all(12),
+                  child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              pw.Text('Inventario - ${payload['jefe'] ?? ''}',
+                                  style: pw.TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: pw.FontWeight.bold)),
+                              pw.SizedBox(height: 6),
+                              pw.Text(
+                                  'Fecha: ${payload['createdAt'] is Timestamp ? (payload['createdAt'] as Timestamp).toDate().toString() : ''}'),
+                            ]),
+                        pw.Column(children: [
+                          pw.Container(
+                              padding: const pw.EdgeInsets.all(8),
+                              decoration: pw.BoxDecoration(
+                                  color: PdfColors.blue200,
+                                  borderRadius: const pw.BorderRadius.all(
+                                      pw.Radius.circular(6))),
+                              child: pw.Column(children: [
+                                pw.Text('Escaneado',
+                                    style: pw.TextStyle(fontSize: 12)),
+                                pw.SizedBox(height: 6),
+                                pw.Text(
+                                    '${(percent * 100).toStringAsFixed(1)}%',
+                                    style: pw.TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: pw.FontWeight.bold))
+                              ])),
+                          pw.SizedBox(height: 8),
+                          pw.Container(
+                              padding: const pw.EdgeInsets.all(8),
+                              decoration: pw.BoxDecoration(
+                                  color: PdfColors.green200,
+                                  borderRadius: const pw.BorderRadius.all(
+                                      pw.Radius.circular(6))),
+                              child: pw.Column(children: [
+                                pw.Text('Calidad',
+                                    style: pw.TextStyle(fontSize: 12)),
+                                pw.SizedBox(height: 6),
+                                pw.Text('${quality.toStringAsFixed(0)}%',
+                                    style: pw.TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: pw.FontWeight.bold))
+                              ]))
+                        ])
+                      ])),
+              pw.SizedBox(height: 12),
+              pw.Text('Formulario (resumen)',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Bullet(
+                  text:
+                      '1) Mercancía identificada: ${payload['q1'] == true ? 'Sí' : 'No'}'),
+              pw.Bullet(
+                  text:
+                      '2) Faltante primer escaneo: ${payload['q2'] == true ? 'Sí' : 'No'}'),
+              pw.Bullet(
+                  text:
+                      '3) Mercancía dañada: ${payload['q3'] == true ? 'Sí' : 'No'}'),
+              pw.Bullet(
+                  text: '4) En bodega: ${payload['q4'] == true ? 'Sí' : 'No'}'),
+              pw.SizedBox(height: 12),
+              pw.Text('Detalle de SKUs',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              if (rows.isNotEmpty)
+                pw.Table.fromTextArray(
+                    headers: headers,
+                    data: rows,
+                    headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              if (sobrantesRows.isNotEmpty) pw.SizedBox(height: 12),
+              if (sobrantesRows.isNotEmpty)
+                pw.Text('Sobrantes',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              if (sobrantesRows.isNotEmpty)
+                pw.Table.fromTextArray(
+                    headers: ['SKU', 'Cantidad'], data: sobrantesRows)
+            ]));
+
+    final pdfBytes = await doc.save();
+    final blob = html.Blob([pdfBytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.document.createElement('a') as html.AnchorElement
+      ..href = url
+      ..style.display = 'none'
+      ..download =
+          'inventario_historico_${payload['jefe'] ?? 'jefe'}_${DateTime.now().toIso8601String()}.pdf';
+    html.document.body?.children.add(anchor);
+    anchor.click();
+    html.document.body?.children.remove(anchor);
+    html.Url.revokeObjectUrl(url);
   }
 
   Widget _buildQuestionChip(String label, double value) {

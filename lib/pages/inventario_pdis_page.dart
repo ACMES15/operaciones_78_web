@@ -655,6 +655,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                   ),
                                   const Divider(height: 1),
                                   Expanded(child: Builder(builder: (context) {
+                                    // Build combined rows: plantilla SKUs first (sorted by falta), then sobrantes
                                     final pdisKeys = _pdisBySku.keys.toList()
                                       ..sort((a, b) {
                                         final remA =
@@ -671,59 +672,52 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                         .where(
                                             (k) => !_pdisBySku.containsKey(k))
                                         .toList();
-                                    final totalCount =
-                                        pdisKeys.length + sobranteKeys.length;
 
-                                    return ListView.builder(
-                                      itemCount: totalCount,
-                                      itemBuilder: (context, index) {
-                                        final isPdis = index < pdisKeys.length;
-                                        final sku = isPdis
-                                            ? pdisKeys[index]
-                                            : sobranteKeys[
-                                                index - pdisKeys.length];
-                                        final pdis = _pdisBySku[sku] ?? 0.0;
-                                        final scanned = isPdis
-                                            ? (_scannedBySku[sku] ?? 0)
-                                            : (_sobrantesBySku[sku] ?? 0);
-                                        return ListTile(
-                                          title: Text(
-                                              isPdis ? sku : '$sku (SOBRANTE)',
-                                              style: const TextStyle(
-                                                  color: Colors.black)),
-                                          trailing: SizedBox(
-                                              width: 240,
-                                              child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.end,
-                                                  children: [
-                                                    SizedBox(
-                                                        width: 110,
-                                                        child: Text(
-                                                            pdis.toStringAsFixed(
-                                                                0),
-                                                            textAlign:
-                                                                TextAlign.right,
-                                                            style: const TextStyle(
-                                                                color: Colors
-                                                                    .black))),
-                                                    const SizedBox(width: 12),
-                                                    SizedBox(
-                                                        width: 110,
-                                                        child: Text(
-                                                            scanned.toString(),
-                                                            textAlign:
-                                                                TextAlign.right,
-                                                            style: TextStyle(
-                                                                color: scanned ==
-                                                                        0
-                                                                    ? Colors.red
-                                                                    : Colors
-                                                                        .black)))
-                                                  ])),
-                                        );
-                                      },
-                                    );
+                                    final rows = <DataRow>[];
+                                    for (final sku in pdisKeys) {
+                                      final pdis = _pdisBySku[sku] ?? 0.0;
+                                      final scanned = _scannedBySku[sku] ?? 0;
+                                      rows.add(DataRow(cells: [
+                                        DataCell(Text(sku)),
+                                        DataCell(Text(pdis.toStringAsFixed(0))),
+                                        DataCell(Text(scanned.toString(),
+                                            style: TextStyle(
+                                                color: scanned == 0
+                                                    ? Colors.red
+                                                    : Colors.black))),
+                                        const DataCell(Text('')),
+                                      ]));
+                                    }
+                                    for (final sku in sobranteKeys) {
+                                      final scanned = _sobrantesBySku[sku] ?? 0;
+                                      rows.add(DataRow(cells: [
+                                        DataCell(Text('$sku')),
+                                        const DataCell(Text('0')),
+                                        DataCell(Text(scanned.toString(),
+                                            style: TextStyle(
+                                                color: scanned == 0
+                                                    ? Colors.red
+                                                    : Colors.black))),
+                                        const DataCell(Text('SOBRANTE')),
+                                      ]));
+                                    }
+
+                                    return SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: SizedBox(
+                                            width: MediaQuery.of(context)
+                                                .size
+                                                .width,
+                                            child: DataTable(columns: const [
+                                              DataColumn(label: Text('SKU')),
+                                              DataColumn(
+                                                  label: Text('PDIS'),
+                                                  numeric: true),
+                                              DataColumn(
+                                                  label: Text('Escaneado'),
+                                                  numeric: true),
+                                              DataColumn(label: Text('Tipo')),
+                                            ], rows: rows)));
                                   }))
                                 ],
                               ),
@@ -945,63 +939,55 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                           .where(
                                               (k) => !_pdisBySku.containsKey(k))
                                           .toList();
-                                      final totalCount =
-                                          pdisKeys.length + sobranteKeys.length;
 
-                                      return ListView.builder(
-                                        itemCount: totalCount,
-                                        itemBuilder: (context, index) {
-                                          final isPdis =
-                                              index < pdisKeys.length;
-                                          final sku = isPdis
-                                              ? pdisKeys[index]
-                                              : sobranteKeys[
-                                                  index - pdisKeys.length];
-                                          final pdis = _pdisBySku[sku] ?? 0.0;
-                                          final scanned = isPdis
-                                              ? (_scannedBySku[sku] ?? 0)
-                                              : (_sobrantesBySku[sku] ?? 0);
-                                          return ListTile(
-                                            title: Text(
-                                                isPdis
-                                                    ? sku
-                                                    : '$sku (SOBRANTE)',
-                                                style: const TextStyle(
-                                                    color: Colors.black)),
-                                            trailing: SizedBox(
-                                                width: 200,
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.end,
-                                                  children: [
-                                                    SizedBox(
-                                                        width: 80,
-                                                        child: Text(
-                                                            pdis.toStringAsFixed(
-                                                                0),
-                                                            textAlign:
-                                                                TextAlign.right,
-                                                            style: const TextStyle(
-                                                                color: Colors
-                                                                    .black))),
-                                                    const SizedBox(width: 8),
-                                                    SizedBox(
-                                                        width: 80,
-                                                        child: Text(
-                                                            scanned.toString(),
-                                                            textAlign:
-                                                                TextAlign.right,
-                                                            style: TextStyle(
-                                                                color: scanned ==
-                                                                        0
-                                                                    ? Colors.red
-                                                                    : Colors
-                                                                        .black))),
-                                                  ],
-                                                )),
-                                          );
-                                        },
-                                      );
+                                      final rows = <DataRow>[];
+                                      for (final sku in pdisKeys) {
+                                        final pdis = _pdisBySku[sku] ?? 0.0;
+                                        final scanned = _scannedBySku[sku] ?? 0;
+                                        rows.add(DataRow(cells: [
+                                          DataCell(Text(sku)),
+                                          DataCell(
+                                              Text(pdis.toStringAsFixed(0))),
+                                          DataCell(Text(scanned.toString(),
+                                              style: TextStyle(
+                                                  color: scanned == 0
+                                                      ? Colors.red
+                                                      : Colors.black))),
+                                          const DataCell(Text('')),
+                                        ]));
+                                      }
+                                      for (final sku in sobranteKeys) {
+                                        final scanned =
+                                            _sobrantesBySku[sku] ?? 0;
+                                        rows.add(DataRow(cells: [
+                                          DataCell(Text('$sku')),
+                                          const DataCell(Text('0')),
+                                          DataCell(Text(scanned.toString(),
+                                              style: TextStyle(
+                                                  color: scanned == 0
+                                                      ? Colors.red
+                                                      : Colors.black))),
+                                          const DataCell(Text('SOBRANTE')),
+                                        ]));
+                                      }
+
+                                      return SingleChildScrollView(
+                                          scrollDirection: Axis.horizontal,
+                                          child: SizedBox(
+                                              width: MediaQuery.of(context)
+                                                      .size
+                                                      .width -
+                                                  48,
+                                              child: DataTable(columns: const [
+                                                DataColumn(label: Text('SKU')),
+                                                DataColumn(
+                                                    label: Text('PDIS'),
+                                                    numeric: true),
+                                                DataColumn(
+                                                    label: Text('Escaneado'),
+                                                    numeric: true),
+                                                DataColumn(label: Text('Tipo')),
+                                              ], rows: rows)));
                                     }))
                                   ],
                                 ),
