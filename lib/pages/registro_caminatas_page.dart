@@ -1,5 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
 import 'registro_caminata_form.dart';
 
 class RegistroCaminatasPage extends StatefulWidget {
@@ -42,6 +49,353 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
       debugPrint('Error cargando plantilla ejecutiva: $e');
     }
     setState(() => _loading = false);
+  }
+
+  void _openHistoricForId(String docId) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return Scaffold(
+        appBar: AppBar(
+            backgroundColor: Colors.black,
+            title: const Text('Histórico Caminatas',
+                style: TextStyle(color: Colors.white)),
+            actions: [
+              IconButton(
+                  tooltip: 'Exportar PDF',
+                  onPressed: () async {
+                    // fetch fresh data then export
+                    final data = await _getCaminataData(docId);
+                    if (data != null) await _exportCaminataPdf(data, docId);
+                  },
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white))
+            ]),
+        body: FutureBuilder<Map<String, dynamic>?>(
+          future: _getCaminataData(docId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final data = snapshot.data;
+            if (data == null)
+              return const Center(child: Text('Caminata no encontrada'));
+            final seccion = data['seccion'] ?? '';
+            final tsVal = data['date'];
+            String dateStr = '';
+            if (tsVal is Timestamp) {
+              dateStr = tsVal.toDate().toLocal().toString();
+            } else if (data['createdAt'] is Timestamp) {
+              dateStr = (data['createdAt'] as Timestamp)
+                  .toDate()
+                  .toLocal()
+                  .toString();
+            } else if (tsVal is String) {
+              dateStr = tsVal;
+            }
+
+            final score = data['score'] ?? '';
+            final notes = data['notes'] ?? '';
+            final List<dynamic> bodegaPhotos =
+                (data['bodega']?['photos']) ?? [];
+            final List<dynamic> pisoPhotos = (data['piso']?['photos']) ?? [];
+
+            Widget _photosWrap(List<dynamic> list) {
+              if (list.isEmpty) return const SizedBox.shrink();
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: list.map((s) {
+                  if (s is Uint8List) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.memory(s,
+                          width: 100, height: 100, fit: BoxFit.cover),
+                    );
+                  }
+                  if (s is String) {
+                    try {
+                      final bytes = base64Decode(s);
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.memory(bytes,
+                            width: 100, height: 100, fit: BoxFit.cover),
+                      );
+                    } catch (_) {
+                      return const SizedBox.shrink();
+                    }
+                  }
+                  return const SizedBox.shrink();
+                }).toList(),
+              );
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Executive header with big percent
+                      Row(children: [
+                        SizedBox(
+                          width: 120,
+                          height: 120,
+                          child: Stack(alignment: Alignment.center, children: [
+                            CircularProgressIndicator(
+                              value: (score is num) ? (score / 100) : 0,
+                              strokeWidth: 10,
+                              color: Colors.blue,
+                              backgroundColor: Colors.blue.withOpacity(0.2),
+                            ),
+                            Text('${score.toString()}%',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 20)),
+                          ]),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Sección: $seccion',
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18)),
+                                const SizedBox(height: 6),
+                                Text('Fecha: $dateStr'),
+                                const SizedBox(height: 6),
+                                Text('Score: $score'),
+                              ]),
+                        )
+                      ]),
+                      const SizedBox(height: 12),
+                      Text('Sección: $seccion',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      Text('Fecha: $dateStr'),
+                      const SizedBox(height: 8),
+                      Text('Score: $score'),
+                      const SizedBox(height: 8),
+                      if (notes.toString().isNotEmpty) ...[
+                        const Text('Notas:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text(notes.toString()),
+                        const SizedBox(height: 8),
+                      ],
+                      if (bodegaPhotos.isNotEmpty) ...[
+                        const Text('Fotos Bodega:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        _photosWrap(bodegaPhotos),
+                        const SizedBox(height: 12),
+                      ],
+                      if (pisoPhotos.isNotEmpty) ...[
+                        const Text('Fotos Piso:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        _photosWrap(pisoPhotos),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }));
+  }
+
+  Future<Map<String, dynamic>?> _getCaminataData(String docId) async {
+    final key = 'caminata_$docId';
+    const boxName = 'caminatas_cache';
+    if (!Hive.isBoxOpen(boxName)) {
+      await Hive.openBox(boxName);
+    }
+    final box = Hive.box(boxName);
+    if (box.containsKey(key)) {
+      try {
+        final cached = box.get(key);
+        if (cached != null) {
+          final Map<String, dynamic> data =
+              Map<String, dynamic>.from(jsonDecode(cached));
+          // refresh in background
+          FirebaseFirestore.instance
+              .collection('caminatas')
+              .doc(docId)
+              .get()
+              .then((snap) async {
+            if (snap.exists && snap.data() != null) {
+              try {
+                box.put(key, jsonEncode(snap.data()));
+              } catch (_) {}
+            }
+          }).catchError((_) {});
+          return data;
+        }
+      } catch (_) {}
+    }
+
+    // no cache or parse failed: fetch from server and cache
+    final snap = await FirebaseFirestore.instance
+        .collection('caminatas')
+        .doc(docId)
+        .get();
+    if (!snap.exists || snap.data() == null) return null;
+    final data = snap.data() as Map<String, dynamic>;
+    try {
+      box.put(key, jsonEncode(data));
+    } catch (_) {}
+    return data;
+  }
+
+  Future<void> _exportCaminataPdf(
+      Map<String, dynamic> data, String docId) async {
+    final pdf = pw.Document();
+    final seccion = data['seccion'] ?? '';
+    final title = 'Caminata - Sección $seccion';
+    final score = data['score'] ?? 0;
+    final notes = data['notes'] ?? '';
+
+    final List<dynamic> bodegaPhotos = (data['bodega']?['photos']) ?? [];
+    final List<dynamic> pisoPhotos = (data['piso']?['photos']) ?? [];
+
+    // helper to convert dynamic photo to pw.ImageProvider
+    pw.Widget _imageWidgetFromDynamic(dynamic s) {
+      try {
+        Uint8List bytes;
+        if (s is Uint8List) {
+          bytes = s;
+        } else if (s is String) {
+          bytes = base64Decode(s);
+        } else {
+          return pw.SizedBox(width: 0);
+        }
+        return pw.Container(
+            margin: const pw.EdgeInsets.all(4),
+            child: pw.Image(pw.MemoryImage(bytes),
+                width: 120, height: 120, fit: pw.BoxFit.cover));
+      } catch (_) {
+        return pw.SizedBox(width: 0);
+      }
+    }
+
+    pdf.addPage(pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context ctx) {
+          return pw.Padding(
+            padding: const pw.EdgeInsets.all(20),
+            child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(title,
+                      style: pw.TextStyle(
+                          fontSize: 26, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 12),
+                  pw.Row(children: [
+                    pw.Container(
+                        width: 140,
+                        height: 140,
+                        child: pw.Center(
+                            child: pw.Text('$score%',
+                                style: pw.TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: pw.FontWeight.bold)))),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                        child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                          pw.Text('Sección: ${data['seccion'] ?? ''}',
+                              style: pw.TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 6),
+                          pw.Text(
+                              'Fecha: ${data['date'] is Timestamp ? (data['date'] as Timestamp).toDate().toLocal().toString() : data['date']?.toString() ?? ''}'),
+                          pw.SizedBox(height: 6),
+                          pw.Text('Score: $score'),
+                        ]))
+                  ]),
+                  pw.Divider(),
+                  pw.Text('Preguntas - Bodega',
+                      style: pw.TextStyle(
+                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 6),
+                  pw.Bullet(
+                      text:
+                          'Bodega en orden: ${data['bodega']?['orden'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Mercancía tirada: ${data['bodega']?['mercanciaTirada'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Devolución MKP: ${data['bodega']?['devolucionMkp'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Suministro exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
+                  pw.SizedBox(height: 8),
+                  pw.Text('Preguntas - Piso',
+                      style: pw.TextStyle(
+                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 6),
+                  pw.Bullet(
+                      text:
+                          'Orden en Terminal: ${data['piso']?['ordenTerminal'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Mercancía de otras secciones: ${data['piso']?['mercanciaOtras'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Objetos personales: ${data['piso']?['objetosPersonales'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Orden en lugar de Jefe: ${data['piso']?['ordenLugarJefe'] == true ? 'Sí' : 'No'}'),
+                  pw.SizedBox(height: 12),
+                  if (notes.toString().isNotEmpty)
+                    pw.Column(children: [
+                      pw.Text('Notas:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 6),
+                      pw.Text(notes.toString())
+                    ]),
+                  pw.SizedBox(height: 12),
+                  if (bodegaPhotos.isNotEmpty)
+                    pw.Column(children: [
+                      pw.Text('Fotos Bodega:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 8),
+                      pw.Wrap(
+                          children: bodegaPhotos
+                              .map((s) => _imageWidgetFromDynamic(s))
+                              .toList())
+                    ]),
+                  pw.SizedBox(height: 12),
+                  if (pisoPhotos.isNotEmpty)
+                    pw.Column(children: [
+                      pw.Text('Fotos Piso:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 8),
+                      pw.Wrap(
+                          children: pisoPhotos
+                              .map((s) => _imageWidgetFromDynamic(s))
+                              .toList())
+                    ]),
+                ]),
+          );
+        }));
+
+    try {
+      final bytes = await pdf.save();
+      await Printing.sharePdf(
+          bytes: bytes, filename: 'caminata_seccion_$seccion.pdf');
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error exportando PDF: $e')));
+    }
   }
 
   @override
@@ -108,14 +462,17 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.black,
                                         foregroundColor: Colors.white),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                          MaterialPageRoute(
+                                    onPressed: () async {
+                                      final docId = await Navigator.of(context)
+                                          .push(MaterialPageRoute(
                                               builder: (_) =>
                                                   RegistroCaminataForm(
                                                       usuario: widget.usuario,
                                                       jefe: jefe,
                                                       date: _selectedDate)));
+                                      if (docId != null && docId is String) {
+                                        _openHistoricForId(docId);
+                                      }
                                     },
                                     child: const Text('Inicio de caminata'),
                                   ),
@@ -146,14 +503,17 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                   style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.black,
                                       foregroundColor: Colors.white),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                        MaterialPageRoute(
+                                  onPressed: () async {
+                                    final docId = await Navigator.of(context)
+                                        .push(MaterialPageRoute(
                                             builder: (_) =>
                                                 RegistroCaminataForm(
                                                     usuario: widget.usuario,
                                                     jefe: jefe,
                                                     date: _selectedDate)));
+                                    if (docId != null && docId is String) {
+                                      _openHistoricForId(docId);
+                                    }
                                   },
                                   child: const Text('Inicio de caminata'),
                                 ),
@@ -177,20 +537,21 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                         backgroundColor: Colors.black,
                                         foregroundColor: Colors.white),
                                     onPressed: () {
-                                      Navigator.of(context)
-                                          .push(MaterialPageRoute(
-                                        builder: (_) => Scaffold(
-                                          appBar: AppBar(
-                                              backgroundColor: Colors.black,
-                                              title: const Text(
-                                                  'Histórico Caminatas',
-                                                  style: TextStyle(
-                                                      color: Colors.white))),
-                                          body: const Center(
-                                              child: Text(
-                                                  'Histórico - implementar vista')),
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => Scaffold(
+                                            appBar: AppBar(
+                                                backgroundColor: Colors.black,
+                                                title: const Text(
+                                                    'Histórico Caminatas',
+                                                    style: TextStyle(
+                                                        color: Colors.white))),
+                                            body: const Center(
+                                                child: Text(
+                                                    'Histórico - implementar vista')),
+                                          ),
                                         ),
-                                      ));
+                                      );
                                     },
                                     child: const Text('Historico'),
                                   ),

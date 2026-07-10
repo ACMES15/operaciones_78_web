@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 
 class RegistroCaminataForm extends StatefulWidget {
@@ -195,7 +196,10 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         _startTime?.minute ?? DateTime.now().minute);
     final percent = _computePercent();
     try {
-      await FirebaseFirestore.instance.collection('caminatas').add({
+      final docRef = FirebaseFirestore.instance.collection('caminatas').doc();
+
+      // initial document without photo URLs
+      await docRef.set({
         'usuario': widget.usuario,
         'jefe': widget.jefe,
         'date': Timestamp.fromDate(date),
@@ -209,6 +213,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'devolucionMkp': _bodegaDevolucionMkp,
           'suministroExceso': _bodegaSuministroExceso,
           'photosCount': _bodegaPhotos.length,
+          'photos': [],
         },
         'piso': {
           'ordenTerminal': _pisoOrdenTerminal,
@@ -216,13 +221,26 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'objetosPersonales': _pisoObjetosPersonales,
           'ordenLugarJefe': _pisoOrdenLugarJefe,
           'photosCount': _pisoPhotos.length,
+          'photos': [],
         },
         'score': percent,
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Convert photos to base64 and store directly in Firestore.
+      final List<String> bodegaEncoded =
+          _bodegaPhotos.map((b) => base64Encode(b)).toList();
+      final List<String> pisoEncoded =
+          _pisoPhotos.map((b) => base64Encode(b)).toList();
+
+      await docRef.update({
+        'bodega.photos': bodegaEncoded,
+        'piso.photos': pisoEncoded,
+      });
+
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Caminata registrada')));
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(docRef.id);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error guardando caminata: $e')));
@@ -247,7 +265,11 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
   Widget build(BuildContext context) {
     final percent = _computePercent();
     return Scaffold(
-      appBar: AppBar(backgroundColor: Colors.black, title: const Text('')),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Formulario', style: TextStyle(color: Colors.white)),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child:
