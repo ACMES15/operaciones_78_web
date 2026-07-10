@@ -44,6 +44,10 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
   final List<Uint8List> _bodegaPhotos = [];
   final List<Uint8List> _pisoPhotos = [];
 
+  bool _isSaving = false;
+  double _uploadProgress = 0.0;
+  final ValueNotifier<double> _progressNotifier = ValueNotifier(0.0);
+
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -51,6 +55,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
     _notesController.dispose();
     _seccionController.dispose();
     _terminalController.dispose();
+    _progressNotifier.dispose();
     super.dispose();
   }
 
@@ -188,6 +193,10 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
   }
 
   Future<void> _saveCaminata() async {
+    if (_isSaving) return;
+    _isSaving = true;
+    _uploadProgress = 0.0;
+    bool _dialogOpen = false;
     final date = widget.date ?? DateTime.now();
     final start = DateTime(
         date.year,
@@ -228,10 +237,38 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // show saving modal
+      _dialogOpen = true;
+      showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => WillPopScope(
+                onWillPop: () async => false,
+                child: AlertDialog(
+                  content: ValueListenableBuilder<double>(
+                      valueListenable: _progressNotifier,
+                      builder: (context, val, _) => Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const CircularProgressIndicator(),
+                              const SizedBox(height: 12),
+                              Text(
+                                  'Guardando caminata... ${(val * 100).round()}%')
+                            ],
+                          )),
+                ),
+              ));
+
       // Upload photos to Firebase Storage and store URLs in Firestore.
       final storage = firebase_storage.FirebaseStorage.instance;
       List<String> bodegaUrls = [];
       List<String> pisoUrls = [];
+
+      // compute total bytes for progress
+      int totalBytes = 0;
+      for (final b in _bodegaPhotos) totalBytes += b.length;
+      for (final p in _pisoPhotos) totalBytes += p.length;
+      int uploadedSoFar = 0;
 
       try {
         for (var i = 0; i < _bodegaPhotos.length; i++) {
@@ -241,9 +278,23 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           final meta =
               firebase_storage.SettableMetadata(contentType: 'image/jpeg');
           final uploadTask = ref.putData(bytes, meta);
+
+          final sub = uploadTask.snapshotEvents.listen((ev) {
+            if (totalBytes > 0) {
+              final progress =
+                  (uploadedSoFar + ev.bytesTransferred) / totalBytes;
+              setState(() {
+                _uploadProgress = progress;
+                _progressNotifier.value = progress;
+              });
+            }
+          });
+
           final snap = await uploadTask;
+          await sub.cancel();
           final url = await snap.ref.getDownloadURL();
           bodegaUrls.add(url);
+          uploadedSoFar += bytes.length;
         }
         for (var i = 0; i < _pisoPhotos.length; i++) {
           final bytes = _pisoPhotos[i];
@@ -252,9 +303,23 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           final meta =
               firebase_storage.SettableMetadata(contentType: 'image/jpeg');
           final uploadTask = ref.putData(bytes, meta);
+
+          final sub = uploadTask.snapshotEvents.listen((ev) {
+            if (totalBytes > 0) {
+              final progress =
+                  (uploadedSoFar + ev.bytesTransferred) / totalBytes;
+              setState(() {
+                _uploadProgress = progress;
+                _progressNotifier.value = progress;
+              });
+            }
+          });
+
           final snap = await uploadTask;
+          await sub.cancel();
           final url = await snap.ref.getDownloadURL();
           pisoUrls.add(url);
+          uploadedSoFar += bytes.length;
         }
 
         final Map<String, dynamic> bodegaMap = {
@@ -302,12 +367,25 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
             SnackBar(content: Text('Error subiendo fotos a Storage: $e')));
       }
 
+      // close dialog then pop with id
+      if (_dialogOpen) {
+        Navigator.of(context).pop();
+        _dialogOpen = false;
+      }
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Caminata registrada')));
       Navigator.of(context).pop(docRef.id);
     } catch (e) {
+      if (_dialogOpen) {
+        Navigator.of(context).pop();
+        _dialogOpen = false;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error guardando caminata: $e')));
+    } finally {
+      _uploadProgress = 0.0;
+      _progressNotifier.value = 0.0;
+      setState(() => _isSaving = false);
     }
   }
 
@@ -490,12 +568,26 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           Row(children: [
             Expanded(
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white),
-                onPressed: _saveCaminata,
-                child: Text('Guardar caminata — $percent%'),
-              ),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white),
+                  onPressed: _isSaving ? null : _saveCaminata,
+                  child: _isSaving
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                              const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  )),
+                              const SizedBox(width: 12),
+                              Text(
+                                  'Guardando... ${(_uploadProgress * 100).round()}%')
+                            ])
+                      : Text('Guardar caminata — $percent%')),
             )
           ])
         ]),
