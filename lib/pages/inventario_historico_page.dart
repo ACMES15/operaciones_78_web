@@ -16,6 +16,36 @@ class InventarioHistoricoPage extends StatefulWidget {
       _InventarioHistoricoPageState();
 }
 
+// DataTable source for paginated SKU table in details dialog
+class _SkusDataSource extends DataTableSource {
+  final List<MapEntry<String, dynamic>> skus;
+  _SkusDataSource(this.skus);
+
+  @override
+  DataRow? getRow(int index) {
+    if (index >= skus.length) return null;
+    final k = skus[index].key;
+    final v = skus[index].value;
+    final pdis = (v is Map && v['pdis'] != null) ? v['pdis'].toString() : '0';
+    final scanned =
+        (v is Map && v['scanned'] != null) ? v['scanned'].toString() : '0';
+    return DataRow.byIndex(index: index, cells: [
+      DataCell(Text(k)),
+      DataCell(Text(pdis)),
+      DataCell(Text(scanned)),
+    ]);
+  }
+
+  @override
+  bool get isRowCountApproximate => false;
+
+  @override
+  int get rowCount => skus.length;
+
+  @override
+  int get selectedRowCount => 0;
+}
+
 class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
   @override
   Widget build(BuildContext context) {
@@ -50,59 +80,6 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
               final created = (data['createdAt'] is Timestamp)
                   ? (data['createdAt'] as Timestamp).toDate()
                   : null;
-              final percent = (data['percentScanned'] is num)
-                  ? (data['percentScanned'] as num).toDouble()
-                  : ((data['percentScanned'] is double)
-                      ? data['percentScanned']
-                      : 0.0);
-              final quality = (data['qualityScore'] is num)
-                  ? (data['qualityScore'] as num).toDouble()
-                  : 0.0;
-
-              final isMobile = MediaQuery.of(context).size.width < 600;
-
-              if (isMobile) {
-                return Card(
-                    color: Colors.white,
-                    elevation: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(jefe,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black)),
-                          const SizedBox(height: 6),
-                          Text(created != null ? created.toString() : '',
-                              style: const TextStyle(color: Colors.black54)),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            Expanded(
-                                child: ElevatedButton(
-                                    onPressed: () =>
-                                        _openDetails(context, data),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white),
-                                    child: const Text('Detalles'))),
-                            const SizedBox(width: 8),
-                            Expanded(
-                                child: ElevatedButton(
-                                    onPressed: () =>
-                                        _editInventory(context, data),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white),
-                                    child: const Text('Editar')))
-                          ])
-                        ],
-                      ),
-                    ));
-              }
-
               return Card(
                 color: Colors.white,
                 elevation: 4,
@@ -111,38 +88,20 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                   onTap: () => _openDetails(context, data),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  title: Text('$jefe',
+                  title: Text(jefe,
                       style: const TextStyle(
                           fontWeight: FontWeight.w700, color: Colors.black)),
                   subtitle: Text(created != null ? created.toString() : '',
                       style: const TextStyle(color: Colors.black54)),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('${(percent * 100).toStringAsFixed(1)}%',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black)),
-                      const SizedBox(height: 6),
-                      Text('Calidad ${quality.toStringAsFixed(0)}%',
-                          style: const TextStyle(color: Colors.black54)),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: 120,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _editInventory(context, data),
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text('Editar'),
-                          style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8)),
-                        ),
-                      )
-                    ],
-                  ),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    TextButton(
+                        onPressed: () => _openDetails(context, data),
+                        child: const Text('Detalles')),
+                    const SizedBox(width: 8),
+                    TextButton(
+                        onPressed: () => _editInventory(context, data),
+                        child: const Text('Editar')),
+                  ]),
                 ),
               );
             },
@@ -164,116 +123,166 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
   }
 
   void _openDetails(BuildContext context, Map<String, dynamic> data) {
+    final skus = <MapEntry<String, dynamic>>[];
+    if (data['skus'] is Map) {
+      (data['skus'] as Map).forEach((k, v) {
+        skus.add(MapEntry(k.toString(), v));
+      });
+    }
+    final sobrantes = <MapEntry<String, dynamic>>[];
+    if (data['sobrantes'] is Map) {
+      (data['sobrantes'] as Map).forEach((k, v) {
+        sobrantes.add(MapEntry(k.toString(), v));
+      });
+    }
+    final percent = (data['percentScanned'] is num)
+        ? (data['percentScanned'] as num).toDouble()
+        : 0.0;
+    final quality = (data['qualityScore'] is num)
+        ? (data['qualityScore'] as num).toDouble()
+        : 0.0;
+
+    // build question percentages
+    // q1: Sí -> 100%, No -> 0%
+    // q2,q3,q4: invertido -> NO => 100%, SÍ => 0%
+    final q = [
+      data['q1'] == true ? 1.0 : 0.0,
+      data['q2'] == true ? 0.0 : 1.0,
+      data['q3'] == true ? 0.0 : 1.0,
+      data['q4'] == true ? 0.0 : 1.0,
+    ];
+
+    final searchController = TextEditingController();
+    var filteredSkus = List<MapEntry<String, dynamic>>.from(skus);
+
     showDialog(
         context: context,
         builder: (ctx) {
-          final skus = <MapEntry<String, dynamic>>[];
-          if (data['skus'] is Map) {
-            (data['skus'] as Map).forEach((k, v) {
-              skus.add(MapEntry(k.toString(), v));
-            });
-          }
-          final sobrantes = <MapEntry<String, dynamic>>[];
-          if (data['sobrantes'] is Map) {
-            (data['sobrantes'] as Map).forEach((k, v) {
-              sobrantes.add(MapEntry(k.toString(), v));
-            });
-          }
-          final percent = (data['percentScanned'] is num)
-              ? (data['percentScanned'] as num).toDouble()
-              : 0.0;
-          final quality = (data['qualityScore'] is num)
-              ? (data['qualityScore'] as num).toDouble()
-              : 0.0;
-
-          // build question percentages (Sí -> 100, No -> 0)
-          final q = [
-            data['q1'] == true ? 1.0 : 0.0,
-            data['q2'] == true ? 1.0 : 0.0,
-            data['q3'] == true ? 1.0 : 0.0,
-            data['q4'] == true ? 1.0 : 0.0,
-          ];
-
           return AlertDialog(
             title: Text('Resultado - ${data['jefe'] ?? 'Jefe'}'),
-            content: SizedBox(
-              width: 820,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top graphics: percent scanned and quality
-                  Row(
+            content: StatefulBuilder(builder: (ctx2, setState) {
+              final rowsPerPage = filteredSkus.isEmpty
+                  ? 1
+                  : (filteredSkus.length > 8 ? 8 : filteredSkus.length);
+              final totalPages = (filteredSkus.isEmpty)
+                  ? 1
+                  : ((filteredSkus.length / rowsPerPage).ceil());
+              return SizedBox(
+                width: 820,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              children: [
-                                const Text('Escaneo',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 8),
-                                Stack(alignment: Alignment.center, children: [
-                                  SizedBox(
-                                      width: 120,
-                                      height: 120,
-                                      child: CircularProgressIndicator(
-                                          value: percent,
-                                          strokeWidth: 12,
-                                          color: Colors.blue)),
-                                  Text('${(percent * 100).toStringAsFixed(1)}%',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold))
-                                ]),
-                                const SizedBox(height: 8),
-                                Text(
-                                    'Escaneado: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')
-                              ],
-                            ),
+                      // Search bar for SKUs
+                      TextField(
+                        controller: searchController,
+                        decoration: InputDecoration(
+                          labelText: 'Buscar SKU',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.clear),
+                            onPressed: () {
+                              searchController.clear();
+                              setState(() {
+                                filteredSkus =
+                                    List<MapEntry<String, dynamic>>.from(skus);
+                              });
+                            },
                           ),
                         ),
+                        onChanged: (v) {
+                          final qv = v.trim().toLowerCase();
+                          setState(() {
+                            if (qv.isEmpty) {
+                              filteredSkus =
+                                  List<MapEntry<String, dynamic>>.from(skus);
+                            } else {
+                              filteredSkus = skus
+                                  .where(
+                                      (e) => e.key.toLowerCase().contains(qv))
+                                  .toList();
+                            }
+                          });
+                        },
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Card(
-                          elevation: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: Column(
-                              children: [
-                                const Text('Calidad',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 8),
-                                Stack(alignment: Alignment.center, children: [
-                                  SizedBox(
-                                      width: 120,
-                                      height: 120,
-                                      child: CircularProgressIndicator(
-                                          value: (quality / 100),
-                                          strokeWidth: 12,
-                                          color: Colors.green)),
-                                  Text('${quality.toStringAsFixed(0)}%',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold))
-                                ]),
-                                const SizedBox(height: 8),
-                                Text('Calidad calculada')
-                              ],
+                      const SizedBox(height: 12),
+                      // Top graphics: percent scanned and quality
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  children: [
+                                    const Text('Escaneo',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          SizedBox(
+                                              width: 120,
+                                              height: 120,
+                                              child: CircularProgressIndicator(
+                                                  value: percent,
+                                                  strokeWidth: 12,
+                                                  color: Colors.blue)),
+                                          Text(
+                                              '${(percent * 100).toStringAsFixed(1)}%',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold))
+                                        ]),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                        'Escaneado: ${data['totalScanned'] ?? 0} / ${data['totalPdis'] ?? 0}')
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Questions summary
-                  Card(
-                      elevation: 1,
-                      child: Padding(
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  children: [
+                                    const Text('Calidad',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 8),
+                                    Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          SizedBox(
+                                              width: 120,
+                                              height: 120,
+                                              child: CircularProgressIndicator(
+                                                  value: (quality / 100),
+                                                  strokeWidth: 12,
+                                                  color: Colors.green)),
+                                          Text('${quality.toStringAsFixed(0)}%',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold))
+                                        ]),
+                                    const SizedBox(height: 8),
+                                    Text('Calidad calculada')
+                                  ],
+                                ),
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Questions summary
+                      Card(
+                        elevation: 1,
+                        child: Padding(
                           padding: const EdgeInsets.all(12.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,14 +309,16 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                                         '4) En bodega', q[3])),
                               ])
                             ],
-                          ))),
-                  const SizedBox(height: 12),
-                  // Sobrantes
-                  if (sobrantes.isNotEmpty)
-                    Card(
-                        color: Colors.red.shade50,
-                        elevation: 1,
-                        child: Padding(
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Sobrantes
+                      if (sobrantes.isNotEmpty)
+                        Card(
+                          color: Colors.red.shade50,
+                          elevation: 1,
+                          child: Padding(
                             padding: const EdgeInsets.all(12.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -338,43 +349,58 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                                   ),
                                 )
                               ],
-                            ))),
-                  const SizedBox(height: 12),
-                  // Full SKU table
-                  const Text('Detalle de SKUs',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 260,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: DataTable(
-                        columns: const [
-                          DataColumn(label: Text('SKU')),
-                          DataColumn(label: Text('PDIS'), numeric: true),
-                          DataColumn(label: Text('Escaneado'), numeric: true),
-                        ],
-                        rows: skus.map((e) {
-                          final k = e.key;
-                          final v = e.value;
-                          final pdis = (v is Map && v['pdis'] != null)
-                              ? v['pdis'].toString()
-                              : '';
-                          final scanned = (v is Map && v['scanned'] != null)
-                              ? v['scanned'].toString()
-                              : '0';
-                          return DataRow(cells: [
-                            DataCell(Text(k)),
-                            DataCell(Text(pdis)),
-                            DataCell(Text(scanned)),
-                          ]);
-                        }).toList(),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      // Full SKU table
+                      const Text('Detalle de SKUs',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 260,
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: Colors.grey.shade300),
+                            borderRadius: BorderRadius.circular(6)),
+                        padding: const EdgeInsets.all(8),
+                        child: SingleChildScrollView(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minWidth: 600),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  PaginatedDataTable(
+                                    header: const Text('SKUs'),
+                                    columns: const [
+                                      DataColumn(label: Text('SKU')),
+                                      DataColumn(
+                                          label: Text('PDIS'), numeric: true),
+                                      DataColumn(
+                                          label: Text('Escaneado'),
+                                          numeric: true),
+                                    ],
+                                    source: _SkusDataSource(filteredSkus),
+                                    rowsPerPage: rowsPerPage,
+                                    columnSpacing: 24,
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Align(
+                                      alignment: Alignment.centerRight,
+                                      child: Text('Páginas: $totalPages'))
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                  )
-                ],
-              ),
-            ),
+                    ],
+                  ),
+                ),
+              );
+            }),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(ctx),
@@ -439,38 +465,47 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                                   'Fecha: ${payload['createdAt'] is Timestamp ? (payload['createdAt'] as Timestamp).toDate().toString() : ''}'),
                             ]),
                         pw.Column(children: [
-                          pw.Container(
-                              padding: const pw.EdgeInsets.all(8),
-                              decoration: pw.BoxDecoration(
-                                  color: PdfColors.blue200,
-                                  borderRadius: const pw.BorderRadius.all(
-                                      pw.Radius.circular(6))),
-                              child: pw.Column(children: [
-                                pw.Text('Escaneado',
-                                    style: pw.TextStyle(fontSize: 12)),
-                                pw.SizedBox(height: 6),
-                                pw.Text(
-                                    '${(percent * 100).toStringAsFixed(1)}%',
-                                    style: pw.TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: pw.FontWeight.bold))
-                              ])),
-                          pw.SizedBox(height: 8),
-                          pw.Container(
-                              padding: const pw.EdgeInsets.all(8),
-                              decoration: pw.BoxDecoration(
-                                  color: PdfColors.green200,
-                                  borderRadius: const pw.BorderRadius.all(
-                                      pw.Radius.circular(6))),
-                              child: pw.Column(children: [
-                                pw.Text('Calidad',
-                                    style: pw.TextStyle(fontSize: 12)),
-                                pw.SizedBox(height: 6),
-                                pw.Text('${quality.toStringAsFixed(0)}%',
-                                    style: pw.TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: pw.FontWeight.bold))
-                              ]))
+                          pw.Text('Escaneado',
+                              style: pw.TextStyle(fontSize: 12)),
+                          pw.SizedBox(height: 6),
+                          pw.Stack(children: [
+                            pw.Container(
+                                width: 160,
+                                height: 14,
+                                color: PdfColors.grey300),
+                            pw.Positioned(
+                                left: 0,
+                                child: pw.Container(
+                                    width: 160 * (percent.clamp(0.0, 1.0)),
+                                    height: 14,
+                                    color: PdfColors.blue)),
+                          ]),
+                          pw.SizedBox(height: 6),
+                          pw.Text('${(percent * 100).toStringAsFixed(1)}%',
+                              style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold)),
+                          pw.SizedBox(height: 10),
+                          pw.Text('Calidad', style: pw.TextStyle(fontSize: 12)),
+                          pw.SizedBox(height: 6),
+                          pw.Stack(children: [
+                            pw.Container(
+                                width: 160,
+                                height: 14,
+                                color: PdfColors.grey300),
+                            pw.Positioned(
+                                left: 0,
+                                child: pw.Container(
+                                    width:
+                                        160 * ((quality / 100).clamp(0.0, 1.0)),
+                                    height: 14,
+                                    color: PdfColors.green)),
+                          ]),
+                          pw.SizedBox(height: 6),
+                          pw.Text('${quality.toStringAsFixed(0)}%',
+                              style: pw.TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: pw.FontWeight.bold)),
                         ])
                       ])),
               pw.SizedBox(height: 12),
