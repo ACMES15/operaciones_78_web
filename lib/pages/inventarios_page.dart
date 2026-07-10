@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pdis_page.dart';
+import 'registro_caminatas_page.dart';
 
 class InventariosPage extends StatelessWidget {
   final String usuario;
@@ -37,6 +38,17 @@ class InventariosPage extends StatelessWidget {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PdisPage(usuario: usuario),
+                      ),
+                    ),
+                  ),
+                  _buildExecutiveCard(
+                    context,
+                    title: 'Caminatas',
+                    subtitle: 'Registro de caminatas y recorridos en tienda',
+                    icon: Icons.directions_walk,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => RegistroCaminatasPage(usuario: usuario),
                       ),
                     ),
                   ),
