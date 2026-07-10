@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:excel/excel.dart' as ex;
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class InventarioPdisPage extends StatefulWidget {
@@ -29,6 +31,15 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   final Map<String, int> _scannedBySku = {};
   // SKUs scanned but not present in plantilla for the selected jefe
   final Map<String, int> _sobrantesBySku = {};
+
+  // scans from other users (sku -> usuario -> count)
+  final Map<String, Map<String, int>> _scansFromOthers = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _historicSub;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _inprogressSub;
+
+  // applied counts from inprogress doc to avoid double-applying deltas
+  final Map<String, int> _appliedInprogressScanned = {};
+  final Map<String, int> _appliedInprogressSobrantes = {};
 
   int _totalPdis = 0;
   int _totalScanned = 0;
@@ -166,6 +177,126 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         _scanFocus.requestFocus();
       });
     });
+    _subscribeHistoricScans();
+    _subscribeInprogress();
+  }
+
+  void _subscribeHistoricScans() {
+    // cancel previous
+    _historicSub?.cancel();
+    _scansFromOthers.clear();
+    if (_selectedJefe == null) return;
+    try {
+      final q = FirebaseFirestore.instance
+          .collection('inventarios_historico')
+          .where('jefe', isEqualTo: _selectedJefe)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snap, _) => snap.data() ?? {},
+              toFirestore: (m, _) => m);
+
+      _historicSub = q.snapshots().listen((snap) {
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          final usuario = (data['usuario'] ?? '').toString();
+          if (usuario.isEmpty || usuario == widget.usuario) continue;
+          // skus map
+          if (data['skus'] is Map) {
+            (data['skus'] as Map).forEach((k, v) {
+              final sku = k.toString();
+              int cnt = 0;
+              if (v is Map && v['scanned'] != null) {
+                final sv = v['scanned'];
+                cnt = sv is num ? sv.toInt() : int.tryParse(sv.toString()) ?? 0;
+              }
+              if (cnt <= 0) return;
+              final mapForSku = _scansFromOthers[sku] ?? {};
+              mapForSku[usuario] = (mapForSku[usuario] ?? 0) + cnt;
+              _scansFromOthers[sku] = mapForSku;
+            });
+          }
+          // sobrantes next
+          if (data['sobrantes'] is Map) {
+            (data['sobrantes'] as Map).forEach((k, v) {
+              final sku = k.toString();
+              final cnt =
+                  v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+              if (cnt <= 0) return;
+              final mapForSku = _scansFromOthers[sku] ?? {};
+              mapForSku[usuario] = (mapForSku[usuario] ?? 0) + cnt;
+              _scansFromOthers[sku] = mapForSku;
+            });
+          }
+        }
+        setState(() {});
+      });
+    } catch (e) {
+      print('Error subscribing historic scans: $e');
+    }
+  }
+
+  String _todayKey() {
+    final now = DateTime.now().toUtc();
+    return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  void _subscribeInprogress() {
+    _inprogressSub?.cancel();
+    _appliedInprogressScanned.clear();
+    _appliedInprogressSobrantes.clear();
+
+    if (_selectedJefe == null) return;
+    final id = '${_selectedJefe}_${_todayKey()}';
+    final docRef = FirebaseFirestore.instance
+        .collection('inventarios_inprogress')
+        .doc(id)
+        .withConverter<Map<String, dynamic>>(
+            fromFirestore: (snap, _) => snap.data() ?? {},
+            toFirestore: (m, _) => m);
+    _inprogressSub = docRef.snapshots().listen((snap) {
+      if (!snap.exists) return;
+      final data = snap.data() ?? {};
+      // apply skus deltas
+      if (data['skus'] is Map) {
+        (data['skus'] as Map).forEach((k, v) {
+          final sku = k.toString();
+          int docCount = 0;
+          if (v is Map && v['scanned'] != null) {
+            final sv = v['scanned'];
+            docCount =
+                sv is num ? sv.toInt() : int.tryParse(sv.toString()) ?? 0;
+          }
+          final applied = _appliedInprogressScanned[sku] ?? 0;
+          final delta = docCount - applied;
+          if (delta > 0) {
+            _scannedBySku[sku] = (_scannedBySku[sku] ?? 0) + delta;
+            _appliedInprogressScanned[sku] = docCount;
+          } else {
+            // update applied even if no delta
+            _appliedInprogressScanned[sku] = docCount;
+          }
+        });
+      }
+      if (data['sobrantes'] is Map) {
+        (data['sobrantes'] as Map).forEach((k, v) {
+          final sku = k.toString();
+          final docCount =
+              v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+          final applied = _appliedInprogressSobrantes[sku] ?? 0;
+          final delta = docCount - applied;
+          if (delta > 0) {
+            _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + delta;
+            _appliedInprogressSobrantes[sku] = docCount;
+          } else {
+            _appliedInprogressSobrantes[sku] = docCount;
+          }
+        });
+      }
+      // contributors info
+      // contributors are optional metadata; no direct action here
+      _recalcTotals();
+    });
   }
 
   void _buildSkuAggregates() {
@@ -271,13 +402,14 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   Future<void> _finishInventory() async {
     final pct = _percentScanned();
     final quality = _computeQualityScore();
-    final result = await showDialog<bool>(
+
+    final choice = await showDialog<String?>(
         context: context,
         builder: (ctx) {
           return AlertDialog(
             title: const Text('Resultado Inventario'),
             content: SizedBox(
-              width: 400,
+              width: 420,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -292,41 +424,128 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                     Expanded(
                         child: Text('Calidad: ${quality.toStringAsFixed(1)}%')),
                   ]),
+                  const SizedBox(height: 12),
+                  const Text('¿Eres el último revisor para esta jefatura hoy?'),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
+                  onPressed: () => Navigator.pop(ctx, null),
                   child: const Text('Cancelar')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'pasar'),
+                  child: const Text('No, pasar al siguiente')),
               ElevatedButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Guardar'))
+                  onPressed: () => Navigator.pop(ctx, 'cerrar'),
+                  child: const Text('Sí, guardar en histórico')),
             ],
           );
         });
-    if (result != true) return;
-    final doc =
-        FirebaseFirestore.instance.collection('inventarios_historico').doc();
-    final payload = {
-      'usuario': widget.usuario,
-      'jefe': _selectedJefe,
-      'createdAt': FieldValue.serverTimestamp(),
-      'totalPdis': _totalPdis,
-      'totalScanned': _totalScanned,
-      'percentScanned': pct,
-      'qualityScore': _computeQualityScore(),
-      'q1': q1,
-      'q2': q2,
-      'q3': q3,
-      'q4': q4,
-      'skus': _pdisBySku.map(
-          (k, v) => MapEntry(k, {'pdis': v, 'scanned': _scannedBySku[k] ?? 0})),
-      'sobrantes': _sobrantesBySku,
-    };
-    await doc.set(payload);
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inventario guardado en histórico')));
+
+    if (choice == null) return;
+
+    // build payload pieces
+    final skusPayload = _pdisBySku.map(
+        (k, v) => MapEntry(k, {'pdis': v, 'scanned': _scannedBySku[k] ?? 0}));
+
+    if (choice == 'pasar') {
+      // save/update inprogress doc so next user picks it up
+      final id = '${_selectedJefe}_${_todayKey()}';
+      final docRef = FirebaseFirestore.instance
+          .collection('inventarios_inprogress')
+          .doc(id);
+      try {
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          final snap = await tx.get(docRef);
+          final existing =
+              snap.exists && snap.data() != null ? snap.data()! : {};
+          // merge skus
+          final Map mergedSkus = {};
+          if (existing['skus'] is Map) {
+            mergedSkus.addAll(Map<String, dynamic>.from(existing['skus']));
+          }
+          skusPayload.forEach((k, v) {
+            final prev = mergedSkus[k];
+            final prevScanned = (prev is Map && prev['scanned'] != null)
+                ? (prev['scanned'] as num).toInt()
+                : 0;
+            final prevPdis = (prev is Map && prev['pdis'] != null)
+                ? (prev['pdis'] as num).toDouble()
+                : (_pdisBySku[k] ?? 0.0);
+            final newScanned = prevScanned + (v['scanned'] as int);
+            mergedSkus[k] = {'pdis': prevPdis, 'scanned': newScanned};
+          });
+          // merge sobrantes
+          final Map mergedSobrantes = {};
+          if (existing['sobrantes'] is Map)
+            mergedSobrantes
+                .addAll(Map<String, dynamic>.from(existing['sobrantes']));
+          _sobrantesBySku.forEach((k, v) {
+            mergedSobrantes[k] = (mergedSobrantes[k] is num
+                    ? (mergedSobrantes[k] as num).toInt()
+                    : 0) +
+                v;
+          });
+
+          final contributors = Map<String, dynamic>.from(
+              existing['contributors'] is Map ? existing['contributors'] : {});
+          contributors[widget.usuario] = FieldValue.serverTimestamp();
+
+          final payload = {
+            'jefe': _selectedJefe,
+            'dateKey': _todayKey(),
+            'skus': mergedSkus,
+            'sobrantes': mergedSobrantes,
+            'contributors': contributors,
+            'status': 'open',
+            'updatedAt': FieldValue.serverTimestamp(),
+          };
+          tx.set(docRef, payload);
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Inventario guardado como borrador para siguiente revisor')));
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error guardando borrador: $e')));
+      }
+      return;
+    }
+
+    // choice == 'cerrar' -> final user: save to historico and remove inprogress
+    try {
+      final histRef =
+          FirebaseFirestore.instance.collection('inventarios_historico').doc();
+      final payload = {
+        'usuario': widget.usuario,
+        'jefe': _selectedJefe,
+        'createdAt': FieldValue.serverTimestamp(),
+        'totalPdis': _totalPdis,
+        'totalScanned': _totalScanned,
+        'percentScanned': pct,
+        'qualityScore': _computeQualityScore(),
+        'q1': q1,
+        'q2': q2,
+        'q3': q3,
+        'q4': q4,
+        'skus': skusPayload,
+        'sobrantes': _sobrantesBySku,
+      };
+      await histRef.set(payload);
+      // delete inprogress doc if exists
+      final id = '${_selectedJefe}_${_todayKey()}';
+      final inDoc = FirebaseFirestore.instance
+          .collection('inventarios_inprogress')
+          .doc(id);
+      final inSnap = await inDoc.get();
+      if (inSnap.exists) await inDoc.delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Inventario guardado en histórico')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error guardando histórico: $e')));
+    }
   }
 
   Future<void> _exportToExcel() async {
@@ -523,7 +742,55 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   void dispose() {
     _scanController.dispose();
     _scanFocus.dispose();
+    _historicSub?.cancel();
+    _inprogressSub?.cancel();
     super.dispose();
+  }
+
+  DataCell _buildOtherScansCell(String sku, {required bool isSobrante}) {
+    final others = _scansFromOthers[sku];
+    if (others == null || others.isEmpty) {
+      return DataCell(Text(isSobrante ? 'SOBRANTE' : ''));
+    }
+    final entries =
+        others.entries.map((e) => '${e.key}(${e.value})').join(', ');
+    return DataCell(Row(children: [
+      Expanded(
+          child: Text('Escaneada por: $entries',
+              style: const TextStyle(fontSize: 12))),
+      TextButton(
+          onPressed: () => _onAddOneFromOthers(sku, isSobrante: isSobrante),
+          child: const Text('Agregar'))
+    ]));
+  }
+
+  Future<void> _onAddOneFromOthers(String sku,
+      {required bool isSobrante}) async {
+    final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+              title: const Text('Confirmar'),
+              content: Text('Deseas agregar una más para SKU "$sku"?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('No')),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Sí'))
+              ],
+            ));
+    if (ok != true) return;
+    setState(() {
+      if (isSobrante) {
+        _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + 1;
+      } else {
+        _scannedBySku[sku] = (_scannedBySku[sku] ?? 0) + 1;
+      }
+      _recalcTotals();
+    });
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Se agregó una unidad a $sku')));
   }
 
   @override
@@ -687,7 +954,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                 color: scanned == 0
                                                     ? Colors.red
                                                     : Colors.black))),
-                                        const DataCell(Text('')),
+                                        _buildOtherScansCell(sku,
+                                            isSobrante: false),
                                       ]));
                                     }
                                     for (final sku in sobranteKeys) {
@@ -700,7 +968,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                 color: scanned == 0
                                                     ? Colors.red
                                                     : Colors.black))),
-                                        const DataCell(Text('SOBRANTE')),
+                                        _buildOtherScansCell(sku,
+                                            isSobrante: true),
                                       ]));
                                     }
 
@@ -962,7 +1231,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                   color: scanned == 0
                                                       ? Colors.red
                                                       : Colors.black))),
-                                          const DataCell(Text('')),
+                                          _buildOtherScansCell(sku,
+                                              isSobrante: false),
                                         ]));
                                       }
                                       for (final sku in sobranteKeys) {
@@ -976,7 +1246,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                   color: scanned == 0
                                                       ? Colors.red
                                                       : Colors.black))),
-                                          const DataCell(Text('SOBRANTE')),
+                                          _buildOtherScansCell(sku,
+                                              isSobrante: true),
                                         ]));
                                       }
 

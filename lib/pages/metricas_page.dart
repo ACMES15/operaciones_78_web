@@ -9,7 +9,7 @@ class MetricasPage extends StatefulWidget {
 }
 
 class _MetricasPageState extends State<MetricasPage> {
-  String? _selectedMonth; // format YYYY-MM
+  final Set<String> _selectedMonths = {}; // selected months in format YYYY-MM
 
   String _monthKeyFromTimestamp(Timestamp? ts) {
     if (ts == null) return '';
@@ -57,31 +57,51 @@ class _MetricasPageState extends State<MetricasPage> {
             if (key.isNotEmpty) months.add(key);
           }
           final sortedMonths = months.toList()..sort((a, b) => b.compareTo(a));
-          final month = _selectedMonth ??
-              (sortedMonths.isNotEmpty ? sortedMonths.first : null);
 
-          // aggregate by jefe for selected month
-          final Map<String, List<double>> byJefe = {};
+          // default to latest month if nothing selected
+          if (_selectedMonths.isEmpty && sortedMonths.isNotEmpty) {
+            _selectedMonths.add(sortedMonths.first);
+          }
+
+          // palette for month colors
+          final palette = [
+            Colors.black,
+            Colors.blue,
+            Colors.green,
+            Colors.orange,
+            Colors.purple,
+            Colors.teal,
+            Colors.red
+          ];
+          final selectedList = _selectedMonths.toList();
+          final monthColors = <String, Color>{};
+          for (var i = 0; i < selectedList.length; i++) {
+            monthColors[selectedList[i]] = palette[i % palette.length];
+          }
+
+          // aggregate percent by month and jefe
+          final Map<String, Map<String, List<double>>> dataByMonth = {};
           for (final d in docs) {
             final data = d.data() as Map<String, dynamic>;
             final ts = data['createdAt'] is Timestamp
                 ? data['createdAt'] as Timestamp
                 : null;
             final key = _monthKeyFromTimestamp(ts);
-            if (month == null || key != month) continue;
+            if (!_selectedMonths.contains(key)) continue;
             final jefe = (data['jefe']?.toString() ?? 'Sin Jefe');
             final pct = _normalizePercent(data['percentScanned']);
-            byJefe.putIfAbsent(jefe, () => []).add(pct);
+            dataByMonth
+                .putIfAbsent(key, () => {})
+                .putIfAbsent(jefe, () => [])
+                .add(pct);
           }
 
-          final List<MapEntry<String, double>> entries =
-              byJefe.entries.map((e) {
-            final avg = e.value.isEmpty
-                ? 0.0
-                : (e.value.reduce((a, b) => a + b) / e.value.length);
-            return MapEntry(e.key, avg);
-          }).toList()
-                ..sort((a, b) => b.value.compareTo(a.value));
+          // union of jefes across selected months
+          final Set<String> allJefes = {};
+          for (final m in dataByMonth.keys) {
+            allJefes.addAll(dataByMonth[m]!.keys);
+          }
+          final jefes = allJefes.toList()..sort((a, b) => a.compareTo(b));
 
           return Padding(
             padding: const EdgeInsets.all(16.0),
@@ -95,44 +115,63 @@ class _MetricasPageState extends State<MetricasPage> {
                       borderRadius: BorderRadius.circular(12)),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Expanded(
-                            child: Text('Mes',
-                                style: TextStyle(fontWeight: FontWeight.bold))),
-                        const SizedBox(width: 12),
-                        DropdownButton<String>(
-                          value: month,
-                          hint: const Text('Selecciona mes'),
-                          items: sortedMonths
-                              .map((m) =>
-                                  DropdownMenuItem(value: m, child: Text(m)))
-                              .toList(),
-                          onChanged: (v) {
-                            setState(() {
-                              _selectedMonth = v;
-                            });
-                          },
+                        const Text('Meses',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: sortedMonths.map((m) {
+                            final selected = _selectedMonths.contains(m);
+                            return ChoiceChip(
+                              label: Text(m),
+                              selected: selected,
+                              onSelected: (v) {
+                                setState(() {
+                                  if (v)
+                                    _selectedMonths.add(m);
+                                  else
+                                    _selectedMonths.remove(m);
+                                });
+                              },
+                            );
+                          }).toList(),
                         ),
+                        const SizedBox(height: 12),
+                        if (selectedList.isNotEmpty)
+                          Wrap(
+                            spacing: 12,
+                            children: selectedList.map((m) {
+                              final c = monthColors[m] ?? Colors.black;
+                              return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(width: 14, height: 14, color: c),
+                                    const SizedBox(width: 6),
+                                    Text(m)
+                                  ]);
+                            }).toList(),
+                          )
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: entries.isEmpty
+                  child: jefes.isEmpty
                       ? Center(
-                          child: Text(month == null
-                              ? 'No hay datos'
-                              : 'No hay métricas para $month'))
+                          child: Text(_selectedMonths.isEmpty
+                              ? 'No hay meses seleccionados'
+                              : 'No hay datos para los meses seleccionados'))
                       : ListView.separated(
-                          itemCount: entries.length,
+                          itemCount: jefes.length,
                           separatorBuilder: (_, __) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, i) {
-                            final e = entries[i];
-                            final label = e.key;
-                            final pct = e.value.clamp(0.0, 100.0);
+                            final jefe = jefes[i];
                             return Card(
                               elevation: 2,
                               child: Padding(
@@ -140,30 +179,61 @@ class _MetricasPageState extends State<MetricasPage> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                            child: Text(label,
-                                                style: const TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.bold))),
-                                        Text('${pct.toStringAsFixed(1)}%',
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold)),
-                                      ],
-                                    ),
+                                    Text(jefe,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
                                     const SizedBox(height: 8),
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: LinearProgressIndicator(
-                                        value: (pct / 100.0).clamp(0.0, 1.0),
-                                        minHeight: 14,
-                                        backgroundColor: Colors.grey.shade200,
-                                        color: Colors.black,
-                                      ),
-                                    ),
+                                    Column(
+                                      children: selectedList.map((m) {
+                                        final vals =
+                                            dataByMonth[m]?[jefe] ?? [];
+                                        final avg = vals.isEmpty
+                                            ? 0.0
+                                            : (vals.reduce((a, b) => a + b) /
+                                                vals.length);
+                                        final color =
+                                            monthColors[m] ?? Colors.black;
+                                        return Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 6.0),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                  width: 10,
+                                                  height: 10,
+                                                  color: color),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                  width: 80,
+                                                  child: Text(m,
+                                                      style: const TextStyle(
+                                                          fontSize: 12))),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(6),
+                                                  child:
+                                                      LinearProgressIndicator(
+                                                    value: (avg / 100.0)
+                                                        .clamp(0.0, 1.0),
+                                                    minHeight: 12,
+                                                    backgroundColor:
+                                                        Colors.grey.shade200,
+                                                    color: color,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text('${avg.toStringAsFixed(1)}%',
+                                                  style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                            ],
+                                          ),
+                                        );
+                                      }).toList(),
+                                    )
                                   ],
                                 ),
                               ),
