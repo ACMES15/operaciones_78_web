@@ -12,11 +12,10 @@ class RegistroCaminatasPage extends StatefulWidget {
 }
 
 class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
-  final TextEditingController _notesController = TextEditingController();
-  DateTime? _selectedDate;
   bool _loading = true;
   Map<String, String> _plantilla = {};
   List<String> _jefes = [];
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -46,12 +45,6 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
   }
 
   @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
@@ -62,18 +55,86 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : Card(
-                      elevation: 2,
-                      child: Row(children: [
-                        // Left: list of jefaturas
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : LayoutBuilder(builder: (context, constraints) {
+                    final isMobile = constraints.maxWidth < 600;
+                    if (isMobile) {
+                      // Mobile: Historico arriba, jefaturas abajo (scrollable)
+                      return Column(children: [
+                        Card(
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white),
+                              onPressed: () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => Scaffold(
+                                    appBar: AppBar(
+                                        backgroundColor: Colors.black,
+                                        title: const Text('Histórico Caminatas',
+                                            style: TextStyle(
+                                                color: Colors.white))),
+                                    body: const Center(
+                                        child: Text(
+                                            'Histórico - implementar vista')),
+                                  ),
+                                ));
+                              },
+                              child: const Text('Historico'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Expanded(
+                          child: Card(
+                            elevation: 2,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.all(8.0),
+                              itemCount: _jefes.length,
+                              separatorBuilder: (_, __) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final jefe = _jefes[index];
+                                return ListTile(
+                                  title: Text(jefe),
+                                  trailing: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  RegistroCaminataForm(
+                                                      usuario: widget.usuario,
+                                                      jefe: jefe,
+                                                      date: _selectedDate)));
+                                    },
+                                    child: const Text('Inicio de caminata'),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ]);
+                    }
+
+                    // Tablet / Desktop: two cards side-by-side
+                    return Row(children: [
+                      Expanded(
+                        flex: 3,
+                        child: Card(
+                          elevation: 2,
                           child: ListView.separated(
+                            padding: const EdgeInsets.all(8.0),
                             itemCount: _jefes.length,
                             separatorBuilder: (_, __) =>
                                 const Divider(height: 1),
@@ -100,43 +161,47 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                             },
                           ),
                         ),
-
-                        // Right: columna con botón Histórico
-                        Container(
-                          width: 140,
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white,
-                                ),
-                                onPressed: () {
-                                  // Placeholder: abrir histórico (puedes conectar página real)
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => Scaffold(
-                                      appBar: AppBar(
-                                          backgroundColor: Colors.black,
-                                          title: const Text(
-                                              'Histórico Caminatas')),
-                                      body: const Center(
-                                          child: Text(
-                                              'Histórico - implementar vista')),
-                                    ),
-                                  ));
-                                },
-                                child: const Text('Historico'),
-                              ),
-                            ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 1,
+                        child: Card(
+                          elevation: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    onPressed: () {
+                                      Navigator.of(context)
+                                          .push(MaterialPageRoute(
+                                        builder: (_) => Scaffold(
+                                          appBar: AppBar(
+                                              backgroundColor: Colors.black,
+                                              title: const Text(
+                                                  'Histórico Caminatas',
+                                                  style: TextStyle(
+                                                      color: Colors.white))),
+                                          body: const Center(
+                                              child: Text(
+                                                  'Histórico - implementar vista')),
+                                        ),
+                                      ));
+                                    },
+                                    child: const Text('Historico'),
+                                  ),
+                                ]),
                           ),
                         ),
-                      ]),
-                    ),
-            ),
-          ],
-        ),
+                      ),
+                    ]);
+                  }),
+          ),
+        ]),
       ),
     );
   }

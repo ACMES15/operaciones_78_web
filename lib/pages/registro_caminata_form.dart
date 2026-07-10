@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:file_picker/file_picker.dart';
 
 class RegistroCaminataForm extends StatefulWidget {
   final String usuario;
@@ -117,31 +118,64 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         }
       }
 
-      if (fromCamera) {
-        final XFile? photo = await _picker.pickImage(
-            source: ImageSource.camera, imageQuality: 70);
-        if (photo != null) {
-          final bytes = await photo.readAsBytes();
-          setState(() {
-            if (division == 'bodega')
-              _bodegaPhotos.add(bytes);
-            else
-              _pisoPhotos.add(bytes);
-          });
+      // Desktop (Windows/Linux/Mac) do not support image_picker native camera.
+      if (!kIsWeb &&
+          (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+        if (fromCamera) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text(
+                  'La cámara no está disponible en escritorio. Use Galería.')));
+          return;
+        }
+        final result = await FilePicker.platform
+            .pickFiles(type: FileType.image, allowMultiple: true);
+        if (result != null && result.files.isNotEmpty) {
+          for (final f in result.files) {
+            if (f.bytes != null) {
+              setState(() {
+                if (division == 'bodega')
+                  _bodegaPhotos.add(f.bytes!);
+                else
+                  _pisoPhotos.add(f.bytes!);
+              });
+            } else if (f.path != null) {
+              final bytes = await File(f.path!).readAsBytes();
+              setState(() {
+                if (division == 'bodega')
+                  _bodegaPhotos.add(bytes);
+                else
+                  _pisoPhotos.add(bytes);
+              });
+            }
+          }
         }
       } else {
-        // allow multiple selection when available
-        final List<XFile>? photos =
-            await _picker.pickMultiImage(imageQuality: 70);
-        if (photos != null && photos.isNotEmpty) {
-          for (final p in photos) {
-            final bytes = await p.readAsBytes();
+        if (fromCamera) {
+          final XFile? photo = await _picker.pickImage(
+              source: ImageSource.camera, imageQuality: 70);
+          if (photo != null) {
+            final bytes = await photo.readAsBytes();
             setState(() {
               if (division == 'bodega')
                 _bodegaPhotos.add(bytes);
               else
                 _pisoPhotos.add(bytes);
             });
+          }
+        } else {
+          // allow multiple selection when available
+          final List<XFile>? photos =
+              await _picker.pickMultiImage(imageQuality: 70);
+          if (photos != null && photos.isNotEmpty) {
+            for (final p in photos) {
+              final bytes = await p.readAsBytes();
+              setState(() {
+                if (division == 'bodega')
+                  _bodegaPhotos.add(bytes);
+                else
+                  _pisoPhotos.add(bytes);
+              });
+            }
           }
         }
       }
