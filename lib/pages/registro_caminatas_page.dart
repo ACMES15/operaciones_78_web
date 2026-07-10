@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
+import 'package:http/http.dart' as http;
 import 'registro_caminata_form.dart';
 
 class RegistroCaminatasPage extends StatefulWidget {
@@ -111,6 +112,14 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                     );
                   }
                   if (s is String) {
+                    // URL -> network image
+                    if (s.startsWith('http')) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: Image.network(s,
+                            width: 100, height: 100, fit: BoxFit.cover),
+                      );
+                    }
                     try {
                       final bytes = base64Decode(s);
                       return ClipRRect(
@@ -263,25 +272,30 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     final List<dynamic> bodegaPhotos = (data['bodega']?['photos']) ?? [];
     final List<dynamic> pisoPhotos = (data['piso']?['photos']) ?? [];
 
-    // helper to convert dynamic photo to pw.ImageProvider
-    pw.Widget _imageWidgetFromDynamic(dynamic s) {
-      try {
-        Uint8List bytes;
-        if (s is Uint8List) {
-          bytes = s;
-        } else if (s is String) {
-          bytes = base64Decode(s);
-        } else {
-          return pw.SizedBox(width: 0);
+    // Normalize photos into bytes (Uint8List). For URL strings, download them.
+    Future<List<Uint8List>> _normalizePhotos(List<dynamic> list) async {
+      final out = <Uint8List>[];
+      for (final s in list) {
+        try {
+          if (s is Uint8List) {
+            out.add(s);
+          } else if (s is String) {
+            if (s.startsWith('http')) {
+              final res = await http.get(Uri.parse(s));
+              if (res.statusCode == 200) out.add(res.bodyBytes);
+            } else {
+              out.add(base64Decode(s));
+            }
+          }
+        } catch (_) {
+          // skip failures
         }
-        return pw.Container(
-            margin: const pw.EdgeInsets.all(4),
-            child: pw.Image(pw.MemoryImage(bytes),
-                width: 120, height: 120, fit: pw.BoxFit.cover));
-      } catch (_) {
-        return pw.SizedBox(width: 0);
       }
+      return out;
     }
+
+    final bodegaBytes = await _normalizePhotos(bodegaPhotos);
+    final pisoBytes = await _normalizePhotos(pisoPhotos);
 
     pdf.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -363,25 +377,35 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                       pw.Text(notes.toString())
                     ]),
                   pw.SizedBox(height: 12),
-                  if (bodegaPhotos.isNotEmpty)
+                  if (bodegaBytes.isNotEmpty)
                     pw.Column(children: [
                       pw.Text('Fotos Bodega:',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 8),
                       pw.Wrap(
-                          children: bodegaPhotos
-                              .map((s) => _imageWidgetFromDynamic(s))
+                          children: bodegaBytes
+                              .map((bytes) => pw.Container(
+                                  margin: const pw.EdgeInsets.all(4),
+                                  child: pw.Image(pw.MemoryImage(bytes),
+                                      width: 120,
+                                      height: 120,
+                                      fit: pw.BoxFit.cover)))
                               .toList())
                     ]),
                   pw.SizedBox(height: 12),
-                  if (pisoPhotos.isNotEmpty)
+                  if (pisoBytes.isNotEmpty)
                     pw.Column(children: [
                       pw.Text('Fotos Piso:',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                       pw.SizedBox(height: 8),
                       pw.Wrap(
-                          children: pisoPhotos
-                              .map((s) => _imageWidgetFromDynamic(s))
+                          children: pisoBytes
+                              .map((bytes) => pw.Container(
+                                  margin: const pw.EdgeInsets.all(4),
+                                  child: pw.Image(pw.MemoryImage(bytes),
+                                      width: 120,
+                                      height: 120,
+                                      fit: pw.BoxFit.cover)))
                               .toList())
                     ]),
                 ]),
@@ -449,11 +473,18 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                       : (pphotos.isNotEmpty ? pphotos.first : null);
                   if (cand != null) {
                     if (cand is String) {
-                      final bytes = base64Decode(cand);
-                      thumb = ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: Image.memory(bytes,
-                              width: 80, height: 80, fit: BoxFit.cover));
+                      if (cand.startsWith('http')) {
+                        thumb = ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(cand,
+                                width: 80, height: 80, fit: BoxFit.cover));
+                      } else {
+                        final bytes = base64Decode(cand);
+                        thumb = ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.memory(bytes,
+                                width: 80, height: 80, fit: BoxFit.cover));
+                      }
                     } else if (cand is Uint8List) {
                       thumb = ClipRRect(
                           borderRadius: BorderRadius.circular(6),

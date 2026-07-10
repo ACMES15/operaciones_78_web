@@ -6,7 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:convert';
+
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:file_picker/file_picker.dart';
 
 class RegistroCaminataForm extends StatefulWidget {
@@ -227,45 +228,78 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Convert photos to base64 and prepare maps (only JSON-safe types).
-      final List<String> bodegaEncoded =
-          _bodegaPhotos.map((b) => base64Encode(b)).toList();
-      final List<String> pisoEncoded =
-          _pisoPhotos.map((b) => base64Encode(b)).toList();
+      // Upload photos to Firebase Storage and store URLs in Firestore.
+      final storage = firebase_storage.FirebaseStorage.instance;
+      List<String> bodegaUrls = [];
+      List<String> pisoUrls = [];
 
-      final Map<String, dynamic> bodegaMap = {
-        'orden': _bodegaOrden,
-        'mercanciaTirada': _bodegaMercanciaTirada,
-        'devolucionMkp': _bodegaDevolucionMkp,
-        'suministroExceso': _bodegaSuministroExceso,
-        'photosCount': bodegaEncoded.length,
-        'photos': bodegaEncoded,
-      };
+      try {
+        for (var i = 0; i < _bodegaPhotos.length; i++) {
+          final bytes = _bodegaPhotos[i];
+          final ref = storage.ref().child(
+              'caminatas/${docRef.id}/bodega/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+          final meta =
+              firebase_storage.SettableMetadata(contentType: 'image/jpeg');
+          final uploadTask = ref.putData(bytes, meta);
+          final snap = await uploadTask;
+          final url = await snap.ref.getDownloadURL();
+          bodegaUrls.add(url);
+        }
+        for (var i = 0; i < _pisoPhotos.length; i++) {
+          final bytes = _pisoPhotos[i];
+          final ref = storage.ref().child(
+              'caminatas/${docRef.id}/piso/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+          final meta =
+              firebase_storage.SettableMetadata(contentType: 'image/jpeg');
+          final uploadTask = ref.putData(bytes, meta);
+          final snap = await uploadTask;
+          final url = await snap.ref.getDownloadURL();
+          pisoUrls.add(url);
+        }
 
-      final Map<String, dynamic> pisoMap = {
-        'ordenTerminal': _pisoOrdenTerminal,
-        'mercanciaOtras': _pisoMercanciaOtras,
-        'objetosPersonales': _pisoObjetosPersonales,
-        'ordenLugarJefe': _pisoOrdenLugarJefe,
-        'photosCount': pisoEncoded.length,
-        'photos': pisoEncoded,
-      };
+        final Map<String, dynamic> bodegaMap = {
+          'orden': _bodegaOrden,
+          'mercanciaTirada': _bodegaMercanciaTirada,
+          'devolucionMkp': _bodegaDevolucionMkp,
+          'suministroExceso': _bodegaSuministroExceso,
+          'photosCount': bodegaUrls.length,
+          'photos': bodegaUrls,
+        };
 
-      // Optional: quick size check to avoid Firestore document > 1MiB error
-      final approxSize = utf8
-          .encode(jsonEncode({'bodega': bodegaMap, 'piso': pisoMap}))
-          .length;
-      if (approxSize > 900000) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Fotos muy grandes para guardar en Firestore. Reduce tamaño o usa Storage.')));
-        // still attempt to store without photos to avoid breaking
-        await docRef.update({
-          'bodega': {...bodegaMap}..remove('photos'),
-          'piso': {...pisoMap}..remove('photos')
-        });
-      } else {
+        final Map<String, dynamic> pisoMap = {
+          'ordenTerminal': _pisoOrdenTerminal,
+          'mercanciaOtras': _pisoMercanciaOtras,
+          'objetosPersonales': _pisoObjetosPersonales,
+          'ordenLugarJefe': _pisoOrdenLugarJefe,
+          'photosCount': pisoUrls.length,
+          'photos': pisoUrls,
+        };
+
         await docRef.update({'bodega': bodegaMap, 'piso': pisoMap});
+      } catch (e) {
+        // If storage fails, update without photos and notify user.
+        try {
+          await docRef.update({
+            'bodega': {
+              'orden': _bodegaOrden,
+              'mercanciaTirada': _bodegaMercanciaTirada,
+              'devolucionMkp': _bodegaDevolucionMkp,
+              'suministroExceso': _bodegaSuministroExceso,
+              'photosCount': 0,
+              'photos': [],
+            },
+            'piso': {
+              'ordenTerminal': _pisoOrdenTerminal,
+              'mercanciaOtras': _pisoMercanciaOtras,
+              'objetosPersonales': _pisoObjetosPersonales,
+              'ordenLugarJefe': _pisoOrdenLugarJefe,
+              'photosCount': 0,
+              'photos': [],
+            }
+          });
+        } catch (_) {}
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error subiendo fotos a Storage: $e')));
       }
 
       ScaffoldMessenger.of(context)
