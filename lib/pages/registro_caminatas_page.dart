@@ -17,7 +17,6 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
   bool _loading = true;
   Map<String, String> _plantilla = {};
   List<String> _jefes = [];
-  String? _selectedJefe;
 
   @override
   void initState() {
@@ -52,17 +51,6 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     super.dispose();
   }
 
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final res = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 1),
-    );
-    if (res != null) setState(() => _selectedDate = res);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,19 +65,6 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Usuario: ${widget.usuario}',
-                style: const TextStyle(color: Colors.black)),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-              onPressed: _pickDate,
-              child: const Text('Seleccionar fecha'),
-            ),
-            const SizedBox(height: 8),
-            Text(_selectedDate == null
-                ? 'Fecha no seleccionada'
-                : _selectedDate!.toLocal().toString().split(' ')[0]),
-            const SizedBox(height: 12),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -100,55 +75,26 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                         separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final jefe = _jefes[index];
-                          final selected = jefe == _selectedJefe;
                           return ListTile(
                             title: Text(jefe),
-                            onTap: () => setState(
-                                () => _selectedJefe = selected ? null : jefe),
-                            trailing: selected
-                                ? ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  RegistroCaminataForm(
-                                                      usuario: widget.usuario,
-                                                      jefe: jefe,
-                                                      date: _selectedDate)));
-                                    },
-                                    child: const Text('Inicio de caminata'),
-                                  )
-                                : null,
+                            trailing: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white),
+                              onPressed: () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => RegistroCaminataForm(
+                                        usuario: widget.usuario,
+                                        jefe: jefe,
+                                        date: _selectedDate)));
+                              },
+                              child: const Text('Inicio de caminata'),
+                            ),
                           );
                         },
                       ),
                     ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _notesController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Notas de la caminata (opcional)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(children: [
-              Expanded(
-                child: ElevatedButton(
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.black),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Notas temporales guardadas')));
-                  },
-                  child: const Text('Guardar notas'),
-                ),
-              ),
-            ])
           ],
         ),
       ),
