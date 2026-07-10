@@ -82,15 +82,18 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
                       Text('Calidad ${quality.toStringAsFixed(0)}%',
                           style: const TextStyle(color: Colors.black54)),
                       const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => _editInventory(context, data),
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Editar'),
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.black,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6)),
+                      SizedBox(
+                        width: 120,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _editInventory(context, data),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Editar'),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8)),
+                        ),
                       )
                     ],
                   ),

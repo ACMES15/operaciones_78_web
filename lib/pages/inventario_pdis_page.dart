@@ -569,7 +569,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
                               foregroundColor: Colors.white),
-                          child: const Text('Cargar')),
+                          child: const Text('Reiniciar')),
                       const SizedBox(width: 8),
                       ElevatedButton(
                           onPressed: _exportToExcel,
@@ -703,21 +703,28 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                     }
 
                                     return SingleChildScrollView(
-                                        scrollDirection: Axis.horizontal,
-                                        child: SizedBox(
-                                            width: MediaQuery.of(context)
-                                                .size
-                                                .width,
-                                            child: DataTable(columns: const [
-                                              DataColumn(label: Text('SKU')),
-                                              DataColumn(
-                                                  label: Text('PDIS'),
-                                                  numeric: true),
-                                              DataColumn(
-                                                  label: Text('Escaneado'),
-                                                  numeric: true),
-                                              DataColumn(label: Text('Tipo')),
-                                            ], rows: rows)));
+                                        // vertical scroll
+                                        child: SingleChildScrollView(
+                                            scrollDirection: Axis.horizontal,
+                                            child: ConstrainedBox(
+                                                constraints: BoxConstraints(
+                                                    minWidth:
+                                                        MediaQuery.of(context)
+                                                            .size
+                                                            .width),
+                                                child:
+                                                    DataTable(columns: const [
+                                                  DataColumn(
+                                                      label: Text('SKU')),
+                                                  DataColumn(
+                                                      label: Text('PDIS'),
+                                                      numeric: true),
+                                                  DataColumn(
+                                                      label: Text('Escaneado'),
+                                                      numeric: true),
+                                                  DataColumn(
+                                                      label: Text('Tipo')),
+                                                ], rows: rows))));
                                   }))
                                 ],
                               ),
@@ -972,22 +979,30 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                       }
 
                                       return SingleChildScrollView(
-                                          scrollDirection: Axis.horizontal,
-                                          child: SizedBox(
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .width -
-                                                  48,
-                                              child: DataTable(columns: const [
-                                                DataColumn(label: Text('SKU')),
-                                                DataColumn(
-                                                    label: Text('PDIS'),
-                                                    numeric: true),
-                                                DataColumn(
-                                                    label: Text('Escaneado'),
-                                                    numeric: true),
-                                                DataColumn(label: Text('Tipo')),
-                                              ], rows: rows)));
+                                          // vertical scroll wrapper
+                                          child: SingleChildScrollView(
+                                              scrollDirection: Axis.horizontal,
+                                              child: ConstrainedBox(
+                                                  constraints: BoxConstraints(
+                                                      minWidth:
+                                                          MediaQuery.of(context)
+                                                                  .size
+                                                                  .width -
+                                                              48),
+                                                  child:
+                                                      DataTable(columns: const [
+                                                    DataColumn(
+                                                        label: Text('SKU')),
+                                                    DataColumn(
+                                                        label: Text('PDIS'),
+                                                        numeric: true),
+                                                    DataColumn(
+                                                        label:
+                                                            Text('Escaneado'),
+                                                        numeric: true),
+                                                    DataColumn(
+                                                        label: Text('Tipo')),
+                                                  ], rows: rows))));
                                     }))
                                   ],
                                 ),
