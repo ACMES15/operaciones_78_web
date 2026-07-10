@@ -70,29 +70,69 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                   ? const Center(child: CircularProgressIndicator())
                   : Card(
                       elevation: 2,
-                      child: ListView.separated(
-                        itemCount: _jefes.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final jefe = _jefes[index];
-                          return ListTile(
-                            title: Text(jefe),
-                            trailing: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
+                      child: Row(children: [
+                        // Left: list of jefaturas
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: _jefes.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final jefe = _jefes[index];
+                              return ListTile(
+                                title: Text(jefe),
+                                trailing: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black,
+                                      foregroundColor: Colors.white),
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                RegistroCaminataForm(
+                                                    usuario: widget.usuario,
+                                                    jefe: jefe,
+                                                    date: _selectedDate)));
+                                  },
+                                  child: const Text('Inicio de caminata'),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+
+                        // Right: columna con botón Histórico
+                        Container(
+                          width: 140,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white),
-                              onPressed: () {
-                                Navigator.of(context).push(MaterialPageRoute(
-                                    builder: (_) => RegistroCaminataForm(
-                                        usuario: widget.usuario,
-                                        jefe: jefe,
-                                        date: _selectedDate)));
-                              },
-                              child: const Text('Inicio de caminata'),
-                            ),
-                          );
-                        },
-                      ),
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () {
+                                  // Placeholder: abrir histórico (puedes conectar página real)
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => Scaffold(
+                                      appBar: AppBar(
+                                          backgroundColor: Colors.black,
+                                          title: const Text(
+                                              'Histórico Caminatas')),
+                                      body: const Center(
+                                          child: Text(
+                                              'Histórico - implementar vista')),
+                                    ),
+                                  ));
+                                },
+                                child: const Text('Historico'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ]),
                     ),
             ),
           ],

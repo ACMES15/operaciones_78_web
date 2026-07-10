@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class RegistroCaminataForm extends StatefulWidget {
   final String usuario;
@@ -82,7 +85,38 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
 
   Future<void> _pickPhotosForDivision(String division,
       {bool fromCamera = true}) async {
+    // Request permission first (skip on web)
     try {
+      if (!kIsWeb) {
+        Permission perm;
+        if (fromCamera) {
+          perm = Permission.camera;
+        } else {
+          perm = Platform.isAndroid ? Permission.storage : Permission.photos;
+        }
+        final status = await perm.request();
+        if (!status.isGranted) {
+          final open = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Permiso requerido'),
+              content: const Text(
+                  'La aplicación necesita permiso para acceder a la cámara/galería. Abrir ajustes?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('No')),
+                TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    child: const Text('Abrir ajustes')),
+              ],
+            ),
+          );
+          if (open == true) openAppSettings();
+          return;
+        }
+      }
+
       if (fromCamera) {
         final XFile? photo = await _picker.pickImage(
             source: ImageSource.camera, imageQuality: 70);
@@ -96,6 +130,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           });
         }
       } else {
+        // allow multiple selection when available
         final List<XFile>? photos =
             await _picker.pickMultiImage(imageQuality: 70);
         if (photos != null && photos.isNotEmpty) {
@@ -178,9 +213,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
   Widget build(BuildContext context) {
     final percent = _computePercent();
     return Scaffold(
-      appBar: AppBar(
-          backgroundColor: Colors.black,
-          title: const Text('Formulario Caminata')),
+      appBar: AppBar(backgroundColor: Colors.black, title: const Text('')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child:
@@ -188,12 +221,12 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           // Circular percent + jefe + seccion
           Row(children: [
             SizedBox(
-              width: 92,
-              height: 92,
+              width: 120,
+              height: 120,
               child: Stack(alignment: Alignment.center, children: [
                 CircularProgressIndicator(
                   value: percent / 100,
-                  strokeWidth: 8,
+                  strokeWidth: 10,
                   color: Colors.blue,
                   backgroundColor: Colors.blue.withOpacity(0.2),
                 ),
@@ -221,7 +254,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           ]),
           const SizedBox(height: 8),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black, foregroundColor: Colors.white),
             onPressed: _pickStartTime,
             child: Text(_startTime == null
                 ? 'Seleccionar hora de inicio'
@@ -254,7 +288,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           const SizedBox(height: 8),
           Row(children: [
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black, foregroundColor: Colors.white),
               onPressed: () =>
                   _pickPhotosForDivision('bodega', fromCamera: true),
               icon: const Icon(Icons.camera_alt),
@@ -262,7 +297,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black, foregroundColor: Colors.white),
               onPressed: () =>
                   _pickPhotosForDivision('bodega', fromCamera: false),
               icon: const Icon(Icons.photo_library),
@@ -304,14 +340,16 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           const SizedBox(height: 8),
           Row(children: [
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black, foregroundColor: Colors.white),
               onPressed: () => _pickPhotosForDivision('piso', fromCamera: true),
               icon: const Icon(Icons.camera_alt),
               label: const Text('Tomar foto Piso'),
             ),
             const SizedBox(width: 8),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black, foregroundColor: Colors.white),
               onPressed: () =>
                   _pickPhotosForDivision('piso', fromCamera: false),
               icon: const Icon(Icons.photo_library),
@@ -332,7 +370,9 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           Row(children: [
             Expanded(
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white),
                 onPressed: _saveCaminata,
                 child: Text('Guardar caminata — $percent%'),
               ),
