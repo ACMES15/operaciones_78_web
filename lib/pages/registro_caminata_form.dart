@@ -227,16 +227,46 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Convert photos to base64 and store directly in Firestore.
+      // Convert photos to base64 and prepare maps (only JSON-safe types).
       final List<String> bodegaEncoded =
           _bodegaPhotos.map((b) => base64Encode(b)).toList();
       final List<String> pisoEncoded =
           _pisoPhotos.map((b) => base64Encode(b)).toList();
 
-      await docRef.update({
-        'bodega.photos': bodegaEncoded,
-        'piso.photos': pisoEncoded,
-      });
+      final Map<String, dynamic> bodegaMap = {
+        'orden': _bodegaOrden,
+        'mercanciaTirada': _bodegaMercanciaTirada,
+        'devolucionMkp': _bodegaDevolucionMkp,
+        'suministroExceso': _bodegaSuministroExceso,
+        'photosCount': bodegaEncoded.length,
+        'photos': bodegaEncoded,
+      };
+
+      final Map<String, dynamic> pisoMap = {
+        'ordenTerminal': _pisoOrdenTerminal,
+        'mercanciaOtras': _pisoMercanciaOtras,
+        'objetosPersonales': _pisoObjetosPersonales,
+        'ordenLugarJefe': _pisoOrdenLugarJefe,
+        'photosCount': pisoEncoded.length,
+        'photos': pisoEncoded,
+      };
+
+      // Optional: quick size check to avoid Firestore document > 1MiB error
+      final approxSize = utf8
+          .encode(jsonEncode({'bodega': bodegaMap, 'piso': pisoMap}))
+          .length;
+      if (approxSize > 900000) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Fotos muy grandes para guardar en Firestore. Reduce tamaño o usa Storage.')));
+        // still attempt to store without photos to avoid breaking
+        await docRef.update({
+          'bodega': {...bodegaMap}..remove('photos'),
+          'piso': {...pisoMap}..remove('photos')
+        });
+      } else {
+        await docRef.update({'bodega': bodegaMap, 'piso': pisoMap});
+      }
 
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Caminata registrada')));
