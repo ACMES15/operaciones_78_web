@@ -369,6 +369,19 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     final bodegaBytes = await _normalizePhotos(bodegaPhotos);
     final pisoBytes = await _normalizePhotos(pisoPhotos);
 
+    // Debug / confirm counts to user so it's clear which photos were included
+    try {
+      if (mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          try {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(
+                    'Preparando PDF - Fotos Bodega: ${bodegaBytes.length}, Piso: ${pisoBytes.length}')));
+          } catch (_) {}
+        });
+      }
+    } catch (_) {}
+
     pdf.addPage(pw.Page(
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context ctx) {
@@ -756,7 +769,9 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                     TextButton(
                         onPressed: () async {
                           Navigator.of(ctx).pop();
-                          await _exportCaminataPdf(data, docId);
+                          // fetch fresh data to ensure we pick up any Hive/cache updates
+                          final fresh = await _getCaminataData(docId);
+                          await _exportCaminataPdf(fresh ?? data, docId);
                         },
                         child: const Text('Exportar PDF')),
                     TextButton(
