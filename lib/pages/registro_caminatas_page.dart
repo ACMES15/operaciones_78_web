@@ -106,8 +106,14 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                 final raw = box.get('caminata_$docId');
                 if (raw != null) {
                   try {
-                    final Map<String, dynamic> thumbs =
-                        Map<String, dynamic>.from(jsonDecode(raw));
+                    Map<String, dynamic> thumbs;
+                    if (raw is String) {
+                      thumbs = Map<String, dynamic>.from(jsonDecode(raw));
+                    } else if (raw is Map) {
+                      thumbs = Map<String, dynamic>.from(raw);
+                    } else {
+                      thumbs = {};
+                    }
                     if (bodegaPhotos.isEmpty)
                       bodegaPhotos =
                           (thumbs['bodega'] as List<dynamic>?)?.toList() ?? [];
@@ -129,6 +135,13 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                     return ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: Image.memory(s,
+                          width: 100, height: 100, fit: BoxFit.cover),
+                    );
+                  }
+                  if (s is List<int>) {
+                    return ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: Image.memory(Uint8List.fromList(s.cast<int>()),
                           width: 100, height: 100, fit: BoxFit.cover),
                     );
                   }
@@ -383,18 +396,6 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                       style: pw.TextStyle(
                           fontSize: 14, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 6),
-                  pw.Bullet(
-                      text:
-                          'Bodega en orden: ${data['bodega']?['orden'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Mercancía tirada: ${data['bodega']?['mercanciaTirada'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Devolución MKP: ${data['bodega']?['devolucionMkp'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Suministro exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
                   pw.Bullet(
                       text:
                           'Contenedores rezagados: ${data['bodega']?['contenedoresRezagados'] == true ? 'Sí' : 'No'}'),
