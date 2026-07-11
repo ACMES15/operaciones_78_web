@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:http/http.dart' as http;
 import 'registro_caminata_form.dart';
+import 'metricas_caminatas_page.dart';
 
 class RegistroCaminatasPage extends StatefulWidget {
   final String usuario;
@@ -855,13 +856,26 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                           elevation: 2,
                           child: Padding(
                             padding: const EdgeInsets.all(12.0),
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black,
-                                  foregroundColor: Colors.white),
-                              onPressed: _showHistoricoListPage,
-                              child: const Text('Historico'),
-                            ),
+                            child: Column(children: [
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white),
+                                onPressed: _showHistoricoListPage,
+                                child: const Text('Historico'),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.black,
+                                    foregroundColor: Colors.white),
+                                onPressed: () {
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => MetricasCaminatasPage()));
+                                },
+                                child: const Text('Métricas'),
+                              ),
+                            ]),
                           ),
                         ),
                         const SizedBox(height: 8),
