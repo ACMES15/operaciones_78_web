@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:hive/hive.dart';
+import 'dart:convert';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:file_picker/file_picker.dart';
 
@@ -215,6 +217,12 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'photos': [],
         },
         'score': percent,
+        // mark upload state so UI can show pending uploads
+        'photosUploadState': 'pending',
+        'photosExpected': {
+          'bodega': _bodegaPhotos.length,
+          'piso': _pisoPhotos.length
+        },
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -284,7 +292,26 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         'photosCount': pisoUrls.length,
         'photos': pisoUrls
       };
-      await docRef.update({'bodega': bodegaMap, 'piso': pisoMap});
+      // update document with photos and mark done
+      await docRef.update({
+        'bodega': bodegaMap,
+        'piso': pisoMap,
+        'photosUploadState': 'done',
+        'photosUploadedAt': FieldValue.serverTimestamp(),
+      });
+
+      // update local Hive cache if present so histórico shows changes immediately
+      try {
+        const boxName = 'caminatas_cache';
+        if (Hive.isBoxOpen(boxName)) {
+          final box = Hive.box(boxName);
+          final snap = await docRef.get();
+          if (snap.exists && snap.data() != null) {
+            final data = snap.data() as Map<String, dynamic>;
+            box.put('caminata_$docId', jsonEncode(data));
+          }
+        }
+      } catch (_) {}
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted)
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
