@@ -972,6 +972,19 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                     onPressed: _showHistoricoListPage,
                                     child: const Text('Historico'),
                                   ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.black,
+                                        foregroundColor: Colors.white),
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  MetricasCaminatasPage()));
+                                    },
+                                    child: const Text('Métricas'),
+                                  ),
                                 ]),
                           ),
                         ),
