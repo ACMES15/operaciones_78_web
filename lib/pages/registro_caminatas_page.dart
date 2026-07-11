@@ -342,6 +342,15 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
         try {
           if (s is Uint8List) {
             out.add(s);
+          } else if (s is List<int>) {
+            out.add(Uint8List.fromList(s));
+          } else if (s is List<dynamic>) {
+            try {
+              final casted = s.cast<int>();
+              out.add(Uint8List.fromList(casted));
+            } catch (_) {
+              // ignore
+            }
           } else if (s is String) {
             if (s.startsWith('http')) {
               final res = await http.get(Uri.parse(s));
