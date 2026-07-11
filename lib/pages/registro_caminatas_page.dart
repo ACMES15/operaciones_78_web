@@ -94,9 +94,30 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
 
             final score = data['score'] ?? '';
             final notes = data['notes'] ?? '';
-            final List<dynamic> bodegaPhotos =
-                (data['bodega']?['photos']) ?? [];
-            final List<dynamic> pisoPhotos = (data['piso']?['photos']) ?? [];
+            List<dynamic> bodegaPhotos =
+                (data['bodega']?['photos'] as List<dynamic>?)?.toList() ?? [];
+            List<dynamic> pisoPhotos =
+                (data['piso']?['photos'] as List<dynamic>?)?.toList() ?? [];
+            // fallback to local Hive thumbs for this device
+            try {
+              const boxName = 'caminata_thumbs';
+              if (Hive.isBoxOpen(boxName)) {
+                final box = Hive.box(boxName);
+                final raw = box.get('caminata_$docId');
+                if (raw != null) {
+                  try {
+                    final Map<String, dynamic> thumbs =
+                        Map<String, dynamic>.from(jsonDecode(raw));
+                    if (bodegaPhotos.isEmpty)
+                      bodegaPhotos =
+                          (thumbs['bodega'] as List<dynamic>?)?.toList() ?? [];
+                    if (pisoPhotos.isEmpty)
+                      pisoPhotos =
+                          (thumbs['piso'] as List<dynamic>?)?.toList() ?? [];
+                  } catch (_) {}
+                }
+              }
+            } catch (_) {}
 
             Widget _photosWrap(List<dynamic> list) {
               if (list.isEmpty) return const SizedBox.shrink();
@@ -374,6 +395,9 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                   pw.Bullet(
                       text:
                           'Suministro exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Contenedores rezagados: ${data['bodega']?['contenedoresRezagados'] == true ? 'Sí' : 'No'}'),
                   pw.SizedBox(height: 8),
                   pw.Text('Preguntas - Piso',
                       style: pw.TextStyle(
