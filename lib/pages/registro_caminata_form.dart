@@ -189,15 +189,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         _startTime?.minute ?? DateTime.now().minute);
     final percent = _computePercent();
 
+    final docRef = FirebaseFirestore.instance.collection('caminatas').doc();
     try {
-      final docRef = FirebaseFirestore.instance.collection('caminatas').doc();
-
-      // prepare small base64 thumbnails (limited) so Histórico shows images immediately
-      final List<String> bodegaThumbs =
-          _bodegaPhotos.take(5).map((b) => base64Encode(b)).toList();
-      final List<String> pisoThumbs =
-          _pisoPhotos.take(5).map((b) => base64Encode(b)).toList();
-
       await docRef.set({
         'usuario': widget.usuario,
         'jefe': widget.jefe,
@@ -214,7 +207,6 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'contenedoresRezagados': _bodegaContenedoresRezagados,
           'photosCount': _bodegaPhotos.length,
           'photos': [],
-          'thumbs': bodegaThumbs,
         },
         'piso': {
           'ordenTerminal': _pisoOrdenTerminal,
@@ -223,15 +215,13 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'ordenLugarJefe': _pisoOrdenLugarJefe,
           'photosCount': _pisoPhotos.length,
           'photos': [],
-          'thumbs': pisoThumbs,
         },
         'score': percent,
         // mark upload state so UI can show pending uploads
         'photosUploadState': 'pending',
-        'photosExpected': {
-          'bodega': _bodegaPhotos.length,
-          'piso': _pisoPhotos.length
-        },
+        // simple expected counts
+        'photosExpectedBodega': _bodegaPhotos.length,
+        'photosExpectedPiso': _pisoPhotos.length,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -253,9 +243,36 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         'objetosPersonales': _pisoObjetosPersonales,
         'ordenLugarJefe': _pisoOrdenLugarJefe,
       });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error guardando caminata: $e')));
+    } catch (e, st) {
+      // mark failed state on document so user can see error in console/histórico
+      try {
+        await docRef.update({
+          'photosUploadState': 'failed',
+          'photosUploadError': e.toString(),
+          'photosUploadStack': st.toString()
+        });
+      } catch (_) {}
+      // log and show brief snackbar + detailed dialog
+      debugPrint('Error subiendo fotos: $e');
+      debugPrint(st.toString());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error subiendo fotos: ${e.toString()}')));
+          showDialog<void>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                    title: const Text('Error subiendo fotos'),
+                    content: SingleChildScrollView(
+                        child: Text('$e\n\n${st.toString()}')),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cerrar'))
+                    ],
+                  ));
+        }
+      });
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
