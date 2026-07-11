@@ -317,8 +317,14 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
         final raw = box.get('caminata_$docId');
         if (raw != null) {
           try {
-            final Map<String, dynamic> thumbs =
-                Map<String, dynamic>.from(jsonDecode(raw));
+            Map<String, dynamic> thumbs;
+            if (raw is String) {
+              thumbs = Map<String, dynamic>.from(jsonDecode(raw));
+            } else if (raw is Map) {
+              thumbs = Map<String, dynamic>.from(raw);
+            } else {
+              thumbs = {};
+            }
             if (bodegaPhotos.isEmpty)
               bodegaPhotos =
                   (thumbs['bodega'] as List<dynamic>?)?.toList() ?? [];
@@ -396,6 +402,18 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                       style: pw.TextStyle(
                           fontSize: 14, fontWeight: pw.FontWeight.bold)),
                   pw.SizedBox(height: 6),
+                  pw.Bullet(
+                      text:
+                          'Orden: ${data['bodega']?['orden'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Mercancía tirada: ${data['bodega']?['mercanciaTirada'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Devolución MKP: ${data['bodega']?['devolucionMkp'] == true ? 'Sí' : 'No'}'),
+                  pw.Bullet(
+                      text:
+                          'Suministro en exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
                   pw.Bullet(
                       text:
                           'Contenedores rezagados: ${data['bodega']?['contenedoresRezagados'] == true ? 'Sí' : 'No'}'),
@@ -525,8 +543,15 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                         final raw = box.get(key);
                         if (raw != null) {
                           try {
-                            final Map<String, dynamic> thumbs =
-                                Map<String, dynamic>.from(jsonDecode(raw));
+                            Map<String, dynamic> thumbs;
+                            if (raw is String) {
+                              thumbs =
+                                  Map<String, dynamic>.from(jsonDecode(raw));
+                            } else if (raw is Map) {
+                              thumbs = Map<String, dynamic>.from(raw);
+                            } else {
+                              thumbs = {};
+                            }
                             bphotos = (thumbs['bodega'] as List<dynamic>?)
                                     ?.toList() ??
                                 [];
