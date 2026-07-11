@@ -369,6 +369,48 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     final bodegaBytes = await _normalizePhotos(bodegaPhotos);
     final pisoBytes = await _normalizePhotos(pisoPhotos);
 
+    // Diagnostic: record what types/lengths we saw for each photo entry
+    try {
+      final describe = (List<dynamic> list) {
+        final out = <Map<String, dynamic>>[];
+        for (final item in list) {
+          try {
+            if (item is Uint8List) {
+              out.add({'type': 'Uint8List', 'length': item.length});
+            } else if (item is List<int>) {
+              out.add({'type': 'List<int>', 'length': item.length});
+            } else if (item is List<dynamic>) {
+              out.add({'type': 'List<dynamic>', 'length': item.length});
+            } else if (item is String) {
+              if (item.startsWith('http')) {
+                out.add({'type': 'URL', 'value': item.toString()});
+              } else {
+                out.add({'type': 'base64', 'length': item.length});
+              }
+            } else {
+              out.add({'type': item.runtimeType.toString()});
+            }
+          } catch (e) {
+            out.add({'type': 'error', 'msg': e.toString()});
+          }
+        }
+        return out;
+      };
+
+      await FirebaseFirestore.instance
+          .collection('caminatas')
+          .doc(docId)
+          .update({
+        'lastPdfExport': {
+          'bodega_count': bodegaPhotos.length,
+          'piso_count': pisoPhotos.length,
+          'bodega_types': describe(bodegaPhotos),
+          'piso_types': describe(pisoPhotos),
+          'exportAt': FieldValue.serverTimestamp()
+        }
+      });
+    } catch (_) {}
+
     // Debug / confirm counts to user so it's clear which photos were included
     try {
       if (mounted) {
