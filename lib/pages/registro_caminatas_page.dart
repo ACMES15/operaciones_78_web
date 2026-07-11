@@ -269,8 +269,15 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     final score = data['score'] ?? 0;
     final notes = data['notes'] ?? '';
 
-    final List<dynamic> bodegaPhotos = (data['bodega']?['photos']) ?? [];
-    final List<dynamic> pisoPhotos = (data['piso']?['photos']) ?? [];
+    // Prefer full-size photos (Storage URLs). If empty, fall back to stored thumbnails.
+    final List<dynamic> bodegaPhotos =
+        (data['bodega']?['photos'] as List<dynamic>?)?.toList() ??
+            (data['bodega']?['thumbs'] as List<dynamic>?)?.toList() ??
+            [];
+    final List<dynamic> pisoPhotos =
+        (data['piso']?['photos'] as List<dynamic>?)?.toList() ??
+            (data['piso']?['thumbs'] as List<dynamic>?)?.toList() ??
+            [];
 
     // Normalize photos into bytes (Uint8List). For URL strings, download them.
     Future<List<Uint8List>> _normalizePhotos(List<dynamic> list) async {
@@ -466,8 +473,14 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                 // thumbnail candidate
                 Widget thumb = const SizedBox.shrink();
                 try {
-                  final bphotos = (data['bodega']?['photos']) ?? [];
-                  final pphotos = (data['piso']?['photos']) ?? [];
+                  final bphotos = (data['bodega']?['photos'] as List<dynamic>?)
+                          ?.toList() ??
+                      (data['bodega']?['thumbs'] as List<dynamic>?)?.toList() ??
+                      [];
+                  final pphotos = (data['piso']?['photos'] as List<dynamic>?)
+                          ?.toList() ??
+                      (data['piso']?['thumbs'] as List<dynamic>?)?.toList() ??
+                      [];
                   final cand = (bphotos.isNotEmpty)
                       ? bphotos.first
                       : (pphotos.isNotEmpty ? pphotos.first : null);

@@ -191,6 +191,13 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
 
     try {
       final docRef = FirebaseFirestore.instance.collection('caminatas').doc();
+
+      // prepare small base64 thumbnails (limited) so Histórico shows images immediately
+      final List<String> bodegaThumbs =
+          _bodegaPhotos.take(5).map((b) => base64Encode(b)).toList();
+      final List<String> pisoThumbs =
+          _pisoPhotos.take(5).map((b) => base64Encode(b)).toList();
+
       await docRef.set({
         'usuario': widget.usuario,
         'jefe': widget.jefe,
@@ -207,6 +214,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'contenedoresRezagados': _bodegaContenedoresRezagados,
           'photosCount': _bodegaPhotos.length,
           'photos': [],
+          'thumbs': bodegaThumbs,
         },
         'piso': {
           'ordenTerminal': _pisoOrdenTerminal,
@@ -215,6 +223,7 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
           'ordenLugarJefe': _pisoOrdenLugarJefe,
           'photosCount': _pisoPhotos.length,
           'photos': [],
+          'thumbs': pisoThumbs,
         },
         'score': percent,
         // mark upload state so UI can show pending uploads
@@ -319,6 +328,11 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
                   'Fotos subidas: bodega ${bodegaUrls.length}, piso ${pisoUrls.length}')));
       });
     } catch (e) {
+      // mark failed state on document so user can see error in console/histórico
+      try {
+        await docRef.update(
+            {'photosUploadState': 'failed', 'photosUploadError': e.toString()});
+      } catch (_) {}
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted)
           ScaffoldMessenger.of(context).showSnackBar(
