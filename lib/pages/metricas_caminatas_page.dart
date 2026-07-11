@@ -60,17 +60,34 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   Future<double?> _fetchAvg(String jefe, DateTime start) async {
     final end = DateTime(start.year, start.month + 1, 1);
     try {
+      // Some documents use `date`, others `createdAt`. Fetch by jefe
+      // and filter in memory by either timestamp field so recent saves
+      // are included regardless of which field was set.
       final snap = await FirebaseFirestore.instance
           .collection('caminatas')
           .where('jefe', isEqualTo: jefe)
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-          .where('date', isLessThan: Timestamp.fromDate(end))
+          .orderBy('createdAt', descending: true)
+          .limit(1000)
           .get();
       if (snap.docs.isEmpty) return null;
       double sum = 0;
       int cnt = 0;
       for (final d in snap.docs) {
-        final sc = d.data()['score'];
+        final data = d.data();
+        Timestamp? ts;
+        try {
+          if (data['date'] is Timestamp) {
+            ts = data['date'] as Timestamp;
+          } else if (data['createdAt'] is Timestamp) {
+            ts = data['createdAt'] as Timestamp;
+          }
+        } catch (_) {}
+
+        if (ts == null) continue;
+        final dt = ts.toDate();
+        if (dt.isBefore(start) || !dt.isBefore(end)) continue;
+
+        final sc = data['score'];
         if (sc is num) {
           sum += sc.toDouble();
           cnt++;
@@ -178,6 +195,74 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
             _metricRow('Mes A', _monthA, _avgA),
             const SizedBox(height: 8),
             _metricRow('Mes B', _monthB, _avgB),
+            const SizedBox(height: 12),
+            // Diferencia A - B
+            Builder(builder: (ctx) {
+              final a = _avgA ?? 0.0;
+              final b = _avgB ?? 0.0;
+              final delta = a - b;
+              Color dColor;
+              if (delta > 0)
+                dColor = Colors.green;
+              else if (delta < 0)
+                dColor = Colors.red;
+              else
+                dColor = Colors.grey;
+              final deltaText =
+                  (delta >= 0 ? '+' : '') + '${delta.toStringAsFixed(0)}%';
+              return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Diferencia (A − B)',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      Expanded(child: Text('Cambio en puntos (A menos B)')),
+                      Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                              color: dColor.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6)),
+                          child: Text(deltaText,
+                              style: TextStyle(
+                                  color: dColor, fontWeight: FontWeight.bold))),
+                    ])
+                  ]);
+            }),
+            const SizedBox(height: 8),
+            // Cambio relativo (porcentaje)
+            Builder(builder: (ctx) {
+              final a = _avgA ?? 0.0;
+              final b = _avgB ?? 0.0;
+              String relText;
+              Color relColor = Colors.grey;
+              if (b == 0) {
+                if (a == 0) {
+                  relText = '0%';
+                } else {
+                  relText = '—';
+                }
+              } else {
+                final rel = ((a - b) / b) * 100;
+                relText = (rel >= 0 ? '+' : '') + '${rel.toStringAsFixed(0)}%';
+                if (rel > 0)
+                  relColor = Colors.green;
+                else if (rel < 0) relColor = Colors.red;
+              }
+              return Row(children: [
+                Expanded(child: Text('Cambio relativo (%)')),
+                Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                        color: relColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: Text(relText,
+                        style: TextStyle(
+                            color: relColor, fontWeight: FontWeight.bold)))
+              ]);
+            }),
           ]
         ]),
       ),
@@ -206,7 +291,7 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
           ),
         )),
         const SizedBox(width: 8),
-        Text(value != null ? '${value!.toStringAsFixed(0)}%' : '—',
+        Text(value != null ? '${value.toStringAsFixed(0)}%' : '—',
             style: TextStyle(
                 color: _colorFor(value), fontWeight: FontWeight.bold)),
       ])
