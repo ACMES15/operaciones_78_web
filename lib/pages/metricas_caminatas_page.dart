@@ -87,9 +87,21 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
         final dt = ts.toDate();
         if (dt.isBefore(start) || !dt.isBefore(end)) continue;
 
-        final sc = data['score'];
-        if (sc is num) {
-          sum += sc.toDouble();
+        final scRaw = data['score'];
+        double? scVal;
+        if (scRaw is num)
+          scVal = scRaw.toDouble();
+        else if (scRaw is String) {
+          try {
+            var s = scRaw.trim();
+            if (s.endsWith('%')) s = s.substring(0, s.length - 1);
+            scVal = double.tryParse(s);
+          } catch (_) {
+            scVal = null;
+          }
+        }
+        if (scVal != null) {
+          sum += scVal;
           cnt++;
         }
       }
