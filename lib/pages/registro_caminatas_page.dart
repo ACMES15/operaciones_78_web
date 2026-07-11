@@ -269,15 +269,31 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     final score = data['score'] ?? 0;
     final notes = data['notes'] ?? '';
 
-    // Prefer full-size photos (Storage URLs). If empty, fall back to stored thumbnails.
-    final List<dynamic> bodegaPhotos =
-        (data['bodega']?['photos'] as List<dynamic>?)?.toList() ??
-            (data['bodega']?['thumbs'] as List<dynamic>?)?.toList() ??
-            [];
-    final List<dynamic> pisoPhotos =
-        (data['piso']?['photos'] as List<dynamic>?)?.toList() ??
-            (data['piso']?['thumbs'] as List<dynamic>?)?.toList() ??
-            [];
+    // Prefer full-size photos (Storage URLs). If empty, try local Hive thumbs for this device.
+    List<dynamic> bodegaPhotos =
+        (data['bodega']?['photos'] as List<dynamic>?)?.toList() ?? [];
+    List<dynamic> pisoPhotos =
+        (data['piso']?['photos'] as List<dynamic>?)?.toList() ?? [];
+
+    if ((bodegaPhotos.isEmpty || pisoPhotos.isEmpty)) {
+      try {
+        const boxName = 'caminata_thumbs';
+        if (!Hive.isBoxOpen(boxName)) await Hive.openBox(boxName);
+        final box = Hive.box(boxName);
+        final raw = box.get('caminata_$docId');
+        if (raw != null) {
+          try {
+            final Map<String, dynamic> thumbs =
+                Map<String, dynamic>.from(jsonDecode(raw));
+            if (bodegaPhotos.isEmpty)
+              bodegaPhotos =
+                  (thumbs['bodega'] as List<dynamic>?)?.toList() ?? [];
+            if (pisoPhotos.isEmpty)
+              pisoPhotos = (thumbs['piso'] as List<dynamic>?)?.toList() ?? [];
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
 
     // Normalize photos into bytes (Uint8List). For URL strings, download them.
     Future<List<Uint8List>> _normalizePhotos(List<dynamic> list) async {
@@ -473,14 +489,41 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                 // thumbnail candidate
                 Widget thumb = const SizedBox.shrink();
                 try {
-                  final bphotos = (data['bodega']?['photos'] as List<dynamic>?)
-                          ?.toList() ??
-                      (data['bodega']?['thumbs'] as List<dynamic>?)?.toList() ??
-                      [];
-                  final pphotos = (data['piso']?['photos'] as List<dynamic>?)
-                          ?.toList() ??
-                      (data['piso']?['thumbs'] as List<dynamic>?)?.toList() ??
-                      [];
+                  List<dynamic> bphotos = [];
+                  List<dynamic> pphotos = [];
+                  const boxName = 'caminata_thumbs';
+                  try {
+                    if (Hive.isBoxOpen(boxName)) {
+                      final box = Hive.box(boxName);
+                      final key = 'caminata_${doc.id}';
+                      if (box.containsKey(key)) {
+                        final raw = box.get(key);
+                        if (raw != null) {
+                          try {
+                            final Map<String, dynamic> thumbs =
+                                Map<String, dynamic>.from(jsonDecode(raw));
+                            bphotos = (thumbs['bodega'] as List<dynamic>?)
+                                    ?.toList() ??
+                                [];
+                            pphotos =
+                                (thumbs['piso'] as List<dynamic>?)?.toList() ??
+                                    [];
+                          } catch (_) {}
+                        }
+                      }
+                    }
+                  } catch (_) {}
+
+                  if (bphotos.isEmpty) {
+                    bphotos = (data['bodega']?['photos'] as List<dynamic>?)
+                            ?.toList() ??
+                        [];
+                  }
+                  if (pphotos.isEmpty) {
+                    pphotos =
+                        (data['piso']?['photos'] as List<dynamic>?)?.toList() ??
+                            [];
+                  }
                   final cand = (bphotos.isNotEmpty)
                       ? bphotos.first
                       : (pphotos.isNotEmpty ? pphotos.first : null);
