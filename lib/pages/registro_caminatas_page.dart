@@ -424,122 +424,127 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
       }
     } catch (_) {}
 
-    pdf.addPage(pw.Page(
+    pdf.addPage(pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context ctx) {
-          return pw.Padding(
-            padding: const pw.EdgeInsets.all(20),
-            child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(title,
-                      style: pw.TextStyle(
-                          fontSize: 26, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 12),
-                  pw.Row(children: [
-                    pw.Container(
-                        width: 140,
-                        height: 140,
-                        child: pw.Center(
-                            child: pw.Text('$score%',
+          return [
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(20),
+              child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(title,
+                        style: pw.TextStyle(
+                            fontSize: 26, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 12),
+                    pw.Row(children: [
+                      pw.Container(
+                          width: 140,
+                          height: 140,
+                          child: pw.Center(
+                              child: pw.Text('$score%',
+                                  style: pw.TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: pw.FontWeight.bold)))),
+                      pw.SizedBox(width: 12),
+                      pw.Expanded(
+                          child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                            pw.Text('Sección: ${data['seccion'] ?? ''}',
                                 style: pw.TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: pw.FontWeight.bold)))),
-                    pw.SizedBox(width: 12),
-                    pw.Expanded(
-                        child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                          pw.Text('Sección: ${data['seccion'] ?? ''}',
-                              style: pw.TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: pw.FontWeight.bold)),
-                          pw.SizedBox(height: 6),
-                          pw.Text(
-                              'Fecha: ${data['date'] is Timestamp ? (data['date'] as Timestamp).toDate().toLocal().toString() : data['date']?.toString() ?? ''}'),
-                          pw.SizedBox(height: 6),
-                          pw.Text('Score: $score'),
-                        ]))
+                                    fontSize: 14,
+                                    fontWeight: pw.FontWeight.bold)),
+                            pw.SizedBox(height: 6),
+                            pw.Text(
+                                'Fecha: ${data['date'] is Timestamp ? (data['date'] as Timestamp).toDate().toLocal().toString() : data['date']?.toString() ?? ''}'),
+                            pw.SizedBox(height: 6),
+                            pw.Text('Score: $score'),
+                          ]))
+                    ]),
+                    pw.Divider(),
+                    pw.Text('Preguntas - Bodega',
+                        style: pw.TextStyle(
+                            fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 6),
+                    pw.Bullet(
+                        text:
+                            'Orden: ${data['bodega']?['orden'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Mercancía tirada: ${data['bodega']?['mercanciaTirada'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Devolución MKP: ${data['bodega']?['devolucionMkp'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Suministro en exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Contenedores rezagados: ${data['bodega']?['contenedoresRezagados'] == true ? 'Sí' : 'No'}'),
+                    pw.SizedBox(height: 8),
+                    pw.Text('Preguntas - Piso',
+                        style: pw.TextStyle(
+                            fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 6),
+                    pw.Bullet(
+                        text:
+                            'Orden en Terminal: ${data['piso']?['ordenTerminal'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Mercancía de otras secciones: ${data['piso']?['mercanciaOtras'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Objetos personales: ${data['piso']?['objetosPersonales'] == true ? 'Sí' : 'No'}'),
+                    pw.Bullet(
+                        text:
+                            'Orden en lugar de Jefe: ${data['piso']?['ordenLugarJefe'] == true ? 'Sí' : 'No'}'),
+                    pw.SizedBox(height: 12),
+                    if (notes.toString().isNotEmpty)
+                      pw.Column(children: [
+                        pw.Text('Notas:',
+                            style:
+                                pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 6),
+                        pw.Text(notes.toString())
+                      ]),
+                    pw.SizedBox(height: 12),
+                    if (bodegaBytes.isNotEmpty)
+                      pw.Column(children: [
+                        pw.Text('Fotos Bodega:',
+                            style:
+                                pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 8),
+                        pw.Wrap(
+                            children: bodegaBytes
+                                .map((bytes) => pw.Container(
+                                    margin: const pw.EdgeInsets.all(4),
+                                    child: pw.Image(pw.MemoryImage(bytes),
+                                        width: 120,
+                                        height: 120,
+                                        fit: pw.BoxFit.cover)))
+                                .toList())
+                      ]),
+                    pw.SizedBox(height: 12),
+                    if (pisoBytes.isNotEmpty)
+                      pw.Column(children: [
+                        pw.Text('Fotos Piso:',
+                            style:
+                                pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                        pw.SizedBox(height: 8),
+                        pw.Wrap(
+                            children: pisoBytes
+                                .map((bytes) => pw.Container(
+                                    margin: const pw.EdgeInsets.all(4),
+                                    child: pw.Image(pw.MemoryImage(bytes),
+                                        width: 120,
+                                        height: 120,
+                                        fit: pw.BoxFit.cover)))
+                                .toList())
+                      ]),
                   ]),
-                  pw.Divider(),
-                  pw.Text('Preguntas - Bodega',
-                      style: pw.TextStyle(
-                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 6),
-                  pw.Bullet(
-                      text:
-                          'Orden: ${data['bodega']?['orden'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Mercancía tirada: ${data['bodega']?['mercanciaTirada'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Devolución MKP: ${data['bodega']?['devolucionMkp'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Suministro en exceso: ${data['bodega']?['suministroExceso'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Contenedores rezagados: ${data['bodega']?['contenedoresRezagados'] == true ? 'Sí' : 'No'}'),
-                  pw.SizedBox(height: 8),
-                  pw.Text('Preguntas - Piso',
-                      style: pw.TextStyle(
-                          fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 6),
-                  pw.Bullet(
-                      text:
-                          'Orden en Terminal: ${data['piso']?['ordenTerminal'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Mercancía de otras secciones: ${data['piso']?['mercanciaOtras'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Objetos personales: ${data['piso']?['objetosPersonales'] == true ? 'Sí' : 'No'}'),
-                  pw.Bullet(
-                      text:
-                          'Orden en lugar de Jefe: ${data['piso']?['ordenLugarJefe'] == true ? 'Sí' : 'No'}'),
-                  pw.SizedBox(height: 12),
-                  if (notes.toString().isNotEmpty)
-                    pw.Column(children: [
-                      pw.Text('Notas:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 6),
-                      pw.Text(notes.toString())
-                    ]),
-                  pw.SizedBox(height: 12),
-                  if (bodegaBytes.isNotEmpty)
-                    pw.Column(children: [
-                      pw.Text('Fotos Bodega:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 8),
-                      pw.Wrap(
-                          children: bodegaBytes
-                              .map((bytes) => pw.Container(
-                                  margin: const pw.EdgeInsets.all(4),
-                                  child: pw.Image(pw.MemoryImage(bytes),
-                                      width: 120,
-                                      height: 120,
-                                      fit: pw.BoxFit.cover)))
-                              .toList())
-                    ]),
-                  pw.SizedBox(height: 12),
-                  if (pisoBytes.isNotEmpty)
-                    pw.Column(children: [
-                      pw.Text('Fotos Piso:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 8),
-                      pw.Wrap(
-                          children: pisoBytes
-                              .map((bytes) => pw.Container(
-                                  margin: const pw.EdgeInsets.all(4),
-                                  child: pw.Image(pw.MemoryImage(bytes),
-                                      width: 120,
-                                      height: 120,
-                                      fit: pw.BoxFit.cover)))
-                              .toList())
-                    ]),
-                ]),
-          );
+            )
+          ];
         }));
 
     try {
