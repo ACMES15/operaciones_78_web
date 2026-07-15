@@ -698,8 +698,38 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           Expanded(
-            child: _pageWidgets[_paginas[_selectedIndex]] ??
-                const Center(child: Text('Página no encontrada')),
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('usuarios')
+                  .doc(widget.usuario.trim().toLowerCase())
+                  .snapshots(),
+              builder: (context, snapshot) {
+                String? bgUrl;
+                try {
+                  if (snapshot.hasData && snapshot.data!.data() != null) {
+                    final map =
+                        Map<String, dynamic>.from(snapshot.data!.data() as Map);
+                    bgUrl = map['backgroundUrl']?.toString();
+                  }
+                } catch (_) {}
+                final content = _pageWidgets[_paginas[_selectedIndex]] ??
+                    const Center(child: Text('Página no encontrada'));
+                if (bgUrl != null && bgUrl.isNotEmpty) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                          image: NetworkImage(bgUrl), fit: BoxFit.cover),
+                    ),
+                    child: Container(
+                      // overlay to keep original scaffold look
+                      color: Colors.white.withOpacity(0.85),
+                      child: content,
+                    ),
+                  );
+                }
+                return content;
+              },
+            ),
           ),
         ],
       ),

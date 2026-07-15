@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'dart:html' as html;
+import 'dart:typed_data';
 import '../utils/mensajes_utils.dart';
 
 class MensajesPage extends StatefulWidget {
@@ -115,6 +118,124 @@ class _MensajesPageState extends State<MensajesPage> {
     Future.delayed(Duration.zero, _marcarTodosComoLeidos);
   }
 
+  Future<void> _openBackgroundDialog() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(widget.usuario.trim().toLowerCase())
+          .get();
+      final data = doc.data() ?? {};
+      final current = data['backgroundUrl']?.toString();
+
+      showDialog(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              title: const Text('Fondo de usuario'),
+              content: SizedBox(
+                width: 420,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  if (current != null && current.isNotEmpty)
+                    Image.network(current, height: 160, fit: BoxFit.cover),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await _pickAndUploadBackground();
+                      },
+                      icon: const Icon(Icons.upload_file),
+                      label: const Text('Seleccionar imagen')),
+                  const SizedBox(height: 8),
+                  TextButton(
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        await _deleteBackground();
+                      },
+                      child: const Text('Eliminar fondo'))
+                ]),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text('Cerrar'))
+              ],
+            );
+          });
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  Future<void> _pickAndUploadBackground() async {
+    try {
+      final uploadInput = html.FileUploadInputElement()..accept = 'image/*';
+      uploadInput.click();
+      await uploadInput.onChange.first;
+      final file = uploadInput.files?.first;
+      if (file == null) return;
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoad.first;
+      final result = reader.result;
+      if (result == null) return;
+      Uint8List bytes;
+      if (result is ByteBuffer)
+        bytes = result.asUint8List();
+      else if (result is Uint8List)
+        bytes = result;
+      else if (result is List) {
+        try {
+          bytes = Uint8List.fromList(result.cast<int>());
+        } catch (_) {
+          return;
+        }
+      } else {
+        return;
+      }
+
+      final storageRef = firebase_storage.FirebaseStorage.instance
+          .ref('user_backgrounds/${widget.usuario.trim().toLowerCase()}.jpg');
+      final uploadTask = storageRef.putData(
+          bytes, firebase_storage.SettableMetadata(contentType: file.type));
+      final snapshot = await uploadTask.whenComplete(() {});
+      final url = await snapshot.ref.getDownloadURL();
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(widget.usuario.trim().toLowerCase())
+          .update({'backgroundUrl': url});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fondo subido correctamente')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error subiendo fondo: $e')));
+    }
+  }
+
+  Future<void> _deleteBackground() async {
+    try {
+      final uid = widget.usuario.trim().toLowerCase();
+      final ref = firebase_storage.FirebaseStorage.instance
+          .ref('user_backgrounds/$uid.jpg');
+      // delete storage object if exists (safe to call)
+      try {
+        await ref.delete();
+      } catch (_) {}
+      await FirebaseFirestore.instance.collection('usuarios').doc(uid).update({
+        'backgroundUrl': FieldValue.delete(),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Fondo eliminado')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error eliminando fondo: $e')));
+    }
+  }
+
   Future<void> _marcarTodosComoLeidos() async {
     final snapshot =
         await FirebaseFirestore.instance.collection('mensajes').get();
@@ -227,7 +348,12 @@ class _MensajesPageState extends State<MensajesPage> {
         backgroundColor: const Color.fromARGB(255, 129, 234, 187),
         elevation: 4,
         centerTitle: true,
-        actions: [],
+        actions: [
+          IconButton(
+              tooltip: 'Fondo de usuario',
+              onPressed: () => _openBackgroundDialog(),
+              icon: const Icon(Icons.wallpaper)),
+        ],
       ),
       body: Column(
         children: [
