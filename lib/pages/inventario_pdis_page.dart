@@ -388,15 +388,32 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   }
 
   double _computeQualityScore() {
-    final base = (_percentScanned() * 100);
-    double score = base;
-    score += q1 ? 20 : -20;
-    score += q2 ? -50 : 50;
-    score += q3 ? -20 : 20;
-    score += q4 ? -10 : 10;
-    if (score > 100) score = 100;
-    if (score < 0) score = 0;
-    return score;
+    // Revised scoring:
+    // - `percentScanned` contributes 50% of the final score.
+    // - The four form questions together contribute the other 50%,
+    //   each with configurable weight so each one affects the result
+    //   and cannot be fully overridden by capping.
+    final scannedScore = (_percentScanned() * 100).clamp(0.0, 100.0);
+
+    // Question contributions as 0..100
+    final q1Score = q1 ? 100.0 : 0.0; // Mercancía identificada (important)
+    final q2Score = q2 ? 0.0 : 100.0; // Faltante primer escaneo (NO is good)
+    final q3Score = q3 ? 0.0 : 100.0; // Mercancía dañada (NO is good)
+    final q4Score = q4 ? 0.0 : 100.0; // En bodega (NO is good)
+
+    // Weights for questions (sum to 1.0)
+    const w1 = 0.20; // q1 weight
+    const w2 = 0.40; // q2 weight (bigger impact)
+    const w3 = 0.25; // q3 weight
+    const w4 = 0.15; // q4 weight
+
+    final questionsScore =
+        (q1Score * w1) + (q2Score * w2) + (q3Score * w3) + (q4Score * w4);
+
+    // Final: 50% scanned, 50% questions
+    final finalScore =
+        ((scannedScore * 0.5) + (questionsScore * 0.5)).clamp(0.0, 100.0);
+    return finalScore;
   }
 
   Future<void> _finishInventory() async {
