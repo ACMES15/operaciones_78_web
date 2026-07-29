@@ -29,6 +29,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   String? _currentSessionId;
   List<Map<String, dynamic>> _availableSessions = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sessionsListSub;
+  // selected sessions for combining (store docId)
+  final Set<String> _selectedSessionDocIds = {};
 
   // Aggregated by SKU for selected jefe
   final Map<String, double> _pdisBySku = {};
@@ -212,6 +214,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                 : {},
           };
         }).toList();
+        // debug
+        print(
+            'Fetched ${_availableSessions.length} sessions for $_selectedJefe');
         setState(() {});
       });
     } catch (e) {
@@ -264,6 +269,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           'contributors': {widget.usuario: FieldValue.serverTimestamp()},
           'updatedAt': FieldValue.serverTimestamp()
         }, SetOptions(merge: true));
+        // refresh sessions list so other UI updates quickly
+        _fetchAvailableSessions();
       } catch (e) {
         print('Error joining session contributors: $e');
       }
@@ -391,6 +398,120 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       // contributors are optional metadata; no direct action here
       _recalcTotals();
     });
+  }
+
+  Future<void> _combineSelectedSessions() async {
+    if (_selectedSessionDocIds.isEmpty || _selectedJefe == null) return;
+    try {
+      // read all selected sessions
+      final coll =
+          FirebaseFirestore.instance.collection('inventarios_inprogress');
+      final mergedSkus = <String, Map<String, dynamic>>{};
+      final mergedSobrantes = <String, int>{};
+      final contributors = <String, dynamic>{};
+
+      for (final docId in _selectedSessionDocIds) {
+        final docRef = coll.doc(docId);
+        final snap = await docRef.get();
+        if (!snap.exists) continue;
+        final data = snap.data() ?? {};
+        if (data['skus'] is Map) {
+          (data['skus'] as Map).forEach((k, v) {
+            final key = k.toString();
+            final pdis = v is Map && v['pdis'] is num
+                ? (v['pdis'] as num).toDouble()
+                : (_pdisBySku[key] ?? 0.0);
+            final scanned = v is Map && v['scanned'] is num
+                ? (v['scanned'] as num).toInt()
+                : 0;
+            final prev = mergedSkus[key];
+            final prevScanned = prev != null && prev['scanned'] is int
+                ? prev['scanned'] as int
+                : 0;
+            mergedSkus[key] = {'pdis': pdis, 'scanned': prevScanned + scanned};
+          });
+        }
+        if (data['sobrantes'] is Map) {
+          (data['sobrantes'] as Map).forEach((k, v) {
+            final key = k.toString();
+            final cnt = v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+            mergedSobrantes[key] = (mergedSobrantes[key] ?? 0) + cnt;
+          });
+        }
+        if (data['contributors'] is Map) {
+          contributors.addAll(Map<String, dynamic>.from(data['contributors']));
+        }
+      }
+
+      // Also include local unsaved counts (current _scannedBySku/_sobrantesBySku)
+      _scannedBySku.forEach((k, v) {
+        final prev = mergedSkus[k];
+        final prevScanned =
+            prev != null && prev['scanned'] is int ? prev['scanned'] as int : 0;
+        mergedSkus[k] = {
+          'pdis': (_pdisBySku[k] ?? 0.0),
+          'scanned': prevScanned + v
+        };
+      });
+      _sobrantesBySku.forEach((k, v) {
+        mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + v;
+      });
+
+      contributors[widget.usuario] = FieldValue.serverTimestamp();
+
+      // compute totals
+      final totalPdis = _pdisBySku.values.fold(0.0, (s, v) => s + v).round();
+      final totalScanned = mergedSkus.values.fold<int>(0, (s, e) {
+        final scanned = e['scanned'] is int
+            ? e['scanned'] as int
+            : (e['scanned'] is num ? (e['scanned'] as num).toInt() : 0);
+        return s + scanned;
+      });
+
+      final histRef =
+          FirebaseFirestore.instance.collection('inventarios_historico').doc();
+
+      final histPayload = {
+        'usuario': widget.usuario,
+        'jefe': _selectedJefe,
+        'createdAt': FieldValue.serverTimestamp(),
+        'totalPdis': totalPdis,
+        'totalScanned': totalScanned,
+        'percentScanned': totalPdis > 0 ? (totalScanned / totalPdis) : 0.0,
+        'qualityScore': _computeQualityScore(),
+        'q1': q1,
+        'q2': q2,
+        'q3': q3,
+        'q4': q4,
+        'skus': mergedSkus,
+        'sobrantes': mergedSobrantes,
+        'contributors': contributors,
+      };
+
+      // batch write: set historico and delete selected sessions
+      final batch = FirebaseFirestore.instance.batch();
+      batch.set(histRef, histPayload);
+      for (final docId in _selectedSessionDocIds) {
+        final docRef = FirebaseFirestore.instance
+            .collection('inventarios_inprogress')
+            .doc(docId);
+        batch.delete(docRef);
+      }
+      await batch.commit();
+
+      setState(() {
+        _selectedSessionDocIds.clear();
+        _currentSessionId = null;
+        _scannedBySku.clear();
+        _sobrantesBySku.clear();
+      });
+      _fetchAvailableSessions();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sesiones combinadas y guardadas en histórico')));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error combinando sesiones: $e')));
+    }
   }
 
   void _buildSkuAggregates() {
@@ -694,9 +815,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         // compute totals from merged data
         final totalPdis = _pdisBySku.values.fold(0.0, (s, v) => s + v).round();
         final totalScanned = mergedSkus.values.fold<int>(0, (s, e) {
-          if (e is Map && e['scanned'] != null)
-            return s + (e['scanned'] as int);
-          return s;
+          final scanned = e['scanned'] is int
+              ? e['scanned'] as int
+              : (e['scanned'] is num ? (e['scanned'] as num).toInt() : 0);
+          return s + scanned;
         });
 
         final histRef = FirebaseFirestore.instance
@@ -1055,20 +1177,75 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                             backgroundColor: Colors.black,
                                             foregroundColor: Colors.white),
                                         child: const Text('Crear sesión')),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton(
+                                        onPressed: _fetchAvailableSessions,
+                                        child:
+                                            const Text('Refrescar sesiones')),
                                   ]),
                                   const SizedBox(height: 8),
                                   if (_availableSessions.isNotEmpty)
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 6,
-                                      children: _availableSessions
-                                          .map((s) => OutlinedButton(
-                                              onPressed: () => _joinSession(
-                                                  s['sessionId']?.toString() ??
-                                                      s['docId']),
-                                              child: Text(
-                                                  'Unirse: ${s['sessionId']?.toString() ?? s['docId']}')))
-                                          .toList(),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        ..._availableSessions.map((s) {
+                                          final docId =
+                                              s['docId']?.toString() ?? '';
+                                          final sessId =
+                                              s['sessionId']?.toString() ??
+                                                  docId;
+                                          final contributors =
+                                              s['contributors'] is Map
+                                                  ? Map<String, dynamic>.from(
+                                                      s['contributors'])
+                                                  : <String, dynamic>{};
+                                          return Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 4),
+                                              child: Row(
+                                                children: [
+                                                  Checkbox(
+                                                      value:
+                                                          _selectedSessionDocIds
+                                                              .contains(docId),
+                                                      onChanged: (v) {
+                                                        setState(() {
+                                                          if (v == true)
+                                                            _selectedSessionDocIds
+                                                                .add(docId);
+                                                          else
+                                                            _selectedSessionDocIds
+                                                                .remove(docId);
+                                                        });
+                                                      }),
+                                                  Expanded(
+                                                      child: Text(
+                                                          'Sesion: $sessId')),
+                                                  Text(
+                                                      'contrib: ${contributors.length}'),
+                                                  const SizedBox(width: 8),
+                                                  OutlinedButton(
+                                                      onPressed: () =>
+                                                          _joinSession(sessId),
+                                                      child:
+                                                          const Text('Unirse'))
+                                                ],
+                                              ));
+                                        }).toList(),
+                                        const SizedBox(height: 8),
+                                        if (_selectedSessionDocIds.isNotEmpty)
+                                          ElevatedButton(
+                                              onPressed:
+                                                  _combineSelectedSessions,
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.black,
+                                                  foregroundColor:
+                                                      Colors.white),
+                                              child: const Text(
+                                                  'Combinar sesiones seleccionadas'))
+                                      ],
                                     )
                                   else
                                     const Text('No hay sesiones abiertas')
