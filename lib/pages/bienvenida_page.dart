@@ -120,14 +120,37 @@ class _BienvenidaPageState extends State<BienvenidaPage>
           bytes, firebase_storage.SettableMetadata(contentType: file.type));
       final snapshot = await uploadTask.whenComplete(() {});
       final url = await snapshot.ref.getDownloadURL();
-      await FirebaseFirestore.instance
-          .collection('usuarios')
-          .doc(uid)
-          .set({'avatarUrl': url}, SetOptions(merge: true));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Avatar subido correctamente')));
-        setState(() {});
+      try {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(uid)
+            .set({'avatarUrl': url}, SetOptions(merge: true));
+        // verify write
+        final verify = await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(uid)
+            .get();
+        final saved = verify.data() != null &&
+            (verify.data() as Map<String, dynamic>)['avatarUrl'] == url;
+        if (mounted) {
+          if (saved) {
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Avatar subido correctamente: $url')));
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text(
+                    'Avatar subido a Storage pero no guardado en Firestore')));
+          }
+          setState(() {});
+        }
+        // debug log
+        print('Avatar upload URL: $url, firestoreSaved: $saved');
+      } catch (e) {
+        print('Error saving avatarUrl to Firestore: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Error guardando avatar: $e')));
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context)
