@@ -194,8 +194,15 @@ class _MensajesPageState extends State<MensajesPage> {
         return;
       }
 
+      final uid = widget.usuario.trim().toLowerCase();
+      final mime = file.type;
+      String ext = 'jpg';
+      try {
+        if (mime.contains('/')) ext = mime.split('/').last;
+        if (ext == 'jpeg') ext = 'jpg';
+      } catch (_) {}
       final storageRef = firebase_storage.FirebaseStorage.instance
-          .ref('user_backgrounds/${widget.usuario.trim().toLowerCase()}.jpg');
+          .ref('user_backgrounds/$uid.$ext');
       final uploadTask = storageRef.putData(
           bytes, firebase_storage.SettableMetadata(contentType: file.type));
       final snapshot = await uploadTask.whenComplete(() {});
