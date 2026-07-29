@@ -693,6 +693,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     if (sku.isEmpty || _selectedJefe == null) return;
     if (_pdisBySku.containsKey(sku)) {
       _scannedBySku[sku] = (_scannedBySku[sku] ?? 0) + 1;
+      _persistScanToInprogress(sku, isSobrante: false, delta: 1);
       _recalcTotals();
       _scanController.clear();
       _scanFocus.requestFocus();
@@ -703,6 +704,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         orElse: () => '');
     if (found.isNotEmpty) {
       _scannedBySku[found] = (_scannedBySku[found] ?? 0) + 1;
+      _persistScanToInprogress(found, isSobrante: false, delta: 1);
       _recalcTotals();
       _scanController.clear();
       _scanFocus.requestFocus();
@@ -710,12 +712,44 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     }
     // No está en la plantilla del jefe: registrar como sobrante (solo en este reporte)
     _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + 1;
+    _persistScanToInprogress(sku, isSobrante: true, delta: 1);
     _recalcTotals();
     _scanController.clear();
     _scanFocus.requestFocus();
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
             'SKU "$sku" registrado como SOBRANTE (no se modifica OHPDIS)')));
+  }
+
+  Future<void> _persistScanToInprogress(String sku,
+      {required bool isSobrante, int delta = 1}) async {
+    if (_selectedJefe == null) return;
+    final id = _currentSessionId != null
+        ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
+        : '${_selectedJefe}_${_todayKey()}';
+    final docRef =
+        FirebaseFirestore.instance.collection('inventarios_inprogress').doc(id);
+    try {
+      if (isSobrante) {
+        await docRef.set({
+          'sobrantes': {sku: FieldValue.increment(delta)},
+          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+          'updatedAt': FieldValue.serverTimestamp()
+        }, SetOptions(merge: true));
+      } else {
+        final pdis = _pdisBySku[sku] ?? 0.0;
+        await docRef.set({
+          'skus': {
+            sku: {'pdis': pdis, 'scanned': FieldValue.increment(delta)}
+          },
+          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+          'updatedAt': FieldValue.serverTimestamp()
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      // ignore failures for now; UI keeps local state
+      print('Error persisting scan to inprogress: $e');
+    }
   }
 
   void _recalcTotals() {
@@ -1758,6 +1792,21 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                             6)),
                                                 child: Row(
                                                   children: [
+                                                    Checkbox(
+                                                      value:
+                                                          _selectedSessionDocIds
+                                                              .contains(docId),
+                                                      onChanged: (v) {
+                                                        setState(() {
+                                                          if (v == true)
+                                                            _selectedSessionDocIds
+                                                                .add(docId);
+                                                          else
+                                                            _selectedSessionDocIds
+                                                                .remove(docId);
+                                                        });
+                                                      },
+                                                    ),
                                                     Expanded(
                                                         child: Text(
                                                             'ID: $sessId',
@@ -1809,6 +1858,15 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                         const Text('No hay sesiones abiertas',
                                             style: TextStyle(fontSize: 12)),
                                       const SizedBox(height: 8),
+                                      if (_selectedSessionDocIds.isNotEmpty)
+                                        ElevatedButton(
+                                            onPressed:
+                                                _confirmAndCombineSelectedSessions,
+                                            style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.black,
+                                                foregroundColor: Colors.white),
+                                            child: const Text(
+                                                'Combinar sesiones seleccionadas')),
                                     ],
                                   ),
                                   Row(
