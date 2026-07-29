@@ -736,6 +736,11 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           'contributors': {widget.usuario: FieldValue.serverTimestamp()},
           'updatedAt': FieldValue.serverTimestamp()
         }, SetOptions(merge: true));
+        // reflect that we've applied this increment so snapshot doesn't add it again
+        setState(() {
+          _appliedInprogressSobrantes[sku] =
+              (_appliedInprogressSobrantes[sku] ?? 0) + delta;
+        });
       } else {
         final pdis = _pdisBySku[sku] ?? 0.0;
         await docRef.set({
@@ -745,6 +750,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           'contributors': {widget.usuario: FieldValue.serverTimestamp()},
           'updatedAt': FieldValue.serverTimestamp()
         }, SetOptions(merge: true));
+        setState(() {
+          _appliedInprogressScanned[sku] =
+              (_appliedInprogressScanned[sku] ?? 0) + delta;
+        });
       }
     } catch (e) {
       // ignore failures for now; UI keeps local state
