@@ -40,6 +40,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
   // scans from other users (sku -> usuario -> count)
   final Map<String, Map<String, int>> _scansFromOthers = {};
+  // latest server totals for skus/sobrantes (from inprogress snapshot)
+  final Map<String, int> _serverScannedBySku = {};
+  final Map<String, int> _serverSobrantesBySku = {};
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _historicSub;
   StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _inprogressSub;
 
@@ -445,7 +448,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     _inprogressSub = docRef.snapshots().listen((snap) {
       if (!snap.exists) return;
       final data = snap.data() ?? {};
-      // apply skus deltas
+      // update server totals maps (don't mix into local '_scannedBySku' which is local-only)
       if (data['skus'] is Map) {
         (data['skus'] as Map).forEach((k, v) {
           final sku = k.toString();
@@ -455,15 +458,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
             docCount =
                 sv is num ? sv.toInt() : int.tryParse(sv.toString()) ?? 0;
           }
-          final applied = _appliedInprogressScanned[sku] ?? 0;
-          final delta = docCount - applied;
-          if (delta > 0) {
-            _scannedBySku[sku] = (_scannedBySku[sku] ?? 0) + delta;
-            _appliedInprogressScanned[sku] = docCount;
-          } else {
-            // update applied even if no delta
-            _appliedInprogressScanned[sku] = docCount;
-          }
+          _serverScannedBySku[sku] = docCount;
+          // track applied value so local writes won't cause duplicate UI increments
+          _appliedInprogressScanned[sku] = docCount;
         });
       }
       if (data['sobrantes'] is Map) {
@@ -471,14 +468,8 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           final sku = k.toString();
           final docCount =
               v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
-          final applied = _appliedInprogressSobrantes[sku] ?? 0;
-          final delta = docCount - applied;
-          if (delta > 0) {
-            _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + delta;
-            _appliedInprogressSobrantes[sku] = docCount;
-          } else {
-            _appliedInprogressSobrantes[sku] = docCount;
-          }
+          _serverSobrantesBySku[sku] = docCount;
+          _appliedInprogressSobrantes[sku] = docCount;
         });
       }
       // contributors info
@@ -762,10 +753,23 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   }
 
   void _recalcTotals() {
-    final scannedFromPdis = _scannedBySku.values.fold(0, (s, v) => s + v);
-    final scannedSobrantes = _sobrantesBySku.values.fold(0, (s, v) => s + v);
-    _totalScanned = scannedFromPdis; // Escaneado = dentro de plantilla
-    _totalSobrantes = scannedSobrantes; // sobrantes detectados al escanear
+    // Total scanned uses server totals when available, plus any local-only scans not yet persisted
+    final serverScannedSum =
+        _serverScannedBySku.values.fold(0, (s, v) => s + v);
+    final localOnlyScanned = _scannedBySku.keys
+        .where((k) => !_serverScannedBySku.containsKey(k))
+        .map((k) => _scannedBySku[k] ?? 0)
+        .fold(0, (s, v) => s + v);
+    _totalScanned = serverScannedSum + localOnlyScanned;
+
+    final serverSobrantesSum =
+        _serverSobrantesBySku.values.fold(0, (s, v) => s + v);
+    final localOnlySobrantes = _sobrantesBySku.keys
+        .where((k) => !_serverSobrantesBySku.containsKey(k))
+        .map((k) => _sobrantesBySku[k] ?? 0)
+        .fold(0, (s, v) => s + v);
+    _totalSobrantes = serverSobrantesSum + localOnlySobrantes;
+
     _totalPdis = _pdisBySku.values.fold(0.0, (s, v) => s + v).round();
     setState(() {});
   }
@@ -1556,13 +1560,19 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                     final rows = <DataRow>[];
                                     for (final sku in pdisKeys) {
                                       final pdis = _pdisBySku[sku] ?? 0.0;
-                                      final scanned = _scannedBySku[sku] ?? 0;
+                                      final local = _scannedBySku[sku] ?? 0;
+                                      final server =
+                                          _serverScannedBySku[sku] ?? 0;
+                                      final total = server > 0 ? server : local;
+                                      final display = server > 0 && local > 0
+                                          ? '$total (tú:$local)'
+                                          : '$total';
                                       rows.add(DataRow(cells: [
                                         DataCell(Text(sku)),
                                         DataCell(Text(pdis.toStringAsFixed(0))),
-                                        DataCell(Text(scanned.toString(),
+                                        DataCell(Text(display,
                                             style: TextStyle(
-                                                color: scanned == 0
+                                                color: total == 0
                                                     ? Colors.red
                                                     : Colors.black))),
                                         _buildOtherScansCell(sku,
@@ -1570,13 +1580,19 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                       ]));
                                     }
                                     for (final sku in sobranteKeys) {
-                                      final scanned = _sobrantesBySku[sku] ?? 0;
+                                      final local = _sobrantesBySku[sku] ?? 0;
+                                      final server =
+                                          _serverSobrantesBySku[sku] ?? 0;
+                                      final total = server > 0 ? server : local;
+                                      final display = server > 0 && local > 0
+                                          ? '$total (tú:$local)'
+                                          : '$total';
                                       rows.add(DataRow(cells: [
                                         DataCell(Text('$sku')),
                                         const DataCell(Text('0')),
-                                        DataCell(Text(scanned.toString(),
+                                        DataCell(Text(display,
                                             style: TextStyle(
-                                                color: scanned == 0
+                                                color: total == 0
                                                     ? Colors.red
                                                     : Colors.black))),
                                         _buildOtherScansCell(sku,
