@@ -555,6 +555,31 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       final histRef =
           FirebaseFirestore.instance.collection('inventarios_historico').doc();
 
+      // ensure historico `skus` contains all plantilla SKUs (scanned 0 if missing)
+      final fullSkus = <String, Map<String, Object>>{};
+      for (final sku in _pdisBySku.keys) {
+        final pdis = _pdisBySku[sku] ?? 0.0;
+        final scannedVal =
+            mergedSkus.containsKey(sku) && mergedSkus[sku]?['scanned'] != null
+                ? (mergedSkus[sku]!['scanned'] is int
+                    ? mergedSkus[sku]!['scanned'] as int
+                    : (mergedSkus[sku]!['scanned'] is num
+                        ? (mergedSkus[sku]!['scanned'] as num).toInt()
+                        : 0))
+                : 0;
+        fullSkus[sku] = {'pdis': pdis, 'scanned': scannedVal};
+      }
+      // also include any mergedSkus not in plantilla
+      mergedSkus.forEach((k, v) {
+        if (!fullSkus.containsKey(k)) {
+          final scannedVal = v['scanned'] is int
+              ? v['scanned'] as int
+              : (v['scanned'] is num ? (v['scanned'] as num).toInt() : 0);
+          final pdis = v['pdis'] is num ? (v['pdis'] as num).toDouble() : 0.0;
+          fullSkus[k] = {'pdis': pdis, 'scanned': scannedVal};
+        }
+      });
+
       final histPayload = {
         'usuario': widget.usuario,
         'jefe': _selectedJefe,
@@ -567,7 +592,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         'q2': q2,
         'q3': q3,
         'q4': q4,
-        'skus': mergedSkus,
+        'skus': fullSkus,
         'sobrantes': mergedSobrantes,
         'contributors': contributors,
       };
@@ -985,6 +1010,31 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         final histRef = FirebaseFirestore.instance
             .collection('inventarios_historico')
             .doc();
+        // ensure historico `skus` contains all plantilla SKUs (scanned 0 if missing)
+        final fullSkus = <String, Map<String, Object>>{};
+        for (final sku in _pdisBySku.keys) {
+          final pdis = _pdisBySku[sku] ?? 0.0;
+          final scannedVal =
+              mergedSkus.containsKey(sku) && mergedSkus[sku]?['scanned'] != null
+                  ? (mergedSkus[sku]!['scanned'] is int
+                      ? mergedSkus[sku]!['scanned'] as int
+                      : (mergedSkus[sku]!['scanned'] is num
+                          ? (mergedSkus[sku]!['scanned'] as num).toInt()
+                          : 0))
+                  : 0;
+          fullSkus[sku] = {'pdis': pdis, 'scanned': scannedVal};
+        }
+        // also include any mergedSkus not in plantilla
+        mergedSkus.forEach((k, v) {
+          if (!fullSkus.containsKey(k)) {
+            final scannedVal = v['scanned'] is int
+                ? v['scanned'] as int
+                : (v['scanned'] is num ? (v['scanned'] as num).toInt() : 0);
+            final pdis = v['pdis'] is num ? (v['pdis'] as num).toDouble() : 0.0;
+            fullSkus[k] = {'pdis': pdis, 'scanned': scannedVal};
+          }
+        });
+
         final histPayload = {
           'usuario': widget.usuario,
           'jefe': _selectedJefe,
@@ -997,7 +1047,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           'q2': q2,
           'q3': q3,
           'q4': q4,
-          'skus': mergedSkus,
+          'skus': fullSkus,
           'sobrantes': mergedSobrantes,
           'contributors': contributors,
         };
@@ -1030,19 +1080,28 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     sheet.appendRow(['Total PDIS', _totalPdis]);
     sheet.appendRow(['Total Escaneado', _totalScanned]);
     sheet.appendRow([]);
-    sheet.appendRow(['SKU', 'PDIS', 'Escaneado', 'Tipo']);
+    sheet.appendRow(['SKU', 'PDIS', 'Escaneado', 'Faltante', 'Tipo']);
 
     // primero los SKUs de la plantilla
     for (final sku in _pdisBySku.keys) {
       final pdis = _pdisBySku[sku] ?? 0.0;
-      final scanned = _scannedBySku[sku] ?? 0;
-      sheet.appendRow([sku, pdis.toStringAsFixed(0), scanned, '']);
+      final local = _scannedBySku[sku] ?? 0;
+      final server = _serverScannedBySku[sku] ?? 0;
+      final scanned = server > 0 ? server : local;
+      final faltante =
+          (pdis.round() - scanned) > 0 ? (pdis.round() - scanned) : 0;
+      sheet.appendRow([sku, pdis.toStringAsFixed(0), scanned, faltante, '']);
     }
-    // luego los sobrantes detectados al escanear
-    for (final sku in _sobrantesBySku.keys) {
+    // luego los sobrantes detectados al escanear (incluye server/local)
+    final sobranteKeys = <String>{}
+      ..addAll(_sobrantesBySku.keys)
+      ..addAll(_serverSobrantesBySku.keys);
+    for (final sku in sobranteKeys) {
       if (_pdisBySku.containsKey(sku)) continue;
-      final scanned = _sobrantesBySku[sku] ?? 0;
-      sheet.appendRow([sku, '0', scanned, 'SOBRANTE']);
+      final local = _sobrantesBySku[sku] ?? 0;
+      final server = _serverSobrantesBySku[sku] ?? 0;
+      final scanned = server > 0 ? server : local;
+      sheet.appendRow([sku, '0', scanned, 0, 'SOBRANTE']);
     }
 
     final bytes = workbook.encode();
@@ -1069,7 +1128,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   void _showFaltantesDialog() {
     final faltantes = <Map<String, dynamic>>[];
     _pdisBySku.forEach((sku, pdis) {
-      final scanned = _scannedBySku[sku] ?? 0;
+      final local = _scannedBySku[sku] ?? 0;
+      final server = _serverScannedBySku[sku] ?? 0;
+      final scanned = server > 0 ? server : local;
       final falta = pdis.round() - scanned;
       if (falta > 0) {
         faltantes.add({
