@@ -262,42 +262,54 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                         const SizedBox(height: 28),
                         ScaleTransition(
                           scale: _iconScale,
-                          child: GestureDetector(
-                            onTap: _pickAndUploadAvatar,
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFFF1F7F4),
-                                border:
-                                    Border.all(color: const Color(0xFFDCE9E2)),
+                          child: Column(
+                            children: [
+                              GestureDetector(
+                                onTap: _pickAndUploadAvatar,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: const Color(0xFFF1F7F4),
+                                    border: Border.all(
+                                        color: const Color(0xFFDCE9E2)),
+                                  ),
+                                  child: FutureBuilder<DocumentSnapshot>(
+                                    future: FirebaseFirestore.instance
+                                        .collection('usuarios')
+                                        .doc(
+                                            widget.usuario.trim().toLowerCase())
+                                        .get(),
+                                    builder: (context, snap) {
+                                      final avatar = snap.hasData &&
+                                              snap.data!.data() != null
+                                          ? (snap.data!.data()
+                                                  as Map)['avatarUrl']
+                                              ?.toString()
+                                          : null;
+                                      if (avatar != null && avatar.isNotEmpty) {
+                                        return CircleAvatar(
+                                          radius: 38,
+                                          backgroundColor: Colors.transparent,
+                                          backgroundImage: NetworkImage(avatar),
+                                        );
+                                      }
+                                      return const Icon(
+                                        Icons.account_circle,
+                                        size: 82,
+                                        color: Color(0xFF6E7D76),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ),
-                              child: FutureBuilder<DocumentSnapshot>(
-                                future: FirebaseFirestore.instance
-                                    .collection('usuarios')
-                                    .doc(widget.usuario.trim().toLowerCase())
-                                    .get(),
-                                builder: (context, snap) {
-                                  final avatar = snap.hasData &&
-                                          snap.data!.data() != null
-                                      ? (snap.data!.data() as Map)['avatarUrl']
-                                          ?.toString()
-                                      : null;
-                                  if (avatar != null && avatar.isNotEmpty) {
-                                    return CircleAvatar(
-                                      radius: 38,
-                                      backgroundColor: Colors.transparent,
-                                      backgroundImage: NetworkImage(avatar),
-                                    );
-                                  }
-                                  return const Icon(
-                                    Icons.account_circle,
-                                    size: 82,
-                                    color: Color(0xFF6E7D76),
-                                  );
-                                },
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: _pickAndUploadAvatar,
+                                icon: const Icon(Icons.upload_file),
+                                label: const Text('Cambiar foto'),
                               ),
-                            ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 18),
