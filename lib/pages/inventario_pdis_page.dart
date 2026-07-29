@@ -888,53 +888,13 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           .collection('inventarios_inprogress')
           .doc(id);
       try {
-        await FirebaseFirestore.instance.runTransaction((tx) async {
-          final snap = await tx.get(docRef);
-          final existing =
-              snap.exists && snap.data() != null ? snap.data()! : {};
-          // merge skus
-          final Map mergedSkus = {};
-          if (existing['skus'] is Map) {
-            mergedSkus.addAll(Map<String, dynamic>.from(existing['skus']));
-          }
-          skusPayload.forEach((k, v) {
-            final prev = mergedSkus[k];
-            final prevScanned = (prev is Map && prev['scanned'] != null)
-                ? (prev['scanned'] as num).toInt()
-                : 0;
-            final prevPdis = (prev is Map && prev['pdis'] != null)
-                ? (prev['pdis'] as num).toDouble()
-                : (_pdisBySku[k] ?? 0.0);
-            final newScanned = prevScanned + (v['scanned'] as int);
-            mergedSkus[k] = {'pdis': prevPdis, 'scanned': newScanned};
-          });
-          // merge sobrantes
-          final Map mergedSobrantes = {};
-          if (existing['sobrantes'] is Map)
-            mergedSobrantes
-                .addAll(Map<String, dynamic>.from(existing['sobrantes']));
-          _sobrantesBySku.forEach((k, v) {
-            mergedSobrantes[k] = (mergedSobrantes[k] is num
-                    ? (mergedSobrantes[k] as num).toInt()
-                    : 0) +
-                v;
-          });
-
-          final contributors = Map<String, dynamic>.from(
-              existing['contributors'] is Map ? existing['contributors'] : {});
-          contributors[widget.usuario] = FieldValue.serverTimestamp();
-
-          final payload = {
-            'jefe': _selectedJefe,
-            'dateKey': _todayKey(),
-            'skus': mergedSkus,
-            'sobrantes': mergedSobrantes,
-            'contributors': contributors,
-            'status': 'open',
-            'updatedAt': FieldValue.serverTimestamp(),
-          };
-          tx.set(docRef, payload);
-        });
+        // Since scans are persisted in real-time, avoid re-adding counts here.
+        // Just mark the current user as contributor and update timestamp so next user can pick up.
+        await docRef.set({
+          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+          'status': 'open',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
                 'Inventario guardado como borrador para siguiente revisor')));
@@ -1005,7 +965,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         });
 
         _sobrantesBySku.forEach((k, v) {
-          mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + v;
+          final applied = _appliedInprogressSobrantes[k] ?? 0;
+          final pending = v - applied;
+          if (pending <= 0) return;
+          mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + pending;
         });
 
         contributors[widget.usuario] = FieldValue.serverTimestamp();
