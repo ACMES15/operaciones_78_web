@@ -216,8 +216,33 @@ class _HomePageState extends State<HomePage> {
         elevation: 0,
         title: Row(
           children: [
-            const Icon(Icons.account_circle, color: Colors.white),
-            const SizedBox(width: 10),
+            StreamBuilder<DocumentSnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('usuarios')
+                  .doc(widget.usuario.trim().toLowerCase())
+                  .snapshots(),
+              builder: (context, snap) {
+                String? avatar;
+                try {
+                  if (snap.hasData && snap.data!.data() != null) {
+                    final map =
+                        Map<String, dynamic>.from(snap.data!.data() as Map);
+                    avatar = map['avatarUrl']?.toString();
+                  }
+                } catch (_) {}
+                if (avatar != null && avatar.isNotEmpty) {
+                  return Row(children: [
+                    CircleAvatar(
+                        backgroundImage: NetworkImage(avatar), radius: 14),
+                    const SizedBox(width: 10)
+                  ]);
+                }
+                return Row(children: [
+                  const Icon(Icons.account_circle, color: Colors.white),
+                  const SizedBox(width: 10)
+                ]);
+              },
+            ),
             // Usuario, Tipo y Fecha/Hora
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

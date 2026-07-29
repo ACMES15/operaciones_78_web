@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'dart:html' as html;
+import 'dart:typed_data';
 import '../utils/bienvenida_cache.dart';
 
 class BienvenidaPage extends StatefulWidget {
@@ -79,6 +83,55 @@ class _BienvenidaPageState extends State<BienvenidaPage>
     } else {
       await _iniciarAnimacionCarga();
       await BienvenidaCache.marcarMostrada();
+    }
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    try {
+      final uploadInput = html.FileUploadInputElement()..accept = 'image/*';
+      uploadInput.click();
+      await uploadInput.onChange.first;
+      final file = uploadInput.files?.first;
+      if (file == null) return;
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoad.first;
+      final result = reader.result;
+      if (result == null) return;
+      Uint8List bytes;
+      if (result is ByteBuffer)
+        bytes = result.asUint8List();
+      else if (result is Uint8List)
+        bytes = result;
+      else if (result is List) {
+        try {
+          bytes = Uint8List.fromList(result.cast<int>());
+        } catch (_) {
+          return;
+        }
+      } else {
+        return;
+      }
+
+      final uid = widget.usuario.trim().toLowerCase();
+      final storageRef = firebase_storage.FirebaseStorage.instance
+          .ref('user_avatars/$uid.jpg');
+      final uploadTask = storageRef.putData(
+          bytes, firebase_storage.SettableMetadata(contentType: file.type));
+      final snapshot = await uploadTask.whenComplete(() {});
+      final url = await snapshot.ref.getDownloadURL();
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .set({'avatarUrl': url}, SetOptions(merge: true));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Avatar subido correctamente')));
+        setState(() {});
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error subiendo avatar: $e')));
     }
   }
 
@@ -186,18 +239,41 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                         const SizedBox(height: 28),
                         ScaleTransition(
                           scale: _iconScale,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFFF1F7F4),
-                              border:
-                                  Border.all(color: const Color(0xFFDCE9E2)),
-                            ),
-                            child: const Icon(
-                              Icons.account_circle,
-                              size: 82,
-                              color: Color(0xFF6E7D76),
+                          child: GestureDetector(
+                            onTap: _pickAndUploadAvatar,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFFF1F7F4),
+                                border:
+                                    Border.all(color: const Color(0xFFDCE9E2)),
+                              ),
+                              child: FutureBuilder<DocumentSnapshot>(
+                                future: FirebaseFirestore.instance
+                                    .collection('usuarios')
+                                    .doc(widget.usuario.trim().toLowerCase())
+                                    .get(),
+                                builder: (context, snap) {
+                                  final avatar = snap.hasData &&
+                                          snap.data!.data() != null
+                                      ? (snap.data!.data() as Map)['avatarUrl']
+                                          ?.toString()
+                                      : null;
+                                  if (avatar != null && avatar.isNotEmpty) {
+                                    return CircleAvatar(
+                                      radius: 38,
+                                      backgroundColor: Colors.transparent,
+                                      backgroundImage: NetworkImage(avatar),
+                                    );
+                                  }
+                                  return const Icon(
+                                    Icons.account_circle,
+                                    size: 82,
+                                    color: Color(0xFF6E7D76),
+                                  );
+                                },
+                              ),
                             ),
                           ),
                         ),
