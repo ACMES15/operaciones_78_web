@@ -259,17 +259,38 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       'skus': {},
       'sobrantes': {},
       'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+      'createdBy': widget.usuario,
       'status': 'open',
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
     try {
       await docRef.set(payload);
+      // confirm write on server so other devices can observe it immediately
+      bool seen = false;
+      for (var attempt = 0; attempt < 5; attempt++) {
+        try {
+          final snap = await docRef.get(GetOptions(source: Source.server));
+          if (snap.exists) {
+            seen = true;
+            break;
+          }
+        } catch (_) {
+          // ignore and retry
+        }
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
       setState(() => _currentSessionId = sessionId);
       _fetchAvailableSessions();
       _subscribeInprogress();
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sesión creada y seleccionada')));
+      if (seen) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Sesión creada y visible. ID: $id')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Sesión creada (no confirmada en servidor). ID: $id - revise consola o Firebase Console')));
+      }
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error creando sesión: $e')));
