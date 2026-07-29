@@ -35789,7 +35789,8 @@ b6J:function b6J(a,b){this.a=a
 this.b=b},
 b6K:function b6K(a,b){this.a=a
 this.b=b},
-b6W:function b6W(a){this.a=a},
+b6W:function b6W(a,b){this.a=a
+this.b=b},
 b6B:function b6B(a){this.a=a},
 b6q:function b6q(a){this.a=a},
 b6r:function b6r(a){this.a=a},
@@ -142282,7 +142283,7 @@ break}p.v(new A.b5U(p,b,a))
 p.c.J(t.q).f.a5(A.c2(null,null,null,null,null,B.y,null,A.v("Se agreg\xf3 una unidad a "+a,null,null,null,null,null,null,null,null),null,B.S,null,null,null,null,null,null,null,null,null,null))
 case 1:return A.q(q,r)}})
 return A.r($async$HJ,r)},
-O(a){var s,r,q,p,o=this,n=null,m=A.cJ(n,!0,B.M,n,n,n,B.ij,n,B.bhr,n,n)
+O(a){var s,r,q,p,o=this,n=null,m=A.aF(a,n,t.w).w.a.a<600,l=A.cJ(n,!0,B.M,n,n,n,B.ij,n,B.bhr,n,n)
 if(o.d)s=B.bG
 else{s=o.w
 r=A.b([B.a3b],t.oD)
@@ -142290,7 +142291,7 @@ q=o.r
 B.f.P(r,new A.B(q,new A.b6T(),A.I(q).i("B<1,da<d?>>")))
 q=t.p
 s=A.b([A.a4(A.b([A.am(A.ph(B.a7T,n,!1,r,o.gaDB(),n,n,s,t.C),1),B.b8,A.cb(B.biG,o.gaq0(),A.bt(n,n,B.M,n,n,n,n,n,n,B.w,n,n,n,n,n,n,n,n,n,n)),B.ai,A.cb(B.V6,o.gaul(),A.bt(n,n,B.M,n,n,n,n,n,n,B.w,n,n,n,n,n,n,n,n,n,n))],q),B.x,B.q,B.r,0,n),B.a_],q)
-if(o.w!=null){r=o.x
+if(o.w!=null&&!m){r=o.x
 p=r==null
 r=A.v(p?"ninguna":r,n,n,n,n,B.au,n,n,n)
 r=A.b([A.a4(A.b([B.bhK,B.ai,r,B.bN,A.bs(n,n,B.nW,n,n,p?n:new A.b6U(o),n,n,"Copiar sessionId"),B.b8,A.cb(B.bgz,o.ga0w(o),A.bt(n,n,B.M,n,n,n,n,n,n,B.w,n,n,n,n,n,n,n,n,n,n)),B.ai,A.iZ(B.bgv,o.ga1o(),n)],q),B.x,B.q,B.r,0,n),B.a_],q)
@@ -142302,8 +142303,8 @@ q.push(B.a_)
 if(o.Q.a!==0)q.push(A.cb(B.biy,o.garA(),A.bt(n,n,B.M,n,n,n,n,n,n,B.w,n,n,n,n,n,n,n,n,n,n)))
 r.push(A.a7(q,B.U,B.q,B.r,0,B.C))}else r.push(B.bif)
 s.push(A.cq(new A.a9(B.cm,A.a7(r,B.U,B.q,B.r,0,B.C),n),B.w,1,n,n,n))}s.push(B.aC)
-s.push(new A.eK(new A.b6W(o),n))
-s=A.a7(s,B.x,B.q,B.r,0,B.C)}return A.cA(m,B.w,new A.a9(B.bo,s,n),n)}}
+s.push(new A.eK(new A.b6W(o,m),n))
+s=A.a7(s,B.x,B.q,B.r,0,B.C)}return A.cA(l,B.w,new A.a9(B.bo,s,n),n)}}
 A.b5L.prototype={
 $0(){return this.a.d=!0},
 $S:0}
@@ -142846,13 +142847,12 @@ $S:0}
 A.b6W.prototype={
 $1(a){var s,r,q,p,o,n,m=null,l="Escaneado",k="Porcentaje escaneado: ",j=this.a
 if(j.w==null)return B.a_y
-s=t.w
-if(!(A.aF(a,m,s).w.a.a<600)){s=A.am(A.b9(m,B.a4,!1,m,!0,B.y,m,A.bc(),j.fr,m,m,m,m,m,2,B.D1,B.T,!0,m,!0,m,!1,j.fx,B.a1,m,m,m,m,m,m,m,m,1,m,m,!1,"\u2022",m,m,m,j.ga4p(),m,!1,m,m,!1,m,!0,m,B.a3,m,m,m,m,m,m,m,m,m,m,m,m,!0,B.X,m,B.a5,m,m,m,m),1)
+if(!this.b){s=A.am(A.b9(m,B.a4,!1,m,!0,B.y,m,A.bc(),j.fr,m,m,m,m,m,2,B.D1,B.T,!0,m,!0,m,!1,j.fx,B.a1,m,m,m,m,m,m,m,m,1,m,m,!1,"\u2022",m,m,m,j.ga4p(),m,!1,m,m,!1,m,!0,m,B.a3,m,m,m,m,m,m,m,m,m,m,m,m,!0,B.X,m,B.a5,m,m,m,m),1)
 r=j.db
 q=A.v("Total PDIS: "+r,m,m,m,m,B.cH,m,m,m)
 p=j.dx
 o=t.p
-return A.am(A.ck(A.a7(A.b([A.a4(A.b([s,B.b8,A.a7(A.b([q,A.v("Escaneado: "+p+" (Sobrantes: "+j.dy+")",m,m,m,m,B.cH,m,m,m),A.v("Faltante: "+(r-p),m,m,m,m,B.cH,m,m,m),B.a_,A.cb(B.UR,j.ga6A(),A.bt(m,m,B.M,m,m,m,m,m,m,B.w,m,m,B.f6,m,m,m,m,m,m,m))],o),B.x,B.q,B.r,0,B.C)],o),B.x,B.q,B.r,0,m),B.aC,A.am(A.cq(A.a7(A.b([new A.a9(B.bn,A.a4(A.b([A.am(A.v("SKU",m,m,m,m,A.c5(m,m,m,m,m,m,m,m,m,m,m,m,m,m,B.a7,m,m,!0,m,m,m,m,m,m,m,m),m,m,m),1),A.aM(A.v("PDIS",m,m,m,m,m,B.cG,m,m),m,120),A.aM(A.v(l,m,m,m,m,m,B.cG,m,m),m,120)],o),B.x,B.q,B.r,0,m),m),B.hf,A.am(new A.eK(new A.b6B(j),m),1)],o),B.x,B.q,B.r,0,B.C),B.w,2,m,m,m),3),B.aC,A.cq(new A.a9(B.bn,A.a7(A.b([B.UY,A.k0(B.M,new A.b6C(j),B.V2,j.fy),A.k0(B.M,new A.b6D(j),B.Vj,j.go),A.k0(B.M,new A.b6L(j),B.UG,j.id),A.k0(B.M,new A.b6M(j),B.V7,j.k1),B.a_,A.a4(A.b([A.am(A.a7(A.b([A.v(k+B.o.ao(j.xj()*100,1)+"%",m,m,m,m,m,m,m,m),A.aM(m,6,m),A.auF(m,m,m,j.xj())],o),B.U,B.q,B.r,0,B.C),1),B.b8,A.a7(A.b([A.v("Calidad: "+B.o.ao(j.pU(),1)+"%",m,m,m,m,m,m,m,m),A.aM(m,8,m),A.aM(A.i2(B.af,A.b([A.u9(m,m,m,j.pU()/100),A.v(B.o.ao(j.pU(),0)+"%",m,m,m,m,m,m,m,m)],o),B.y,B.cf,m),80,80)],o),B.x,B.q,B.r,0,B.C)],o),B.x,B.q,B.r,0,m),B.aC,A.a4(A.b([A.am(A.cb(B.Vc,j.ga1v(),A.bt(m,m,B.M,m,m,m,m,m,m,B.w,m,m,m,m,m,m,m,m,m,m)),1),B.b8,A.iZ(B.bk,new A.b6N(j),A.a2B(m,m,B.M,m,m,m,m,m,m,B.w,m,m,m,m,m,B.fu,m,m,m,m))],o),B.x,B.q,B.r,0,m)],o),B.x,B.q,B.r,0,B.C),m),B.w,2,m,m,m)],o),B.x,B.q,B.r,0,B.C),m,m,m,B.a9),1)}s=A.aF(a,m,s).w
+return A.am(A.ck(A.a7(A.b([A.a4(A.b([s,B.b8,A.a7(A.b([q,A.v("Escaneado: "+p+" (Sobrantes: "+j.dy+")",m,m,m,m,B.cH,m,m,m),A.v("Faltante: "+(r-p),m,m,m,m,B.cH,m,m,m),B.a_,A.cb(B.UR,j.ga6A(),A.bt(m,m,B.M,m,m,m,m,m,m,B.w,m,m,B.f6,m,m,m,m,m,m,m))],o),B.x,B.q,B.r,0,B.C)],o),B.x,B.q,B.r,0,m),B.aC,A.am(A.cq(A.a7(A.b([new A.a9(B.bn,A.a4(A.b([A.am(A.v("SKU",m,m,m,m,A.c5(m,m,m,m,m,m,m,m,m,m,m,m,m,m,B.a7,m,m,!0,m,m,m,m,m,m,m,m),m,m,m),1),A.aM(A.v("PDIS",m,m,m,m,m,B.cG,m,m),m,120),A.aM(A.v(l,m,m,m,m,m,B.cG,m,m),m,120)],o),B.x,B.q,B.r,0,m),m),B.hf,A.am(new A.eK(new A.b6B(j),m),1)],o),B.x,B.q,B.r,0,B.C),B.w,2,m,m,m),3),B.aC,A.cq(new A.a9(B.bn,A.a7(A.b([B.UY,A.k0(B.M,new A.b6C(j),B.V2,j.fy),A.k0(B.M,new A.b6D(j),B.Vj,j.go),A.k0(B.M,new A.b6L(j),B.UG,j.id),A.k0(B.M,new A.b6M(j),B.V7,j.k1),B.a_,A.a4(A.b([A.am(A.a7(A.b([A.v(k+B.o.ao(j.xj()*100,1)+"%",m,m,m,m,m,m,m,m),A.aM(m,6,m),A.auF(m,m,m,j.xj())],o),B.U,B.q,B.r,0,B.C),1),B.b8,A.a7(A.b([A.v("Calidad: "+B.o.ao(j.pU(),1)+"%",m,m,m,m,m,m,m,m),A.aM(m,8,m),A.aM(A.i2(B.af,A.b([A.u9(m,m,m,j.pU()/100),A.v(B.o.ao(j.pU(),0)+"%",m,m,m,m,m,m,m,m)],o),B.y,B.cf,m),80,80)],o),B.x,B.q,B.r,0,B.C)],o),B.x,B.q,B.r,0,m),B.aC,A.a4(A.b([A.am(A.cb(B.Vc,j.ga1v(),A.bt(m,m,B.M,m,m,m,m,m,m,B.w,m,m,m,m,m,m,m,m,m,m)),1),B.b8,A.iZ(B.bk,new A.b6N(j),A.a2B(m,m,B.M,m,m,m,m,m,m,B.w,m,m,m,m,m,B.fu,m,m,m,m))],o),B.x,B.q,B.r,0,m)],o),B.x,B.q,B.r,0,B.C),m),B.w,2,m,m,m)],o),B.x,B.q,B.r,0,B.C),m,m,m,B.a9),1)}s=A.aF(a,m,t.w).w
 r=j.x
 q=r==null
 r=A.am(A.v("Sesi\xf3n: "+(q?"ninguna":r),m,m,m,m,B.ex,m,m,m),1)

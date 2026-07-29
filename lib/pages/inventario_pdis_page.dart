@@ -1233,6 +1233,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -1285,7 +1286,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (_selectedJefe != null)
+                  if (_selectedJefe != null && !isMobile)
                     Card(
                         color: Colors.white,
                         elevation: 1,
@@ -1423,8 +1424,6 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                               'Seleccione una jefatura para cargar inventario',
                               style: TextStyle(color: Colors.black)));
                     }
-                    final isMobile = MediaQuery.of(context).size.width < 600;
-
                     // Desktop / Tablet: keep existing spacious layout
                     if (!isMobile) {
                       return Expanded(
