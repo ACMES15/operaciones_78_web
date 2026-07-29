@@ -601,6 +601,49 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     }
   }
 
+  Future<void> _confirmAndCombineSelectedSessions() async {
+    if (_selectedSessionDocIds.isEmpty) return;
+    final ids = _selectedSessionDocIds.toList();
+    final count = ids.length;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Confirmar combinación'),
+          content: SizedBox(
+            width: 420,
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                  '¿Seguro quieres combinar $count sesión(es)?\nEsto cerrará los inventarios en los usuarios y consolidará en histórico.'),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: ids
+                        .map((id) =>
+                            Text('- $id', style: const TextStyle(fontSize: 12)))
+                        .toList(),
+                  ),
+                ),
+              )
+            ]),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancelar')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Combinar'))
+          ],
+        );
+      },
+    );
+    if (ok == true) await _combineSelectedSessions();
+  }
+
   void _buildSkuAggregates() {
     _pdisBySku.clear();
     _scannedBySku.clear();
@@ -1360,7 +1403,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                         if (_selectedSessionDocIds.isNotEmpty)
                                           ElevatedButton(
                                               onPressed:
-                                                  _combineSelectedSessions,
+                                                  _confirmAndCombineSelectedSessions,
                                               style: ElevatedButton.styleFrom(
                                                   backgroundColor: Colors.black,
                                                   foregroundColor:
@@ -1651,6 +1694,124 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
+                                  // Mobile: session controls
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Row(children: [
+                                        Expanded(
+                                            child: Text(
+                                                'Sesión: ${_currentSessionId ?? 'ninguna'}',
+                                                style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.black))),
+                                        IconButton(
+                                            icon: const Icon(Icons.copy,
+                                                size: 18),
+                                            tooltip: 'Copiar sessionId',
+                                            onPressed: _currentSessionId == null
+                                                ? null
+                                                : () {
+                                                    final docId =
+                                                        '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
+                                                    _copyToClipboard(docId);
+                                                  }),
+                                        ElevatedButton(
+                                            onPressed: _createSession,
+                                            style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.black,
+                                                foregroundColor: Colors.white),
+                                            child: const Text('Crear')),
+                                        const SizedBox(width: 6),
+                                        OutlinedButton(
+                                            onPressed: _fetchAvailableSessions,
+                                            child: const Text('Refrescar'))
+                                      ]),
+                                      const SizedBox(height: 8),
+                                      if (_availableSessions.isNotEmpty)
+                                        Column(
+                                          children: _availableSessions.map((s) {
+                                            final docId =
+                                                s['docId']?.toString() ?? '';
+                                            final sessId =
+                                                s['sessionId']?.toString() ??
+                                                    docId;
+                                            final contributors =
+                                                s['contributors'] is Map
+                                                    ? Map<String, dynamic>.from(
+                                                        s['contributors'])
+                                                    : <String, dynamic>{};
+                                            final createdBy =
+                                                s['createdBy']?.toString() ??
+                                                    '';
+                                            return Container(
+                                                margin: const EdgeInsets.only(
+                                                    bottom: 6),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 6),
+                                                decoration: BoxDecoration(
+                                                    color: Colors.grey.shade50,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6)),
+                                                child: Row(
+                                                  children: [
+                                                    Expanded(
+                                                        child: Text(
+                                                            'ID: $sessId',
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        13))),
+                                                    Text(
+                                                        'c: ${contributors.length}',
+                                                        style: const TextStyle(
+                                                            fontSize: 12)),
+                                                    const SizedBox(width: 6),
+                                                    OutlinedButton(
+                                                        onPressed: () =>
+                                                            _joinSession(
+                                                                sessId),
+                                                        child: const Text(
+                                                            'Unirse')),
+                                                    const SizedBox(width: 4),
+                                                    IconButton(
+                                                        icon: const Icon(
+                                                            Icons.copy,
+                                                            size: 18),
+                                                        onPressed: () =>
+                                                            _copyToClipboard(
+                                                                docId)),
+                                                    if (contributors
+                                                            .containsKey(widget
+                                                                .usuario) ||
+                                                        createdBy ==
+                                                            widget.usuario)
+                                                      const SizedBox(width: 4),
+                                                    if (contributors
+                                                            .containsKey(widget
+                                                                .usuario) ||
+                                                        createdBy ==
+                                                            widget.usuario)
+                                                      OutlinedButton(
+                                                          onPressed: () =>
+                                                              _closeSession(
+                                                                  docId),
+                                                          child: const Text(
+                                                              'Cerrar'))
+                                                  ],
+                                                ));
+                                          }).toList(),
+                                        )
+                                      else
+                                        const Text('No hay sesiones abiertas',
+                                            style: TextStyle(fontSize: 12)),
+                                      const SizedBox(height: 8),
+                                    ],
+                                  ),
                                   Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
