@@ -211,6 +211,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
             'contributors': data['contributors'] is Map
                 ? Map<String, dynamic>.from(data['contributors'])
                 : {},
+            'createdBy': data['createdBy']?.toString() ?? '',
           };
         }).toList();
         print(
@@ -234,6 +235,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
             'contributors': data['contributors'] is Map
                 ? Map<String, dynamic>.from(data['contributors'])
                 : {},
+            'createdBy': data['createdBy']?.toString() ?? '',
           };
         }).toList();
         // debug
@@ -294,6 +296,27 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error creando sesión: $e')));
+    }
+  }
+
+  Future<void> _closeSession(String docId) async {
+    if (docId.isEmpty) return;
+    final docRef = FirebaseFirestore.instance
+        .collection('inventarios_inprogress')
+        .doc(docId);
+    try {
+      await docRef.set({
+        'status': 'closed',
+        'closedAt': FieldValue.serverTimestamp(),
+        'closedBy': widget.usuario
+      }, SetOptions(merge: true));
+      // refresh list so other clients stop seeing it
+      _fetchAvailableSessions();
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error cerrando sesión: $e')));
     }
   }
 
@@ -1315,7 +1338,21 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                     onPressed: () {
                                                       _copyToClipboard(docId);
                                                     },
-                                                  )
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  // show close button if user is creator or contributor
+                                                  if (contributors.containsKey(
+                                                          widget.usuario) ||
+                                                      (s['createdBy']
+                                                                  ?.toString() ??
+                                                              '') ==
+                                                          widget.usuario)
+                                                    OutlinedButton(
+                                                      onPressed: () =>
+                                                          _closeSession(docId),
+                                                      child:
+                                                          const Text('Cerrar'),
+                                                    )
                                                 ],
                                               ));
                                         }).toList(),
