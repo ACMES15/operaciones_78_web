@@ -25,6 +25,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
   List<String> _jefes = [];
   String? _selectedJefe;
+  // session support
+  String? _currentSessionId;
+  List<Map<String, dynamic>> _availableSessions = [];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sessionsListSub;
 
   // Aggregated by SKU for selected jefe
   final Map<String, double> _pdisBySku = {};
@@ -178,7 +182,80 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       });
     });
     _subscribeHistoricScans();
+    _fetchAvailableSessions();
     _subscribeInprogress();
+  }
+
+  void _fetchAvailableSessions() {
+    _sessionsListSub?.cancel();
+    _availableSessions.clear();
+    if (_selectedJefe == null) return;
+    try {
+      final q = FirebaseFirestore.instance
+          .collection('inventarios_inprogress')
+          .where('jefe', isEqualTo: _selectedJefe)
+          .where('dateKey', isEqualTo: _todayKey())
+          .where('status', isEqualTo: 'open')
+          .orderBy('updatedAt', descending: true)
+          .withConverter<Map<String, dynamic>>(
+              fromFirestore: (snap, _) => snap.data() ?? {},
+              toFirestore: (m, _) => m);
+
+      _sessionsListSub = q.snapshots().listen((snap) {
+        _availableSessions = snap.docs.map((d) {
+          final data = d.data();
+          return {
+            'docId': d.id,
+            'sessionId': (data['sessionId'] ?? d.id).toString(),
+            'contributors': data['contributors'] is Map
+                ? Map<String, dynamic>.from(data['contributors'])
+                : {},
+          };
+        }).toList();
+        setState(() {});
+      });
+    } catch (e) {
+      print('Error fetching sessions: $e');
+    }
+  }
+
+  Future<void> _createSession() async {
+    if (_selectedJefe == null) return;
+    final sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+    final id = '${_selectedJefe}_${_todayKey()}_$sessionId';
+    final docRef =
+        FirebaseFirestore.instance.collection('inventarios_inprogress').doc(id);
+    final payload = {
+      'sessionId': sessionId,
+      'jefe': _selectedJefe,
+      'dateKey': _todayKey(),
+      'skus': {},
+      'sobrantes': {},
+      'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+      'status': 'open',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    try {
+      await docRef.set(payload);
+      setState(() => _currentSessionId = sessionId);
+      _fetchAvailableSessions();
+      _subscribeInprogress();
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sesión creada y seleccionada')));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error creando sesión: $e')));
+    }
+  }
+
+  void _joinSession(String sessionId) {
+    setState(() {
+      _currentSessionId = sessionId;
+    });
+    _subscribeInprogress();
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Sesion seleccionada')));
   }
 
   void _subscribeHistoricScans() {
@@ -245,9 +322,11 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     _inprogressSub?.cancel();
     _appliedInprogressScanned.clear();
     _appliedInprogressSobrantes.clear();
-
     if (_selectedJefe == null) return;
-    final id = '${_selectedJefe}_${_todayKey()}';
+    // support session-specific doc id when _currentSessionId is set
+    final id = _currentSessionId != null
+        ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
+        : '${_selectedJefe}_${_todayKey()}';
     final docRef = FirebaseFirestore.instance
         .collection('inventarios_inprogress')
         .doc(id)
@@ -468,7 +547,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
     if (choice == 'pasar') {
       // save/update inprogress doc so next user picks it up
-      final id = '${_selectedJefe}_${_todayKey()}';
+      final id = _currentSessionId != null
+          ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
+          : '${_selectedJefe}_${_todayKey()}';
       final docRef = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
           .doc(id);
@@ -551,7 +632,9 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
       };
       await histRef.set(payload);
       // delete inprogress doc if exists
-      final id = '${_selectedJefe}_${_todayKey()}';
+      final id = _currentSessionId != null
+          ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
+          : '${_selectedJefe}_${_todayKey()}';
       final inDoc = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
           .doc(id);
@@ -761,6 +844,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     _scanFocus.dispose();
     _historicSub?.cancel();
     _inprogressSub?.cancel();
+    _sessionsListSub?.cancel();
     super.dispose();
   }
 
@@ -863,6 +947,47 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           child: const Text('Exportar Excel'))
                     ],
                   ),
+                  const SizedBox(height: 8),
+                  if (_selectedJefe != null)
+                    Card(
+                        color: Colors.white,
+                        elevation: 1,
+                        child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(children: [
+                                    const Text('Sesión:'),
+                                    const SizedBox(width: 8),
+                                    Text(_currentSessionId ?? 'ninguna',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 12),
+                                    ElevatedButton(
+                                        onPressed: _createSession,
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.black,
+                                            foregroundColor: Colors.white),
+                                        child: const Text('Crear sesión')),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  if (_availableSessions.isNotEmpty)
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 6,
+                                      children: _availableSessions
+                                          .map((s) => OutlinedButton(
+                                              onPressed: () => _joinSession(
+                                                  s['sessionId']?.toString() ??
+                                                      s['docId']),
+                                              child: Text(
+                                                  'Unirse: ${s['sessionId']?.toString() ?? s['docId']}')))
+                                          .toList(),
+                                    )
+                                  else
+                                    const Text('No hay sesiones abiertas')
+                                ]))),
                   const SizedBox(height: 12),
                   Builder(builder: (context) {
                     if (_selectedJefe == null) {
