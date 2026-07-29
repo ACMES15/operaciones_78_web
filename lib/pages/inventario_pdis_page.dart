@@ -188,20 +188,42 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     _subscribeInprogress();
   }
 
-  void _fetchAvailableSessions() {
+  Future<void> _fetchAvailableSessions() async {
     _sessionsListSub?.cancel();
     _availableSessions.clear();
     if (_selectedJefe == null) return;
     try {
-      final q = FirebaseFirestore.instance
+      final qBase = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
           .where('jefe', isEqualTo: _selectedJefe)
           .where('dateKey', isEqualTo: _todayKey())
           .where('status', isEqualTo: 'open')
-          .orderBy('updatedAt', descending: true)
-          .withConverter<Map<String, dynamic>>(
-              fromFirestore: (snap, _) => snap.data() ?? {},
-              toFirestore: (m, _) => m);
+          .orderBy('updatedAt', descending: true);
+
+      // Try to fetch fresh results directly from server first (helps when other clients just created a session)
+      try {
+        final serverSnap = await qBase.get(GetOptions(source: Source.server));
+        _availableSessions = serverSnap.docs.map((d) {
+          final data = d.data();
+          return {
+            'docId': d.id,
+            'sessionId': (data['sessionId'] ?? d.id).toString(),
+            'contributors': data['contributors'] is Map
+                ? Map<String, dynamic>.from(data['contributors'])
+                : {},
+          };
+        }).toList();
+        print(
+            'Fetched (server) ${_availableSessions.length} sessions for $_selectedJefe');
+        setState(() {});
+      } catch (e) {
+        // server read may fail (rules, network) — ignore and rely on snapshots below
+        print('Server fetch failed: $e');
+      }
+
+      final q = qBase.withConverter<Map<String, dynamic>>(
+          fromFirestore: (snap, _) => snap.data() ?? {},
+          toFirestore: (m, _) => m);
 
       _sessionsListSub = q.snapshots().listen((snap) {
         _availableSessions = snap.docs.map((d) {
@@ -216,7 +238,7 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         }).toList();
         // debug
         print(
-            'Fetched ${_availableSessions.length} sessions for $_selectedJefe');
+            'Fetched (snapshots) ${_availableSessions.length} sessions for $_selectedJefe');
         setState(() {});
       });
     } catch (e) {
@@ -338,6 +360,27 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   String _todayKey() {
     final now = DateTime.now().toUtc();
     return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _copyToClipboard(String text) async {
+    try {
+      if (html.window.navigator.clipboard != null) {
+        await html.window.navigator.clipboard!.writeText(text);
+      } else {
+        // fallback for older browsers
+        final ta = html.TextAreaElement();
+        ta.value = text;
+        html.document.body?.append(ta);
+        ta.select();
+        html.document.execCommand('copy');
+        ta.remove();
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('ID copiado')));
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Error copiando ID: $e')));
+    }
   }
 
   void _subscribeInprogress() {
@@ -1170,6 +1213,18 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                     Text(_currentSessionId ?? 'ninguna',
                                         style: const TextStyle(
                                             fontWeight: FontWeight.bold)),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: const Icon(Icons.copy, size: 18),
+                                      tooltip: 'Copiar sessionId',
+                                      onPressed: _currentSessionId == null
+                                          ? null
+                                          : () {
+                                              final docId =
+                                                  '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
+                                              _copyToClipboard(docId);
+                                            },
+                                    ),
                                     const SizedBox(width: 12),
                                     ElevatedButton(
                                         onPressed: _createSession,
@@ -1230,7 +1285,16 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                       onPressed: () =>
                                                           _joinSession(sessId),
                                                       child:
-                                                          const Text('Unirse'))
+                                                          const Text('Unirse')),
+                                                  const SizedBox(width: 6),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.copy,
+                                                        size: 18),
+                                                    tooltip: 'Copiar sessionId',
+                                                    onPressed: () {
+                                                      _copyToClipboard(docId);
+                                                    },
+                                                  )
                                                 ],
                                               ));
                                         }).toList(),
