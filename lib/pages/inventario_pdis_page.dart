@@ -253,6 +253,21 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     setState(() {
       _currentSessionId = sessionId;
     });
+    // mark user as contributor in session doc
+    if (_selectedJefe != null) {
+      final id = '${_selectedJefe}_${_todayKey()}_${sessionId}';
+      final docRef = FirebaseFirestore.instance
+          .collection('inventarios_inprogress')
+          .doc(id);
+      try {
+        docRef.set({
+          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+          'updatedAt': FieldValue.serverTimestamp()
+        }, SetOptions(merge: true));
+      } catch (e) {
+        print('Error joining session contributors: $e');
+      }
+    }
     _subscribeInprogress();
     ScaffoldMessenger.of(context)
         .showSnackBar(const SnackBar(content: Text('Sesion seleccionada')));
@@ -613,33 +628,103 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
     // choice == 'cerrar' -> final user: save to historico and remove inprogress
     try {
-      final histRef =
-          FirebaseFirestore.instance.collection('inventarios_historico').doc();
-      final payload = {
-        'usuario': widget.usuario,
-        'jefe': _selectedJefe,
-        'createdAt': FieldValue.serverTimestamp(),
-        'totalPdis': _totalPdis,
-        'totalScanned': _totalScanned,
-        'percentScanned': pct,
-        'qualityScore': _computeQualityScore(),
-        'q1': q1,
-        'q2': q2,
-        'q3': q3,
-        'q4': q4,
-        'skus': skusPayload,
-        'sobrantes': _sobrantesBySku,
-      };
-      await histRef.set(payload);
-      // delete inprogress doc if exists
+      // When closing, prefer to consolidate the session document (all contributors)
       final id = _currentSessionId != null
           ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
           : '${_selectedJefe}_${_todayKey()}';
-      final inDoc = FirebaseFirestore.instance
+      final inDocRef = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
           .doc(id);
-      final inSnap = await inDoc.get();
-      if (inSnap.exists) await inDoc.delete();
+
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final inSnap = await tx.get(inDocRef);
+
+        // start from in-doc data if present
+        final Map<String, dynamic> mergedSkus = {};
+        final Map<String, int> mergedSobrantes = {};
+        final Map<String, dynamic> contributors = {};
+
+        if (inSnap.exists && inSnap.data() != null) {
+          final data = inSnap.data()!;
+          if (data['skus'] is Map) {
+            (data['skus'] as Map).forEach((k, v) {
+              final key = k.toString();
+              if (v is Map) {
+                final pdis =
+                    v['pdis'] is num ? (v['pdis'] as num).toDouble() : 0.0;
+                final scanned =
+                    v['scanned'] is num ? (v['scanned'] as num).toInt() : 0;
+                mergedSkus[key] = {'pdis': pdis, 'scanned': scanned};
+              }
+            });
+          }
+          if (data['sobrantes'] is Map) {
+            (data['sobrantes'] as Map).forEach((k, v) {
+              final key = k.toString();
+              final cnt =
+                  v is num ? v.toInt() : int.tryParse(v.toString()) ?? 0;
+              mergedSobrantes[key] = (mergedSobrantes[key] ?? 0) + cnt;
+            });
+          }
+          if (data['contributors'] is Map) {
+            contributors
+                .addAll(Map<String, dynamic>.from(data['contributors']));
+          }
+        }
+
+        // merge any local skus that may not be pushed yet
+        skusPayload.forEach((k, v) {
+          final prev = mergedSkus[k];
+          final prevScanned = (prev is Map && prev['scanned'] != null)
+              ? (prev['scanned'] as int)
+              : 0;
+          final prevPdis = (prev is Map && prev['pdis'] != null)
+              ? (prev['pdis'] as num).toDouble()
+              : (_pdisBySku[k] ?? 0.0);
+          final newScanned = prevScanned + (v['scanned'] as int);
+          mergedSkus[k] = {'pdis': prevPdis, 'scanned': newScanned};
+        });
+
+        _sobrantesBySku.forEach((k, v) {
+          mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + v;
+        });
+
+        contributors[widget.usuario] = FieldValue.serverTimestamp();
+
+        // compute totals from merged data
+        final totalPdis = _pdisBySku.values.fold(0.0, (s, v) => s + v).round();
+        final totalScanned = mergedSkus.values.fold<int>(0, (s, e) {
+          if (e is Map && e['scanned'] != null)
+            return s + (e['scanned'] as int);
+          return s;
+        });
+
+        final histRef = FirebaseFirestore.instance
+            .collection('inventarios_historico')
+            .doc();
+        final histPayload = {
+          'usuario': widget.usuario,
+          'jefe': _selectedJefe,
+          'createdAt': FieldValue.serverTimestamp(),
+          'totalPdis': totalPdis,
+          'totalScanned': totalScanned,
+          'percentScanned': totalPdis > 0 ? (totalScanned / totalPdis) : 0.0,
+          'qualityScore': _computeQualityScore(),
+          'q1': q1,
+          'q2': q2,
+          'q3': q3,
+          'q4': q4,
+          'skus': mergedSkus,
+          'sobrantes': mergedSobrantes,
+          'contributors': contributors,
+        };
+
+        tx.set(histRef, histPayload);
+
+        // delete session doc (cleanup)
+        if (inSnap.exists) tx.delete(inDocRef);
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Inventario guardado en histórico')));
     } catch (e) {
