@@ -521,18 +521,24 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         }
       }
 
-      // Also include local unsaved counts (current _scannedBySku/_sobrantesBySku)
+      // Also include local pending counts (only increments not yet applied to server)
       _scannedBySku.forEach((k, v) {
+        final applied = _appliedInprogressScanned[k] ?? 0;
+        final pending = v - applied;
+        if (pending <= 0) return;
         final prev = mergedSkus[k];
         final prevScanned =
             prev != null && prev['scanned'] is int ? prev['scanned'] as int : 0;
         mergedSkus[k] = {
           'pdis': (_pdisBySku[k] ?? 0.0),
-          'scanned': prevScanned + v
+          'scanned': prevScanned + pending
         };
       });
       _sobrantesBySku.forEach((k, v) {
-        mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + v;
+        final applied = _appliedInprogressSobrantes[k] ?? 0;
+        final pending = v - applied;
+        if (pending <= 0) return;
+        mergedSobrantes[k] = (mergedSobrantes[k] ?? 0) + pending;
       });
 
       contributors[widget.usuario] = FieldValue.serverTimestamp();
@@ -854,9 +860,24 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
     if (choice == null) return;
 
-    // build payload pieces
-    final skusPayload = _pdisBySku.map(
-        (k, v) => MapEntry(k, {'pdis': v, 'scanned': _scannedBySku[k] ?? 0}));
+    // build payload pieces: only include pending local increments that haven't been applied to server
+    final skusPayload = <String, Map<String, Object>>{};
+    for (final k in _pdisBySku.keys) {
+      final pdis = _pdisBySku[k] ?? 0.0;
+      final local = _scannedBySku[k] ?? 0;
+      final applied = _appliedInprogressScanned[k] ?? 0;
+      final pending = (local - applied) > 0 ? (local - applied) : 0;
+      skusPayload[k] = {'pdis': pdis, 'scanned': pending};
+    }
+    // also include any local-only SKUs not present in plantilla
+    for (final k in _scannedBySku.keys) {
+      if (!skusPayload.containsKey(k)) {
+        final local = _scannedBySku[k] ?? 0;
+        final applied = _appliedInprogressScanned[k] ?? 0;
+        final pending = (local - applied) > 0 ? (local - applied) : 0;
+        skusPayload[k] = {'pdis': (_pdisBySku[k] ?? 0.0), 'scanned': pending};
+      }
+    }
 
     if (choice == 'pasar') {
       // save/update inprogress doc so next user picks it up
