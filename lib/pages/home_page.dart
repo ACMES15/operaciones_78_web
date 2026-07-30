@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance
-                  .collection('usuarios')
+                  .collection('foto de usuarios')
                   .doc(widget.usuario.trim().toLowerCase())
                   .snapshots(),
               builder: (context, snap) {

@@ -35,7 +35,6 @@ class _BienvenidaPageState extends State<BienvenidaPage>
   @override
   void initState() {
     super.initState();
-
     _entradaController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -58,13 +57,6 @@ class _BienvenidaPageState extends State<BienvenidaPage>
     );
 
     _verificarBienvenida();
-  }
-
-  @override
-  void dispose() {
-    _entradaController.dispose();
-    _iconoController.dispose();
-    super.dispose();
   }
 
   void _activarVistaFinal() {
@@ -122,12 +114,13 @@ class _BienvenidaPageState extends State<BienvenidaPage>
       final url = await snapshot.ref.getDownloadURL();
       try {
         await FirebaseFirestore.instance
-            .collection('usuarios')
+            .collection('foto de usuarios')
             .doc(uid)
-            .set({'avatarUrl': url}, SetOptions(merge: true));
+            .set(
+                {'avatarUrl': url, 'uploadedAt': FieldValue.serverTimestamp()});
         // verify write
         final verify = await FirebaseFirestore.instance
-            .collection('usuarios')
+            .collection('foto de usuarios')
             .doc(uid)
             .get();
         final saved = verify.data() != null &&
