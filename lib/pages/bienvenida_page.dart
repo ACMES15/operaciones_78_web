@@ -297,10 +297,10 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              TextButton.icon(
+                              IconButton(
                                 onPressed: _pickAndUploadAvatar,
-                                icon: const Icon(Icons.upload_file),
-                                label: const Text('Cambiar foto'),
+                                icon: const Icon(Icons.edit, size: 20),
+                                tooltip: 'Cambiar foto',
                               ),
                             ],
                           ),
