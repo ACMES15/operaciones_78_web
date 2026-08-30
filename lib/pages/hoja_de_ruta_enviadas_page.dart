@@ -18,12 +18,41 @@ class HojaDeRutaEnviadasPage extends StatefulWidget {
 class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printCaratulaFromSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
-    final origen = sheet['origen'] ?? '';
-    final destino = (sheet['destino'] ?? sheet['DESTINO'] ?? '').toString();
-    final tipo = sheet['tipo'] ?? '';
+    // Obtener campos de forma robusta (ignore case y fallback a headers/rows)
+    String getFieldIgnoreCase(Map<String, dynamic> m, String name) {
+      for (final k in m.keys) {
+        if (k.toString().toLowerCase() == name.toLowerCase()) {
+          return m[k]?.toString() ?? '';
+        }
+      }
+      return '';
+    }
+
+    final origen = getFieldIgnoreCase(sheet, 'origen');
+    String destino = getFieldIgnoreCase(sheet, 'destino');
+
+    // Si no está en campos top-level, buscar en headers/rows (primer registro)
+    if (destino.isEmpty &&
+        sheet['headers'] != null &&
+        sheet['rows'] is List &&
+        (sheet['rows'] as List).isNotEmpty) {
+      final headers = List<String>.from(sheet['headers']);
+      final idx =
+          headers.indexWhere((h) => h.toString().toLowerCase() == 'destino');
+      if (idx != -1) {
+        final firstRow = (sheet['rows'] as List).first;
+        if (firstRow is Map) {
+          destino = firstRow[headers[idx]]?.toString() ?? '';
+        } else if (firstRow is List && idx < firstRow.length) {
+          destino = firstRow[idx]?.toString() ?? '';
+        }
+      }
+    }
+
+    final tipo = getFieldIgnoreCase(sheet, 'tipo');
     final numeroControl = sheet['numeroControl'] ?? '';
-    final fechaEnvio = sheet['fecha'] ?? '';
-    final caja = sheet['caja'] ?? '';
+    final fechaEnvio = getFieldIgnoreCase(sheet, 'fecha');
+    final caja = getFieldIgnoreCase(sheet, 'caja');
 
     final pdf = pw.Document();
     pdf.addPage(
