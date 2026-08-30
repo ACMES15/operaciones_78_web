@@ -19,6 +19,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printCaratulaFromSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     final origen = sheet['origen'] ?? '';
+    final destino = (sheet['destino'] ?? sheet['DESTINO'] ?? '').toString();
     final tipo = sheet['tipo'] ?? '';
     final numeroControl = sheet['numeroControl'] ?? '';
     final fechaEnvio = sheet['fecha'] ?? '';
@@ -49,6 +50,20 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                       padding: pw.EdgeInsets.all(8),
                       alignment: pw.Alignment.center,
                       child: pw.Text(origen, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Destino:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child:
+                          pw.Text(destino, style: pw.TextStyle(fontSize: 16)),
                     ),
                   ]),
                   pw.TableRow(children: [
@@ -393,8 +408,9 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                         ),
                         const SizedBox(width: 8),
                         TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cerrar')),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cerrar'),
+                        ),
                       ],
                     ),
                   ],
