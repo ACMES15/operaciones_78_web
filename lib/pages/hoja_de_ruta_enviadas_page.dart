@@ -37,7 +37,23 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
     }
 
     final origen = getFieldIgnoreCase(sheet, 'origen');
-    String destino = getFieldIgnoreCase(sheet, 'destino');
+    String destino = '';
+
+    bool parseBool(dynamic value) {
+      if (value is bool) return value;
+      final v = (value ?? '').toString().trim().toLowerCase();
+      return v == 'true' || v == '1' || v == 'si' || v == 'sí' || v == 'on';
+    }
+
+    final tipoLower = getFieldIgnoreCase(sheet, 'tipo').toLowerCase();
+    final esForaneo = parseBool(sheet['foraneo']) ||
+        parseBool(sheet['esForaneo']) ||
+        tipoLower.contains('foraneo') ||
+        tipoLower.contains('foráneo');
+
+    if (esForaneo) {
+      destino = '880';
+    }
 
     if (destino.isEmpty) {
       for (final entry in sheet.entries) {
@@ -48,7 +64,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       }
     }
 
-    // Si no está en campos top-level, buscar en headers/rows (todos los registros)
+    // Si no es foráneo, destino debe venir de la columna "No. Alm."
     if (destino.isEmpty &&
         sheet['headers'] != null &&
         sheet['rows'] is List &&
@@ -56,12 +72,13 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final headers = List<String>.from(sheet['headers']);
       final destinoIdxs = <int>[];
       for (int i = 0; i < headers.length; i++) {
-        if (normalizeLabel(headers[i]).contains('destino')) {
+        final h = normalizeLabel(headers[i]);
+        if (h == 'no. alm.' || h == 'no. alm' || h.contains('no. alm.')) {
           destinoIdxs.add(i);
         }
       }
       if (destinoIdxs.isNotEmpty) {
-        // Obtener destinos únicos de todas las filas
+        // Obtener valores únicos de No. Alm. de todas las filas
         final destinosSet = <String>{};
         for (final row in (sheet['rows'] as List)) {
           if (row is Map) {
@@ -71,7 +88,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
               if (valor == null || valor.trim().isEmpty) {
                 for (final entry in row.entries) {
                   if (normalizeLabel(entry.key) == normalizeLabel(headerName) ||
-                      normalizeLabel(entry.key).contains('destino')) {
+                      normalizeLabel(entry.key).contains('no. alm')) {
                     valor = entry.value?.toString();
                     break;
                   }
@@ -92,9 +109,23 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             }
           }
         }
-        // Unir todos los destinos con ", "
+        // Unir todos los No. Alm. con ", "
         if (destinosSet.isNotEmpty) {
           destino = destinosSet.join(', ');
+        }
+      }
+    }
+
+    // Fallbacks heredados para documentos antiguos
+    if (destino.trim().isEmpty) {
+      destino = getFieldIgnoreCase(sheet, 'destino');
+    }
+
+    if (destino.trim().isEmpty) {
+      for (final entry in sheet.entries) {
+        if (normalizeLabel(entry.key).contains('destino')) {
+          destino = entry.value?.toString() ?? '';
+          if (destino.trim().isNotEmpty) break;
         }
       }
     }
@@ -540,12 +571,44 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
 
       // Crear lista de headers visibles y sus índices originales (sin Docto)
       final visibleHeaderIndexes = <int>[];
-      final headers = <String>[];
+      final sourceHeaders = <String>[];
       for (int i = 0; i < allHeaders.length; i++) {
         final h = allHeaders[i];
         if (normalizeLabel(h).contains('docto')) continue;
         visibleHeaderIndexes.add(i);
-        headers.add(h.toString());
+        sourceHeaders.add(h.toString());
+      }
+
+      // Etiquetas canónicas para impresión (igual que Hoja de Ruta nueva)
+      const canonicalHeaders = <String>[
+        'No. Manifiesto o Remisión',
+        'No. Documento',
+        'No. Pedido',
+        'No. Bultos',
+        'No. Alm.',
+        'Nombre Alm. destino',
+        'No. Contenedor (HU)',
+        'No. Proveedor',
+        'Nombre de Proveedor',
+        'SELLOS',
+      ];
+
+      bool looksTruncatedHeader(String h) {
+        final n = normalizeLabel(h);
+        return n == 'no.' || n == 'no' || n == 'nombre de' || n.isEmpty;
+      }
+
+      final hasManyTruncated =
+          sourceHeaders.where(looksTruncatedHeader).length >= 3;
+
+      final headers = <String>[];
+      for (int i = 0; i < sourceHeaders.length; i++) {
+        if (hasManyTruncated &&
+            sourceHeaders.length == canonicalHeaders.length) {
+          headers.add(canonicalHeaders[i]);
+        } else {
+          headers.add(sourceHeaders[i]);
+        }
       }
 
       // Procesar filas respetando el orden de headers
@@ -574,17 +637,33 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final tipo = sheet['tipo'] ?? '';
       final numeroControl = sheet['numeroControl'] ?? '';
 
-      // Ajustar ancho de columnas: 'No. Manifiesto o Remisión' angosta, 'SELLOS' ancha
+      // Ajustar ancho de columnas
       List<double> colWidths = List.filled(headers.length, 0);
       const double fontSize = 10.0;
       for (int i = 0; i < headers.length; i++) {
         final h = headers[i];
         if (h == 'No. Manifiesto o Remisión') {
-          colWidths[i] = 60; // más angosta
+          colWidths[i] = 90;
+          continue;
+        }
+        if (h == 'No. Documento' ||
+            h == 'No. Pedido' ||
+            h == 'No. Bultos' ||
+            h == 'No. Alm.' ||
+            h == 'No. Proveedor') {
+          colWidths[i] = 70;
+          continue;
+        }
+        if (h == 'Nombre Alm. destino' || h == 'Nombre de Proveedor') {
+          colWidths[i] = 130;
+          continue;
+        }
+        if (h == 'No. Contenedor (HU)') {
+          colWidths[i] = 110;
           continue;
         }
         if (h == 'SELLOS') {
-          colWidths[i] = 160; // más ancha
+          colWidths[i] = 140;
           continue;
         }
         int maxLen = h.length;
@@ -594,7 +673,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             if (l > maxLen) maxLen = l;
           }
         }
-        colWidths[i] = (maxLen * 7.5).clamp(40, 120);
+        colWidths[i] = (maxLen * 7.5).clamp(55, 140);
       }
       final pdf = pw.Document();
       pdf.addPage(
@@ -628,8 +707,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
             pw.SizedBox(height: 16),
             if (headers.isNotEmpty)
               pw.Container(
-                width: headers.fold<double>(
-                        0, (a, b) => a + colWidths[headers.indexOf(b)]) +
+                width: colWidths.fold<double>(0, (a, b) => a + b) +
                     headers.length * 4,
                 alignment: pw.Alignment.centerLeft,
                 padding:
@@ -659,7 +737,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                               style: pw.TextStyle(
                                   fontWeight: pw.FontWeight.bold,
                                   fontSize: fontSize),
-                              maxLines: 1,
                             ),
                           ),
                       ],
