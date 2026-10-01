@@ -31,7 +31,7 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
     final origen = getFieldIgnoreCase(sheet, 'origen');
     String destino = getFieldIgnoreCase(sheet, 'destino');
 
-    // Si no está en campos top-level, buscar en headers/rows (primer registro)
+    // Si no está en campos top-level, buscar en headers/rows (todos los registros)
     if (destino.isEmpty &&
         sheet['headers'] != null &&
         sheet['rows'] is List &&
@@ -40,11 +40,22 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       final idx =
           headers.indexWhere((h) => h.toString().toLowerCase() == 'destino');
       if (idx != -1) {
-        final firstRow = (sheet['rows'] as List).first;
-        if (firstRow is Map) {
-          destino = firstRow[headers[idx]]?.toString() ?? '';
-        } else if (firstRow is List && idx < firstRow.length) {
-          destino = firstRow[idx]?.toString() ?? '';
+        // Obtener destinos únicos de todas las filas
+        final destinosSet = <String>{};
+        for (final row in (sheet['rows'] as List)) {
+          String? valor;
+          if (row is Map) {
+            valor = row[headers[idx]]?.toString();
+          } else if (row is List && idx < row.length) {
+            valor = row[idx]?.toString();
+          }
+          if (valor != null && valor.isNotEmpty) {
+            destinosSet.add(valor);
+          }
+        }
+        // Unir todos los destinos con ", "
+        if (destinosSet.isNotEmpty) {
+          destino = destinosSet.join(', ');
         }
       }
     }
@@ -461,22 +472,33 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       BuildContext context, Map<String, dynamic> sheet) async {
     try {
       // Usar headers y orden exactamente como se guardaron
-      final headers =
+      final allHeaders =
           sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
-      final doctoIdx = headers.indexOf('Docto');
+      final doctoIdx = allHeaders.indexOf('Docto');
+
+      // Crear lista de headers sin Docto
+      final headers = List<String>.from(allHeaders);
       if (doctoIdx != -1) headers.removeAt(doctoIdx);
+
+      // Procesar filas respetando el orden de headers
       final data = (sheet['rows'] as List?)?.map((row) {
-            List<String> ordered;
-            if (row is Map && headers.isNotEmpty) {
-              ordered = headers.map((h) => row[h]?.toString() ?? '').toList();
+            List<String> ordered = [];
+            if (row is Map) {
+              // Mapear cada header (excluyendo Docto) a su valor en la fila
+              for (int i = 0; i < allHeaders.length; i++) {
+                if (i != doctoIdx) {
+                  final h = allHeaders[i];
+                  ordered.add(row[h]?.toString() ?? '');
+                }
+              }
             } else if (row is List) {
+              // Si es lista, remover el índice Docto
               ordered = List<String>.from(row.map((e) => e.toString()));
+              if (doctoIdx != -1 && ordered.length > doctoIdx) {
+                ordered.removeAt(doctoIdx);
+              }
             } else {
               ordered = [row.toString()];
-            }
-            // Remover columna Docto si existe
-            if (doctoIdx != -1 && ordered.length > doctoIdx) {
-              ordered.removeAt(doctoIdx);
             }
             return ordered;
           }).toList() ??
