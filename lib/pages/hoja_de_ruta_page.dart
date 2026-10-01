@@ -1235,6 +1235,16 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
                                       'caja': _cajaController.text.trim(),
                                       'headers': _columns,
                                       'rows': rowsAsMap,
+                                      'foraneo': foraneo,
+                                      'esForaneo': foraneo,
+                                      'destinoCaratula': foraneo
+                                          ? '880'
+                                          : (rowsAsMap.isNotEmpty
+                                              ? (rowsAsMap.first['No. Alm.'] ??
+                                                      '')
+                                                  .toString()
+                                                  .trim()
+                                              : ''),
                                       'createdAt':
                                           DateTime.now().toIso8601String(),
                                       'usuario': usuario,

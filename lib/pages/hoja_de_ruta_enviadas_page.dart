@@ -55,64 +55,75 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       destino = '880';
     }
 
-    if (destino.isEmpty) {
-      for (final entry in sheet.entries) {
-        if (normalizeLabel(entry.key).contains('destino')) {
-          destino = entry.value?.toString() ?? '';
-          if (destino.trim().isNotEmpty) break;
-        }
+    String canonicalKey(String label) {
+      final n = normalizeLabel(label)
+          .replaceAll('.', '')
+          .replaceAll('(', '')
+          .replaceAll(')', '');
+      if (n.contains('manifiesto') || n.contains('remision')) {
+        return 'manifiesto';
       }
+      if (n.contains('documento')) return 'documento';
+      if (n.contains('pedido')) return 'pedido';
+      if (n.contains('bulto')) return 'bultos';
+      if (n.contains('alm') && n.contains('nombre') && n.contains('destino')) {
+        return 'nombre_alm_destino';
+      }
+      if (n.contains('alm')) return 'no_alm';
+      if (n.contains('contenedor') || n.contains('hu')) return 'contenedor';
+      if (n.contains('proveedor') && n.contains('nombre')) {
+        return 'nombre_proveedor';
+      }
+      if (n.contains('proveedor')) return 'no_proveedor';
+      if (n.contains('sello')) return 'sellos';
+      return n;
     }
 
-    // Si no es foráneo, destino debe venir de la columna "No. Alm."
-    if (destino.isEmpty &&
-        sheet['headers'] != null &&
-        sheet['rows'] is List &&
-        (sheet['rows'] as List).isNotEmpty) {
-      final headers = List<String>.from(sheet['headers']);
-      final destinoIdxs = <int>[];
+    // Para no foráneo, destino debe venir de No. Alm.
+    if (destino.isEmpty) {
+      final fromSaved = getFieldIgnoreCase(sheet, 'destinoCaratula').trim();
+      if (fromSaved.isNotEmpty) destino = fromSaved;
+    }
+
+    if (destino.isEmpty && sheet['rows'] is List) {
+      final rows = sheet['rows'] as List;
+      final headers = sheet['headers'] is List
+          ? List<String>.from(sheet['headers'])
+          : <String>[];
+
+      final noAlmSourceIndexes = <int>[];
       for (int i = 0; i < headers.length; i++) {
-        final h = normalizeLabel(headers[i]);
-        if (h == 'no. alm.' || h == 'no. alm' || h.contains('no. alm.')) {
-          destinoIdxs.add(i);
+        if (canonicalKey(headers[i]) == 'no_alm') {
+          noAlmSourceIndexes.add(i);
         }
       }
-      if (destinoIdxs.isNotEmpty) {
-        // Obtener valores únicos de No. Alm. de todas las filas
-        final destinosSet = <String>{};
-        for (final row in (sheet['rows'] as List)) {
-          if (row is Map) {
-            for (final idx in destinoIdxs) {
-              final headerName = headers[idx];
-              String? valor = row[headerName]?.toString();
-              if (valor == null || valor.trim().isEmpty) {
-                for (final entry in row.entries) {
-                  if (normalizeLabel(entry.key) == normalizeLabel(headerName) ||
-                      normalizeLabel(entry.key).contains('no. alm')) {
-                    valor = entry.value?.toString();
-                    break;
-                  }
-                }
-              }
-              if (valor != null && valor.trim().isNotEmpty) {
-                destinosSet.add(valor.trim());
-              }
+      if (noAlmSourceIndexes.isEmpty) {
+        if (headers.length > 5) noAlmSourceIndexes.add(5); // con Docto
+        if (headers.length > 4) noAlmSourceIndexes.add(4); // sin Docto
+      }
+
+      final values = <String>{};
+      for (final row in rows) {
+        if (row is Map) {
+          String picked = '';
+          for (final entry in row.entries) {
+            if (canonicalKey(entry.key.toString()) == 'no_alm') {
+              picked = entry.value?.toString() ?? '';
+              if (picked.trim().isNotEmpty) break;
             }
-          } else if (row is List) {
-            for (final idx in destinoIdxs) {
-              if (idx < row.length) {
-                final valor = row[idx]?.toString() ?? '';
-                if (valor.trim().isNotEmpty) {
-                  destinosSet.add(valor.trim());
-                }
-              }
+          }
+          if (picked.trim().isNotEmpty) values.add(picked.trim());
+        } else if (row is List) {
+          for (final idx in noAlmSourceIndexes) {
+            if (idx >= 0 && idx < row.length) {
+              final v = row[idx]?.toString() ?? '';
+              if (v.trim().isNotEmpty) values.add(v.trim());
             }
           }
         }
-        // Unir todos los No. Alm. con ", "
-        if (destinosSet.isNotEmpty) {
-          destino = destinosSet.join(', ');
-        }
+      }
+      if (values.isNotEmpty) {
+        destino = values.join(', ');
       }
     }
 
@@ -552,34 +563,34 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
           .replaceAll(RegExp(r'\s+'), ' ')
           .trim();
 
-      String getMapValueByHeader(Map row, String header) {
-        if (row.containsKey(header)) {
-          return row[header]?.toString() ?? '';
+      String canonicalKey(String label) {
+        final n = normalizeLabel(label)
+            .replaceAll('.', '')
+            .replaceAll('(', '')
+            .replaceAll(')', '');
+        if (n.contains('manifiesto') || n.contains('remision')) {
+          return 'manifiesto';
         }
-        final wanted = normalizeLabel(header);
-        for (final entry in row.entries) {
-          if (normalizeLabel(entry.key) == wanted) {
-            return entry.value?.toString() ?? '';
-          }
+        if (n.contains('documento')) return 'documento';
+        if (n.contains('pedido')) return 'pedido';
+        if (n.contains('bulto')) return 'bultos';
+        if (n.contains('alm') &&
+            n.contains('nombre') &&
+            n.contains('destino')) {
+          return 'nombre_alm_destino';
         }
-        return '';
+        if (n.contains('alm')) return 'no_alm';
+        if (n.contains('contenedor') || n.contains('hu')) return 'contenedor';
+        if (n.contains('proveedor') && n.contains('nombre')) {
+          return 'nombre_proveedor';
+        }
+        if (n.contains('proveedor')) return 'no_proveedor';
+        if (n.contains('sello')) return 'sellos';
+        if (n.contains('docto')) return 'docto';
+        return n;
       }
 
-      // Usar headers y orden exactamente como se guardaron
-      final allHeaders =
-          sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
-
-      // Crear lista de headers visibles y sus índices originales (sin Docto)
-      final visibleHeaderIndexes = <int>[];
-      final sourceHeaders = <String>[];
-      for (int i = 0; i < allHeaders.length; i++) {
-        final h = allHeaders[i];
-        if (normalizeLabel(h).contains('docto')) continue;
-        visibleHeaderIndexes.add(i);
-        sourceHeaders.add(h.toString());
-      }
-
-      // Etiquetas canónicas para impresión (igual que Hoja de Ruta nueva)
+      // Encabezados canónicos (igual que Hoja de Ruta nueva)
       const canonicalHeaders = <String>[
         'No. Manifiesto o Remisión',
         'No. Documento',
@@ -593,44 +604,71 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
         'SELLOS',
       ];
 
-      bool looksTruncatedHeader(String h) {
-        final n = normalizeLabel(h);
-        return n == 'no.' || n == 'no' || n == 'nombre de' || n.isEmpty;
+      final headers = List<String>.from(canonicalHeaders);
+
+      final allHeaders =
+          sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
+      final visibleSourceHeaders = <String>[];
+      for (int i = 0; i < allHeaders.length; i++) {
+        if (canonicalKey(allHeaders[i]) == 'docto') continue;
+        visibleSourceHeaders.add(allHeaders[i].toString());
       }
 
-      final hasManyTruncated =
-          sourceHeaders.where(looksTruncatedHeader).length >= 3;
+      final sourceIndexByCanonical = <String, int>{};
+      for (int i = 0; i < allHeaders.length; i++) {
+        final key = canonicalKey(allHeaders[i]);
+        if (key == 'docto') continue;
+        sourceIndexByCanonical[key] = i;
+      }
 
-      final headers = <String>[];
-      for (int i = 0; i < sourceHeaders.length; i++) {
-        if (hasManyTruncated &&
-            sourceHeaders.length == canonicalHeaders.length) {
-          headers.add(canonicalHeaders[i]);
-        } else {
-          headers.add(sourceHeaders[i]);
+      String getMapValueByCanonical(Map row, String canonicalHeader) {
+        final wanted = canonicalKey(canonicalHeader);
+        for (final entry in row.entries) {
+          if (canonicalKey(entry.key.toString()) == wanted) {
+            return entry.value?.toString() ?? '';
+          }
         }
+        if (row.containsKey(canonicalHeader)) {
+          return row[canonicalHeader]?.toString() ?? '';
+        }
+        return '';
       }
 
-      // Procesar filas respetando el orden de headers
       final data = (sheet['rows'] as List?)?.map((row) {
-            List<String> ordered = [];
+            final ordered = <String>[];
             if (row is Map) {
-              // Mapear cada header visible a su valor en la fila
-              for (final idx in visibleHeaderIndexes) {
-                final h = allHeaders[idx];
-                ordered.add(getMapValueByHeader(row, h));
+              for (final h in canonicalHeaders) {
+                ordered.add(getMapValueByCanonical(row, h));
               }
             } else if (row is List) {
-              // Si es lista, respetar índices originales de headers visibles
-              for (final idx in visibleHeaderIndexes) {
-                ordered.add(idx < row.length ? row[idx]?.toString() ?? '' : '');
+              for (int j = 0; j < canonicalHeaders.length; j++) {
+                final key = canonicalKey(canonicalHeaders[j]);
+                int? srcIdx = sourceIndexByCanonical[key];
+                srcIdx ??= allHeaders.length == canonicalHeaders.length + 1
+                    ? j + 1
+                    : j;
+                if (srcIdx >= 0 && srcIdx < row.length) {
+                  ordered.add(row[srcIdx]?.toString() ?? '');
+                } else {
+                  ordered.add('');
+                }
               }
             } else {
-              ordered = [row.toString()];
+              for (int j = 0; j < canonicalHeaders.length; j++) {
+                ordered.add(j == 0 ? row.toString() : '');
+              }
             }
             return ordered;
           }).toList() ??
-          [];
+          <List<String>>[];
+
+      if (kDebugMode) {
+        debugPrint('PRINT ENVIADAS - headers fuente: $allHeaders');
+        debugPrint('PRINT ENVIADAS - headers canonicos: $headers');
+        if (data.isNotEmpty) {
+          debugPrint('PRINT ENVIADAS - primera fila: ${data.first}');
+        }
+      }
       final origen = sheet['origen'] ?? '';
       final fecha = sheet['fecha'] ?? '';
       final caja = sheet['caja'] ?? '';
