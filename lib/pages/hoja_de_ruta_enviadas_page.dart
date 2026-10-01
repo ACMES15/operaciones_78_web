@@ -18,10 +18,18 @@ class HojaDeRutaEnviadasPage extends StatefulWidget {
 class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printCaratulaFromSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
+    String normalizeLabel(dynamic value) => value
+        .toString()
+        .toLowerCase()
+        .replaceAll('\n', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
     // Obtener campos de forma robusta (ignore case y fallback a headers/rows)
     String getFieldIgnoreCase(Map<String, dynamic> m, String name) {
+      final wanted = normalizeLabel(name);
       for (final k in m.keys) {
-        if (k.toString().toLowerCase() == name.toLowerCase()) {
+        if (normalizeLabel(k) == wanted) {
           return m[k]?.toString() ?? '';
         }
       }
@@ -31,26 +39,57 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
     final origen = getFieldIgnoreCase(sheet, 'origen');
     String destino = getFieldIgnoreCase(sheet, 'destino');
 
+    if (destino.isEmpty) {
+      for (final entry in sheet.entries) {
+        if (normalizeLabel(entry.key).contains('destino')) {
+          destino = entry.value?.toString() ?? '';
+          if (destino.trim().isNotEmpty) break;
+        }
+      }
+    }
+
     // Si no está en campos top-level, buscar en headers/rows (todos los registros)
     if (destino.isEmpty &&
         sheet['headers'] != null &&
         sheet['rows'] is List &&
         (sheet['rows'] as List).isNotEmpty) {
       final headers = List<String>.from(sheet['headers']);
-      final idx =
-          headers.indexWhere((h) => h.toString().toLowerCase() == 'destino');
-      if (idx != -1) {
+      final destinoIdxs = <int>[];
+      for (int i = 0; i < headers.length; i++) {
+        if (normalizeLabel(headers[i]).contains('destino')) {
+          destinoIdxs.add(i);
+        }
+      }
+      if (destinoIdxs.isNotEmpty) {
         // Obtener destinos únicos de todas las filas
         final destinosSet = <String>{};
         for (final row in (sheet['rows'] as List)) {
-          String? valor;
           if (row is Map) {
-            valor = row[headers[idx]]?.toString();
-          } else if (row is List && idx < row.length) {
-            valor = row[idx]?.toString();
-          }
-          if (valor != null && valor.isNotEmpty) {
-            destinosSet.add(valor);
+            for (final idx in destinoIdxs) {
+              final headerName = headers[idx];
+              String? valor = row[headerName]?.toString();
+              if (valor == null || valor.trim().isEmpty) {
+                for (final entry in row.entries) {
+                  if (normalizeLabel(entry.key) == normalizeLabel(headerName) ||
+                      normalizeLabel(entry.key).contains('destino')) {
+                    valor = entry.value?.toString();
+                    break;
+                  }
+                }
+              }
+              if (valor != null && valor.trim().isNotEmpty) {
+                destinosSet.add(valor.trim());
+              }
+            }
+          } else if (row is List) {
+            for (final idx in destinoIdxs) {
+              if (idx < row.length) {
+                final valor = row[idx]?.toString() ?? '';
+                if (valor.trim().isNotEmpty) {
+                  destinosSet.add(valor.trim());
+                }
+              }
+            }
           }
         }
         // Unir todos los destinos con ", "
@@ -58,6 +97,10 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
           destino = destinosSet.join(', ');
         }
       }
+    }
+
+    if (destino.trim().isEmpty) {
+      destino = 'Sin destino';
     }
 
     final tipo = getFieldIgnoreCase(sheet, 'tipo');
@@ -471,31 +514,53 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   Future<void> _printSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     try {
+      String normalizeLabel(dynamic value) => value
+          .toString()
+          .toLowerCase()
+          .replaceAll('\n', ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+
+      String getMapValueByHeader(Map row, String header) {
+        if (row.containsKey(header)) {
+          return row[header]?.toString() ?? '';
+        }
+        final wanted = normalizeLabel(header);
+        for (final entry in row.entries) {
+          if (normalizeLabel(entry.key) == wanted) {
+            return entry.value?.toString() ?? '';
+          }
+        }
+        return '';
+      }
+
       // Usar headers y orden exactamente como se guardaron
       final allHeaders =
           sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
-      final doctoIdx = allHeaders.indexOf('Docto');
 
-      // Crear lista de headers sin Docto
-      final headers = List<String>.from(allHeaders);
-      if (doctoIdx != -1) headers.removeAt(doctoIdx);
+      // Crear lista de headers visibles y sus índices originales (sin Docto)
+      final visibleHeaderIndexes = <int>[];
+      final headers = <String>[];
+      for (int i = 0; i < allHeaders.length; i++) {
+        final h = allHeaders[i];
+        if (normalizeLabel(h).contains('docto')) continue;
+        visibleHeaderIndexes.add(i);
+        headers.add(h.toString());
+      }
 
       // Procesar filas respetando el orden de headers
       final data = (sheet['rows'] as List?)?.map((row) {
             List<String> ordered = [];
             if (row is Map) {
-              // Mapear cada header (excluyendo Docto) a su valor en la fila
-              for (int i = 0; i < allHeaders.length; i++) {
-                if (i != doctoIdx) {
-                  final h = allHeaders[i];
-                  ordered.add(row[h]?.toString() ?? '');
-                }
+              // Mapear cada header visible a su valor en la fila
+              for (final idx in visibleHeaderIndexes) {
+                final h = allHeaders[idx];
+                ordered.add(getMapValueByHeader(row, h));
               }
             } else if (row is List) {
-              // Si es lista, remover el índice Docto
-              ordered = List<String>.from(row.map((e) => e.toString()));
-              if (doctoIdx != -1 && ordered.length > doctoIdx) {
-                ordered.removeAt(doctoIdx);
+              // Si es lista, respetar índices originales de headers visibles
+              for (final idx in visibleHeaderIndexes) {
+                ordered.add(idx < row.length ? row[idx]?.toString() ?? '' : '');
               }
             } else {
               ordered = [row.toString()];
