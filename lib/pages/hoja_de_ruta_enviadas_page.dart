@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'hoja_de_ruta_extra_page.dart';
 import '../utils/firebase_cache_utils.dart';
@@ -7,6 +8,141 @@ import 'package:printing/printing.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<Uint8List> generatePdfBytesEnviadas(Map<String, dynamic> params) async {
+  // Eliminar columna 'Docto' solo para impresión PDF
+  final headers = List<String>.from(params['headers'] as List);
+  final doctoIdx = headers.indexOf('Docto');
+  if (doctoIdx != -1) headers.removeAt(doctoIdx);
+  final data = List<List<String>>.from(params['data'] as List)
+      .map((row) => doctoIdx != -1 && row.length > doctoIdx
+          ? (List<String>.from(row)..removeAt(doctoIdx))
+          : row)
+      .toList();
+  final origen = params['origen'] as String? ?? '';
+  final fecha = params['fecha'] as String? ?? '';
+  final caja = params['caja'] as String? ?? '';
+  final tipo = params['tipo'] as String? ?? '';
+  final numeroControl = params['numeroControl'] as String? ?? '';
+
+  final pdf = pw.Document();
+
+  // Ajustar ancho de columnas: 'No. Manifiesto o Remisión' angosta, 'SELLOS' ancha
+  List<double> colWidths = List.filled(headers.length, 0);
+  const double fontSize = 10.0;
+  for (int i = 0; i < headers.length; i++) {
+    final h = headers[i];
+    if (h == 'No. Manifiesto o Remisión') {
+      colWidths[i] = 60; // más angosta
+      continue;
+    }
+    if (h == 'SELLOS') {
+      colWidths[i] = 160; // más ancha
+      continue;
+    }
+    int maxLen = h.length;
+    for (final row in data) {
+      if (i < row.length) {
+        final l = row[i].toString().length;
+        if (l > maxLen) maxLen = l;
+      }
+    }
+    colWidths[i] = (maxLen * 7.5).clamp(40, 120);
+  }
+
+  pdf.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.letter.landscape,
+      margin: pw.EdgeInsets.all(24),
+      build: (context) => [
+        pw.Center(
+          child: pw.Text('Hoja de Ruta',
+              style: pw.TextStyle(
+                  fontSize: 22,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.green800)),
+        ),
+        pw.SizedBox(height: 8),
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            pw.Text('Origen: $origen',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('N° Caja: $caja',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('Fecha: $fecha',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('Tipo: $tipo',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('N° de control: $numeroControl',
+                style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+        pw.SizedBox(height: 16),
+        if (headers.isNotEmpty)
+          pw.Container(
+            width: headers.fold<double>(
+                    0, (a, b) => a + colWidths[headers.indexOf(b)]) +
+                headers.length * 4,
+            alignment: pw.Alignment.centerLeft,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            child: pw.Table(
+              border: pw.TableBorder.symmetric(
+                inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                outside: pw.BorderSide.none,
+              ),
+              defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
+              columnWidths: {
+                for (int i = 0; i < headers.length; i++)
+                  i: pw.FixedColumnWidth(colWidths[i]),
+              },
+              children: [
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(
+                      color: PdfColor.fromInt(0xFFE8F5E9)),
+                  children: [
+                    for (int i = 0; i < headers.length; i++)
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.symmetric(
+                            horizontal: 2, vertical: 1),
+                        child: pw.Text(
+                          headers[i].replaceAll('\n', ' '),
+                          style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              fontSize: fontSize),
+                          maxLines: 1,
+                        ),
+                      ),
+                  ],
+                ),
+                ...data.map((fila) => pw.TableRow(
+                      children: [
+                        for (int i = 0; i < headers.length; i++)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 2, vertical: 1),
+                            child: pw.Text(
+                              (i < fila.length ? fila[i] : '')
+                                  .replaceAll('\n', ' '),
+                              style: pw.TextStyle(fontSize: fontSize),
+                              maxLines: 1,
+                            ),
+                          ),
+                      ],
+                    )),
+              ],
+            ),
+          ),
+      ],
+    ),
+  );
+
+  return pdf.save();
+}
 
 class HojaDeRutaEnviadasPage extends StatefulWidget {
   const HojaDeRutaEnviadasPage({super.key});
@@ -25,7 +161,6 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
 
-    // Obtener campos de forma robusta (ignore case y fallback a headers/rows)
     String getFieldIgnoreCase(Map<String, dynamic> m, String name) {
       final wanted = normalizeLabel(name);
       for (final k in m.keys) {
@@ -36,119 +171,87 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
       return '';
     }
 
-    final origen = getFieldIgnoreCase(sheet, 'origen');
-    String destino = '';
-
     bool parseBool(dynamic value) {
       if (value is bool) return value;
       final v = (value ?? '').toString().trim().toLowerCase();
       return v == 'true' || v == '1' || v == 'si' || v == 'sí' || v == 'on';
     }
 
-    final tipoLower = getFieldIgnoreCase(sheet, 'tipo').toLowerCase();
+    final origen = getFieldIgnoreCase(sheet, 'origen');
+    final tipoHoja = getFieldIgnoreCase(sheet, 'tipo');
+    final numeroControl = sheet['numeroControl']?.toString() ?? '';
+    final fechaEnvio = getFieldIgnoreCase(sheet, 'fecha');
+    final caja = getFieldIgnoreCase(sheet, 'caja');
+
     final esForaneo = parseBool(sheet['foraneo']) ||
         parseBool(sheet['esForaneo']) ||
-        tipoLower.contains('foraneo') ||
-        tipoLower.contains('foráneo');
+        tipoHoja.toLowerCase().contains('foraneo') ||
+        tipoHoja.toLowerCase().contains('foráneo');
 
+    String destino = '';
     if (esForaneo) {
-      destino = '880';
-    }
-
-    String canonicalKey(String label) {
-      final n = normalizeLabel(label)
-          .replaceAll('.', '')
-          .replaceAll('(', '')
-          .replaceAll(')', '');
-      if (n.contains('manifiesto') || n.contains('remision')) {
-        return 'manifiesto';
-      }
-      if (n.contains('documento')) return 'documento';
-      if (n.contains('pedido')) return 'pedido';
-      if (n.contains('bulto')) return 'bultos';
-      if (n.contains('alm') && n.contains('nombre') && n.contains('destino')) {
-        return 'nombre_alm_destino';
-      }
-      if (n.contains('alm')) return 'no_alm';
-      if (n.contains('contenedor') || n.contains('hu')) return 'contenedor';
-      if (n.contains('proveedor') && n.contains('nombre')) {
-        return 'nombre_proveedor';
-      }
-      if (n.contains('proveedor')) return 'no_proveedor';
-      if (n.contains('sello')) return 'sellos';
-      return n;
-    }
-
-    // Para no foráneo, destino debe venir de No. Alm.
-    if (destino.isEmpty) {
+      destino = '880 PLAN';
+    } else {
+      // Igual que hoja nueva: destino viene de "Nombre Alm. destino"
       final fromSaved = getFieldIgnoreCase(sheet, 'destinoCaratula').trim();
-      if (fromSaved.isNotEmpty) destino = fromSaved;
-    }
-
-    if (destino.isEmpty && sheet['rows'] is List) {
-      final rows = sheet['rows'] as List;
-      final headers = sheet['headers'] is List
-          ? List<String>.from(sheet['headers'])
-          : <String>[];
-
-      final noAlmSourceIndexes = <int>[];
-      for (int i = 0; i < headers.length; i++) {
-        if (canonicalKey(headers[i]) == 'no_alm') {
-          noAlmSourceIndexes.add(i);
+      if (fromSaved.isNotEmpty) {
+        destino = fromSaved;
+      } else if (sheet['rows'] is List) {
+        final rows = sheet['rows'] as List;
+        final headers = sheet['headers'] is List
+            ? List<String>.from(sheet['headers'])
+            : <String>[];
+        int idxNombreDestino = headers.indexWhere((h) {
+          final n = normalizeLabel(h)
+              .replaceAll('.', '')
+              .replaceAll('(', '')
+              .replaceAll(')', '');
+          return n.contains('nombre') &&
+              n.contains('alm') &&
+              n.contains('destino');
+        });
+        if (idxNombreDestino == -1) {
+          idxNombreDestino = headers.indexWhere((h) =>
+              normalizeLabel(h).contains('nombre alm') ||
+              normalizeLabel(h).contains('destino'));
+        }
+        if (rows.isNotEmpty) {
+          final first = rows.first;
+          if (first is Map) {
+            if (idxNombreDestino >= 0 && idxNombreDestino < headers.length) {
+              destino = first[headers[idxNombreDestino]]?.toString() ?? '';
+            }
+            if (destino.trim().isEmpty) {
+              for (final entry in first.entries) {
+                final nk = normalizeLabel(entry.key)
+                    .replaceAll('.', '')
+                    .replaceAll('(', '')
+                    .replaceAll(')', '');
+                if (nk.contains('nombre') &&
+                    nk.contains('alm') &&
+                    nk.contains('destino')) {
+                  destino = entry.value?.toString() ?? '';
+                  break;
+                }
+              }
+            }
+          } else if (first is List &&
+              idxNombreDestino >= 0 &&
+              idxNombreDestino < first.length) {
+            destino = first[idxNombreDestino]?.toString() ?? '';
+          }
         }
       }
-      if (noAlmSourceIndexes.isEmpty) {
-        if (headers.length > 5) noAlmSourceIndexes.add(5); // con Docto
-        if (headers.length > 4) noAlmSourceIndexes.add(4); // sin Docto
-      }
-
-      final values = <String>{};
-      for (final row in rows) {
-        if (row is Map) {
-          String picked = '';
-          for (final entry in row.entries) {
-            if (canonicalKey(entry.key.toString()) == 'no_alm') {
-              picked = entry.value?.toString() ?? '';
-              if (picked.trim().isNotEmpty) break;
-            }
-          }
-          if (picked.trim().isNotEmpty) values.add(picked.trim());
-        } else if (row is List) {
-          for (final idx in noAlmSourceIndexes) {
-            if (idx >= 0 && idx < row.length) {
-              final v = row[idx]?.toString() ?? '';
-              if (v.trim().isNotEmpty) values.add(v.trim());
-            }
-          }
-        }
-      }
-      if (values.isNotEmpty) {
-        destino = values.join(', ');
-      }
     }
 
-    // Fallbacks heredados para documentos antiguos
     if (destino.trim().isEmpty) {
       destino = getFieldIgnoreCase(sheet, 'destino');
     }
-
-    if (destino.trim().isEmpty) {
-      for (final entry in sheet.entries) {
-        if (normalizeLabel(entry.key).contains('destino')) {
-          destino = entry.value?.toString() ?? '';
-          if (destino.trim().isNotEmpty) break;
-        }
-      }
-    }
-
     if (destino.trim().isEmpty) {
       destino = 'Sin destino';
     }
 
-    final tipo = getFieldIgnoreCase(sheet, 'tipo');
-    final numeroControl = sheet['numeroControl'] ?? '';
-    final fechaEnvio = getFieldIgnoreCase(sheet, 'fecha');
-    final caja = getFieldIgnoreCase(sheet, 'caja');
+    final esZonaEspecial = tipoHoja.toLowerCase().contains('zona especial');
 
     final pdf = pw.Document();
     pdf.addPage(
@@ -157,6 +260,17 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              if (esZonaEspecial)
+                pw.Center(
+                  child: pw.Text(
+                    tipoHoja.toUpperCase(),
+                    style: pw.TextStyle(
+                      fontSize: 32,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.red800,
+                    ),
+                  ),
+                ),
               pw.Text('Hoja de Ruta',
                   style: pw.TextStyle(
                       fontSize: 20, fontWeight: pw.FontWeight.bold)),
@@ -164,6 +278,34 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 children: [
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('Tipo de hoja:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child:
+                          pw.Text(tipoHoja, style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
+                  pw.TableRow(children: [
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text('N° de control:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ),
+                    pw.Container(
+                      padding: pw.EdgeInsets.all(8),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(numeroControl,
+                          style: pw.TextStyle(fontSize: 16)),
+                    ),
+                  ]),
                   pw.TableRow(children: [
                     pw.Container(
                       padding: pw.EdgeInsets.all(8),
@@ -209,40 +351,13 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                     pw.Container(
                       padding: pw.EdgeInsets.all(8),
                       alignment: pw.Alignment.center,
-                      child: pw.Text('Tipo:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    ),
-                    pw.Container(
-                      padding: pw.EdgeInsets.all(8),
-                      alignment: pw.Alignment.center,
-                      child: pw.Text(tipo, style: pw.TextStyle(fontSize: 16)),
-                    ),
-                  ]),
-                  pw.TableRow(children: [
-                    pw.Container(
-                      padding: pw.EdgeInsets.all(8),
-                      alignment: pw.Alignment.center,
-                      child: pw.Text('N° Caja:',
+                      child: pw.Text('N° de Caja:',
                           style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     ),
                     pw.Container(
                       padding: pw.EdgeInsets.all(8),
                       alignment: pw.Alignment.center,
                       child: pw.Text(caja, style: pw.TextStyle(fontSize: 16)),
-                    ),
-                  ]),
-                  pw.TableRow(children: [
-                    pw.Container(
-                      padding: pw.EdgeInsets.all(8),
-                      alignment: pw.Alignment.center,
-                      child: pw.Text('N° de control:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    ),
-                    pw.Container(
-                      padding: pw.EdgeInsets.all(8),
-                      alignment: pw.Alignment.center,
-                      child: pw.Text(numeroControl,
-                          style: pw.TextStyle(fontSize: 16)),
                     ),
                   ]),
                 ],
@@ -256,28 +371,30 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
   }
 
   void _showSheetDetail(BuildContext context, Map<String, dynamic> sheet) {
-    // Alinear los datos de cada fila al orden de headers
     List<List<String>> rows = [];
     final List<String> columns =
         sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
+
     if (sheet['rows'] != null && sheet['rows'] is List && columns.isNotEmpty) {
       final rawRows = sheet['rows'] as List;
       for (final row in rawRows) {
         if (row is Map) {
-          // Ordenar los valores según headers
           rows.add(columns.map((h) => row[h]?.toString() ?? '').toList());
         } else if (row is List) {
           rows.add(List<String>.from(row.map((e) => e.toString())));
         }
       }
     }
-    final List<List<TextEditingController>> rowControllers = List.generate(
-        rows.length,
-        (i) => List.generate(
-            rows[i].length, (j) => TextEditingController(text: rows[i][j])));
 
-    void saveEdits(StateSetter setModalState) async {
-      // Actualizar los datos en Firestore
+    final List<List<TextEditingController>> rowControllers = List.generate(
+      rows.length,
+      (i) => List.generate(
+        rows[i].length,
+        (j) => TextEditingController(text: rows[i][j]),
+      ),
+    );
+
+    Future<void> saveEdits() async {
       final newRows = rowControllers
           .map((r) => r.map((c) => c.text.trim()).toList())
           .toList();
@@ -285,265 +402,88 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
           .collection('hoja_ruta')
           .doc(sheet['numeroControl'])
           .update({'rows': newRows});
-      Navigator.of(context).pop();
     }
 
-    void deleteSheet(StateSetter setModalState) async {
+    Future<void> deleteSheet() async {
       await FirebaseFirestore.instance
           .collection('hoja_ruta')
           .doc(sheet['numeroControl'])
           .delete();
-      Navigator.of(context).pop();
     }
 
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(builder: (context, setModalState) {
-          final double maxWidth = MediaQuery.of(context).size.width * 0.95;
-          double colWidth =
-              ((maxWidth - 48) / (columns.isNotEmpty ? columns.length : 1))
-                  .clamp(70, 120);
-          final double minTableWidth = columns.length * colWidth;
-
-          // Build table columns and rows in variables to keep widget tree readable
-          final tableColumns = List.generate(
-            columns.length,
-            (colIdx) => DataColumn(
-              label: Container(
-                alignment: Alignment.center,
-                width: colWidth,
-                decoration: BoxDecoration(
-                  border: colIdx < columns.length - 1
-                      ? const Border(
-                          right: BorderSide(color: Color(0xFFE0E0E0), width: 1))
-                      : null,
-                ),
-                child: Text(columns[colIdx],
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 12)),
-              ),
-            ),
-          );
-
-          final tableRows = List.generate(rowControllers.length, (rowIdx) {
-            final rowCtrls = rowControllers[rowIdx];
-            return DataRow(
-              cells: List.generate(columns.length, (colIdx) {
-                return DataCell(
-                  Container(
-                    alignment: Alignment.center,
-                    width: colWidth,
-                    decoration: BoxDecoration(
-                      border: colIdx < columns.length - 1
-                          ? const Border(
-                              right: BorderSide(
-                                  color: Color(0xFFE0E0E0), width: 1))
-                          : null,
-                    ),
-                    child: HojaDeRutaExtraPage.isAdmin
-                        ? TextField(
-                            controller: rowCtrls[colIdx],
-                            enabled: true,
-                            textAlign: TextAlign.center,
+        return AlertDialog(
+          title: const Text('Detalle de hoja de ruta'),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: columns
+                    .map((c) => DataColumn(
+                        label: Text(c,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold))))
+                    .toList(),
+                rows: List.generate(
+                  rowControllers.length,
+                  (i) => DataRow(
+                    cells: List.generate(
+                      columns.length,
+                      (j) => DataCell(
+                        SizedBox(
+                          width: 130,
+                          child: TextField(
+                            controller: rowControllers[i][j],
                             decoration: const InputDecoration(
-                                border: InputBorder.none,
-                                isDense: true,
-                                contentPadding: EdgeInsets.symmetric(
-                                    vertical: 6, horizontal: 4)),
-                            style: const TextStyle(fontSize: 13),
-                          )
-                        : Text(
-                            rowCtrls[colIdx].text,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 13),
+                              isDense: true,
+                              border: InputBorder.none,
+                            ),
                           ),
+                        ),
+                      ),
+                    ),
                   ),
-                );
-              }),
-            );
-          });
-
-          return Dialog(
-            insetPadding: const EdgeInsets.all(12),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxWidth: maxWidth,
-                  maxHeight: MediaQuery.of(context).size.height * 0.95),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  children: [
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: IconButton(
-                        icon: const Icon(Icons.close),
-                        tooltip: 'Cerrar',
-                        onPressed: () {
-                          FocusScope.of(context).unfocus();
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Card(
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('ORIGEN',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15)),
-                                  const SizedBox(height: 4),
-                                  Text(sheet['origen'] ?? '',
-                                      style: const TextStyle(fontSize: 15)),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    children: [
-                                      const Text('No. de Caja:',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                          width: 80,
-                                          child: Text(sheet['caja'] ?? '',
-                                              style: const TextStyle(
-                                                  fontSize: 15))),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Text('Fecha de Envío:',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      Text(sheet['fecha'] ?? '')
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Text('Núm. de control:',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      const SizedBox(width: 8),
-                                      if ((sheet['numeroControl'] ?? '')
-                                          .toString()
-                                          .isNotEmpty)
-                                        Text(sheet['numeroControl'] ?? '',
-                                            style: const TextStyle(
-                                                fontSize: 15,
-                                                color: Colors.green,
-                                                fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Card(
-                            elevation: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Tipo de hoja:',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15)),
-                                  const SizedBox(height: 8),
-                                  Text(sheet['tipo'] ?? '',
-                                      style: const TextStyle(fontSize: 15)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: Scrollbar(
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: ConstrainedBox(
-                            constraints:
-                                BoxConstraints(minWidth: minTableWidth),
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              child: Card(
-                                elevation: 1,
-                                margin: const EdgeInsets.all(0),
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: DataTable(
-                                    columnSpacing: 16,
-                                    dataRowMinHeight: 28,
-                                    dataRowMaxHeight: 32,
-                                    headingRowHeight: 34,
-                                    columns: tableColumns,
-                                    rows: tableRows,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (HojaDeRutaExtraPage.isAdmin) ...[
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.save),
-                            label: const Text('Guardar cambios'),
-                            onPressed: () => saveEdits(setModalState),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.delete),
-                            label: const Text('Eliminar'),
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red),
-                            onPressed: () => deleteSheet(setModalState),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.print),
-                          label: const Text('Imprimir'),
-                          onPressed: () async {
-                            Navigator.of(context).pop();
-                            await _printSheet(context, sheet);
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cerrar'),
-                        ),
-                      ],
-                    ),
-                  ],
                 ),
               ),
             ),
-          );
-        });
+          ),
+          actions: [
+            if (HojaDeRutaExtraPage.isAdmin)
+              ElevatedButton.icon(
+                icon: const Icon(Icons.save),
+                label: const Text('Guardar'),
+                onPressed: () async {
+                  await saveEdits();
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+            if (HojaDeRutaExtraPage.isAdmin)
+              ElevatedButton.icon(
+                icon: const Icon(Icons.delete),
+                label: const Text('Eliminar'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  await deleteSheet();
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.print),
+              label: const Text('Imprimir'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _printSheet(context, sheet);
+              },
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cerrar'),
+            ),
+          ],
+        );
       },
     );
   }
