@@ -523,6 +523,147 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
     setState(() {}); // Forzar rebuild para que FutureBuilder recargue
   }
 
+  String _norm(dynamic value) => value
+      .toString()
+      .toLowerCase()
+      .replaceAll('\n', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll('.', '')
+      .replaceAll('(', '')
+      .replaceAll(')', '')
+      .trim();
+
+  bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    final v = (value ?? '').toString().trim().toLowerCase();
+    return v == 'true' || v == '1' || v == 'si' || v == 'sí' || v == 'on';
+  }
+
+  Future<void> _migrarRegistrosViejos() async {
+    const fullColumns = <String>[
+      'Docto',
+      'No. Manifiesto o Remisión',
+      'No. Documento',
+      'No. Pedido',
+      'No. Bultos',
+      'No. Alm.',
+      'Nombre Alm. destino',
+      'No. Contenedor (HU)',
+      'No. Proveedor',
+      'Nombre de Proveedor',
+      'SELLOS',
+    ];
+
+    String getMapValue(Map row, String key) {
+      if (row.containsKey(key)) return (row[key] ?? '').toString();
+      final wanted = _norm(key);
+      for (final e in row.entries) {
+        if (_norm(e.key) == wanted) {
+          return (e.value ?? '').toString();
+        }
+      }
+      return '';
+    }
+
+    final query =
+        await FirebaseFirestore.instance.collection('hoja_ruta').get();
+    var batch = FirebaseFirestore.instance.batch();
+    int ops = 0;
+    int updated = 0;
+
+    for (final doc in query.docs) {
+      if (doc.id == 'sentHojaRutas' ||
+          doc.id == 'proveedoresCache' ||
+          doc.id == 'tiendasCache') {
+        continue;
+      }
+
+      final data = doc.data();
+      final rawHeaders = data['headers'] is List
+          ? List<String>.from(data['headers'])
+          : <String>[];
+      final rawRows =
+          data['rows'] is List ? (data['rows'] as List) : <dynamic>[];
+
+      final hasDoctoInHeaders =
+          rawHeaders.any((h) => _norm(h).contains('docto'));
+
+      final normalizedRows = <Map<String, dynamic>>[];
+      for (final row in rawRows) {
+        final mapped = <String, dynamic>{};
+        if (row is Map) {
+          for (final key in fullColumns) {
+            mapped[key] = getMapValue(row, key);
+          }
+        } else if (row is List) {
+          final hasDocto =
+              hasDoctoInHeaders || row.length >= fullColumns.length;
+          for (int i = 0; i < fullColumns.length; i++) {
+            if (!hasDocto && i == 0) {
+              mapped[fullColumns[i]] = '';
+              continue;
+            }
+            final srcIdx = hasDocto ? i : i - 1;
+            mapped[fullColumns[i]] = (srcIdx >= 0 && srcIdx < row.length)
+                ? (row[srcIdx] ?? '').toString()
+                : '';
+          }
+        }
+        if (mapped.isNotEmpty) normalizedRows.add(mapped);
+      }
+
+      final tipo = (data['tipo'] ?? '').toString();
+      final esForaneo = _asBool(data['foraneo']) ||
+          _asBool(data['esForaneo']) ||
+          tipo.toLowerCase().contains('foraneo') ||
+          tipo.toLowerCase().contains('foráneo');
+
+      String destinoCaratula = '';
+      if (esForaneo) {
+        destinoCaratula = '880 PLAN';
+      } else if (normalizedRows.isNotEmpty) {
+        destinoCaratula = (normalizedRows.first['Nombre Alm. destino'] ?? '')
+            .toString()
+            .trim();
+        if (destinoCaratula.isEmpty) {
+          destinoCaratula =
+              (normalizedRows.first['No. Alm.'] ?? '').toString().trim();
+        }
+      }
+
+      final updateData = <String, dynamic>{
+        'headers': fullColumns,
+        'rows': normalizedRows,
+        'foraneo': esForaneo,
+        'esForaneo': esForaneo,
+        'destinoCaratula': destinoCaratula,
+        'migratedAt': DateTime.now().toIso8601String(),
+      };
+
+      batch.set(doc.reference, updateData, SetOptions(merge: true));
+      ops++;
+      updated++;
+
+      if (ops >= 300) {
+        await batch.commit();
+        batch = FirebaseFirestore.instance.batch();
+        ops = 0;
+      }
+    }
+
+    if (ops > 0) {
+      await batch.commit();
+    }
+
+    await _forzarRecarga();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content:
+              Text('Migración completada. Registros actualizados: $updated')),
+    );
+  }
+
   Future<void> _printSheet(
       BuildContext context, Map<String, dynamic> sheet) async {
     try {
@@ -720,6 +861,45 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
                   ],
                 ),
                 actions: [
+                  if (HojaDeRutaExtraPage.isAdmin)
+                    IconButton(
+                      icon:
+                          const Icon(Icons.auto_fix_high, color: Colors.white),
+                      tooltip: 'Migrar registros viejos',
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Migrar registros viejos'),
+                            content: const Text(
+                                'Esto normaliza encabezados/filas para que "Imprimir hoja" e "Imprimir carátula" en Enviadas salgan igual que en Hoja nueva. ¿Continuar?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(ctx).pop(false),
+                                child: const Text('Cancelar'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.of(ctx).pop(true),
+                                child: const Text('Migrar'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (ok != true) return;
+                        if (!mounted) return;
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) =>
+                              const Center(child: CircularProgressIndicator()),
+                        );
+                        try {
+                          await _migrarRegistrosViejos();
+                        } finally {
+                          if (mounted) Navigator.of(context).pop();
+                        }
+                      },
+                    ),
                   IconButton(
                     icon: const Icon(Icons.refresh, color: Colors.white),
                     tooltip: 'Forzar recarga',
