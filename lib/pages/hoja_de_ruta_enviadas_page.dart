@@ -215,6 +215,13 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
               normalizeLabel(h).contains('nombre alm') ||
               normalizeLabel(h).contains('destino'));
         }
+        // Fallback por posición histórica de la columna destino.
+        // Con Docto: 6, sin Docto: 5
+        if (idxNombreDestino == -1 && headers.length > 6) {
+          idxNombreDestino = 6;
+        } else if (idxNombreDestino == -1 && headers.length > 5) {
+          idxNombreDestino = 5;
+        }
         if (rows.isNotEmpty) {
           final first = rows.first;
           if (first is Map) {
@@ -239,6 +246,29 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
               idxNombreDestino >= 0 &&
               idxNombreDestino < first.length) {
             destino = first[idxNombreDestino]?.toString() ?? '';
+          }
+
+          // Último fallback para estructuras antiguas: No. Alm.
+          if (destino.trim().isEmpty) {
+            int idxNoAlm = headers.indexWhere((h) {
+              final n = normalizeLabel(h)
+                  .replaceAll('.', '')
+                  .replaceAll('(', '')
+                  .replaceAll(')', '');
+              return n == 'no alm' || n.contains('no alm');
+            });
+            if (idxNoAlm == -1 && headers.length > 5) {
+              idxNoAlm = 5;
+            } else if (idxNoAlm == -1 && headers.length > 4) {
+              idxNoAlm = 4;
+            }
+            if (idxNoAlm >= 0) {
+              if (first is Map && idxNoAlm < headers.length) {
+                destino = first[headers[idxNoAlm]]?.toString() ?? '';
+              } else if (first is List && idxNoAlm < first.length) {
+                destino = first[idxNoAlm]?.toString() ?? '';
+              }
+            }
           }
         }
       }
@@ -501,37 +531,25 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
           .toLowerCase()
           .replaceAll('\n', ' ')
           .replaceAll(RegExp(r'\s+'), ' ')
+          .replaceAll('.', '')
+          .replaceAll('(', '')
+          .replaceAll(')', '')
           .trim();
 
-      String canonicalKey(String label) {
-        final n = normalizeLabel(label)
-            .replaceAll('.', '')
-            .replaceAll('(', '')
-            .replaceAll(')', '');
-        if (n.contains('manifiesto') || n.contains('remision')) {
-          return 'manifiesto';
-        }
-        if (n.contains('documento')) return 'documento';
-        if (n.contains('pedido')) return 'pedido';
-        if (n.contains('bulto')) return 'bultos';
-        if (n.contains('alm') &&
-            n.contains('nombre') &&
-            n.contains('destino')) {
-          return 'nombre_alm_destino';
-        }
-        if (n.contains('alm')) return 'no_alm';
-        if (n.contains('contenedor') || n.contains('hu')) return 'contenedor';
-        if (n.contains('proveedor') && n.contains('nombre')) {
-          return 'nombre_proveedor';
-        }
-        if (n.contains('proveedor')) return 'no_proveedor';
-        if (n.contains('sello')) return 'sellos';
-        if (n.contains('docto')) return 'docto';
-        return n;
-      }
-
-      // Encabezados canónicos (igual que Hoja de Ruta nueva)
-      const canonicalHeaders = <String>[
+      const fullColumns = <String>[
+        'Docto',
+        'No. Manifiesto o Remisión',
+        'No. Documento',
+        'No. Pedido',
+        'No. Bultos',
+        'No. Alm.',
+        'Nombre Alm. destino',
+        'No. Contenedor (HU)',
+        'No. Proveedor',
+        'Nombre de Proveedor',
+        'SELLOS',
+      ];
+      const headers = <String>[
         'No. Manifiesto o Remisión',
         'No. Documento',
         'No. Pedido',
@@ -544,204 +562,77 @@ class _HojaDeRutaEnviadasPageState extends State<HojaDeRutaEnviadasPage> {
         'SELLOS',
       ];
 
-      final headers = List<String>.from(canonicalHeaders);
-
-      final allHeaders =
+      final rawHeaders =
           sheet['headers'] != null ? List<String>.from(sheet['headers']) : [];
-      final visibleSourceHeaders = <String>[];
-      for (int i = 0; i < allHeaders.length; i++) {
-        if (canonicalKey(allHeaders[i]) == 'docto') continue;
-        visibleSourceHeaders.add(allHeaders[i].toString());
-      }
+      final rawRows = (sheet['rows'] as List?) ?? [];
 
       final sourceIndexByCanonical = <String, int>{};
-      for (int i = 0; i < allHeaders.length; i++) {
-        final key = canonicalKey(allHeaders[i]);
-        if (key == 'docto') continue;
-        sourceIndexByCanonical[key] = i;
+      for (int i = 0; i < rawHeaders.length; i++) {
+        sourceIndexByCanonical[normalizeLabel(rawHeaders[i])] = i;
       }
 
-      String getMapValueByCanonical(Map row, String canonicalHeader) {
-        final wanted = canonicalKey(canonicalHeader);
-        for (final entry in row.entries) {
-          if (canonicalKey(entry.key.toString()) == wanted) {
-            return entry.value?.toString() ?? '';
+      String getFromMapByHeader(Map row, String header) {
+        if (row.containsKey(header)) return (row[header] ?? '').toString();
+        final wanted = normalizeLabel(header);
+        for (final e in row.entries) {
+          if (normalizeLabel(e.key) == wanted) {
+            return (e.value ?? '').toString();
           }
-        }
-        if (row.containsKey(canonicalHeader)) {
-          return row[canonicalHeader]?.toString() ?? '';
         }
         return '';
       }
 
-      final data = (sheet['rows'] as List?)?.map((row) {
-            final ordered = <String>[];
-            if (row is Map) {
-              for (final h in canonicalHeaders) {
-                ordered.add(getMapValueByCanonical(row, h));
-              }
-            } else if (row is List) {
-              for (int j = 0; j < canonicalHeaders.length; j++) {
-                final key = canonicalKey(canonicalHeaders[j]);
-                int? srcIdx = sourceIndexByCanonical[key];
-                srcIdx ??= allHeaders.length == canonicalHeaders.length + 1
-                    ? j + 1
-                    : j;
-                if (srcIdx >= 0 && srcIdx < row.length) {
-                  ordered.add(row[srcIdx]?.toString() ?? '');
-                } else {
-                  ordered.add('');
-                }
-              }
-            } else {
-              for (int j = 0; j < canonicalHeaders.length; j++) {
-                ordered.add(j == 0 ? row.toString() : '');
+      final data = rawRows.map((row) {
+        final ordered = <String>[];
+        if (row is List) {
+          final hasDocto = row.length >= fullColumns.length;
+          for (int i = 1; i < fullColumns.length; i++) {
+            final srcIdx = hasDocto ? i : i - 1;
+            ordered
+                .add(srcIdx < row.length ? (row[srcIdx] ?? '').toString() : '');
+          }
+          return ordered;
+        }
+        if (row is Map) {
+          for (final h in headers) {
+            String value = getFromMapByHeader(row, h);
+            if (value.isEmpty) {
+              final srcIdx = sourceIndexByCanonical[normalizeLabel(h)];
+              if (srcIdx != null && srcIdx < fullColumns.length) {
+                value = getFromMapByHeader(row, fullColumns[srcIdx]);
               }
             }
-            return ordered;
-          }).toList() ??
-          <List<String>>[];
+            ordered.add(value);
+          }
+          return ordered;
+        }
+        ordered.add(row.toString());
+        while (ordered.length < headers.length) {
+          ordered.add('');
+        }
+        return ordered;
+      }).toList();
 
       if (kDebugMode) {
-        debugPrint('PRINT ENVIADAS - headers fuente: $allHeaders');
-        debugPrint('PRINT ENVIADAS - headers canonicos: $headers');
-        if (data.isNotEmpty) {
-          debugPrint('PRINT ENVIADAS - primera fila: ${data.first}');
-        }
+        debugPrint('ENVIADAS print rawHeaders: $rawHeaders');
+        debugPrint('ENVIADAS print headers: $headers');
+        if (data.isNotEmpty) debugPrint('ENVIADAS print row0: ${data.first}');
       }
-      final origen = sheet['origen'] ?? '';
-      final fecha = sheet['fecha'] ?? '';
-      final caja = sheet['caja'] ?? '';
-      final tipo = sheet['tipo'] ?? '';
-      final numeroControl = sheet['numeroControl'] ?? '';
 
-      // Ajustar ancho de columnas
-      List<double> colWidths = List.filled(headers.length, 0);
-      const double fontSize = 10.0;
-      for (int i = 0; i < headers.length; i++) {
-        final h = headers[i];
-        if (h == 'No. Manifiesto o Remisión') {
-          colWidths[i] = 90;
-          continue;
-        }
-        if (h == 'No. Documento' ||
-            h == 'No. Pedido' ||
-            h == 'No. Bultos' ||
-            h == 'No. Alm.' ||
-            h == 'No. Proveedor') {
-          colWidths[i] = 70;
-          continue;
-        }
-        if (h == 'Nombre Alm. destino' || h == 'Nombre de Proveedor') {
-          colWidths[i] = 130;
-          continue;
-        }
-        if (h == 'No. Contenedor (HU)') {
-          colWidths[i] = 110;
-          continue;
-        }
-        if (h == 'SELLOS') {
-          colWidths[i] = 140;
-          continue;
-        }
-        int maxLen = h.length;
-        for (final row in data) {
-          if (i < row.length) {
-            final l = row[i].toString().length;
-            if (l > maxLen) maxLen = l;
-          }
-        }
-        colWidths[i] = (maxLen * 7.5).clamp(55, 140);
-      }
-      final pdf = pw.Document();
-      pdf.addPage(
-        pw.MultiPage(
-          pageFormat: PdfPageFormat.letter.landscape,
-          margin: pw.EdgeInsets.all(24),
-          build: (context) => [
-            pw.Text('Hoja de Ruta',
-                style:
-                    pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 8),
-            pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.center,
-              children: [
-                pw.Text('Origen: $origen',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 4),
-                pw.Text('N° Caja: $caja',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 4),
-                pw.Text('Fecha: $fecha',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 4),
-                pw.Text('Tipo: $tipo',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 4),
-                pw.Text('N° de control: $numeroControl',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-            pw.SizedBox(height: 16),
-            if (headers.isNotEmpty)
-              pw.Container(
-                width: colWidths.fold<double>(0, (a, b) => a + b) +
-                    headers.length * 4,
-                alignment: pw.Alignment.centerLeft,
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-                child: pw.Table(
-                  border: pw.TableBorder.symmetric(
-                    inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
-                    outside: pw.BorderSide.none,
-                  ),
-                  defaultVerticalAlignment:
-                      pw.TableCellVerticalAlignment.middle,
-                  columnWidths: {
-                    for (int i = 0; i < headers.length; i++)
-                      i: pw.FixedColumnWidth(colWidths[i]),
-                  },
-                  children: [
-                    pw.TableRow(
-                      decoration:
-                          const pw.BoxDecoration(color: PdfColors.grey300),
-                      children: [
-                        for (int i = 0; i < headers.length; i++)
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(
-                                horizontal: 2, vertical: 1),
-                            child: pw.Text(
-                              headers[i].replaceAll('\n', ' '),
-                              style: pw.TextStyle(
-                                  fontWeight: pw.FontWeight.bold,
-                                  fontSize: fontSize),
-                            ),
-                          ),
-                      ],
-                    ),
-                    ...data.map((fila) => pw.TableRow(
-                          children: [
-                            for (int i = 0; i < headers.length; i++)
-                              pw.Padding(
-                                padding: const pw.EdgeInsets.symmetric(
-                                    horizontal: 2, vertical: 1),
-                                child: pw.Text(
-                                  (i < fila.length ? fila[i] : '')
-                                      .replaceAll('\n', ' '),
-                                  style: pw.TextStyle(fontSize: fontSize),
-                                  maxLines: 1,
-                                ),
-                              ),
-                          ],
-                        )),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      );
+      final params = <String, dynamic>{
+        'headers': headers.toList(),
+        'data': data,
+        'origen': sheet['origen'] ?? '',
+        'fecha': sheet['fecha'] ?? '',
+        'caja': sheet['caja'] ?? '',
+        'tipo': sheet['tipo'] ?? '',
+        'numeroControl': sheet['numeroControl'] ?? '',
+      };
+
+      final Uint8List pdfBytes =
+          await compute(generatePdfBytesEnviadas, params);
       await Printing.layoutPdf(
-          onLayout: (PdfPageFormat format) async => pdf.save());
+          onLayout: (PdfPageFormat format) async => pdfBytes);
     } catch (e) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Error al imprimir: $e')));
