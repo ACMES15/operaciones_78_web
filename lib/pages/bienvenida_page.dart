@@ -21,9 +21,24 @@ class BienvenidaPage extends StatefulWidget {
 class _BienvenidaPageState extends State<BienvenidaPage>
     with TickerProviderStateMixin {
   bool _cargando = true;
+  bool _modoRosa = false;
   String _usuarioAnimado = '';
   int _puntos = 0;
   late final String _usuarioAnimar;
+
+  Color get _colorPrimario =>
+      _modoRosa ? const Color(0xFFEC4899) : const Color(0xFF2D6A4F);
+  Color get _colorPrimarioOscuro =>
+      _modoRosa ? const Color(0xFFBE185D) : const Color(0xFF1F3F33);
+  Color get _colorFondoSuave =>
+      _modoRosa ? const Color(0xFFFFF1F7) : const Color(0xFFF6FAF8);
+  Color get _colorTarjeta => _modoRosa ? const Color(0xFFFFF7FB) : Colors.white;
+  Color get _colorTextoPrincipal =>
+      _modoRosa ? const Color(0xFF5A1E3A) : const Color(0xFF1F3F33);
+  Color get _colorTextoSecundario =>
+      _modoRosa ? const Color(0xFF7B4963) : Colors.black54;
+  Color get _colorBorde =>
+      _modoRosa ? const Color(0xFFF7C7DA) : const Color(0xFFE6ECE9);
 
   late final AnimationController _entradaController;
   late final Animation<double> _fadeIn;
@@ -56,7 +71,32 @@ class _BienvenidaPageState extends State<BienvenidaPage>
       CurvedAnimation(parent: _iconoController, curve: Curves.easeInOut),
     );
 
+    _cargarTemaUsuario();
     _verificarBienvenida();
+  }
+
+  Future<void> _cargarTemaUsuario() async {
+    final uid = widget.usuario.trim().toLowerCase();
+    final doc =
+        await FirebaseFirestore.instance.collection('usuarios').doc(uid).get();
+
+    if (!mounted || !doc.exists) return;
+
+    final data = doc.data() ?? {};
+    final temaGuardado = data['modoRosa'];
+    if (temaGuardado is bool && mounted) {
+      setState(() {
+        _modoRosa = temaGuardado;
+      });
+    }
+  }
+
+  Future<void> _guardarTemaUsuario() async {
+    final uid = widget.usuario.trim().toLowerCase();
+    await FirebaseFirestore.instance.collection('usuarios').doc(uid).set(
+      {'modoRosa': _modoRosa},
+      SetOptions(merge: true),
+    );
   }
 
   void _activarVistaFinal() {
@@ -173,32 +213,100 @@ class _BienvenidaPageState extends State<BienvenidaPage>
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFF6FAF8), Color(0xFFFFFFFF)],
+          colors: [
+            _colorFondoSuave,
+            _modoRosa ? const Color(0xFFFFF7FB) : const Color(0xFFFFFFFF),
+          ],
         ),
       ),
       child: Stack(
         children: [
+          Positioned(
+            top: 20,
+            right: 20,
+            child: Container(
+              decoration: BoxDecoration(
+                color: _modoRosa
+                    ? const Color(0xFFFFE4F1)
+                    : const Color(0xFFEAF5F1),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: _modoRosa
+                      ? const Color(0xFFF9A8D4)
+                      : const Color(0xFFCFE5DF),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (_modoRosa
+                            ? const Color(0xFFEC4899)
+                            : const Color(0xFF2D6A4F))
+                        .withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () async {
+                    final nuevoModo = !_modoRosa;
+                    setState(() {
+                      _modoRosa = nuevoModo;
+                    });
+                    await _guardarTemaUsuario();
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _modoRosa ? Icons.palette_outlined : Icons.palette,
+                          size: 18,
+                          color: _colorPrimario,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _modoRosa ? 'Modo rosa' : 'Modo verde',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _colorPrimarioOscuro,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
           if (_cargando)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const CircularProgressIndicator(
-                    color: Color(0xFF2D6A4F),
+                  CircularProgressIndicator(
+                    color: _colorPrimario,
                     strokeWidth: 4,
                   ),
                   const SizedBox(height: 28),
                   AnimatedDefaultTextStyle(
                     duration: const Duration(milliseconds: 120),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D6A4F),
+                      color: _colorPrimario,
                       letterSpacing: 8,
                     ),
                     child: Text(_usuarioAnimado),
@@ -229,27 +337,30 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                       vertical: 30,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _colorTarjeta,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFE6ECE9)),
-                      boxShadow: const [
+                      border: Border.all(color: _colorBorde),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x14000000),
+                          color: (_modoRosa
+                                  ? const Color(0xFFEC4899)
+                                  : const Color(0xFF2D6A4F))
+                              .withOpacity(0.12),
                           blurRadius: 18,
-                          offset: Offset(0, 10),
+                          offset: const Offset(0, 10),
                         ),
                       ],
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'Bienvenido a Operaciones 0078 Web',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 30,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1F3F33),
+                            color: _colorTextoPrincipal,
                           ),
                         ),
                         const SizedBox(height: 28),
@@ -263,9 +374,14 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: const Color(0xFFF1F7F4),
+                                    color: _modoRosa
+                                        ? const Color(0xFFFFE4F1)
+                                        : const Color(0xFFF1F7F4),
                                     border: Border.all(
-                                        color: const Color(0xFFDCE9E2)),
+                                      color: _modoRosa
+                                          ? const Color(0xFFF9A8D4)
+                                          : const Color(0xFFDCE9E2),
+                                    ),
                                   ),
                                   child: FutureBuilder<DocumentSnapshot>(
                                     future: FirebaseFirestore.instance
@@ -287,10 +403,12 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                                           backgroundImage: NetworkImage(avatar),
                                         );
                                       }
-                                      return const Icon(
+                                      return Icon(
                                         Icons.account_circle,
                                         size: 82,
-                                        color: Color(0xFF6E7D76),
+                                        color: _modoRosa
+                                            ? const Color(0xFFB55788)
+                                            : const Color(0xFF6E7D76),
                                       );
                                     },
                                   ),
@@ -299,7 +417,11 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                               const SizedBox(height: 8),
                               IconButton(
                                 onPressed: _pickAndUploadAvatar,
-                                icon: const Icon(Icons.edit, size: 20),
+                                icon: Icon(
+                                  Icons.edit,
+                                  size: 20,
+                                  color: _colorPrimario,
+                                ),
                                 tooltip: 'Cambiar foto',
                               ),
                             ],
@@ -308,17 +430,18 @@ class _BienvenidaPageState extends State<BienvenidaPage>
                         const SizedBox(height: 18),
                         Text(
                           'Usuario: ${widget.usuario}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w600,
+                            color: _colorTextoPrincipal,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Tipo de usuario: ${widget.tipoUsuario}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
-                            color: Colors.black54,
+                            color: _colorTextoSecundario,
                           ),
                         ),
                       ],
@@ -335,7 +458,7 @@ class _BienvenidaPageState extends State<BienvenidaPage>
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey[400],
+                color: _modoRosa ? const Color(0xFFDB9BBC) : Colors.grey[400],
                 letterSpacing: 6,
               ),
             ),

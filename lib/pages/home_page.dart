@@ -153,7 +153,7 @@ class _HomePageState extends State<HomePage> {
     'Entregas CDR': EntregasCdrPage(usuario: widget.usuario),
     'Historial De Entregas CDR': HistorialFirmadasCdrPage(),
     'Paquetería Externa': PaqueteriaExternaPage(usuario: widget.usuario),
-    'Historial Paquetería Externa': HistorialPaqueteriaExternaPage(
+    'Historial Paqueteria Externa': HistorialPaqueteriaExternaPage(
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
     'Transferencias y Retornos':
         TransferenciasRetornosPage(usuario: widget.usuario),
@@ -206,7 +206,6 @@ class _HomePageState extends State<HomePage> {
       'Historial Guias CYC',
       'Plantilla Ejecutiva',
     ];
-    // ...existing code...
     final paginasOrdenadas = ordenFijo
         .where((p) =>
             permitidas.contains(p) || p == 'Bienvenida' || p == 'Mensajes')
@@ -266,17 +265,24 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              _modoRosa ? Icons.palette : Icons.palette_outlined,
-              color: _colorTextoUi,
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              icon: Icon(
+                _modoRosa ? Icons.palette_outlined : Icons.palette,
+                size: 18,
+                color: _colorTextoUi.withOpacity(0.8),
+              ),
+              tooltip: _modoRosa ? 'Modo verde' : 'Modo rosa',
+              splashRadius: 18,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              onPressed: () {
+                setState(() {
+                  _modoRosa = !_modoRosa;
+                });
+              },
             ),
-            tooltip: _modoRosa ? 'Modo verde' : 'Modo rosa',
-            onPressed: () {
-              setState(() {
-                _modoRosa = !_modoRosa;
-              });
-            },
           ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
@@ -338,230 +344,21 @@ class _HomePageState extends State<HomePage> {
                                                             as DateTime)
                                                         .toString()
                                                         .substring(0, 16)
-                                                    : (notif['fecha']
-                                                            as dynamic)
-                                                        .toDate()
-                                                        .toString()
-                                                        .substring(0, 16)))
-                                            : '';
-                                        final tipo = notif['tipo'] ?? '';
-                                        final detalle = notif['detalle'] ?? '';
-                                        final isReseteo = tipo
-                                                .toLowerCase()
-                                                .contains('reseteo') ||
-                                            mensaje
-                                                .toLowerCase()
-                                                .contains('reseteo');
-                                        return Card(
-                                          color: Colors.white,
-                                          elevation: 3,
-                                          margin: const EdgeInsets.symmetric(
-                                              vertical: 7, horizontal: 2),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(14),
-                                            side: const BorderSide(
-                                                color: Color(0xFF2D6A4F),
-                                                width: 1.2),
-                                          ),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 8.0, horizontal: 4.0),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Row(
-                                                  children: [
-                                                    const Icon(
-                                                        Icons.notifications,
-                                                        color:
-                                                            Color(0xFF2D6A4F)),
-                                                    const SizedBox(width: 8),
-                                                    Expanded(
-                                                      child: Text(
-                                                        mensaje,
-                                                        style: const TextStyle(
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .bold),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(height: 6),
-                                                if (detalle.isNotEmpty)
-                                                  Text('Detalle: $detalle',
-                                                      style: const TextStyle(
-                                                          fontSize: 14)),
-                                                Text('Tipo: $tipo',
-                                                    style: const TextStyle(
-                                                        fontSize: 13)),
-                                                Text('Fecha: $fecha',
-                                                    style: const TextStyle(
-                                                        fontSize: 13)),
-                                                const SizedBox(height: 8),
-                                                Align(
-                                                  alignment:
-                                                      Alignment.centerRight,
-                                                  child: isReseteo
-                                                      ? ElevatedButton.icon(
-                                                          icon: const Icon(
-                                                              Icons.restart_alt,
-                                                              size: 18),
-                                                          style: ElevatedButton
-                                                              .styleFrom(
-                                                            backgroundColor:
-                                                                Colors.blue
-                                                                    .shade700,
-                                                            foregroundColor:
-                                                                Colors.white,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        12,
-                                                                    vertical:
-                                                                        6),
-                                                            textStyle:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        14),
-                                                          ),
-                                                          label: const Text(
-                                                              'Atender reseteo'),
-                                                          onPressed: () async {
-                                                            // Extraer usuario del mensaje o detalle
-                                                            String? usuario;
-                                                            if (notif[
-                                                                    'usuario'] !=
-                                                                null) {
-                                                              usuario = notif[
-                                                                  'usuario'];
-                                                            } else {
-                                                              final msg =
-                                                                  (notif['mensaje'] ??
-                                                                          '')
-                                                                      .toString();
-                                                              final match = RegExp(
-                                                                      r"'([^']+)' solicita reseteo")
-                                                                  .firstMatch(
-                                                                      msg);
-                                                              if (match !=
-                                                                  null) {
-                                                                usuario = match
-                                                                    .group(1);
-                                                              }
-                                                            }
-                                                            if (usuario !=
-                                                                    null &&
-                                                                usuario
-                                                                    .isNotEmpty) {
-                                                              final usuarioNormalizado =
-                                                                  usuario
-                                                                      .trim()
-                                                                      .toLowerCase();
-                                                              try {
-                                                                await FirebaseFirestore
-                                                                    .instance
-                                                                    .collection(
-                                                                        'usuarios')
-                                                                    .doc(
-                                                                        usuarioNormalizado)
-                                                                    .update({
-                                                                  'password':
-                                                                      usuarioNormalizado
-                                                                });
-                                                                await FirebaseFirestore
-                                                                    .instance
-                                                                    .collection(
-                                                                        'notificaciones')
-                                                                    .doc(notif[
-                                                                        'id'])
-                                                                    .update({
-                                                                  'leida': true
-                                                                });
-                                                                if (mounted) {
-                                                                  ScaffoldMessenger.of(
-                                                                          context)
-                                                                      .showSnackBar(
-                                                                    SnackBar(
-                                                                        content:
-                                                                            Text('Contraseña de $usuario reseteada.')),
-                                                                  );
-                                                                }
-                                                              } catch (e) {
-                                                                ScaffoldMessenger.of(
-                                                                        context)
-                                                                    .showSnackBar(
-                                                                  SnackBar(
-                                                                      content: Text(
-                                                                          'Error al resetear: $e'),
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .red),
-                                                                );
-                                                              }
-                                                            } else {
-                                                              ScaffoldMessenger
-                                                                      .of(context)
-                                                                  .showSnackBar(
-                                                                const SnackBar(
-                                                                    content: Text(
-                                                                        'No se pudo identificar el usuario a resetear.')),
-                                                              );
-                                                            }
-                                                          },
-                                                        )
-                                                      : ElevatedButton.icon(
-                                                          icon: const Icon(
-                                                              Icons
-                                                                  .check_circle,
-                                                              size: 18),
-                                                          style: ElevatedButton
-                                                              .styleFrom(
-                                                            backgroundColor:
-                                                                Colors.green
-                                                                    .shade700,
-                                                            foregroundColor:
-                                                                Colors.white,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                                    horizontal:
-                                                                        12,
-                                                                    vertical:
-                                                                        6),
-                                                            textStyle:
-                                                                const TextStyle(
-                                                                    fontSize:
-                                                                        14),
-                                                          ),
-                                                          label: const Text(
-                                                              'Atendido'),
-                                                          onPressed: () async {
-                                                            await FirebaseFirestore
-                                                                .instance
-                                                                .collection(
-                                                                    'notificaciones')
-                                                                .doc(
-                                                                    notif['id'])
-                                                                .update({
-                                                              'leida': true
-                                                            });
-                                                          },
-                                                        ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
+                                                    : notif['fecha'].toString()))
+                                            : 'Sin fecha';
+                                        return ListTile(
+                                          leading: const Icon(
+                                              Icons.notifications_none,
+                                              color: Color(0xFF2D6A4F)),
+                                          title: Text(mensaje),
+                                          subtitle: Text(fecha),
                                         );
                                       }).toList(),
                                     ),
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.of(context).pop(),
+                                onPressed: () => Navigator.pop(context),
                                 child: const Text('Cerrar'),
                               ),
                             ],
@@ -572,29 +369,26 @@ class _HomePageState extends State<HomePage> {
                   ),
                   if (notificaciones.isNotEmpty)
                     Positioned(
-                      right: 6,
-                      top: 6,
+                      right: 8,
+                      top: 8,
                       child: Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.red.shade700,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 4,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
                         ),
                         child: Text(
                           notificaciones.length.toString(),
                           style: const TextStyle(
                             color: Colors.white,
+                            fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            fontSize: 14,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
