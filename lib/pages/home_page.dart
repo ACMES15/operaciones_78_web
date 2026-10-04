@@ -36,7 +36,6 @@ import 'mensajes_page.dart';
 import '../pages/transferencias_retornos_page.dart';
 import '../pages/consulta_global_page.dart';
 import '../utils/mensajes_service.dart';
-import 'notificaciones_page.dart';
 
 class HomePage extends StatefulWidget {
   final String usuario;
@@ -58,6 +57,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  bool _modoRosa = false;
+
+  Color get _colorBaseUi =>
+      _modoRosa ? const Color(0xFFF8BBD0) : const Color(0xFF2D6A4F);
+  Color get _colorTextoUi => _modoRosa ? Colors.black : Colors.white;
+  Color get _colorSeleccionTexto =>
+      _modoRosa ? const Color(0xFF7B1FA2) : Colors.amber;
+  Color get _colorSeleccionTile =>
+      _modoRosa ? const Color(0xFFF48FB1) : Colors.green.shade700;
+
   // Notificaciones
   late final Stream<List<Map<String, dynamic>>> _notificacionesStream =
       FirebaseFirestore.instance
@@ -212,7 +221,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2D6A4F),
+        backgroundColor: _colorBaseUi,
         elevation: 0,
         title: Row(
           children: [
@@ -238,7 +247,7 @@ class _HomePageState extends State<HomePage> {
                   ]);
                 }
                 return Row(children: [
-                  const Icon(Icons.account_circle, color: Colors.white),
+                  Icon(Icons.account_circle, color: _colorTextoUi),
                   const SizedBox(width: 10)
                 ]);
               },
@@ -248,15 +257,27 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Usuario: ${widget.usuario}',
-                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+                    style: TextStyle(color: _colorTextoUi, fontSize: 14)),
                 Text('Tipo: ${widget.tipoUsuario}',
-                    style: const TextStyle(color: Colors.white, fontSize: 14)),
-                _FechaHoraWidget(),
+                    style: TextStyle(color: _colorTextoUi, fontSize: 14)),
+                _FechaHoraWidget(color: _colorTextoUi),
               ],
             ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: Icon(
+              _modoRosa ? Icons.palette : Icons.palette_outlined,
+              color: _colorTextoUi,
+            ),
+            tooltip: _modoRosa ? 'Modo verde' : 'Modo rosa',
+            onPressed: () {
+              setState(() {
+                _modoRosa = !_modoRosa;
+              });
+            },
+          ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
             stream: _notificacionesStream,
@@ -266,8 +287,8 @@ class _HomePageState extends State<HomePage> {
                 alignment: Alignment.topRight,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications,
-                        color: Colors.white, size: 28),
+                    icon: Icon(Icons.notifications,
+                        color: _colorTextoUi, size: 28),
                     tooltip: 'Notificaciones',
                     onPressed: () {
                       showDialog(
@@ -582,7 +603,7 @@ class _HomePageState extends State<HomePage> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: Icon(Icons.logout, color: _colorTextoUi),
             tooltip: 'Cerrar sesión',
             onPressed: () => widget.onLogout(),
           ),
@@ -594,13 +615,13 @@ class _HomePageState extends State<HomePage> {
             duration: const Duration(milliseconds: 200),
             width: _menuExpandido ? 180 : 60,
             child: Container(
-              color: const Color(0xFF2D6A4F),
+              color: _colorBaseUi,
               child: Column(
                 children: [
                   IconButton(
                     icon: Icon(
                         _menuExpandido ? Icons.arrow_back_ios : Icons.menu,
-                        color: Colors.white),
+                        color: _colorTextoUi),
                     onPressed: () {
                       setState(() {
                         _menuExpandido = !_menuExpandido;
@@ -620,11 +641,16 @@ class _HomePageState extends State<HomePage> {
                               height: 3,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFB7E4C7),
-                                    Color(0xFF40916C),
-                                  ],
+                                gradient: LinearGradient(
+                                  colors: _modoRosa
+                                      ? const [
+                                          Color(0xFFE1BEE7),
+                                          Color(0xFFCE93D8),
+                                        ]
+                                      : const [
+                                          Color(0xFFB7E4C7),
+                                          Color(0xFF40916C),
+                                        ],
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -643,8 +669,8 @@ class _HomePageState extends State<HomePage> {
                         Widget leadingIcon = Icon(
                           icon,
                           color: _selectedIndex == index
-                              ? Colors.amber
-                              : Colors.white,
+                              ? _colorSeleccionTexto
+                              : _colorTextoUi,
                         );
                         // Badge rojo para mensajes
                         if (pageName == 'Mensajes') {
@@ -659,8 +685,8 @@ class _HomePageState extends State<HomePage> {
                                   Icon(
                                     icon,
                                     color: _selectedIndex == index
-                                        ? Colors.amber
-                                        : Colors.white,
+                                        ? _colorSeleccionTexto
+                                        : _colorTextoUi,
                                   ),
                                   if (count > 0)
                                     Positioned(
@@ -698,8 +724,8 @@ class _HomePageState extends State<HomePage> {
                                     pageName,
                                     style: TextStyle(
                                       color: _selectedIndex == index
-                                          ? Colors.amber
-                                          : Colors.white,
+                                          ? _colorSeleccionTexto
+                                          : _colorTextoUi,
                                       fontWeight: _selectedIndex == index
                                           ? FontWeight.bold
                                           : FontWeight.normal,
@@ -707,7 +733,7 @@ class _HomePageState extends State<HomePage> {
                                   )
                                 : null,
                             selected: _selectedIndex == index,
-                            selectedTileColor: Colors.green.shade700,
+                            selectedTileColor: _colorSeleccionTile,
                             onTap: () {
                               setState(() {
                                 _selectedIndex = index;
@@ -763,6 +789,9 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _FechaHoraWidget extends StatefulWidget {
+  final Color color;
+  const _FechaHoraWidget({this.color = Colors.white});
+
   @override
   State<_FechaHoraWidget> createState() => _FechaHoraWidgetState();
 }
@@ -795,10 +824,9 @@ class _FechaHoraWidgetState extends State<_FechaHoraWidget> {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.access_time, color: Colors.white, size: 18),
+        Icon(Icons.access_time, color: widget.color, size: 18),
         const SizedBox(width: 4),
-        Text(_fechaHora,
-            style: const TextStyle(color: Colors.white, fontSize: 14)),
+        Text(_fechaHora, style: TextStyle(color: widget.color, fontSize: 14)),
       ],
     );
   }
