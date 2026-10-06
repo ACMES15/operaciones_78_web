@@ -59,6 +59,64 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   bool _modoRosa = false;
 
+  Future<void> _cargarTemaUsuario() async {
+    try {
+      final uid = widget.usuario.trim().toLowerCase();
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .get();
+
+      if (!mounted || !doc.exists) return;
+      final data = doc.data();
+      final modo = data?['modoRosa'];
+      if (modo is bool) {
+        setState(() {
+          _modoRosa = modo;
+        });
+      }
+    } catch (_) {
+      // Ignorar errores de lectura para no bloquear la UI.
+    }
+  }
+
+  Future<void> _guardarTemaUsuario(bool modoRosa) async {
+    try {
+      final uid = widget.usuario.trim().toLowerCase();
+      await FirebaseFirestore.instance.collection('usuarios').doc(uid).set(
+        {'modoRosa': modoRosa},
+        SetOptions(merge: true),
+      );
+    } catch (_) {
+      // Ignorar errores de escritura; la selección visual se mantiene localmente.
+    }
+  }
+
+  String _normalizarTextoPagina(String valor) {
+    return valor
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ü', 'u')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _canonicalizarPagina(String pagina) {
+    final clave = _normalizarTextoPagina(pagina);
+    const alias = {
+      'paqueteria externa': 'Paquetería Externa',
+      'historial paqueteria externa': 'Historial Paquetería Externa',
+      'historial de paqueteria externa': 'Historial Paquetería Externa',
+      'guias cyc': 'Guias CYC',
+      'historial guias cyc': 'Historial Guias CYC',
+    };
+    return alias[clave] ?? pagina.trim();
+  }
+
   Color get _colorBaseUi =>
       _modoRosa ? const Color(0xFFF8BBD0) : const Color(0xFF2D6A4F);
   Color get _colorTextoUi => _modoRosa ? Colors.black : Colors.white;
@@ -153,7 +211,7 @@ class _HomePageState extends State<HomePage> {
     'Entregas CDR': EntregasCdrPage(usuario: widget.usuario),
     'Historial De Entregas CDR': HistorialFirmadasCdrPage(),
     'Paquetería Externa': PaqueteriaExternaPage(usuario: widget.usuario),
-    'Historial Paqueteria Externa': HistorialPaqueteriaExternaPage(
+    'Historial Paquetería Externa': HistorialPaqueteriaExternaPage(
         usuario: widget.usuario, tipoUsuarioActual: widget.tipoUsuario),
     'Transferencias y Retornos':
         TransferenciasRetornosPage(usuario: widget.usuario),
@@ -168,8 +226,10 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _cargarTemaUsuario();
     // Orden fijo solicitado
-    final permitidas = widget.paginasPermitidas.toSet();
+    final permitidas =
+        widget.paginasPermitidas.map(_canonicalizarPagina).toSet();
     // Eliminar "Entregas XD" y "Entregas CyC" si están en permitidas
     permitidas.remove('Entregas XD');
     permitidas.remove('Entregas CyC');
@@ -206,11 +266,15 @@ class _HomePageState extends State<HomePage> {
       'Historial Guias CYC',
       'Plantilla Ejecutiva',
     ];
+    // ...existing code...
     final paginasOrdenadas = ordenFijo
         .where((p) =>
             permitidas.contains(p) || p == 'Bienvenida' || p == 'Mensajes')
         .toList();
-    final extras = permitidas.difference(ordenFijo.toSet()).toList();
+    final extras = permitidas
+        .difference(ordenFijo.toSet())
+        .where((p) => _pageWidgets.containsKey(p))
+        .toList();
     _paginas = [...paginasOrdenadas, ...extras];
     // Cargar notificaciones pendientes al iniciar
   }
@@ -265,24 +329,19 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: IconButton(
-              icon: Icon(
-                _modoRosa ? Icons.palette_outlined : Icons.palette,
-                size: 18,
-                color: _colorTextoUi.withOpacity(0.8),
-              ),
-              tooltip: _modoRosa ? 'Modo verde' : 'Modo rosa',
-              splashRadius: 18,
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              onPressed: () {
-                setState(() {
-                  _modoRosa = !_modoRosa;
-                });
-              },
+          IconButton(
+            icon: Icon(
+              _modoRosa ? Icons.palette : Icons.palette_outlined,
+              color: _colorTextoUi,
             ),
+            tooltip: _modoRosa ? 'Modo verde' : 'Modo rosa',
+            onPressed: () async {
+              final nuevoModo = !_modoRosa;
+              setState(() {
+                _modoRosa = nuevoModo;
+              });
+              await _guardarTemaUsuario(nuevoModo);
+            },
           ),
           // Campana de notificaciones
           StreamBuilder<List<Map<String, dynamic>>>(
@@ -344,21 +403,230 @@ class _HomePageState extends State<HomePage> {
                                                             as DateTime)
                                                         .toString()
                                                         .substring(0, 16)
-                                                    : notif['fecha'].toString()))
-                                            : 'Sin fecha';
-                                        return ListTile(
-                                          leading: const Icon(
-                                              Icons.notifications_none,
-                                              color: Color(0xFF2D6A4F)),
-                                          title: Text(mensaje),
-                                          subtitle: Text(fecha),
+                                                    : (notif['fecha']
+                                                            as dynamic)
+                                                        .toDate()
+                                                        .toString()
+                                                        .substring(0, 16)))
+                                            : '';
+                                        final tipo = notif['tipo'] ?? '';
+                                        final detalle = notif['detalle'] ?? '';
+                                        final isReseteo = tipo
+                                                .toLowerCase()
+                                                .contains('reseteo') ||
+                                            mensaje
+                                                .toLowerCase()
+                                                .contains('reseteo');
+                                        return Card(
+                                          color: Colors.white,
+                                          elevation: 3,
+                                          margin: const EdgeInsets.symmetric(
+                                              vertical: 7, horizontal: 2),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            side: const BorderSide(
+                                                color: Color(0xFF2D6A4F),
+                                                width: 1.2),
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 8.0, horizontal: 4.0),
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(
+                                                  children: [
+                                                    const Icon(
+                                                        Icons.notifications,
+                                                        color:
+                                                            Color(0xFF2D6A4F)),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: Text(
+                                                        mensaje,
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                const SizedBox(height: 6),
+                                                if (detalle.isNotEmpty)
+                                                  Text('Detalle: $detalle',
+                                                      style: const TextStyle(
+                                                          fontSize: 14)),
+                                                Text('Tipo: $tipo',
+                                                    style: const TextStyle(
+                                                        fontSize: 13)),
+                                                Text('Fecha: $fecha',
+                                                    style: const TextStyle(
+                                                        fontSize: 13)),
+                                                const SizedBox(height: 8),
+                                                Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: isReseteo
+                                                      ? ElevatedButton.icon(
+                                                          icon: const Icon(
+                                                              Icons.restart_alt,
+                                                              size: 18),
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.blue
+                                                                    .shade700,
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        12,
+                                                                    vertical:
+                                                                        6),
+                                                            textStyle:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                          ),
+                                                          label: const Text(
+                                                              'Atender reseteo'),
+                                                          onPressed: () async {
+                                                            // Extraer usuario del mensaje o detalle
+                                                            String? usuario;
+                                                            if (notif[
+                                                                    'usuario'] !=
+                                                                null) {
+                                                              usuario = notif[
+                                                                  'usuario'];
+                                                            } else {
+                                                              final msg =
+                                                                  (notif['mensaje'] ??
+                                                                          '')
+                                                                      .toString();
+                                                              final match = RegExp(
+                                                                      r"'([^']+)' solicita reseteo")
+                                                                  .firstMatch(
+                                                                      msg);
+                                                              if (match !=
+                                                                  null) {
+                                                                usuario = match
+                                                                    .group(1);
+                                                              }
+                                                            }
+                                                            if (usuario !=
+                                                                    null &&
+                                                                usuario
+                                                                    .isNotEmpty) {
+                                                              final usuarioNormalizado =
+                                                                  usuario
+                                                                      .trim()
+                                                                      .toLowerCase();
+                                                              try {
+                                                                await FirebaseFirestore
+                                                                    .instance
+                                                                    .collection(
+                                                                        'usuarios')
+                                                                    .doc(
+                                                                        usuarioNormalizado)
+                                                                    .update({
+                                                                  'password':
+                                                                      usuarioNormalizado
+                                                                });
+                                                                await FirebaseFirestore
+                                                                    .instance
+                                                                    .collection(
+                                                                        'notificaciones')
+                                                                    .doc(notif[
+                                                                        'id'])
+                                                                    .update({
+                                                                  'leida': true
+                                                                });
+                                                                if (mounted) {
+                                                                  ScaffoldMessenger.of(
+                                                                          context)
+                                                                      .showSnackBar(
+                                                                    SnackBar(
+                                                                        content:
+                                                                            Text('Contraseña de $usuario reseteada.')),
+                                                                  );
+                                                                }
+                                                              } catch (e) {
+                                                                ScaffoldMessenger.of(
+                                                                        context)
+                                                                    .showSnackBar(
+                                                                  SnackBar(
+                                                                      content: Text(
+                                                                          'Error al resetear: $e'),
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .red),
+                                                                );
+                                                              }
+                                                            } else {
+                                                              ScaffoldMessenger
+                                                                      .of(context)
+                                                                  .showSnackBar(
+                                                                const SnackBar(
+                                                                    content: Text(
+                                                                        'No se pudo identificar el usuario a resetear.')),
+                                                              );
+                                                            }
+                                                          },
+                                                        )
+                                                      : ElevatedButton.icon(
+                                                          icon: const Icon(
+                                                              Icons
+                                                                  .check_circle,
+                                                              size: 18),
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.green
+                                                                    .shade700,
+                                                            foregroundColor:
+                                                                Colors.white,
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        12,
+                                                                    vertical:
+                                                                        6),
+                                                            textStyle:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                          ),
+                                                          label: const Text(
+                                                              'Atendido'),
+                                                          onPressed: () async {
+                                                            await FirebaseFirestore
+                                                                .instance
+                                                                .collection(
+                                                                    'notificaciones')
+                                                                .doc(
+                                                                    notif['id'])
+                                                                .update({
+                                                              'leida': true
+                                                            });
+                                                          },
+                                                        ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         );
                                       }).toList(),
                                     ),
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () => Navigator.of(context).pop(),
                                 child: const Text('Cerrar'),
                               ),
                             ],
@@ -369,26 +637,29 @@ class _HomePageState extends State<HomePage> {
                   ),
                   if (notificaciones.isNotEmpty)
                     Positioned(
-                      right: 8,
-                      top: 8,
+                      right: 6,
+                      top: 6,
                       child: Container(
-                        padding: const EdgeInsets.all(4),
+                        padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
+                          color: Colors.red.shade700,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Text(
                           notificaciones.length.toString(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 10,
                             fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
                     ),
@@ -557,7 +828,9 @@ class _HomePageState extends State<HomePage> {
                     bgUrl = map['backgroundUrl']?.toString();
                   }
                 } catch (_) {}
-                final content = _pageWidgets[_paginas[_selectedIndex]] ??
+                final paginaSeleccionada =
+                    _canonicalizarPagina(_paginas[_selectedIndex]);
+                final content = _pageWidgets[paginaSeleccionada] ??
                     const Center(child: Text('Página no encontrada'));
                 if (bgUrl != null && bgUrl.isNotEmpty) {
                   return Container(
