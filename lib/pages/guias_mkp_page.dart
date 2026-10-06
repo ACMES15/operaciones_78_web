@@ -28,11 +28,15 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   @override
   void dispose() {
     _notificacionDebounce?.cancel();
+    _busquedaController.dispose();
     for (final c in _devolucionControllers.values) {
       c.dispose();
     }
     for (final c in _guiaControllers.values) {
       c.dispose();
+    }
+    for (final f in _guiaFocusNodes.values) {
+      f.dispose();
     }
     super.dispose();
   }
@@ -175,57 +179,141 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   String _ultimaHuellaNotificada = '';
   bool _editando = true;
   bool _guardando = false;
-  late final Stream<List<Map<String, dynamic>>> _guiasStream;
+  static const int _limiteHistorico = 400;
+  static const int _limiteMes = 250;
+  static const int _limitePendientes = 200;
 
-  // Stream que combina doc antiguo + subcolección nueva
-  Stream<List<Map<String, dynamic>>> _guiasStreamCombinado() {
-    return (() async* {
-      List<Map<String, dynamic>> oldRegistros = [];
-      try {
-        final docSnap = await FirebaseFirestore.instance
-            .collection('guias')
-            .doc('mkp')
-            .get(const GetOptions(source: Source.serverAndCache));
-        final oldItems = (docSnap.data()?['items'] ?? []) as List;
-        oldRegistros = oldItems.whereType<Map<String, dynamic>>().toList();
-      } catch (_) {
-        oldRegistros = [];
-      }
-
-      final subStream = FirebaseFirestore.instance
+  CollectionReference<Map<String, dynamic>> get _itemsRef =>
+      FirebaseFirestore.instance
           .collection('guias')
           .doc('mkp')
-          .collection('items')
+          .collection('items');
+
+  String _docIdRegistro(Map<String, dynamic> reg) {
+    final docId = (reg['_docId'] ?? '').toString();
+    if (docId.isNotEmpty) return docId;
+    return '${reg['devolucion'] ?? ''}_${reg['fecha'] ?? ''}';
+  }
+
+  Map<String, String> _rangoMes(String key) {
+    final partes = key.split('-');
+    final year = int.tryParse(partes.first);
+    final month = partes.length > 1 ? int.tryParse(partes[1]) : null;
+    if (year == null || month == null || month < 1 || month > 12) {
+      final actual = DateTime.now();
+      final inicio = DateTime(actual.year, actual.month);
+      final fin = DateTime(actual.year, actual.month + 1);
+      return {
+        'inicio': inicio.toIso8601String(),
+        'fin': fin.toIso8601String(),
+      };
+    }
+    final inicio = DateTime(year, month);
+    final fin = month == 12 ? DateTime(year + 1, 1) : DateTime(year, month + 1);
+    return {
+      'inicio': inicio.toIso8601String(),
+      'fin': fin.toIso8601String(),
+    };
+  }
+
+  List<Map<String, dynamic>> _mapSnapshot(
+      QuerySnapshot<Map<String, dynamic>> snap) {
+    return snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      data['_docId'] = d.id;
+      return data;
+    }).toList();
+  }
+
+  List<Map<String, dynamic>> _mergeRegistros(
+    List<Map<String, dynamic>> principales,
+    List<Map<String, dynamic>> secundarios,
+  ) {
+    final seen = <String>{};
+    final merged = <Map<String, dynamic>>[];
+    for (final item in [...principales, ...secundarios]) {
+      final key = _docIdRegistro(item);
+      if (seen.add(key)) merged.add(item);
+    }
+    merged.sort((a, b) =>
+        (b['fecha'] ?? '').toString().compareTo((a['fecha'] ?? '').toString()));
+    return merged;
+  }
+
+  Stream<List<Map<String, dynamic>>> _streamConsultaActual() {
+    final mes = _mesSeleccionado ?? _keyMesActual();
+    if (mes == 'all') {
+      return _itemsRef
           .orderBy('fecha', descending: true)
-          .snapshots();
+          .limit(_limiteHistorico)
+          .snapshots()
+          .map((snap) {
+        final registros = _mapSnapshot(snap);
+        _programarNotificacionSiCambio(
+            List<Map<String, dynamic>>.from(registros));
+        return registros;
+      });
+    }
 
-      await for (final subSnap in subStream) {
-        final newItems = subSnap.docs
-            .map((d) => Map<String, dynamic>.from(d.data()))
-            .toList();
+    final rango = _rangoMes(mes);
+    final mesStream = _itemsRef
+        .where('fecha', isGreaterThanOrEqualTo: rango['inicio'])
+        .where('fecha', isLessThan: rango['fin'])
+        .orderBy('fecha', descending: true)
+        .limit(_limiteMes)
+        .snapshots();
 
-        final seen = <String>{};
-        final merged = <Map<String, dynamic>>[];
-        for (final item in [...newItems, ...oldRegistros]) {
-          final key = '${item['fecha']}_${item['devolucion']}';
-          if (seen.add(key)) merged.add(item);
-        }
+    if (!_mostrarSinGuiaSiempre) {
+      return mesStream.map((snap) {
+        final registros = _mapSnapshot(snap);
+        _programarNotificacionSiCambio(
+            List<Map<String, dynamic>>.from(registros));
+        return registros;
+      });
+    }
 
-        merged.sort((a, b) => (b['fecha'] ?? '')
-            .toString()
-            .compareTo((a['fecha'] ?? '').toString()));
+    final pendientesStream = _itemsRef
+        .where('guia', isEqualTo: '')
+        .limit(_limitePendientes)
+        .snapshots();
 
-        // Notificación fuera de build (con debounce)
-        _programarNotificacionSiCambio(List<Map<String, dynamic>>.from(merged));
+    late StreamController<List<Map<String, dynamic>>> controller;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? subMes;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? subPendientes;
+    List<Map<String, dynamic>> ultimosMes = [];
+    List<Map<String, dynamic>> ultimosPendientes = [];
 
-        yield merged;
+    void emitir() {
+      final merged = _mergeRegistros(ultimosMes, ultimosPendientes);
+      _programarNotificacionSiCambio(List<Map<String, dynamic>>.from(merged));
+      if (!controller.isClosed) {
+        controller.add(merged);
       }
-    })();
+    }
+
+    controller = StreamController<List<Map<String, dynamic>>>(
+      onListen: () {
+        subMes = mesStream.listen((snap) {
+          ultimosMes = _mapSnapshot(snap);
+          emitir();
+        }, onError: controller.addError);
+        subPendientes = pendientesStream.listen((snap) {
+          ultimosPendientes = _mapSnapshot(snap);
+          emitir();
+        }, onError: controller.addError);
+      },
+      onCancel: () async {
+        await subMes?.cancel();
+        await subPendientes?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   @override
   void initState() {
-    _guiasStream = _guiasStreamCombinado();
+    _mesSeleccionado = _keyMesActual();
     _busquedaController.addListener(() {
       setState(() {
         _filtro = _busquedaController.text.trim().toLowerCase();
@@ -239,28 +327,13 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     return '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}';
   }
 
-  String? _keyMesRegistro(Map<String, dynamic> reg) {
-    final raw = (reg['fecha'] ?? '').toString();
-    if (raw.isEmpty) return null;
-    final fecha = DateTime.tryParse(raw);
-    if (fecha == null) return null;
-    return '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}';
-  }
-
-  List<String> _mesesDisponibles(List<Map<String, dynamic>> registros) {
-    final meses = registros
-        .map(_keyMesRegistro)
-        .whereType<String>()
-        .toSet()
-        .toList()
-      ..sort((a, b) => b.compareTo(a));
-    return meses;
-  }
-
-  List<String> _mesesParaSelector(List<Map<String, dynamic>> registros) {
-    final meses = _mesesDisponibles(registros);
-    final actual = _keyMesActual();
-    if (!meses.contains(actual)) meses.insert(0, actual);
+  List<String> _mesesParaSelector() {
+    final ahora = DateTime.now();
+    final meses = <String>[];
+    for (var i = 0; i < 12; i++) {
+      final fecha = DateTime(ahora.year, ahora.month - i);
+      meses.add('${fecha.year}-${fecha.month.toString().padLeft(2, '0')}');
+    }
     if (_mesSeleccionado != null &&
         _mesSeleccionado != 'all' &&
         !meses.contains(_mesSeleccionado)) {
@@ -294,22 +367,7 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   List<Map<String, dynamic>> _filtrarRegistros(
       List<Map<String, dynamic>> registros) {
-    final meses = _mesesDisponibles(registros);
-    final actual = _keyMesActual();
-    _mesSeleccionado ??= meses.contains(actual)
-        ? actual
-        : (meses.isNotEmpty ? meses.first : actual);
-
     Iterable<Map<String, dynamic>> lista = registros;
-    if (_mesSeleccionado != 'all') {
-      lista = lista.where((r) {
-        final esMes = _keyMesRegistro(r) == _mesSeleccionado;
-        final sinGuia = (r['devolucion'] ?? '').toString().isNotEmpty &&
-            (r['guia'] ?? '').toString().trim().isEmpty;
-        if (_mostrarSinGuiaSiempre) return esMes || sinGuia;
-        return esMes;
-      });
-    }
 
     if (_filtro.isNotEmpty) {
       lista = lista.where((r) {
@@ -327,6 +385,263 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     return lista.toList();
   }
 
+  List<Map<String, dynamic>> _registrosVisibles(
+      List<Map<String, dynamic>> registrosFiltrados) {
+    if (_filtro.isNotEmpty) return registrosFiltrados;
+
+    final pendientes = registrosFiltrados
+        .where((r) =>
+            (r['devolucion'] ?? '').toString().isNotEmpty &&
+            (r['guia'] ?? '').toString().trim().isEmpty)
+        .take(15)
+        .toList();
+
+    final usados = pendientes
+        .map((r) => '${r['devolucion'] ?? ''}_${r['fecha'] ?? ''}')
+        .toSet();
+
+    final recientes = registrosFiltrados
+        .where(
+            (r) => usados.add('${r['devolucion'] ?? ''}_${r['fecha'] ?? ''}'))
+        .take(20)
+        .toList();
+
+    return [...pendientes, ...recientes];
+  }
+
+  String _formatearFecha(dynamic valor) {
+    final texto = (valor ?? '').toString();
+    if (texto.isEmpty) return 'Sin fecha';
+    if (texto.length >= 19) {
+      return texto.replaceFirst('T', ' ').substring(0, 19);
+    }
+    return texto.replaceFirst('T', ' ');
+  }
+
+  Widget _buildMetricCard({
+    required String titulo,
+    required String valor,
+    required IconData icono,
+    required Color color,
+  }) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.12),
+            foregroundColor: color,
+            child: Icon(icono),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            valor,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEditableDevolucion(
+      List<Map<String, dynamic>> registros, Map<String, dynamic> reg) {
+    final key = _rowKey(reg);
+    if (!_devolucionControllers.containsKey(key)) {
+      _devolucionControllers[key] =
+          TextEditingController(text: reg['devolucion'] ?? '');
+    } else {
+      final ctrl = _devolucionControllers[key]!;
+      if (ctrl.text != (reg['devolucion'] ?? '')) {
+        ctrl.text = reg['devolucion'] ?? '';
+      }
+    }
+
+    return TextField(
+      controller: _devolucionControllers[key],
+      decoration: InputDecoration(
+        labelText: 'Devolución',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onEditingComplete: () {
+        _actualizarCampoPorClave(
+          registros,
+          reg,
+          'devolucion',
+          _devolucionControllers[key]?.text ?? '',
+        );
+        FocusScope.of(context).unfocus();
+      },
+    );
+  }
+
+  Widget _buildEditableGuia(
+      List<Map<String, dynamic>> registros, Map<String, dynamic> reg) {
+    final key = _rowKey(reg);
+    if (!_guiaControllers.containsKey(key)) {
+      _guiaControllers[key] = TextEditingController(text: reg['guia'] ?? '');
+    } else {
+      final ctrl = _guiaControllers[key]!;
+      if (ctrl.text != (reg['guia'] ?? '')) {
+        ctrl.text = reg['guia'] ?? '';
+      }
+    }
+    if (!_guiaFocusNodes.containsKey(key)) {
+      _guiaFocusNodes[key] = FocusNode();
+    }
+
+    final ctrl = _guiaControllers[key]!;
+
+    return TextField(
+      controller: ctrl,
+      focusNode: _guiaFocusNodes[key],
+      decoration: InputDecoration(
+        labelText: 'Guía',
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      onEditingComplete: () {
+        _actualizarCampoPorClave(registros, reg, 'guia', ctrl.text);
+        FocusScope.of(context).unfocus();
+      },
+    );
+  }
+
+  Widget _buildRegistroCard(
+      List<Map<String, dynamic>> registros, Map<String, dynamic> reg) {
+    final bloqueado = reg['bloqueado'] == true;
+    final guia = (reg['guia'] ?? '').toString().trim();
+    final pendiente = guia.isEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  (reg['devolucion'] ?? '').toString().isEmpty
+                      ? 'Nueva devolución'
+                      : 'Devolución ${reg['devolucion']}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: pendiente
+                      ? const Color(0xFFFEF3C7)
+                      : const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  pendiente ? 'Pendiente' : 'Con guía',
+                  style: TextStyle(
+                    color: pendiente
+                        ? const Color(0xFF92400E)
+                        : const Color(0xFF166534),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _formatearFecha(reg['fecha']),
+            style: const TextStyle(
+              color: Color(0xFF6B7280),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: bloqueado
+                    ? SelectableText(
+                        (reg['devolucion'] ?? '').toString(),
+                        style: const TextStyle(fontSize: 16),
+                      )
+                    : _buildEditableDevolucion(registros, reg),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: bloqueado
+                    ? SelectableText(
+                        (reg['guia'] ?? '').toString(),
+                        style: const TextStyle(fontSize: 16),
+                      )
+                    : _buildEditableGuia(registros, reg),
+              ),
+              if (bloqueado) ...[
+                const SizedBox(width: 12),
+                FilledButton.tonalIcon(
+                  onPressed: () async {
+                    await _itemsRef.add({
+                      'devolucion': reg['devolucion'],
+                      'guia': '',
+                      'fecha': DateTime.now().toIso8601String(),
+                      'bloqueado': false,
+                    });
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Movimiento'),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _programarNotificacionSiCambio(List<Map<String, dynamic>> registros) {
     final huella = registros
         .map((r) =>
@@ -341,44 +656,45 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
   }
 
   void _agregarFila(List<Map<String, dynamic>> registros) async {
-    final nuevaLista = List<Map<String, dynamic>>.from(registros);
-    nuevaLista.insert(0, {'devolucion': '', 'guia': '', 'fecha': ''});
-    // Ordenar: sin guía arriba, con guía abajo
-    nuevaLista.sort((a, b) {
-      final aGuia = (a['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
-      final bGuia = (b['guia'] ?? '').toString().trim().isEmpty ? 0 : 1;
-      return aGuia - bGuia;
+    final ahora = DateTime.now().toIso8601String();
+    await _itemsRef.add({
+      'devolucion': '',
+      'guia': '',
+      'fecha': ahora,
+      'bloqueado': false,
     });
-    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': nuevaLista});
+  }
+
+  Future<void> _sincronizarDocLegadoDesdeSubcoleccion() async {
+    final snap = await _itemsRef.get();
+    final items = snap.docs.map((d) {
+      final data = Map<String, dynamic>.from(d.data());
+      data.remove('_docId');
+      return data;
+    }).toList()
+      ..sort((a, b) => (b['fecha'] ?? '')
+          .toString()
+          .compareTo((a['fecha'] ?? '').toString()));
+    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
   }
 
   Future<void> _guardar(List<Map<String, dynamic>> registros) async {
     setState(() => _guardando = true);
-    final items = registros.map((r) {
-      final completo = (r['devolucion'] ?? '').toString().isNotEmpty &&
-          (r['guia'] ?? '').toString().isNotEmpty &&
-          (r['fecha'] ?? '').toString().isNotEmpty;
-      if (completo) {
-        return {...r, 'bloqueado': true};
-      } else {
-        return {...r, 'bloqueado': false};
-      }
-    }).toList();
 
     try {
-      // 1. Guardar en array del doc (legado)
-      await guardarDatosFirestoreYCache('guias', 'mkp', {'items': items});
-
-      // 2. Guardar cada registro nuevo/actualizado también en la subcolección
-      for (final item in items) {
-        final clave = '${item['fecha']}_${item['devolucion']}';
-        await FirebaseFirestore.instance
-            .collection('guias')
-            .doc('mkp')
-            .collection('items')
-            .doc(clave)
-            .set(item, SetOptions(merge: true));
+      final batch = FirebaseFirestore.instance.batch();
+      for (final reg in registros) {
+        final docId = _docIdRegistro(reg);
+        final completo = (reg['devolucion'] ?? '').toString().isNotEmpty &&
+            (reg['guia'] ?? '').toString().isNotEmpty &&
+            (reg['fecha'] ?? '').toString().isNotEmpty;
+        final item = Map<String, dynamic>.from(reg)
+          ..remove('_docId')
+          ..['bloqueado'] = completo;
+        batch.set(_itemsRef.doc(docId), item, SetOptions(merge: true));
       }
+      await batch.commit();
+      await _sincronizarDocLegadoDesdeSubcoleccion();
 
       setState(() {
         _guardando = false;
@@ -403,24 +719,23 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
 
   void _actualizarCampoPorClave(List<Map<String, dynamic>> registros,
       Map<String, dynamic> reg, String campo, String valor) async {
-    // Buscar el índice real en la lista original por devolución y fecha
-    final idx = registros.indexWhere((r) =>
-        (r['devolucion'] ?? '') == (reg['devolucion'] ?? '') &&
-        (r['fecha'] ?? '') == (reg['fecha'] ?? ''));
-    if (idx == -1) return;
-    final nuevaLista = List<Map<String, dynamic>>.from(registros);
-    nuevaLista[idx][campo] = valor;
+    final docId = _docIdRegistro(reg);
+    final actualizado = Map<String, dynamic>.from(reg)..[campo] = valor;
     if (campo == 'guia' && valor.trim().isNotEmpty) {
-      nuevaLista[idx]['fecha'] = DateTime.now().toIso8601String();
+      actualizado['fecha'] = DateTime.now().toIso8601String();
     }
-    // No reordenar aquí, solo guardar
-    await guardarDatosFirestoreYCache('guias', 'mkp', {'items': nuevaLista});
+    final completo = (actualizado['devolucion'] ?? '').toString().isNotEmpty &&
+        (actualizado['guia'] ?? '').toString().isNotEmpty &&
+        (actualizado['fecha'] ?? '').toString().isNotEmpty;
+    actualizado['bloqueado'] = completo;
+    actualizado.remove('_docId');
+    await _itemsRef.doc(docId).set(actualizado, SetOptions(merge: true));
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _guiasStream,
+      stream: _streamConsultaActual(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(
@@ -429,13 +744,25 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
         }
         final registros = snapshot.data ?? [];
         final registrosFiltrados = _filtrarRegistros(registros);
-        final mesesSelector = _mesesParaSelector(registros);
-        // No ordenar aquí para evitar que la fila se mueva al editar
+        final registrosVisibles = _registrosVisibles(registrosFiltrados);
+        final mesesSelector = _mesesParaSelector();
         final int devolucionesSinGuia = registros
             .where((r) =>
                 (r['devolucion'] ?? '').toString().isNotEmpty &&
                 (r['guia'] ?? '').toString().isEmpty)
             .length;
+        final int devolucionesConGuia = registros
+            .where((r) => (r['guia'] ?? '').toString().trim().isNotEmpty)
+            .length;
+        final int urgentes = registros.where((r) {
+          if ((r['devolucion'] ?? '').toString().isEmpty ||
+              (r['guia'] ?? '').toString().isNotEmpty) {
+            return false;
+          }
+          final fecha = DateTime.tryParse((r['fecha'] ?? '').toString());
+          if (fecha == null) return false;
+          return DateTime.now().difference(fecha).inHours >= 24;
+        }).length;
         return Scaffold(
           appBar: AppBar(
             title: Row(
@@ -492,445 +819,226 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
               ),
             ],
           ),
-          body: Center(
-            child: Card(
-              elevation: 8,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-              margin: const EdgeInsets.symmetric(vertical: 32, horizontal: 0),
-              child: Container(
-                constraints: const BoxConstraints(maxWidth: 1500), // Más ancho
-                padding: const EdgeInsets.all(36),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F7FB),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
+          body: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1450),
+                child: Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF6F7FB),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // Botones en la parte superior derecha
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          width: 180,
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.add),
-                            label: const Text('Agregar fila'),
-                            onPressed: () => _agregarFila(registros),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green.shade600,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              textStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: _sincronizando
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Icon(Icons.sync),
-                          tooltip: 'Sincronizar devoluciones',
-                          onPressed: _sincronizando
-                              ? null
-                              : () =>
-                                  _sincronizarDevoluciones(context, registros),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 180,
-                          child: ElevatedButton.icon(
-                            icon: _guardando
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white),
-                                  )
-                                : const Icon(Icons.save),
-                            label: const Text('Guardar'),
-                            onPressed: _editando && !_guardando
-                                ? () => _guardar(registros)
-                                : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber.shade700,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              textStyle: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 16),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 14),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 320,
-                          child: DropdownButtonFormField<String>(
-                            value: _mesSeleccionado ?? _keyMesActual(),
-                            decoration: InputDecoration(
-                              labelText: 'Mes a mostrar',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                            items: [
-                              ...mesesSelector.map(
-                                (key) => DropdownMenuItem<String>(
-                                  value: key,
-                                  child: Text(_etiquetaMes(key)),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 14,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 360,
+                              child: TextField(
+                                controller: _busquedaController,
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Buscar por devolución, guía o fecha...',
+                                  prefixIcon: const Icon(Icons.search),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide.none,
+                                  ),
                                 ),
                               ),
-                              const DropdownMenuItem<String>(
-                                value: 'all',
-                                child: Text('Histórico completo'),
+                            ),
+                            SizedBox(
+                              width: 250,
+                              child: DropdownButtonFormField<String>(
+                                value: _mesSeleccionado ?? _keyMesActual(),
+                                decoration: InputDecoration(
+                                  labelText: 'Mes',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                                items: [
+                                  ...mesesSelector.map(
+                                    (key) => DropdownMenuItem<String>(
+                                      value: key,
+                                      child: Text(_etiquetaMes(key)),
+                                    ),
+                                  ),
+                                  const DropdownMenuItem<String>(
+                                    value: 'all',
+                                    child: Text('Histórico completo'),
+                                  ),
+                                ],
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() => _mesSeleccionado = value);
+                                },
                               ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setState(() => _mesSeleccionado = value);
-                            },
-                          ),
+                            ),
+                            SizedBox(
+                              width: 260,
+                              child: CheckboxListTile(
+                                value: _mostrarSinGuiaSiempre,
+                                onChanged: (v) => setState(
+                                    () => _mostrarSinGuiaSiempre = v ?? true),
+                                title: const Text('Incluir pendientes'),
+                                tileColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                dense: true,
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: () => _agregarFila(registros),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Agregar fila'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.green.shade600,
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: _editando && !_guardando
+                                  ? () => _guardar(registros)
+                                  : null,
+                              icon: _guardando
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.save),
+                              label: const Text('Guardar'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.amber.shade700,
+                              ),
+                            ),
+                            IconButton.filledTonal(
+                              onPressed: _sincronizando
+                                  ? null
+                                  : () => _sincronizarDevoluciones(
+                                      context, registros),
+                              tooltip: 'Sincronizar devoluciones',
+                              icon: _sincronizando
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.sync),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        SizedBox(
-                          width: 320,
-                          child: CheckboxListTile(
-                            value: _mostrarSinGuiaSiempre,
-                            onChanged: (v) => setState(
-                                () => _mostrarSinGuiaSiempre = v ?? true),
-                            title: const Text('Incluir pendientes sin guía'),
-                            dense: true,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                        const SizedBox(height: 22),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 14,
+                          children: [
+                            _buildMetricCard(
+                              titulo: 'Registros cargados',
+                              valor: registros.length.toString(),
+                              icono: Icons.inventory_2_outlined,
+                              color: const Color(0xFF2563EB),
+                            ),
+                            _buildMetricCard(
+                              titulo: 'Pendientes sin guía',
+                              valor: devolucionesSinGuia.toString(),
+                              icono: Icons.warning_amber_rounded,
+                              color: const Color(0xFFF59E0B),
+                            ),
+                            _buildMetricCard(
+                              titulo: 'Registros con guía',
+                              valor: devolucionesConGuia.toString(),
+                              icono: Icons.check_circle_outline,
+                              color: const Color(0xFF16A34A),
+                            ),
+                            _buildMetricCard(
+                              titulo: 'Pendientes > 24h',
+                              valor: urgentes.toString(),
+                              icono: Icons.schedule,
+                              color: const Color(0xFFDC2626),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        Row(
+                          children: [
+                            Text(
+                              _filtro.isEmpty
+                                  ? 'Vista ejecutiva'
+                                  : 'Resultados de búsqueda',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _filtro.isEmpty
+                                  ? 'Mostrando ${registrosVisibles.length} registros prioritarios de ${registrosFiltrados.length}'
+                                  : '${registrosFiltrados.length} coincidencias encontradas',
+                              style: const TextStyle(
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: registrosVisibles.isEmpty
+                              ? Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'No hay resultados para los filtros actuales.',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Color(0xFF6B7280),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : ListView.separated(
+                                  itemCount: registrosVisibles.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    final reg = registrosVisibles[index];
+                                    return _buildRegistroCard(registros, reg);
+                                  },
+                                ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: 420,
-                      child: TextField(
-                        controller: _busquedaController,
-                        decoration: InputDecoration(
-                          hintText: 'Buscar por devolución, guía o fecha...',
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(
-                              vertical: 0, horizontal: 16),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Center(
-                      child: Container(
-                        width: 1100, // Más ancho
-                        height: 500, // Más alto
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: BoxBorder.lerp(
-                              Border.all(color: Colors.grey.shade300),
-                              Border.all(color: Colors.grey.shade300),
-                              1)!,
-                        ),
-                        child: Scrollbar(
-                          thumbVisibility: true,
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SizedBox(
-                              width: 1000, // Más ancho para las columnas
-                              child: ListView(
-                                padding: EdgeInsets.zero,
-                                children: [
-                                  DataTable(
-                                    headingRowColor: MaterialStateProperty.all(
-                                        const Color(0xFF2D6A4F)),
-                                    headingTextStyle: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16),
-                                    dataRowColor: MaterialStateProperty
-                                        .resolveWith<Color?>((states) {
-                                      if (states
-                                          .contains(MaterialState.selected)) {
-                                        return Colors.amber.shade100;
-                                      }
-                                      return Colors.white;
-                                    }),
-                                    columns: const [
-                                      DataColumn(
-                                          label: SizedBox(
-                                              width: 200,
-                                              child: Text('Devolución'))),
-                                      DataColumn(
-                                          label: SizedBox(
-                                              width: 200, child: Text('Guía'))),
-                                      DataColumn(
-                                          label: SizedBox(
-                                              width: 180,
-                                              child: Text('Fecha'))),
-                                      DataColumn(
-                                          label: SizedBox(
-                                              width: 80, child: Text(''))),
-                                    ],
-                                    rows: List.generate(
-                                      (registrosFiltrados.length > 8
-                                          ? registrosFiltrados.length
-                                          : 8),
-                                      (idx) {
-                                        if (idx < registrosFiltrados.length) {
-                                          final reg = registrosFiltrados[idx];
-                                          final bloqueado =
-                                              reg['bloqueado'] == true;
-                                          return DataRow(cells: [
-                                            DataCell(
-                                              bloqueado
-                                                  ? SelectableText(
-                                                      reg['devolucion'] ?? '',
-                                                      style: const TextStyle(
-                                                          fontSize: 15))
-                                                  : Builder(
-                                                      builder: (context) {
-                                                        final key =
-                                                            _rowKey(reg);
-                                                        if (!_devolucionControllers
-                                                            .containsKey(key)) {
-                                                          _devolucionControllers[
-                                                                  key] =
-                                                              TextEditingController(
-                                                                  text:
-                                                                      reg['devolucion'] ??
-                                                                          '');
-                                                        } else {
-                                                          final ctrl =
-                                                              _devolucionControllers[
-                                                                  key]!;
-                                                          if (ctrl.text !=
-                                                              (reg['devolucion'] ??
-                                                                  '')) {
-                                                            ctrl.text =
-                                                                reg['devolucion'] ??
-                                                                    '';
-                                                          }
-                                                        }
-                                                        return Focus(
-                                                          child: TextField(
-                                                            controller:
-                                                                _devolucionControllers[
-                                                                    key],
-                                                            decoration:
-                                                                const InputDecoration(
-                                                              border:
-                                                                  InputBorder
-                                                                      .none,
-                                                              hintText:
-                                                                  'Devolución',
-                                                            ),
-                                                            style: const TextStyle(
-                                                                fontSize: 15,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500),
-                                                            enabled: true,
-                                                          ),
-                                                          onFocusChange:
-                                                              (hasFocus) {
-                                                            if (!hasFocus) {
-                                                              _actualizarCampoPorClave(
-                                                                  registros,
-                                                                  reg,
-                                                                  'devolucion',
-                                                                  _devolucionControllers[
-                                                                              key]
-                                                                          ?.text ??
-                                                                      '');
-                                                            }
-                                                          },
-                                                        );
-                                                      },
-                                                    ),
-                                            ),
-                                            DataCell(
-                                              bloqueado
-                                                  ? SelectableText(
-                                                      reg['guia'] ?? '',
-                                                      style: const TextStyle(
-                                                          fontSize: 15))
-                                                  : Builder(
-                                                      builder: (context) {
-                                                        final key =
-                                                            _rowKey(reg);
-                                                        if (!_guiaControllers
-                                                            .containsKey(key)) {
-                                                          _guiaControllers[
-                                                                  key] =
-                                                              TextEditingController(
-                                                                  text:
-                                                                      reg['guia'] ??
-                                                                          '');
-                                                        }
-                                                        if (!_guiaFocusNodes
-                                                            .containsKey(key)) {
-                                                          _guiaFocusNodes[key] =
-                                                              FocusNode();
-                                                        }
-                                                        final ctrl =
-                                                            _guiaControllers[
-                                                                key]!;
-                                                        final focus =
-                                                            _guiaFocusNodes[
-                                                                key]!;
-                                                        return Focus(
-                                                          focusNode: focus,
-                                                          child: TextField(
-                                                            controller: ctrl,
-                                                            decoration:
-                                                                const InputDecoration(
-                                                              border:
-                                                                  InputBorder
-                                                                      .none,
-                                                              hintText: 'Guía',
-                                                            ),
-                                                            style: const TextStyle(
-                                                                fontSize: 15,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w500),
-                                                            enabled: true,
-                                                          ),
-                                                          onFocusChange:
-                                                              (hasFocus) {
-                                                            if (!hasFocus) {
-                                                              _actualizarCampoPorClave(
-                                                                  registros,
-                                                                  reg,
-                                                                  'guia',
-                                                                  ctrl.text);
-                                                            }
-                                                          },
-                                                        );
-                                                      },
-                                                    ),
-                                            ),
-                                            DataCell(
-                                              Text(
-                                                (reg['fecha'] ?? '')
-                                                        .toString()
-                                                        .isEmpty
-                                                    ? ''
-                                                    : reg['fecha']
-                                                        .toString()
-                                                        .replaceFirst('T', ' ')
-                                                        .substring(0, 19),
-                                                style: const TextStyle(
-                                                    fontSize: 15,
-                                                    color: Color(0xFF2D6A4F)),
-                                              ),
-                                            ),
-                                            DataCell(
-                                              bloqueado
-                                                  ? IconButton(
-                                                      icon: const Icon(
-                                                          Icons.add,
-                                                          color: Colors.green),
-                                                      tooltip:
-                                                          'Agregar movimiento',
-                                                      onPressed: () async {
-                                                        // Insertar nueva fila debajo con mismo número de devolución (bloqueado), fecha actual, guía vacía
-                                                        final nuevaLista = List<
-                                                                Map<String,
-                                                                    dynamic>>.from(
-                                                            registros);
-                                                        // Buscar el índice real en la lista original
-                                                        final idxReal = nuevaLista
-                                                            .indexWhere((r) =>
-                                                                (r['devolucion'] ??
-                                                                        '') ==
-                                                                    (reg['devolucion'] ??
-                                                                        '') &&
-                                                                (r['fecha'] ??
-                                                                        '') ==
-                                                                    (reg['fecha'] ??
-                                                                        ''));
-                                                        if (idxReal != -1) {
-                                                          final nuevaFila = {
-                                                            'devolucion': reg[
-                                                                'devolucion'],
-                                                            'guia': '',
-                                                            'fecha': DateTime
-                                                                    .now()
-                                                                .toIso8601String(),
-                                                            'bloqueado': false,
-                                                          };
-                                                          nuevaLista.insert(
-                                                              idxReal + 1,
-                                                              nuevaFila);
-                                                          await guardarDatosFirestoreYCache(
-                                                              'guias', 'mkp', {
-                                                            'items': nuevaLista
-                                                          });
-                                                        }
-                                                      },
-                                                    )
-                                                  : const SizedBox.shrink(),
-                                            ),
-                                          ]);
-                                        } else {
-                                          // Fila vacía para mantener el tamaño
-                                          return const DataRow(cells: [
-                                            DataCell(Text('')),
-                                            DataCell(Text('')),
-                                            DataCell(Text('')),
-                                            DataCell(Text('')),
-                                          ]);
-                                        }
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // ... Botones duplicados eliminados ...
-                  ],
+                  ),
                 ),
               ),
             ),

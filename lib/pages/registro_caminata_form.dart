@@ -305,24 +305,38 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
       print(
           '📸 Iniciando upload de ${bodegaPhotos.length} fotos bodega + ${pisoPhotos.length} piso');
       for (var i = 0; i < bodegaPhotos.length; i++) {
-        final bytes = bodegaPhotos[i];
-        final ref = storage.ref().child(
-            'caminatas/$docId/bodega/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-        print('⬆️ Subiendo bodega foto $i...');
-        final snap = await ref.putData(bytes,
-            firebase_storage.SettableMetadata(contentType: 'image/jpeg'));
-        final url = await snap.ref.getDownloadURL();
-        print('✅ URL bodega: $url');
-        bodegaUrls.add(url);
+        try {
+          final bytes = bodegaPhotos[i];
+          final ref = storage.ref().child(
+              'caminatas/$docId/bodega/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+          print('⬆️ Subiendo bodega foto $i...');
+          final snap = await ref.putData(bytes,
+              firebase_storage.SettableMetadata(contentType: 'image/jpeg'));
+          final url = await snap.ref.getDownloadURL();
+          print('✅ URL bodega: $url');
+          bodegaUrls.add(url);
+        } catch (e, st) {
+          print('❌ Error subiendo bodega foto $i: ${e.runtimeType} $e');
+          print(st);
+          rethrow;
+        }
       }
       for (var i = 0; i < pisoPhotos.length; i++) {
-        final bytes = pisoPhotos[i];
-        final ref = storage.ref().child(
-            'caminatas/$docId/piso/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
-        final snap = await ref.putData(bytes,
-            firebase_storage.SettableMetadata(contentType: 'image/jpeg'));
-        final url = await snap.ref.getDownloadURL();
-        pisoUrls.add(url);
+        try {
+          final bytes = pisoPhotos[i];
+          final ref = storage.ref().child(
+              'caminatas/$docId/piso/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+          print('⬆️ Subiendo piso foto $i...');
+          final snap = await ref.putData(bytes,
+              firebase_storage.SettableMetadata(contentType: 'image/jpeg'));
+          final url = await snap.ref.getDownloadURL();
+          print('✅ URL piso: $url');
+          pisoUrls.add(url);
+        } catch (e, st) {
+          print('❌ Error subiendo piso foto $i: ${e.runtimeType} $e');
+          print(st);
+          rethrow;
+        }
       }
       final bodegaMap = {
         ...bodegaAnswers,
@@ -360,9 +374,9 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
               content: Text(
                   'Fotos subidas: bodega ${bodegaUrls.length}, piso ${pisoUrls.length}')));
       });
-    } catch (e) {
-      print('❌ ERROR en upload: $e');
-      print('Stack trace: ${StackTrace.current}');
+    } catch (e, st) {
+      print('❌ ERROR en upload: ${e.runtimeType} $e');
+      print(st);
       // mark failed state on document so user can see error in console/histórico
       try {
         await docRef.update(
