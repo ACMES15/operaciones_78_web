@@ -16,10 +16,10 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   DateTime? _monthB;
   _MonthStats? _statsA;
   _MonthStats? _statsB;
-  Map<String, int> _countAByJefe = {};
-  Map<String, int> _countBByJefe = {};
-  int _totalMesA = 0;
-  int _totalMesB = 0;
+  Map<String, double> _avgAByJefe = {};
+  Map<String, double> _avgBByJefe = {};
+  Map<String, int> _evalAByJefe = {};
+  Map<String, int> _evalBByJefe = {};
   bool _loading = false;
 
   @override
@@ -60,6 +60,18 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
     final jefePorSeccion = _seccionToJefe[_norm(seccion)] ?? '';
     if (jefePorSeccion.isNotEmpty) return jefePorSeccion;
     return (data['jefe'] ?? '').toString().trim();
+  }
+
+  double? _extractScore(Map<String, dynamic> data) {
+    final raw = data['score'];
+    if (raw is num) return raw.toDouble();
+    if (raw is String) {
+      var s = raw.trim();
+      if (s.isEmpty) return null;
+      if (s.endsWith('%')) s = s.substring(0, s.length - 1);
+      return double.tryParse(s);
+    }
+    return null;
   }
 
   Future<void> _loadPlantillaJefes() async {
@@ -124,25 +136,36 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
         merged[d.id] = d.data();
       }
 
-      var totalMes = 0;
-      final byJefe = <String, int>{};
+      final aggByJefe = <String, _Agg>{};
 
       for (final data in merged.values) {
         final fecha = _extractFecha(data);
         if (fecha == null) continue;
         if (fecha.isBefore(start) || !fecha.isBefore(end)) continue;
 
-        totalMes++;
         final jefe = _resolverJefe(data);
-        if (jefe.isNotEmpty) {
-          byJefe[jefe] = (byJefe[jefe] ?? 0) + 1;
-        }
+        if (jefe.isEmpty) continue;
+        final score = _extractScore(data);
+        if (score == null) continue;
+
+        final agg = aggByJefe.putIfAbsent(jefe, () => _Agg());
+        agg.sum += score;
+        agg.count += 1;
       }
 
-      return _MonthDistribution(totalMes: totalMes, byJefe: byJefe);
+      final avgByJefe = <String, double>{};
+      final evalByJefe = <String, int>{};
+      aggByJefe.forEach((jefe, agg) {
+        if (agg.count > 0) {
+          avgByJefe[jefe] = agg.sum / agg.count;
+          evalByJefe[jefe] = agg.count;
+        }
+      });
+
+      return _MonthDistribution(avgByJefe: avgByJefe, evalByJefe: evalByJefe);
     } catch (e) {
       debugPrint('Error calculando métricas: $e');
-      return const _MonthDistribution(totalMes: 0, byJefe: {});
+      return const _MonthDistribution(avgByJefe: {}, evalByJefe: {});
     }
   }
 
@@ -155,12 +178,12 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
     }
 
     _statsA = _MonthStats(
-      totalMes: _totalMesA,
-      caminatasJefe: _countAByJefe[jefe] ?? 0,
+      promedio: _avgAByJefe[jefe],
+      evaluaciones: _evalAByJefe[jefe] ?? 0,
     );
     _statsB = _MonthStats(
-      totalMes: _totalMesB,
-      caminatasJefe: _countBByJefe[jefe] ?? 0,
+      promedio: _avgBByJefe[jefe],
+      evaluaciones: _evalBByJefe[jefe] ?? 0,
     );
   }
 
@@ -173,10 +196,10 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
 
     if (!mounted) return;
     setState(() {
-      _countAByJefe = distA.byJefe;
-      _countBByJefe = distB.byJefe;
-      _totalMesA = distA.totalMes;
-      _totalMesB = distB.totalMes;
+      _avgAByJefe = distA.avgByJefe;
+      _avgBByJefe = distB.avgByJefe;
+      _evalAByJefe = distA.evalByJefe;
+      _evalBByJefe = distB.evalByJefe;
       _refreshSelectedStats();
       _loading = false;
     });
@@ -188,15 +211,69 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   }
 
   Color _colorFor(double value) {
-    if (value >= 30) return Colors.green;
-    if (value >= 15) return Colors.orange;
+    if (value >= 80) return Colors.green;
+    if (value >= 60) return Colors.orange;
     return Colors.red;
+  }
+
+  String _trendLabel(double delta) {
+    if (delta > 0.05) return 'Subió';
+    if (delta < -0.05) return 'Bajó';
+    return 'Igual';
+  }
+
+  IconData _trendIcon(double delta) {
+    if (delta > 0.05) return Icons.arrow_upward;
+    if (delta < -0.05) return Icons.arrow_downward;
+    return Icons.remove;
+  }
+
+  Color _trendColor(double delta) {
+    if (delta > 0.05) return Colors.green;
+    if (delta < -0.05) return Colors.red;
+    return Colors.grey;
+  }
+
+  Widget _trendBadge(double delta, {bool compact = false}) {
+    final color = _trendColor(delta);
+    final icon = _trendIcon(delta);
+    final label = _trendLabel(delta);
+    final deltaText = '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 10,
+        vertical: compact ? 4 : 6,
+      ),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: compact ? 14 : 16),
+          const SizedBox(width: 4),
+          Text(
+            '$label $deltaText',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: compact ? 11 : 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Métricas Caminatas')),
+      appBar: AppBar(
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text('Métricas Caminatas'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -272,7 +349,7 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
             if (_loading) const Center(child: CircularProgressIndicator()),
             if (!_loading) ...[
               const Text(
-                'Comparativa (porcentaje sobre total mensual)',
+                'Comparativa (promedio de evaluación)',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
@@ -281,35 +358,16 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
               _metricRow('Mes B', _monthB, _statsB),
               const SizedBox(height: 12),
               Builder(builder: (_) {
-                final a = _statsA?.pct ?? 0.0;
-                final b = _statsB?.pct ?? 0.0;
+                final a = _statsA?.promedio ?? 0.0;
+                final b = _statsB?.promedio ?? 0.0;
                 final delta = a - b;
-                final dColor = delta > 0
-                    ? Colors.green
-                    : (delta < 0 ? Colors.red : Colors.grey);
-                final deltaText =
-                    '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%';
 
                 return Row(
                   children: [
                     const Expanded(
-                      child: Text('Diferencia (A − B), puntos porcentuales'),
+                      child: Text('Variación (A − B), puntos porcentuales'),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: dColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        deltaText,
-                        style: TextStyle(
-                          color: dColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    _trendBadge(delta),
                   ],
                 );
               }),
@@ -334,7 +392,7 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   }
 
   Widget _metricRow(String label, DateTime? month, _MonthStats? stats) {
-    final pct = stats?.pct ?? 0.0;
+    final pct = stats?.promedio ?? 0.0;
     final color = _colorFor(pct);
 
     return Column(
@@ -366,7 +424,7 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
             const SizedBox(width: 8),
             Text(
               stats != null
-                  ? '${stats.caminatasJefe}/${stats.totalMes} (${stats.pct.toStringAsFixed(1)}%)'
+                  ? '${stats.promedio?.toStringAsFixed(1) ?? '—'}% (${stats.evaluaciones} eval.)'
                   : '—',
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
@@ -379,15 +437,13 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   Widget _buildRankingTable() {
     final allJefes = <String>{
       ..._jefes,
-      ..._countAByJefe.keys,
-      ..._countBByJefe.keys,
+      ..._avgAByJefe.keys,
+      ..._avgBByJefe.keys,
     }.toList()
       ..sort((a, b) {
-        final pctA =
-            _totalMesA == 0 ? 0 : ((_countAByJefe[a] ?? 0) / _totalMesA);
-        final pctB =
-            _totalMesA == 0 ? 0 : ((_countAByJefe[b] ?? 0) / _totalMesA);
-        return pctB.compareTo(pctA);
+        final avgA = _avgAByJefe[a] ?? 0;
+        final avgB = _avgAByJefe[b] ?? 0;
+        return avgB.compareTo(avgA);
       });
 
     if (allJefes.isEmpty) {
@@ -405,22 +461,19 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
         DataColumn(label: Text('Δ')),
       ],
       rows: allJefes.map((jefe) {
-        final ca = _countAByJefe[jefe] ?? 0;
-        final cb = _countBByJefe[jefe] ?? 0;
-        final pa = _totalMesA == 0 ? 0 : (ca / _totalMesA) * 100;
-        final pb = _totalMesB == 0 ? 0 : (cb / _totalMesB) * 100;
-        final delta = pa - pb;
-        final deltaColor =
-            delta > 0 ? Colors.green : (delta < 0 ? Colors.red : Colors.grey);
+        final avgA = _avgAByJefe[jefe];
+        final avgB = _avgBByJefe[jefe];
+        final evaA = _evalAByJefe[jefe] ?? 0;
+        final evaB = _evalBByJefe[jefe] ?? 0;
+        final delta = (avgA ?? 0) - (avgB ?? 0);
 
         return DataRow(cells: [
           DataCell(Text(jefe)),
-          DataCell(Text('$ca/$_totalMesA (${pa.toStringAsFixed(1)}%)')),
-          DataCell(Text('$cb/$_totalMesB (${pb.toStringAsFixed(1)}%)')),
           DataCell(Text(
-            '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%',
-            style: TextStyle(color: deltaColor, fontWeight: FontWeight.bold),
-          )),
+              '${avgA?.toStringAsFixed(1) ?? '—'}% (${evaA.toString()} eval.)')),
+          DataCell(Text(
+              '${avgB?.toStringAsFixed(1) ?? '—'}% (${evaB.toString()} eval.)')),
+          DataCell(_trendBadge(delta, compact: true)),
         ]);
       }).toList(),
     );
@@ -428,17 +481,20 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
 }
 
 class _MonthStats {
-  final int totalMes;
-  final int caminatasJefe;
+  final double? promedio;
+  final int evaluaciones;
 
-  const _MonthStats({required this.totalMes, required this.caminatasJefe});
-
-  double get pct => totalMes == 0 ? 0 : (caminatasJefe / totalMes) * 100;
+  const _MonthStats({required this.promedio, required this.evaluaciones});
 }
 
 class _MonthDistribution {
-  final int totalMes;
-  final Map<String, int> byJefe;
+  final Map<String, double> avgByJefe;
+  final Map<String, int> evalByJefe;
 
-  const _MonthDistribution({required this.totalMes, required this.byJefe});
+  const _MonthDistribution({required this.avgByJefe, required this.evalByJefe});
+}
+
+class _Agg {
+  double sum = 0;
+  int count = 0;
 }

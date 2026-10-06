@@ -58,6 +58,7 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
       return Scaffold(
         appBar: AppBar(
             backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
             title: const Text('Histórico Caminatas',
                 style: TextStyle(color: Colors.white)),
             actions: [
@@ -563,6 +564,7 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
       return Scaffold(
         appBar: AppBar(
             backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
             title: const Text('Histórico Caminatas',
                 style: TextStyle(color: Colors.white))),
         body: FutureBuilder<QuerySnapshot>(
@@ -738,7 +740,21 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                               width: 100, height: 100, fit: BoxFit.cover),
                         );
                       }
+                      if (s is List<int>) {
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.memory(Uint8List.fromList(s.cast<int>()),
+                              width: 100, height: 100, fit: BoxFit.cover),
+                        );
+                      }
                       if (s is String) {
+                        if (s.startsWith('http')) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.network(s,
+                                width: 100, height: 100, fit: BoxFit.cover),
+                          );
+                        }
                         try {
                           final bytes = base64Decode(s);
                           return ClipRRect(

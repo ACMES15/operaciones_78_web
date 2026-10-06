@@ -233,8 +233,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
         const boxName = 'caminata_thumbs';
         if (!Hive.isBoxOpen(boxName)) await Hive.openBox(boxName);
         final box = Hive.box(boxName);
-        final bodegaThumbs = _bodegaPhotos.take(3).map((b) => b).toList();
-        final pisoThumbs = _pisoPhotos.take(3).map((b) => b).toList();
+        final bodegaThumbs = List<Uint8List>.from(_bodegaPhotos);
+        final pisoThumbs = List<Uint8List>.from(_pisoPhotos);
         box.put('caminata_${docRef.id}',
             {'bodega': bodegaThumbs, 'piso': pisoThumbs});
       } catch (_) {}
