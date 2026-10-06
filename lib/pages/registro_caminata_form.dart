@@ -302,13 +302,17 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
     final List<String> bodegaUrls = [];
     final List<String> pisoUrls = [];
     try {
+      print(
+          '📸 Iniciando upload de ${bodegaPhotos.length} fotos bodega + ${pisoPhotos.length} piso');
       for (var i = 0; i < bodegaPhotos.length; i++) {
         final bytes = bodegaPhotos[i];
         final ref = storage.ref().child(
             'caminatas/$docId/bodega/${DateTime.now().millisecondsSinceEpoch}_$i.jpg');
+        print('⬆️ Subiendo bodega foto $i...');
         final snap = await ref.putData(bytes,
             firebase_storage.SettableMetadata(contentType: 'image/jpeg'));
         final url = await snap.ref.getDownloadURL();
+        print('✅ URL bodega: $url');
         bodegaUrls.add(url);
       }
       for (var i = 0; i < pisoPhotos.length; i++) {
@@ -357,6 +361,8 @@ class _RegistroCaminataFormState extends State<RegistroCaminataForm> {
                   'Fotos subidas: bodega ${bodegaUrls.length}, piso ${pisoUrls.length}')));
       });
     } catch (e) {
+      print('❌ ERROR en upload: $e');
+      print('Stack trace: ${StackTrace.current}');
       // mark failed state on document so user can see error in console/histórico
       try {
         await docRef.update(
