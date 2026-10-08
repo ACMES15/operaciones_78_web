@@ -642,6 +642,48 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
     );
   }
 
+  Widget _buildSearchResultsList(List<Map<String, dynamic>> encontrados,
+      List<Map<String, dynamic>> todos) {
+    final items = encontrados.take(100).toList();
+    return ListView.separated(
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final reg = items[index];
+        final guia = (reg['guia'] ?? '').toString();
+        final devolucion = (reg['devolucion'] ?? '').toString();
+        return ListTile(
+          tileColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: Text(
+            devolucion.isEmpty
+                ? (guia.isEmpty ? 'Sin datos' : guia)
+                : 'Devolución $devolucion',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(_formatearFecha(reg['fecha'])),
+          trailing: guia.isEmpty ? null : Text(guia),
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (ctx) {
+                return Dialog(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: SingleChildScrollView(
+                      child: _buildRegistroCard(todos, reg),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _programarNotificacionSiCambio(List<Map<String, dynamic>> registros) {
     final huella = registros
         .map((r) =>
@@ -1009,32 +1051,65 @@ class _GuiasMkpPageState extends State<GuiasMkpPage> {
                         ),
                         const SizedBox(height: 16),
                         Expanded(
-                          child: registrosVisibles.isEmpty
-                              ? Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      'No hay resultados para los filtros actuales.',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Color(0xFF6B7280),
+                          child: _filtro.isNotEmpty
+                              ? (registrosFiltrados.isEmpty
+                                  ? Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              : ListView.separated(
-                                  itemCount: registrosVisibles.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 12),
-                                  itemBuilder: (context, index) {
-                                    final reg = registrosVisibles[index];
-                                    return _buildRegistroCard(registros, reg);
-                                  },
-                                ),
+                                      child: Center(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Text(
+                                              'Busca o agrega el dato',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                color: Color(0xFF6B7280),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            FilledButton.icon(
+                                              onPressed: () =>
+                                                  _agregarFila(registros),
+                                              icon: const Icon(Icons.add),
+                                              label: const Text('Agregar fila'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : _buildSearchResultsList(
+                                      registrosFiltrados, registros))
+                              : (registrosVisibles.isEmpty
+                                  ? Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(18),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          'No hay resultados para los filtros actuales.',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      itemCount: registrosVisibles.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(height: 12),
+                                      itemBuilder: (context, index) {
+                                        final reg = registrosVisibles[index];
+                                        return _buildRegistroCard(
+                                            registros, reg);
+                                      },
+                                    )),
                         ),
                       ],
                     ),
