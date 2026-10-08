@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:flutter/services.dart';
 
 class ConsultaGlobalPage extends StatefulWidget {
   const ConsultaGlobalPage({Key? key}) : super(key: key);
@@ -32,6 +33,7 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
   String _query = '';
   List<_ResultadoConsulta> _resultados = [];
   String? _error;
+  bool _vistaEjecutivaExpandida = false;
 
   Future<void> _buscar() async {
     final query = _controller.text.trim().toLowerCase();
@@ -340,30 +342,149 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
               Text(_error!, style: const TextStyle(color: Colors.red)),
             if (!_buscando && _resultados.isNotEmpty)
               Expanded(
-                child: ListView.builder(
-                  itemCount: _resultados.length,
-                  itemBuilder: (context, i) {
-                    final r = _resultados[i];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: ListTile(
-                        title: Text(r.origen,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(_resumen(r.data)),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.info_outline),
-                          onPressed: () => _mostrarDetalle(r),
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Executive metrics row
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildMetricCard('Total resultados',
+                              _resultados.length.toString(), Colors.blue),
+                          const SizedBox(width: 12),
+                          _buildMetricCard(
+                              'Fuentes',
+                              _resultados
+                                  .map((r) => r.origen)
+                                  .toSet()
+                                  .length
+                                  .toString(),
+                              Colors.green),
+                          const SizedBox(width: 12),
+                          _buildMetricCard(
+                              'Resultados top',
+                              (_resultados.length > 10
+                                      ? 10
+                                      : _resultados.length)
+                                  .toString(),
+                              Colors.orange),
+                        ],
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 12),
+                    // Condensed list with toggle
+                    Expanded(
+                      child: _vistaEjecutivaExpandida
+                          ? ListView.builder(
+                              itemCount: _resultados.length,
+                              itemBuilder: (context, i) {
+                                final r = _resultados[i];
+                                return Card(
+                                  margin:
+                                      const EdgeInsets.symmetric(vertical: 6),
+                                  child: ListTile(
+                                    title: Text(r.origen,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    subtitle: Text(_resumen(r.data)),
+                                    trailing: IconButton(
+                                      icon: const Icon(Icons.info_outline),
+                                      onPressed: () => _mostrarDetalle(r),
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : ListView.separated(
+                              itemCount: (_resultados.length > 8)
+                                  ? 8
+                                  : _resultados.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, i) {
+                                final r = _resultados[i];
+                                return ListTile(
+                                  tileColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                  title: Text(r.origen,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
+                                  subtitle: Text(_resumen(r.data)),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.info_outline),
+                                    onPressed: () => _mostrarDetalle(r),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => setState(() =>
+                              _vistaEjecutivaExpandida =
+                                  !_vistaEjecutivaExpandida),
+                          child: Text(_vistaEjecutivaExpandida
+                              ? 'Ver menos'
+                              : 'Ver todo'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             if (!_buscando && _resultados.isEmpty && _query.isNotEmpty)
-              const Text('No se encontraron resultados.'),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8)),
+                child: Column(
+                  children: [
+                    const Text('No se encontraron resultados.'),
+                    const SizedBox(height: 8),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        // sugerencia rápida: copiar la query al portapapeles o abrir una ayuda
+                        await Clipboard.setData(ClipboardData(text: _query));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Búsqueda copiada al portapapeles')));
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copiar búsqueda'),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMetricCard(String titulo, String valor, Color color) {
+    return Container(
+      width: 170,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(titulo, style: const TextStyle(color: Color(0xFF6B7280))),
+          const SizedBox(height: 8),
+          Text(valor,
+              style: TextStyle(
+                  fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+        ],
       ),
     );
   }
