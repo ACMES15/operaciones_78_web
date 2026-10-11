@@ -1,0 +1,158 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+class MetricasPageFixed extends StatefulWidget {
+  const MetricasPageFixed({Key? key}) : super(key: key);
+
+  @override
+  State<MetricasPageFixed> createState() => _MetricasPageFixedState();
+}
+
+class _MetricasPageFixedState extends State<MetricasPageFixed> {
+  String _monthKeyFromTimestamp(Timestamp? ts) {
+    if (ts == null) return '';
+    final d = ts.toDate();
+    return '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}';
+  }
+
+  double _normalizePercent(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) {
+      final d = v.toDouble();
+      if (d > 1.5) return d.clamp(0.0, 100.0);
+      return (d <= 1.0) ? (d * 100.0) : d;
+    }
+    return 0.0;
+  }
+
+  Widget _buildMonthMetric(
+      String jefe, List<Map<String, dynamic>> records, Color accent) {
+    final recs = List<Map<String, dynamic>>.from(records);
+    recs.sort((a, b) {
+      final ta = a['ts'] as Timestamp?;
+      final tb = b['ts'] as Timestamp?;
+      if (ta == null && tb == null) return 0;
+      if (ta == null) return -1;
+      if (tb == null) return 1;
+      return ta.compareTo(tb);
+    });
+
+    final lastPct = recs.isEmpty ? 0.0 : (recs.last['pct'] as double);
+
+    String historyLine = '';
+    String variationLine = '';
+    if (recs.length > 1) {
+      final values =
+          recs.map((r) => (r['pct'] as double).toStringAsFixed(1)).toList();
+      final penult = recs[recs.length - 2]['pct'] as double;
+      final last = recs.last['pct'] as double;
+      final absDiff = last - penult;
+      final relPct = penult == 0.0 ? 0.0 : (absDiff / penult) * 100.0;
+      final entries =
+          List.generate(recs.length, (idx) => '${idx + 1}ª: ${values[idx]}%');
+      historyLine = '${recs.length} E — ${entries.join('  ')}';
+      variationLine =
+          'Variación (penúlt→últ): ${absDiff >= 0 ? '+' : ''}${absDiff.toStringAsFixed(1)}pp (${relPct >= 0 ? '+' : ''}${relPct.toStringAsFixed(1)}%)';
+    }
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                    child: Text(jefe,
+                        style: const TextStyle(fontWeight: FontWeight.w600))),
+                Text('${lastPct.toStringAsFixed(1)}%',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, color: accent)),
+              ],
+            ),
+            if (historyLine.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(historyLine,
+                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
+              const SizedBox(height: 4),
+              Text(variationLine,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Métricas (fixed)'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('metricas').snapshots(),
+        builder: (context, snap) {
+          if (snap.hasError)
+            return const Center(child: Text('Error al cargar métricas'));
+          if (!snap.hasData)
+            return const Center(child: CircularProgressIndicator());
+
+          final Map<String, Map<String, List<Map<String, dynamic>>>>
+              aggregation = {};
+          for (final doc in snap.data!.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final jefe = (data['jefe'] ?? '—').toString();
+            final pct = _normalizePercent(data['pct']);
+            final ts = data['ts'] as Timestamp?;
+            final month = _monthKeyFromTimestamp(ts);
+            if (month.isEmpty) continue;
+            aggregation.putIfAbsent(month, () => {});
+            aggregation[month]!.putIfAbsent(jefe, () => []);
+            aggregation[month]![jefe]!.add({'pct': pct, 'ts': ts});
+          }
+
+          final months = aggregation.keys.toList()
+            ..sort((a, b) => b.compareTo(a));
+
+          if (months.isEmpty)
+            return const Center(child: Text('No hay métricas disponibles'));
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(12),
+            itemCount: months.length,
+            itemBuilder: (context, idx) {
+              final month = months[idx];
+              final byJefe = aggregation[month]!;
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(month,
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      ...byJefe.entries.map((e) => _buildMonthMetric(
+                          e.key, e.value, Colors.pink.shade700)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}

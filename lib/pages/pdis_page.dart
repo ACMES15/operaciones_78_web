@@ -4,6 +4,7 @@ import 'pdis_detail_page.dart';
 import 'inventario_pdis_page.dart';
 import 'inventario_historico_page.dart';
 import 'metricas_page.dart';
+import 'metricas_page_fixed.dart';
 
 class PdisPage extends StatefulWidget {
   final String usuario;
@@ -310,8 +311,8 @@ class _PdisPageState extends State<PdisPage> {
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: () {
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MetricasPage()));
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const MetricasPageFixed()));
               },
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
