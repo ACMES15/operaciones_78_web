@@ -955,37 +955,41 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                 : LayoutBuilder(builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 600;
                     if (isMobile) {
-                      // Mobile: Executive dropdown + latest revision. If none
-                      // selected, show full list as before.
                       return Column(children: [
                         Card(
                           elevation: 2,
                           child: Padding(
                             padding: const EdgeInsets.all(12.0),
-                            child: Column(children: [
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: _kExecPink,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8))),
-                                onPressed: _showHistoricoListPage,
-                                child: const Text('Historico'),
+                            child: Row(children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: _kExecPink,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8))),
+                                  onPressed: _showHistoricoListPage,
+                                  child: const Text('Historico'),
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                    backgroundColor: _kExecPink,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8))),
-                                onPressed: () {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (_) => MetricasCaminatasPage()));
-                                },
-                                child: const Text('Métricas'),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: _kExecPink,
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8))),
+                                  onPressed: () {
+                                    Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                MetricasCaminatasPage()));
+                                  },
+                                  child: const Text('Métricas'),
+                                ),
                               ),
                             ]),
                           ),
@@ -1000,10 +1004,36 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                 children: [
                                   DropdownButtonFormField<String>(
                                     value: _selectedJefeName,
-                                    hint: const Text('Selecciona jefatura'),
+                                    isExpanded: true,
+                                    dropdownColor: Colors.white,
+                                    decoration: InputDecoration(
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 14),
+                                      prefixIcon: const Icon(Icons.badge,
+                                          color: _kExecPink),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide:
+                                            const BorderSide(color: _kExecPink),
+                                      ),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                    style: const TextStyle(
+                                        color: _kExecText,
+                                        fontWeight: FontWeight.w600),
+                                    hint: const Text('Selecciona jefatura',
+                                        style: TextStyle(color: Colors.grey)),
                                     items: _jefes
                                         .map((j) => DropdownMenuItem(
-                                            value: j, child: Text(j)))
+                                            value: j,
+                                            child: Text(j,
+                                                style: const TextStyle(
+                                                    color: _kExecText))))
                                         .toList(),
                                     onChanged: (v) {
                                       setState(() {
@@ -1018,7 +1048,8 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                       Expanded(
                                         child: Text(_selectedJefeName!,
                                             style: const TextStyle(
-                                                fontWeight: FontWeight.bold)),
+                                                fontWeight: FontWeight.bold,
+                                                color: _kExecText)),
                                       ),
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
@@ -1072,7 +1103,9 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                                           style: const TextStyle(
                                                               fontWeight:
                                                                   FontWeight
-                                                                      .bold)),
+                                                                      .bold,
+                                                              color:
+                                                                  _kExecText)),
                                                       const SizedBox(height: 6),
                                                       Text(
                                                           'Fecha: ${_ultimaRevision!['date'] is Timestamp ? (_ultimaRevision!['date'] as Timestamp).toDate().toLocal().toString() : _ultimaRevision!['createdAt'] is Timestamp ? (_ultimaRevision!['createdAt'] as Timestamp).toDate().toLocal().toString() : ''}'),
@@ -1084,11 +1117,14 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                                         ElevatedButton(
                                                             style: ElevatedButton.styleFrom(
                                                                 backgroundColor:
-                                                                    Colors
-                                                                        .black,
+                                                                    _kExecPink,
                                                                 foregroundColor:
                                                                     Colors
-                                                                        .white),
+                                                                        .white,
+                                                                shape: RoundedRectangleBorder(
+                                                                    borderRadius:
+                                                                        BorderRadius.circular(
+                                                                            8))),
                                                             onPressed: _ultimaRevisionId !=
                                                                     null
                                                                 ? () => _openHistoricForId(
@@ -1123,51 +1159,24 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                       ),
                                     )
                                   ] else ...[
-                                    const SizedBox.shrink()
+                                    Card(
+                                      color: Colors.white,
+                                      elevation: 0,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: Text(
+                                          'Selecciona una jefatura desde el desplegable para ver la última revisión',
+                                          style: TextStyle(
+                                              color:
+                                                  _kExecText.withOpacity(0.7)),
+                                        ),
+                                      ),
+                                    )
                                   ]
                                 ]),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        // if a jefe is selected we hide the full list to keep the
-                        // view executive; otherwise show the full list
-                        if (_selectedJefeName == null)
-                          Expanded(
-                            child: Card(
-                              elevation: 2,
-                              child: ListView.separated(
-                                padding: const EdgeInsets.all(8.0),
-                                itemCount: _jefes.length,
-                                separatorBuilder: (_, __) =>
-                                    const Divider(height: 1),
-                                itemBuilder: (context, index) {
-                                  final jefe = _jefes[index];
-                                  return ListTile(
-                                    title: Text(jefe),
-                                    trailing: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.black,
-                                          foregroundColor: Colors.white),
-                                      onPressed: () async {
-                                        final docId = await Navigator.of(
-                                                context)
-                                            .push(MaterialPageRoute(
-                                                builder: (_) =>
-                                                    RegistroCaminataForm(
-                                                        usuario: widget.usuario,
-                                                        jefe: jefe,
-                                                        date: _selectedDate)));
-                                        if (docId != null && docId is String) {
-                                          _openHistoricForId(docId);
-                                        }
-                                      },
-                                      child: const Text('Inicio de caminata'),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
                       ]);
                     }
 
@@ -1210,12 +1219,17 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                               return ListTile(
                                                 title: Text(jefe),
                                                 trailing: ElevatedButton(
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                          backgroundColor:
-                                                              Colors.black,
-                                                          foregroundColor:
-                                                              Colors.white),
+                                                  style: ElevatedButton.styleFrom(
+                                                      backgroundColor:
+                                                          _kExecPink,
+                                                      foregroundColor:
+                                                          Colors.white,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          8))),
                                                   onPressed: () async {
                                                     final docId = await Navigator.of(
                                                             context)
@@ -1251,12 +1265,16 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                                                                     .bold)),
                                                   ),
                                                   ElevatedButton(
-                                                    style: ElevatedButton
-                                                        .styleFrom(
-                                                            backgroundColor:
-                                                                Colors.black,
-                                                            foregroundColor:
-                                                                Colors.white),
+                                                    style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            _kExecPink,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        shape: RoundedRectangleBorder(
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        8))),
                                                     onPressed: () async {
                                                       final docId = await Navigator
                                                               .of(context)
