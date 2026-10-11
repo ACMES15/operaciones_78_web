@@ -346,65 +346,93 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
     }
   }
 
-  Widget _buildResultCard(_ResultadoConsulta r) {
+  Widget _buildGroupCard(String origen, List<_ResultadoConsulta> items) {
+    final count = items.length;
+    final subtitle =
+        count == 1 ? '1 coincidencia encontrada' : '$count coincidencias';
+    final preview = items.isNotEmpty ? _resumen(items.first.data) : '';
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 4,
-      child: InkWell(
-        onTap: () => _mostrarDetalleEjecutivo(r, null),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 3,
+      child: ListTile(
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        title: Text(origen,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Colors.black)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+            Text(subtitle, style: const TextStyle(color: Colors.black54)),
+            if (preview.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(preview, style: const TextStyle(color: Colors.black))
+            ]
+          ],
+        ),
+        trailing: Icon(Icons.keyboard_arrow_right, color: Colors.green),
+        onTap: () => _mostrarGrupoDetalle(origen, items),
+      ),
+    );
+  }
+
+  void _mostrarGrupoDetalle(String origen, List<_ResultadoConsulta> items) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          constraints: const BoxConstraints(maxWidth: 700),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(r.origen,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.black)),
-                  ),
+                  Text('Detalle: $origen',
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold)),
                   IconButton(
-                    icon: const Icon(Icons.info_outline, color: Colors.green),
-                    onPressed: () => _mostrarDetalle(r),
-                  )
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close))
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(_resumen(r.data),
-                  style: const TextStyle(color: Colors.black)),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: r.matches.take(6).map((m) {
-                  return GestureDetector(
-                    onTap: () => _mostrarDetalleEjecutivo(r, m),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: Colors.green.withOpacity(0.25)),
-                      ),
-                      child: Row(children: [
-                        const Icon(Icons.search, size: 14, color: Colors.green),
-                        const SizedBox(width: 6),
-                        Text(m,
-                            style: const TextStyle(
-                                fontSize: 13, color: Colors.black)),
-                      ]),
-                    ),
-                  );
-                }).toList(),
+              const Divider(),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemBuilder: (c, i) {
+                    final it = items[i];
+                    return ListTile(
+                      title: Text('Item ${i + 1}',
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(_resumen(it.data)),
+                      trailing: const Icon(Icons.arrow_forward_ios,
+                          size: 14, color: Colors.green),
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _mostrarDetalleEjecutivo(it, null);
+                      },
+                    );
+                  },
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemCount: items.length,
+                ),
               ),
+              const SizedBox(height: 12),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cerrar'))
+              ]),
             ],
           ),
         ),
@@ -538,28 +566,54 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      labelText: 'Buscar en todos los historiales',
-                      prefixIcon: Icon(Icons.search),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 8)
+                      ],
                     ),
-                    onSubmitted: (_) => _buscar(),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: TextField(
+                      controller: _controller,
+                      style:
+                          const TextStyle(fontSize: 16, color: Colors.black87),
+                      decoration: const InputDecoration(
+                        labelText: 'Buscar en todos los historiales',
+                        prefixIcon: Icon(Icons.search),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (_) => _buscar(),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
                   onPressed: _buscando ? null : _buscar,
                   child: _buscando
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Buscar'),
+                      : const Text('Buscar',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
+            const SizedBox(height: 12),
             const SizedBox(height: 16),
             if (_error != null)
               Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -596,27 +650,35 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    // Condensed list with toggle
+                    // Condensed grouped list with toggle (one card per origen)
                     Expanded(
-                      child: _vistaEjecutivaExpandida
-                          ? ListView.builder(
-                              itemCount: _resultados.length,
-                              itemBuilder: (context, i) {
-                                final r = _resultados[i];
-                                return _buildResultCard(r);
-                              },
-                            )
-                          : ListView.separated(
-                              itemCount: (_resultados.length > 8)
-                                  ? 8
-                                  : _resultados.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (context, i) {
-                                final r = _resultados[i];
-                                return _buildResultCard(r);
-                              },
-                            ),
+                      child: Builder(builder: (context) {
+                        final grouped = <String, List<_ResultadoConsulta>>{};
+                        for (final r in _resultados) {
+                          grouped.putIfAbsent(r.origen, () => []).add(r);
+                        }
+                        final groups = grouped.entries.toList();
+                        return _vistaEjecutivaExpandida
+                            ? ListView.builder(
+                                itemCount: groups.length,
+                                itemBuilder: (context, i) {
+                                  final entry = groups[i];
+                                  return _buildGroupCard(
+                                      entry.key, entry.value);
+                                },
+                              )
+                            : ListView.separated(
+                                itemCount:
+                                    (groups.length > 8) ? 8 : groups.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (context, i) {
+                                  final entry = groups[i];
+                                  return _buildGroupCard(
+                                      entry.key, entry.value);
+                                },
+                              );
+                      }),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -700,28 +762,5 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
       }
     });
     return buffer.toString();
-  }
-
-  void _mostrarDetalle(_ResultadoConsulta r) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Detalle - ${r.origen}'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: r.data.entries
-                .map((e) => Text('${e.key}: ${e.value}'))
-                .toList(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
-    );
   }
 }
