@@ -323,26 +323,43 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     }
   }
 
-  void _joinSession(String sessionId) {
+  Future<void> _joinSession(String sessionId) async {
+    // When joining, ensure the target session is still open. If it's closed,
+    // create a new session instead to avoid mixing closed inventories.
+    if (_selectedJefe == null) return;
+    final id = '${_selectedJefe}_${_todayKey()}_${sessionId}';
+    final docRef =
+        FirebaseFirestore.instance.collection('inventarios_inprogress').doc(id);
+    try {
+      final snap = await docRef.get();
+      final status = (snap.exists && snap.data() != null)
+          ? (snap.data()!['status']?.toString() ?? 'open')
+          : 'open';
+      if (status != 'open') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'La sesión seleccionada ya está cerrada. Se creará una nueva sesión.')));
+        await _createSession();
+        return;
+      }
+    } catch (e) {
+      // ignore and proceed to join (network/rules may prevent pre-check)
+      print('Error comprobando estado de sesión: $e');
+    }
+
     setState(() {
       _currentSessionId = sessionId;
     });
     // mark user as contributor in session doc
-    if (_selectedJefe != null) {
-      final id = '${_selectedJefe}_${_todayKey()}_${sessionId}';
-      final docRef = FirebaseFirestore.instance
-          .collection('inventarios_inprogress')
-          .doc(id);
-      try {
-        docRef.set({
-          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
-          'updatedAt': FieldValue.serverTimestamp()
-        }, SetOptions(merge: true));
-        // refresh sessions list so other UI updates quickly
-        _fetchAvailableSessions();
-      } catch (e) {
-        print('Error joining session contributors: $e');
-      }
+    try {
+      await docRef.set({
+        'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+        'updatedAt': FieldValue.serverTimestamp()
+      }, SetOptions(merge: true));
+      // refresh sessions list so other UI updates quickly
+      _fetchAvailableSessions();
+    } catch (e) {
+      print('Error joining session contributors: $e');
     }
     _subscribeInprogress();
     ScaffoldMessenger.of(context)
@@ -434,11 +451,18 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     _inprogressSub?.cancel();
     _appliedInprogressScanned.clear();
     _appliedInprogressSobrantes.clear();
+    // clear any previous server totals so we don't mix with a closed session
+    _serverScannedBySku.clear();
+    _serverSobrantesBySku.clear();
     if (_selectedJefe == null) return;
-    // support session-specific doc id when _currentSessionId is set
-    final id = _currentSessionId != null
-        ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
-        : '${_selectedJefe}_${_todayKey()}';
+    // Require an explicit session id to subscribe. This avoids re-using
+    // a generic per-day document that may have been closed previously.
+    if (_currentSessionId == null) {
+      setState(() {});
+      return;
+    }
+
+    final id = '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
     final docRef = FirebaseFirestore.instance
         .collection('inventarios_inprogress')
         .doc(id)
@@ -472,8 +496,6 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
           _appliedInprogressSobrantes[sku] = docCount;
         });
       }
-      // contributors info
-      // contributors are optional metadata; no direct action here
       _recalcTotals();
     });
   }
@@ -529,10 +551,10 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         final prev = mergedSkus[k];
         final prevScanned =
             prev != null && prev['scanned'] is int ? prev['scanned'] as int : 0;
-        mergedSkus[k] = {
-          'pdis': (_pdisBySku[k] ?? 0.0),
-          'scanned': prevScanned + pending
-        };
+        final prevPdis = prev != null && prev['pdis'] is num
+            ? (prev['pdis'] as num).toDouble()
+            : (_pdisBySku[k] ?? 0.0);
+        mergedSkus[k] = {'pdis': prevPdis, 'scanned': prevScanned + pending};
       });
       _sobrantesBySku.forEach((k, v) {
         final applied = _appliedInprogressSobrantes[k] ?? 0;
@@ -688,6 +710,79 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     setState(() {});
   }
 
+  Future<void> _confirmAndResetCounts() async {
+    final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text('Confirmar reinicio'),
+            content: const Text(
+                '¿Deseas reiniciar el conteo completo?\nSi aceptas, se borrará todo lo escaneado y los registros de sobrante para iniciar nuevamente.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancelar')),
+              ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Reiniciar')),
+            ],
+          );
+        });
+
+    if (ok != true) return;
+    // If there is an in-progress session doc, reset its counters but keep the doc.
+    // If no explicit session exists, create a new one first so we don't reuse a
+    // possibly-closed per-day document.
+    if (_selectedJefe != null) {
+      try {
+        if (_currentSessionId == null) {
+          await _createSession();
+          // allow server to settle
+          await Future.delayed(const Duration(milliseconds: 250));
+        }
+        final id = '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
+        final docRef = FirebaseFirestore.instance
+            .collection('inventarios_inprogress')
+            .doc(id);
+        await docRef.set({
+          'skus': {},
+          'sobrantes': {},
+          'contributors': {widget.usuario: FieldValue.serverTimestamp()},
+          'status': 'open',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        // keep current session id so scanning can resume
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sesión reiniciada en servidor')));
+      } catch (e) {
+        // inform user but continue with local reset
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('No se pudo reiniciar sesión en servidor: $e')));
+      }
+    }
+
+    // Clear local counters and applied caches
+    setState(() {
+      _scannedBySku.clear();
+      _sobrantesBySku.clear();
+      _appliedInprogressScanned.clear();
+      _appliedInprogressSobrantes.clear();
+      _totalScanned = 0;
+      _totalSobrantes = 0;
+    });
+
+    // Rebuild aggregates so plantilla SKUs are reinitialized
+    _buildSkuAggregates();
+    // refresh available sessions list
+    _fetchAvailableSessions();
+    // restart in-progress subscription so UI reflects the emptied session immediately
+    _inprogressSub?.cancel();
+    _subscribeInprogress();
+
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Conteo reiniciado')));
+  }
+
   double _parsePdisValue(Map<String, dynamic> r) {
     try {
       final candidates = [
@@ -710,12 +805,54 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     return 0.0;
   }
 
-  void _onScanSubmitted(String value) {
+  Future<void> _onScanSubmitted(String value) async {
     final sku = value.trim();
     if (sku.isEmpty || _selectedJefe == null) return;
+    // Require an explicit session before any scanning to avoid mixing inventories
+    if (_currentSessionId == null) {
+      final create = await showDialog<bool>(
+          context: context,
+          builder: (ctx) {
+            return AlertDialog(
+              title: const Text('Crear sesión necesaria'),
+              content: const Text(
+                  'Debe crearse una sesión antes de iniciar escaneos. ¿Deseas crearla ahora?'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar')),
+                ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Crear')),
+              ],
+            );
+          });
+      if (create != true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Escaneo cancelado. Se requiere sesión.')));
+        return;
+      }
+      await _createSession();
+      // give server a short moment to confirm
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
     if (_pdisBySku.containsKey(sku)) {
-      _scannedBySku[sku] = (_scannedBySku[sku] ?? 0) + 1;
-      _persistScanToInprogress(sku, isSobrante: false, delta: 1);
+      // increment scanned, but convert any overflow above PDIS into sobrantes
+      final current = (_scannedBySku[sku] ?? 0) + 1;
+      final pdisVal = _pdisBySku[sku]?.round() ?? 0;
+      if (current <= pdisVal) {
+        _scannedBySku[sku] = current;
+        _persistScanToInprogress(sku, isSobrante: false, delta: 1);
+      } else {
+        // cap scanned at pdis and register overflow as sobrante
+        final overflow = current - pdisVal;
+        _scannedBySku[sku] = pdisVal;
+        _sobrantesBySku[sku] = (_sobrantesBySku[sku] ?? 0) + overflow;
+        // persist both: scanned (no-op since capped) and sobrante increments
+        if (overflow > 0) {
+          _persistScanToInprogress(sku, isSobrante: true, delta: overflow);
+        }
+      }
       _recalcTotals();
       _scanController.clear();
       _scanFocus.requestFocus();
@@ -725,8 +862,19 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
         (k) => k.toLowerCase() == sku.toLowerCase(),
         orElse: () => '');
     if (found.isNotEmpty) {
-      _scannedBySku[found] = (_scannedBySku[found] ?? 0) + 1;
-      _persistScanToInprogress(found, isSobrante: false, delta: 1);
+      final current = (_scannedBySku[found] ?? 0) + 1;
+      final pdisVal = _pdisBySku[found]?.round() ?? 0;
+      if (current <= pdisVal) {
+        _scannedBySku[found] = current;
+        _persistScanToInprogress(found, isSobrante: false, delta: 1);
+      } else {
+        final overflow = current - pdisVal;
+        _scannedBySku[found] = pdisVal;
+        _sobrantesBySku[found] = (_sobrantesBySku[found] ?? 0) + overflow;
+        if (overflow > 0) {
+          _persistScanToInprogress(found, isSobrante: true, delta: overflow);
+        }
+      }
       _recalcTotals();
       _scanController.clear();
       _scanFocus.requestFocus();
@@ -746,9 +894,14 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
   Future<void> _persistScanToInprogress(String sku,
       {required bool isSobrante, int delta = 1}) async {
     if (_selectedJefe == null) return;
-    final id = _currentSessionId != null
-        ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
-        : '${_selectedJefe}_${_todayKey()}';
+    // Ensure we have an explicit session. If none, create a new one so we
+    // never reuse a closed/per-day generic doc.
+    if (_currentSessionId == null) {
+      await _createSession();
+      // small pause to allow server confirm/subscribe
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
+    final id = '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
     final docRef =
         FirebaseFirestore.instance.collection('inventarios_inprogress').doc(id);
     try {
@@ -906,9 +1059,11 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
 
     if (choice == 'pasar') {
       // save/update inprogress doc so next user picks it up
-      final id = _currentSessionId != null
-          ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
-          : '${_selectedJefe}_${_todayKey()}';
+      if (_currentSessionId == null) {
+        await _createSession();
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
+      final id = '${_selectedJefe}_${_todayKey()}_${_currentSessionId}';
       final docRef = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
           .doc(id);
@@ -933,12 +1088,13 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
     // choice == 'cerrar' -> final user: save to historico and remove inprogress
     try {
       // When closing, prefer to consolidate the session document (all contributors)
-      final id = _currentSessionId != null
-          ? '${_selectedJefe}_${_todayKey()}_${_currentSessionId}'
-          : '${_selectedJefe}_${_todayKey()}';
+      if (_currentSessionId == null) {
+        await _createSession();
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
       final inDocRef = FirebaseFirestore.instance
           .collection('inventarios_inprogress')
-          .doc(id);
+          .doc('${_selectedJefe}_${_todayKey()}_${_currentSessionId}');
 
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final inSnap = await tx.get(inDocRef);
@@ -1343,37 +1499,87 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String?>(
-                          value: _selectedJefe,
-                          items: [
-                            const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('Seleccione Jefe',
-                                    style: TextStyle(color: Colors.black))),
-                            ..._jefes.map((j) => DropdownMenuItem<String?>(
-                                value: j,
-                                child: Text(j,
-                                    style:
-                                        const TextStyle(color: Colors.black))))
-                          ],
-                          onChanged: _onSelectJefe,
-                          decoration: const InputDecoration(
-                              labelText: 'Jefatura para auditoría'),
+                        child: Container(
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade200),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4))
+                              ]),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 6),
+                          child: DropdownButtonFormField<String?>(
+                            value: _selectedJefe,
+                            isExpanded: true,
+                            dropdownColor: Colors.white,
+                            items: <DropdownMenuItem<String?>>[
+                              const DropdownMenuItem<String?>(
+                                  value: null,
+                                  child: Text('Seleccione Jefe',
+                                      style: TextStyle(color: Colors.grey))),
+                              ..._jefes.map<DropdownMenuItem<String?>>((j) {
+                                return DropdownMenuItem<String?>(
+                                    value: j,
+                                    child: Text(j,
+                                        style: const TextStyle(
+                                            color: Colors.black,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15)));
+                              }).toList(),
+                            ],
+                            onChanged: _onSelectJefe,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
+                              prefixIcon:
+                                  const Icon(Icons.badge, color: Colors.pink),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide:
+                                      const BorderSide(color: Colors.pink)),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              labelText: 'Jefatura para auditoría',
+                            ),
+                            style: const TextStyle(
+                                color: Colors.black,
+                                fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                          onPressed: _buildSkuAggregates,
+                          onPressed: _confirmAndResetCounts,
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white),
+                              backgroundColor: Colors.pink,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 14),
+                              textStyle: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w700),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12))),
                           child: const Text('Reiniciar')),
                       const SizedBox(width: 8),
                       ElevatedButton(
                           onPressed: _exportToExcel,
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.black,
-                              foregroundColor: Colors.white),
+                              backgroundColor: Colors.pink,
+                              foregroundColor: Colors.white,
+                              elevation: 4,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 18, vertical: 14),
+                              textStyle: const TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w700),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12))),
                           child: const Text('Exportar Excel'))
                     ],
                   ),
@@ -1381,9 +1587,12 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                   if (_selectedJefe != null && !isMobile)
                     Card(
                         color: Colors.white,
-                        elevation: 1,
+                        elevation: 6,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade200)),
                         child: Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1499,8 +1708,16 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                                   _confirmAndCombineSelectedSessions,
                                               style: ElevatedButton.styleFrom(
                                                   backgroundColor: Colors.black,
-                                                  foregroundColor:
-                                                      Colors.white),
+                                                  foregroundColor: Colors.white,
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      vertical: 14,
+                                                      horizontal: 20),
+                                                  elevation: 6,
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12))),
                                               child: const Text(
                                                   'Combinar sesiones seleccionadas'))
                                       ],
@@ -1559,18 +1776,22 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                             flex: 3,
                             child: Card(
                               color: Colors.white,
-                              elevation: 2,
+                              elevation: 6,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side:
+                                      BorderSide(color: Colors.grey.shade200)),
                               child: Column(
                                 children: [
                                   Padding(
-                                    padding: const EdgeInsets.all(12.0),
+                                    padding: const EdgeInsets.all(14.0),
                                     child: Row(
                                       children: [
                                         Expanded(
                                             child: Text('SKU',
                                                 style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w700))),
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 14))),
                                         SizedBox(
                                             width: 120,
                                             child: Text('PDIS',
@@ -1675,13 +1896,17 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                         const SizedBox(height: 12),
                         Card(
                             color: Colors.white,
-                            elevation: 2,
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.grey.shade200)),
                             child: Padding(
-                                padding: const EdgeInsets.all(12.0),
+                                padding: const EdgeInsets.all(14.0),
                                 child: Column(children: [
                                   const Text('Formulario de resultado',
                                       style: TextStyle(
-                                          fontWeight: FontWeight.w700)),
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14)),
                                   SwitchListTile(
                                       activeColor: Colors.black,
                                       title: const Text(
@@ -1791,9 +2016,12 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                         children: [
                           Card(
                             color: Colors.white,
-                            elevation: 2,
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: Colors.grey.shade200)),
                             child: Padding(
-                              padding: const EdgeInsets.all(12.0),
+                              padding: const EdgeInsets.all(14.0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
@@ -1977,7 +2205,13 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                                       onPressed: _showFaltantesDialog,
                                       style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.black,
-                                          foregroundColor: Colors.white),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 14, horizontal: 20),
+                                          elevation: 6,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12))),
                                       child: const Text('Faltantes'),
                                     )
                                   ])
@@ -1990,7 +2224,11 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                               height: listHeight.clamp(220.0, 420.0),
                               child: Card(
                                 color: Colors.white,
-                                elevation: 2,
+                                elevation: 6,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    side: BorderSide(
+                                        color: Colors.grey.shade200)),
                                 child: Column(
                                   children: [
                                     Padding(
@@ -2097,13 +2335,18 @@ class _InventarioPdisPageState extends State<InventarioPdisPage> {
                           const SizedBox(height: 12),
                           Card(
                               color: Colors.white,
-                              elevation: 2,
+                              elevation: 6,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side:
+                                      BorderSide(color: Colors.grey.shade200)),
                               child: Padding(
-                                  padding: const EdgeInsets.all(12.0),
+                                  padding: const EdgeInsets.all(14.0),
                                   child: Column(children: [
                                     const Text('Formulario de resultado',
                                         style: TextStyle(
-                                            fontWeight: FontWeight.w700)),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14)),
                                     SwitchListTile(
                                         activeColor: Colors.black,
                                         title: const Text(
