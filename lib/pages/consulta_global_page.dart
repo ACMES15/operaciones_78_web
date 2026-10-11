@@ -14,16 +14,21 @@ class ConsultaGlobalPage extends StatefulWidget {
 class _ResultadoConsulta {
   final String origen;
   final Map<String, dynamic> data;
-  _ResultadoConsulta({required this.origen, required this.data});
+  final List<String> matches;
+  _ResultadoConsulta(
+      {required this.origen, required this.data, required this.matches});
 
   Map<String, dynamic> toJson() => {
         'origen': origen,
         'data': data,
+        'matches': matches,
       };
   static _ResultadoConsulta fromJson(Map<String, dynamic> json) =>
       _ResultadoConsulta(
         origen: json['origen'] ?? '',
         data: Map<String, dynamic>.from(json['data'] ?? {}),
+        matches:
+            (json['matches'] as List?)?.map((e) => e.toString()).toList() ?? [],
       );
 }
 
@@ -61,6 +66,14 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
       }
       // Si no está en caché, consultar Firestore
       final resultados = <_ResultadoConsulta>[];
+      List<String> _findMatches(Map<String, dynamic> data, String q) {
+        final List<String> m = [];
+        data.forEach((k, v) {
+          if (v != null && v.toString().toLowerCase().contains(q)) m.add(k);
+        });
+        return m;
+      }
+
       // 1. entregas_cdr (colección)
       final cdrQuery = await FirebaseFirestore.instance
           .collection('entregas_cdr')
@@ -68,11 +81,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           .get();
       for (final doc in cdrQuery.docs) {
         final data = doc.data();
-        if (data.values.any(
-            (v) => v != null && v.toString().toLowerCase().contains(query))) {
+        final matches = _findMatches(Map<String, dynamic>.from(data), query);
+        if (matches.isNotEmpty) {
           resultados.add(_ResultadoConsulta(
             origen: 'Entregas CDR',
-            data: data,
+            data: Map<String, dynamic>.from(data),
+            matches: matches,
           ));
         }
       }
@@ -87,9 +101,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'CDR Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -105,9 +122,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'CyC Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -124,9 +144,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Dev Mbodas Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -142,9 +165,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Dev XD Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -160,9 +186,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'DevCan Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -178,9 +207,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Mbodas Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -197,9 +229,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Recogidos Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -215,9 +250,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Transferencias y Retornos Firmadas',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -229,11 +267,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           .get();
       for (final doc in hojaRutaDocs.docs) {
         final data = doc.data();
-        if (data.values.any(
-            (v) => v != null && v.toString().toLowerCase().contains(query))) {
+        final matches = _findMatches(Map<String, dynamic>.from(data), query);
+        if (matches.isNotEmpty) {
           resultados.add(_ResultadoConsulta(
             origen: 'Hoja de Ruta',
-            data: data,
+            data: Map<String, dynamic>.from(data),
+            matches: matches,
           ));
         }
       }
@@ -244,11 +283,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           .get();
       for (final doc in paqDocs.docs) {
         final data = doc.data();
-        if (data.values.any(
-            (v) => v != null && v.toString().toLowerCase().contains(query))) {
+        final matches = _findMatches(Map<String, dynamic>.from(data), query);
+        if (matches.isNotEmpty) {
           resultados.add(_ResultadoConsulta(
             origen: 'Paquetería Externa',
-            data: data,
+            data: Map<String, dynamic>.from(data),
+            matches: matches,
           ));
         }
       }
@@ -260,11 +300,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           .get();
       for (final doc in guiasCycDocs.docs) {
         final data = doc.data();
-        if (data.values.any(
-            (v) => v != null && v.toString().toLowerCase().contains(query))) {
+        final matches = _findMatches(Map<String, dynamic>.from(data), query);
+        if (matches.isNotEmpty) {
           resultados.add(_ResultadoConsulta(
             origen: 'Historial Guias CYC',
-            data: data,
+            data: Map<String, dynamic>.from(data),
+            matches: matches,
           ));
         }
       }
@@ -280,9 +321,12 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           if (item is Map &&
               item.values.any((v) =>
                   v != null && v.toString().toLowerCase().contains(query))) {
+            final matches =
+                _findMatches(Map<String, dynamic>.from(item), query);
             resultados.add(_ResultadoConsulta(
               origen: 'Registros Entregas MKP',
               data: Map<String, dynamic>.from(item),
+              matches: matches,
             ));
           }
         }
@@ -302,11 +346,190 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
     }
   }
 
+  Widget _buildResultCard(_ResultadoConsulta r) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      elevation: 4,
+      child: InkWell(
+        onTap: () => _mostrarDetalleEjecutivo(r, null),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(r.origen,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.black)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.info_outline, color: Colors.green),
+                    onPressed: () => _mostrarDetalle(r),
+                  )
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(_resumen(r.data),
+                  style: const TextStyle(color: Colors.black)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: r.matches.take(6).map((m) {
+                  return GestureDetector(
+                    onTap: () => _mostrarDetalleEjecutivo(r, m),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border:
+                            Border.all(color: Colors.green.withOpacity(0.25)),
+                      ),
+                      child: Row(children: [
+                        const Icon(Icons.search, size: 14, color: Colors.green),
+                        const SizedBox(width: 6),
+                        Text(m,
+                            style: const TextStyle(
+                                fontSize: 13, color: Colors.black)),
+                      ]),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDetalleEjecutivo(_ResultadoConsulta r, String? campo) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(r.origen,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        if (campo != null)
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(campo,
+                                    style: const TextStyle(
+                                        fontSize: 14, color: Colors.black54)),
+                                const SizedBox(height: 6),
+                                Text(r.data[campo]?.toString() ?? '-',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close))
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(),
+              const SizedBox(height: 8),
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: r.data.entries.map((e) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                              child: Text(e.key,
+                                  style:
+                                      const TextStyle(color: Colors.black54))),
+                          const SizedBox(width: 12),
+                          Expanded(
+                              flex: 2,
+                              child: Text(e.value?.toString() ?? '-',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600))),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Cerrar')),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final content = campo != null
+                          ? '${campo}: ${r.data[campo]}'
+                          : r.data.entries
+                              .map((e) => '${e.key}: ${e.value}')
+                              .join('\n');
+                      Clipboard.setData(ClipboardData(text: content));
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Detalle copiado')));
+                    },
+                    child: const Text('Copiar'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('Consulta Global'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        elevation: 1,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -351,7 +574,7 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
                       child: Row(
                         children: [
                           _buildMetricCard('Total resultados',
-                              _resultados.length.toString(), Colors.blue),
+                              _resultados.length.toString(), Colors.green),
                           const SizedBox(width: 12),
                           _buildMetricCard(
                               'Fuentes',
@@ -368,7 +591,7 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
                                       ? 10
                                       : _resultados.length)
                                   .toString(),
-                              Colors.orange),
+                              Colors.green),
                         ],
                       ),
                     ),
@@ -380,20 +603,7 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
                               itemCount: _resultados.length,
                               itemBuilder: (context, i) {
                                 final r = _resultados[i];
-                                return Card(
-                                  margin:
-                                      const EdgeInsets.symmetric(vertical: 6),
-                                  child: ListTile(
-                                    title: Text(r.origen,
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.bold)),
-                                    subtitle: Text(_resumen(r.data)),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.info_outline),
-                                      onPressed: () => _mostrarDetalle(r),
-                                    ),
-                                  ),
-                                );
+                                return _buildResultCard(r);
                               },
                             )
                           : ListView.separated(
@@ -404,19 +614,7 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
                                   const SizedBox(height: 8),
                               itemBuilder: (context, i) {
                                 final r = _resultados[i];
-                                return ListTile(
-                                  tileColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  title: Text(r.origen,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold)),
-                                  subtitle: Text(_resumen(r.data)),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.info_outline),
-                                    onPressed: () => _mostrarDetalle(r),
-                                  ),
-                                );
+                                return _buildResultCard(r);
                               },
                             ),
                     ),
@@ -482,8 +680,10 @@ class _ConsultaGlobalPageState extends State<ConsultaGlobalPage> {
           Text(titulo, style: const TextStyle(color: Color(0xFF6B7280))),
           const SizedBox(height: 8),
           Text(valor,
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black)),
         ],
       ),
     );
