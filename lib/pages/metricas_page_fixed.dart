@@ -9,6 +9,9 @@ class MetricasPageFixed extends StatefulWidget {
 }
 
 class _MetricasPageFixedState extends State<MetricasPageFixed> {
+  String? _selectedMonth;
+  String? _compareMonthA;
+  String? _compareMonthB;
   String _monthKeyFromTimestamp(Timestamp? ts) {
     if (ts == null) return '';
     final d = ts.toDate();
@@ -136,32 +139,175 @@ class _MetricasPageFixedState extends State<MetricasPageFixed> {
           if (months.isEmpty)
             return const Center(child: Text('No hay métricas disponibles'));
 
-          return ListView.builder(
+          // Ensure selection defaults
+          _selectedMonth ??= months.first;
+
+          Widget buildExecutiveHeader() {
+            return Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text('Métricas Ejecutivas',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold)),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                              color: Colors.pink.shade700,
+                              borderRadius: BorderRadius.circular(3)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 12, runSpacing: 8, children: [
+                      DropdownButton<String>(
+                        value: _selectedMonth,
+                        items: months
+                            .map((m) =>
+                                DropdownMenuItem(value: m, child: Text(m)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedMonth = v),
+                        hint: const Text('Seleccionar mes'),
+                      ),
+                      const Text('Comparar:'),
+                      DropdownButton<String?>(
+                        value: _compareMonthA,
+                        items: [null, ...months]
+                            .map((m) => DropdownMenuItem(
+                                value: m, child: Text(m ?? '—')))
+                            .toList(),
+                        onChanged: (v) => setState(() => _compareMonthA = v),
+                        hint: const Text('Mes A'),
+                      ),
+                      DropdownButton<String?>(
+                        value: _compareMonthB,
+                        items: [null, ...months]
+                            .map((m) => DropdownMenuItem(
+                                value: m, child: Text(m ?? '—')))
+                            .toList(),
+                        onChanged: (v) => setState(() => _compareMonthB = v),
+                        hint: const Text('Mes B'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => setState(() {
+                          _compareMonthA = null;
+                          _compareMonthB = null;
+                          _selectedMonth = months.first;
+                        }),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.pink.shade700),
+                        child: const Text('Reset'),
+                      ),
+                    ])
+                  ],
+                ),
+              ),
+            );
+          }
+
+          Widget buildComparisonView(String a, String b) {
+            final mapA = aggregation[a]!;
+            final mapB = aggregation[b]!;
+            final allJefes = <String>{};
+            allJefes.addAll(mapA.keys);
+            allJefes.addAll(mapB.keys);
+            final rows = allJefes.toList()..sort();
+            return Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Comparación: $a vs $b',
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...rows.map((j) {
+                      final pctA = (mapA[j]?.last['pct'] as double?) ?? 0.0;
+                      final pctB = (mapB[j]?.last['pct'] as double?) ?? 0.0;
+                      final diff = (pctB - pctA);
+                      final diffLabel =
+                          '${diff >= 0 ? '+' : ''}${diff.toStringAsFixed(1)}pp';
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(j,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(
+                            'A: ${pctA.toStringAsFixed(1)}%  •  B: ${pctB.toStringAsFixed(1)}%'),
+                        trailing: Text(diffLabel,
+                            style: TextStyle(
+                                color: diff >= 0 ? Colors.green : Colors.red,
+                                fontWeight: FontWeight.bold)),
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return ListView(
             padding: const EdgeInsets.all(12),
-            itemCount: months.length,
-            itemBuilder: (context, idx) {
-              final month = months[idx];
-              final byJefe = aggregation[month]!;
-              return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(month,
-                          style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 8),
-                      ...byJefe.entries.map((e) => _buildMonthMetric(
-                          e.key, e.value, Colors.pink.shade700)),
-                    ],
+            children: [
+              buildExecutiveHeader(),
+              const SizedBox(height: 12),
+              if (_compareMonthA != null &&
+                  _compareMonthB != null &&
+                  aggregation.containsKey(_compareMonthA) &&
+                  aggregation.containsKey(_compareMonthB))
+                buildComparisonView(_compareMonthA!, _compareMonthB!)
+              else ...[
+                // Show selected month executive breakdown
+                Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                                child: Text(_selectedMonth ?? months.first,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18))),
+                            Container(
+                                width: 8,
+                                height: 32,
+                                color: Colors.pink.shade200),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        const SizedBox(height: 8),
+                        ...((aggregation[_selectedMonth ?? months.first] ?? {})
+                            .entries
+                            .map((e) => _buildMonthMetric(
+                                e.key, e.value, Colors.pink.shade700)))
+                      ],
+                    ),
                   ),
                 ),
-              );
-            },
+              ]
+            ],
           );
         },
       ),
