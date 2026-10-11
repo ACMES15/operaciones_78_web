@@ -11,6 +11,11 @@ import 'package:http/http.dart' as http;
 import 'registro_caminata_form.dart';
 import 'metricas_caminatas_page.dart';
 
+// Executive palette: blanco, rosa, negro
+const _kExecPink = Colors.pink;
+const _kExecBg = Colors.white;
+const _kExecText = Colors.black;
+
 class RegistroCaminatasPage extends StatefulWidget {
   final String usuario;
   const RegistroCaminatasPage({Key? key, required this.usuario})
@@ -25,6 +30,10 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
   Map<String, String> _plantilla = {};
   List<String> _jefes = [];
   DateTime? _selectedDate;
+  String? _selectedJefeName;
+  Map<String, dynamic>? _ultimaRevision;
+  String? _ultimaRevisionId;
+  bool _loadingUltima = false;
 
   @override
   void initState() {
@@ -53,14 +62,92 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
     setState(() => _loading = false);
   }
 
+  Future<void> _loadUltimaRevisionForJefe(String? jefe) async {
+    setState(() {
+      _loadingUltima = true;
+      _ultimaRevision = null;
+      _ultimaRevisionId = null;
+    });
+
+    if (jefe == null) {
+      setState(() => _loadingUltima = false);
+      return;
+    }
+
+    // find sections that map to this jefe
+    final secciones = _plantilla.entries
+        .where((e) => e.value == jefe)
+        .map((e) => e.key)
+        .toList();
+
+    try {
+      var snap;
+      if (secciones.isEmpty) {
+        // nothing to query
+        snap = await FirebaseFirestore.instance
+            .collection('caminatas')
+            .where('jefe', isEqualTo: jefe)
+            .orderBy('createdAt', descending: true)
+            .limit(1)
+            .get();
+      } else if (secciones.length <= 10) {
+        snap = await FirebaseFirestore.instance
+            .collection('caminatas')
+            .where('seccion', whereIn: secciones)
+            .orderBy('createdAt', descending: true)
+            .limit(1)
+            .get();
+      } else {
+        // Firestore whereIn limitation: fallback to a recent scan and client filter
+        final cand = await FirebaseFirestore.instance
+            .collection('caminatas')
+            .orderBy('createdAt', descending: true)
+            .limit(500)
+            .get();
+        final docs = cand.docs
+            .where((d) => secciones.contains((d.data() as Map)['seccion']))
+            .toList();
+        if (docs.isEmpty)
+          snap = cand;
+        else
+          snap = QuerySnapshotProxy(docs);
+      }
+
+      if (snap.docs.isEmpty) {
+        setState(() {
+          _ultimaRevision = null;
+          _ultimaRevisionId = null;
+          _loadingUltima = false;
+        });
+        return;
+      }
+
+      final doc = snap.docs.first;
+      final data = Map<String, dynamic>.from(doc.data() as Map);
+      setState(() {
+        _ultimaRevision = data;
+        _ultimaRevisionId = doc.id;
+        _loadingUltima = false;
+      });
+    } catch (e) {
+      debugPrint('Error cargando última revisión para $jefe: $e');
+      setState(() => _loadingUltima = false);
+    }
+  }
+
+  // Lightweight adapter note: when whereIn exceeds limits we perform an
+  // in-memory filter of recent docs and adapt the result; the concrete proxy
+  // type is declared at file end so the state class remains properly closed.
+
   void _openHistoricForId(String docId) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) {
       return Scaffold(
         appBar: AppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
+            backgroundColor: _kExecBg,
+            elevation: 1,
+            iconTheme: const IconThemeData(color: _kExecText),
             title: const Text('Histórico Caminatas',
-                style: TextStyle(color: Colors.white)),
+                style: TextStyle(color: _kExecText)),
             actions: [
               IconButton(
                   tooltip: 'Exportar PDF',
@@ -69,7 +156,7 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                     final data = await _getCaminataData(docId);
                     if (data != null) await _exportCaminataPdf(data, docId);
                   },
-                  icon: const Icon(Icons.picture_as_pdf, color: Colors.white))
+                  icon: const Icon(Icons.picture_as_pdf, color: _kExecPink))
             ]),
         body: FutureBuilder<Map<String, dynamic>?>(
           future: _getCaminataData(docId),
@@ -850,11 +937,13 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _kExecBg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: _kExecBg,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: _kExecText),
         title: const Text('Registro de Caminatas',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            style: TextStyle(fontWeight: FontWeight.bold, color: _kExecText)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -866,7 +955,8 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                 : LayoutBuilder(builder: (context, constraints) {
                     final isMobile = constraints.maxWidth < 600;
                     if (isMobile) {
-                      // Mobile: Historico arriba, jefaturas abajo (scrollable)
+                      // Mobile: Executive dropdown + latest revision. If none
+                      // selected, show full list as before.
                       return Column(children: [
                         Card(
                           elevation: 2,
@@ -875,16 +965,22 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                             child: Column(children: [
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.black,
-                                    foregroundColor: Colors.white),
+                                    backgroundColor: _kExecPink,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8))),
                                 onPressed: _showHistoricoListPage,
                                 child: const Text('Historico'),
                               ),
                               const SizedBox(height: 8),
                               ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.black,
-                                    foregroundColor: Colors.white),
+                                    backgroundColor: _kExecPink,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8))),
                                 onPressed: () {
                                   Navigator.of(context).push(MaterialPageRoute(
                                       builder: (_) => MetricasCaminatasPage()));
@@ -895,121 +991,403 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Expanded(
-                          child: Card(
-                            elevation: 2,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.all(8.0),
-                              itemCount: _jefes.length,
-                              separatorBuilder: (_, __) =>
-                                  const Divider(height: 1),
-                              itemBuilder: (context, index) {
-                                final jefe = _jefes[index];
-                                return ListTile(
-                                  title: Text(jefe),
-                                  trailing: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white),
-                                    onPressed: () async {
-                                      final docId = await Navigator.of(context)
-                                          .push(MaterialPageRoute(
-                                              builder: (_) =>
-                                                  RegistroCaminataForm(
-                                                      usuario: widget.usuario,
-                                                      jefe: jefe,
-                                                      date: _selectedDate)));
-                                      if (docId != null && docId is String) {
-                                        _openHistoricForId(docId);
-                                      }
-                                    },
-                                    child: const Text('Inicio de caminata'),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ]);
-                    }
-
-                    // Tablet / Desktop: two cards side-by-side
-                    return Row(children: [
-                      Expanded(
-                        flex: 3,
-                        child: Card(
-                          elevation: 2,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.all(8.0),
-                            itemCount: _jefes.length,
-                            separatorBuilder: (_, __) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final jefe = _jefes[index];
-                              return ListTile(
-                                title: Text(jefe),
-                                trailing: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.black,
-                                      foregroundColor: Colors.white),
-                                  onPressed: () async {
-                                    final docId = await Navigator.of(context)
-                                        .push(MaterialPageRoute(
-                                            builder: (_) =>
-                                                RegistroCaminataForm(
-                                                    usuario: widget.usuario,
-                                                    jefe: jefe,
-                                                    date: _selectedDate)));
-                                    if (docId != null && docId is String) {
-                                      _openHistoricForId(docId);
-                                    }
-                                  },
-                                  child: const Text('Inicio de caminata'),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 1,
-                        child: Card(
+                        Card(
                           elevation: 2,
                           child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(12.0),
                             child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white),
-                                    onPressed: _showHistoricoListPage,
-                                    child: const Text('Historico'),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.black,
-                                        foregroundColor: Colors.white),
-                                    onPressed: () {
-                                      Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  MetricasCaminatasPage()));
+                                  DropdownButtonFormField<String>(
+                                    value: _selectedJefeName,
+                                    hint: const Text('Selecciona jefatura'),
+                                    items: _jefes
+                                        .map((j) => DropdownMenuItem(
+                                            value: j, child: Text(j)))
+                                        .toList(),
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _selectedJefeName = v;
+                                      });
+                                      _loadUltimaRevisionForJefe(v);
                                     },
-                                    child: const Text('Métricas'),
                                   ),
+                                  const SizedBox(height: 12),
+                                  if (_selectedJefeName != null) ...[
+                                    Row(children: [
+                                      Expanded(
+                                        child: Text(_selectedJefeName!,
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.bold)),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: _kExecPink,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8))),
+                                        onPressed: () async {
+                                          final docId = await Navigator.of(
+                                                  context)
+                                              .push(MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      RegistroCaminataForm(
+                                                          usuario:
+                                                              widget.usuario,
+                                                          jefe:
+                                                              _selectedJefeName!,
+                                                          date:
+                                                              _selectedDate)));
+                                          if (docId != null &&
+                                              docId is String) {
+                                            _openHistoricForId(docId);
+                                          }
+                                        },
+                                        child: const Text('Inicio de caminata'),
+                                      ),
+                                    ]),
+                                    const SizedBox(height: 12),
+                                    Card(
+                                      elevation: 1,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(12.0),
+                                        child: _loadingUltima
+                                            ? const SizedBox(
+                                                height: 60,
+                                                child: Center(
+                                                    child:
+                                                        CircularProgressIndicator()),
+                                              )
+                                            : (_ultimaRevision == null
+                                                ? const Text(
+                                                    'No hay caminatas recientes para esta jefatura')
+                                                : Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                          'Sección: ${_ultimaRevision!['seccion'] ?? ''}',
+                                                          style: const TextStyle(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold)),
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                          'Fecha: ${_ultimaRevision!['date'] is Timestamp ? (_ultimaRevision!['date'] as Timestamp).toDate().toLocal().toString() : _ultimaRevision!['createdAt'] is Timestamp ? (_ultimaRevision!['createdAt'] as Timestamp).toDate().toLocal().toString() : ''}'),
+                                                      const SizedBox(height: 6),
+                                                      Text(
+                                                          'Score: ${_ultimaRevision!['score'] ?? ''}'),
+                                                      const SizedBox(height: 8),
+                                                      Row(children: [
+                                                        ElevatedButton(
+                                                            style: ElevatedButton.styleFrom(
+                                                                backgroundColor:
+                                                                    Colors
+                                                                        .black,
+                                                                foregroundColor:
+                                                                    Colors
+                                                                        .white),
+                                                            onPressed: _ultimaRevisionId !=
+                                                                    null
+                                                                ? () => _openHistoricForId(
+                                                                    _ultimaRevisionId!)
+                                                                : null,
+                                                            child: const Text(
+                                                                'Ver histórico')),
+                                                        const SizedBox(
+                                                            width: 8),
+                                                        ElevatedButton(
+                                                            style: ElevatedButton.styleFrom(
+                                                                backgroundColor:
+                                                                    Colors.grey,
+                                                                foregroundColor:
+                                                                    Colors
+                                                                        .white),
+                                                            onPressed: () {
+                                                              setState(() {
+                                                                _selectedJefeName =
+                                                                    null;
+                                                                _ultimaRevision =
+                                                                    null;
+                                                                _ultimaRevisionId =
+                                                                    null;
+                                                              });
+                                                            },
+                                                            child: const Text(
+                                                                'Limpiar'))
+                                                      ])
+                                                    ],
+                                                  )),
+                                      ),
+                                    )
+                                  ] else ...[
+                                    const SizedBox.shrink()
+                                  ]
                                 ]),
                           ),
                         ),
-                      ),
-                    ]);
+                        const SizedBox(height: 8),
+                        // if a jefe is selected we hide the full list to keep the
+                        // view executive; otherwise show the full list
+                        if (_selectedJefeName == null)
+                          Expanded(
+                            child: Card(
+                              elevation: 2,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.all(8.0),
+                                itemCount: _jefes.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1),
+                                itemBuilder: (context, index) {
+                                  final jefe = _jefes[index];
+                                  return ListTile(
+                                    title: Text(jefe),
+                                    trailing: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.black,
+                                          foregroundColor: Colors.white),
+                                      onPressed: () async {
+                                        final docId = await Navigator.of(
+                                                context)
+                                            .push(MaterialPageRoute(
+                                                builder: (_) =>
+                                                    RegistroCaminataForm(
+                                                        usuario: widget.usuario,
+                                                        jefe: jefe,
+                                                        date: _selectedDate)));
+                                        if (docId != null && docId is String) {
+                                          _openHistoricForId(docId);
+                                        }
+                                      },
+                                      child: const Text('Inicio de caminata'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                      ]);
+                    }
+
+                    // Tablet / Desktop: executive left column with dropdown
+                    // and right column showing latest revision for selection.
+                    return Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    value: _selectedJefeName,
+                                    hint: const Text('Selecciona jefatura'),
+                                    items: _jefes
+                                        .map((j) => DropdownMenuItem(
+                                            value: j, child: Text(j)))
+                                        .toList(),
+                                    onChanged: (v) {
+                                      setState(() {
+                                        _selectedJefeName = v;
+                                      });
+                                      _loadUltimaRevisionForJefe(v);
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Expanded(
+                                    child: _selectedJefeName == null
+                                        ? ListView.separated(
+                                            padding: const EdgeInsets.all(8.0),
+                                            itemCount: _jefes.length,
+                                            separatorBuilder: (_, __) =>
+                                                const Divider(height: 1),
+                                            itemBuilder: (context, index) {
+                                              final jefe = _jefes[index];
+                                              return ListTile(
+                                                title: Text(jefe),
+                                                trailing: ElevatedButton(
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              Colors.black,
+                                                          foregroundColor:
+                                                              Colors.white),
+                                                  onPressed: () async {
+                                                    final docId = await Navigator.of(
+                                                            context)
+                                                        .push(MaterialPageRoute(
+                                                            builder: (_) =>
+                                                                RegistroCaminataForm(
+                                                                    usuario: widget
+                                                                        .usuario,
+                                                                    jefe: jefe,
+                                                                    date:
+                                                                        _selectedDate)));
+                                                    if (docId != null &&
+                                                        docId is String) {
+                                                      _openHistoricForId(docId);
+                                                    }
+                                                  },
+                                                  child: const Text(
+                                                      'Inicio de caminata'),
+                                                ),
+                                              );
+                                            },
+                                          )
+                                        : Column(
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                        _selectedJefeName!,
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold)),
+                                                  ),
+                                                  ElevatedButton(
+                                                    style: ElevatedButton
+                                                        .styleFrom(
+                                                            backgroundColor:
+                                                                Colors.black,
+                                                            foregroundColor:
+                                                                Colors.white),
+                                                    onPressed: () async {
+                                                      final docId = await Navigator
+                                                              .of(context)
+                                                          .push(MaterialPageRoute(
+                                                              builder: (_) => RegistroCaminataForm(
+                                                                  usuario: widget
+                                                                      .usuario,
+                                                                  jefe:
+                                                                      _selectedJefeName!,
+                                                                  date:
+                                                                      _selectedDate)));
+                                                      if (docId != null &&
+                                                          docId is String) {
+                                                        _openHistoricForId(
+                                                            docId);
+                                                      }
+                                                    },
+                                                    child: const Text(
+                                                        'Inicio de caminata'),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Expanded(
+                                                child: _loadingUltima
+                                                    ? const Center(
+                                                        child:
+                                                            CircularProgressIndicator())
+                                                    : (_ultimaRevision == null
+                                                        ? const Center(
+                                                            child: Text(
+                                                                'No hay caminatas recientes'))
+                                                        : Padding(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .all(8.0),
+                                                            child: Column(
+                                                              crossAxisAlignment:
+                                                                  CrossAxisAlignment
+                                                                      .start,
+                                                              children: [
+                                                                Text(
+                                                                    'Sección: ${_ultimaRevision!['seccion'] ?? ''}',
+                                                                    style: const TextStyle(
+                                                                        fontWeight:
+                                                                            FontWeight.bold)),
+                                                                const SizedBox(
+                                                                    height: 6),
+                                                                Text(
+                                                                    'Fecha: ${_ultimaRevision!['date'] is Timestamp ? (_ultimaRevision!['date'] as Timestamp).toDate().toLocal().toString() : _ultimaRevision!['createdAt'] is Timestamp ? (_ultimaRevision!['createdAt'] as Timestamp).toDate().toLocal().toString() : ''}'),
+                                                                const SizedBox(
+                                                                    height: 6),
+                                                                Text(
+                                                                    'Score: ${_ultimaRevision!['score'] ?? ''}'),
+                                                                const SizedBox(
+                                                                    height: 8),
+                                                                ElevatedButton(
+                                                                  style: ElevatedButton.styleFrom(
+                                                                      backgroundColor:
+                                                                          Colors
+                                                                              .black,
+                                                                      foregroundColor:
+                                                                          Colors
+                                                                              .white),
+                                                                  onPressed: _ultimaRevisionId !=
+                                                                          null
+                                                                      ? () => _openHistoricForId(
+                                                                          _ultimaRevisionId!)
+                                                                      : null,
+                                                                  child: const Text(
+                                                                      'Ver histórico'),
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          )),
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 1,
+                          child: Card(
+                            elevation: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.black,
+                                          foregroundColor: Colors.white),
+                                      onPressed: _showHistoricoListPage,
+                                      child: const Text('Historico'),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.black,
+                                          foregroundColor: Colors.white),
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    MetricasCaminatasPage()));
+                                      },
+                                      child: const Text('Métricas'),
+                                    ),
+                                  ]),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
                   }),
           ),
         ]),
       ),
     );
   }
+}
+
+// Simple proxy used when we filter a recent QuerySnapshot in-memory.
+class QuerySnapshotProxy {
+  final List<QueryDocumentSnapshot> docs;
+  QuerySnapshotProxy(this.docs);
 }

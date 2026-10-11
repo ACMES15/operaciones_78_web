@@ -271,7 +271,7 @@ class _MetricasCaminatasPageState extends State<MetricasCaminatasPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.black),
         title: const Text('Métricas Caminatas'),
       ),
       body: Padding(
