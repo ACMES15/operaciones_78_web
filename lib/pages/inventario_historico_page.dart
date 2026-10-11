@@ -19,15 +19,18 @@ class InventarioHistoricoPage extends StatefulWidget {
 // SKU table is rendered directly in the dialog using a DataTable built from the filtered SKUs.
 
 class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
+  String? _selectedJefe = 'Todos';
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.white,
         title: const Text('Histórico Inventarios',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+        iconTheme: const IconThemeData(color: Colors.black87),
+        elevation: 2,
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -38,45 +41,124 @@ class _InventarioHistoricoPageState extends State<InventarioHistoricoPage> {
           if (snap.connectionState == ConnectionState.waiting)
             return const Center(child: CircularProgressIndicator());
           if (!snap.hasData || snap.data!.docs.isEmpty)
-            return const Center(
-                child: Text('No hay auditorías guardadas',
-                    style: TextStyle(color: Colors.white)));
+            return const Center(child: Text('No hay auditorías guardadas'));
+
           final docs = snap.data!.docs;
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: docs.length,
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final data = d.data() as Map<String, dynamic>;
-              final jefe = data['jefe']?.toString() ?? 'Desconocido';
-              final created = (data['createdAt'] is Timestamp)
-                  ? (data['createdAt'] as Timestamp).toDate()
-                  : null;
-              return Card(
-                color: Colors.white,
-                elevation: 4,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                child: ListTile(
-                  onTap: () => _openDetails(context, data),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  title: Text(jefe,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, color: Colors.black)),
-                  subtitle: Text(created != null ? created.toString() : '',
-                      style: const TextStyle(color: Colors.black54)),
-                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                    TextButton(
-                        onPressed: () => _openDetails(context, data),
-                        child: const Text('Detalles')),
-                    const SizedBox(width: 8),
-                    TextButton(
-                        onPressed: () => _editInventory(context, data),
-                        child: const Text('Editar')),
-                  ]),
+
+          // build unique jefe list
+          final jefes = <String>{};
+          for (final d in docs) {
+            final data = d.data() as Map<String, dynamic>;
+            jefes.add((data['jefe']?.toString() ?? 'Desconocido'));
+          }
+          final jefeList = ['Todos', ...jefes.toList()..sort()];
+
+          // filter docs based on selection
+          final filteredDocs =
+              (_selectedJefe == null || _selectedJefe == 'Todos')
+                  ? docs
+                  : docs.where((d) {
+                      final data = d.data() as Map<String, dynamic>;
+                      return (data['jefe']?.toString() ?? '') == _selectedJefe;
+                    }).toList();
+
+          return Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  elevation: 3,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                            child: Text('Filtrar por Jefatura',
+                                style: TextStyle(fontWeight: FontWeight.bold))),
+                        const SizedBox(width: 12),
+                        DropdownButton<String>(
+                          value: _selectedJefe,
+                          items: jefeList
+                              .map((j) =>
+                                  DropdownMenuItem(value: j, child: Text(j)))
+                              .toList(),
+                          onChanged: (v) => setState(() => _selectedJefe = v),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              );
-            },
+                const SizedBox(height: 12),
+                Expanded(
+                  child: filteredDocs.isEmpty
+                      ? Center(
+                          child: Text(
+                              _selectedJefe == null || _selectedJefe == 'Todos'
+                                  ? 'No hay auditorías guardadas'
+                                  : 'No hay auditorías para $_selectedJefe'))
+                      : ListView.builder(
+                          itemCount: filteredDocs.length,
+                          itemBuilder: (context, i) {
+                            final d = filteredDocs[i];
+                            final data = d.data() as Map<String, dynamic>;
+                            final jefe =
+                                data['jefe']?.toString() ?? 'Desconocido';
+                            final created = (data['createdAt'] is Timestamp)
+                                ? (data['createdAt'] as Timestamp).toDate()
+                                : null;
+                            return Card(
+                              color: Colors.white,
+                              elevation: 4,
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                      width: 6,
+                                      height: 72,
+                                      color: Colors.pink.shade700),
+                                  Expanded(
+                                    child: ListTile(
+                                      onTap: () => _openDetails(context, data),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 12),
+                                      title: Text(jefe,
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black)),
+                                      subtitle: Text(
+                                          created != null
+                                              ? created.toString()
+                                              : '',
+                                          style: const TextStyle(
+                                              color: Colors.black54)),
+                                      trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    _openDetails(context, data),
+                                                child: const Text('Detalles')),
+                                            const SizedBox(width: 8),
+                                            TextButton(
+                                                onPressed: () => _editInventory(
+                                                    context, data),
+                                                child: const Text('Editar')),
+                                          ]),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                )
+              ],
+            ),
           );
         },
       ),
