@@ -298,39 +298,79 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            DropdownButtonFormField<String>(
-              value: _mesSeleccionado ?? _keyMesActual(),
-              decoration: const InputDecoration(
-                labelText: 'Mes a mostrar',
-                border: OutlineInputBorder(),
+            // Executive selector and search
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black12, blurRadius: 8)
+                ],
               ),
-              items: [
-                ..._mesesParaSelector().map(
-                  (key) => DropdownMenuItem<String>(
-                    value: key,
-                    child: Text(_etiquetaMes(key)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: DropdownButtonFormField<String>(
+                      value: _mesSeleccionado ?? _keyMesActual(),
+                      decoration: const InputDecoration.collapsed(hintText: ''),
+                      items: [
+                        ..._mesesParaSelector().map(
+                          (key) => DropdownMenuItem<String>(
+                            value: key,
+                            child: Text(_etiquetaMes(key)),
+                          ),
+                        ),
+                        const DropdownMenuItem<String>(
+                          value: 'all',
+                          child: Text('Histórico completo'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _mesSeleccionado = value);
+                        _aplicarFiltros();
+                      },
+                    ),
                   ),
-                ),
-                const DropdownMenuItem<String>(
-                  value: 'all',
-                  child: Text('Histórico completo'),
-                ),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() => _mesSeleccionado = value);
-                _aplicarFiltros();
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _busquedaController,
-              decoration: const InputDecoration(
-                labelText: 'Buscar por empleado, devolución, usuario o SKU',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: TextField(
+                        controller: _busquedaController,
+                        decoration: const InputDecoration(
+                          hintText:
+                              'Buscar por empleado, devolución, usuario o SKU',
+                          border: InputBorder.none,
+                          icon: Icon(Icons.search, color: Color(0xFF2D6A4F)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _exportarAExcel,
+                    icon: const Icon(Icons.download, color: Colors.white),
+                    label: const Text('Exportar',
+                        style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2D6A4F),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10))),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 16),
             const SizedBox(height: 16),
             Expanded(
               child: _cargando
@@ -341,20 +381,79 @@ class _EntregasMkpRegistrosPageState extends State<EntregasMkpRegistrosPage> {
                           itemCount: _filtrados.length,
                           itemBuilder: (context, idx) {
                             final reg = _filtrados[idx];
+                            final fecha = reg['fecha'] != null
+                                ? reg['fecha']
+                                    .toString()
+                                    .substring(0, 19)
+                                    .replaceFirst('T', ' ')
+                                : '-';
                             return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              child: ListTile(
-                                title: Text(
-                                    'Empleado: ${reg['empleado'] ?? '-'} | Devolución: ${reg['devolucion_mkp'] ?? '-'}'),
-                                subtitle: Column(
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              elevation: 4,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                        'SKU(s): ${(reg['skus'] as List?)?.join(', ') ?? '-'}'),
-                                    Text('Cantidad: ${reg['cantidad'] ?? '-'}'),
-                                    Text('Usuario: ${reg['usuario'] ?? '-'}'),
-                                    Text(
-                                        'Fecha: ${reg['fecha'] != null ? reg['fecha'].toString().substring(0, 19).replaceFirst('T', ' ') : '-'}'),
+                                    Container(
+                                      width: 8,
+                                      height: 48,
+                                      decoration: BoxDecoration(
+                                          color: const Color(0xFF2D6A4F),
+                                          borderRadius:
+                                              BorderRadius.circular(6)),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('${reg['empleado'] ?? '-'}',
+                                              style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  color: Colors.black)),
+                                          const SizedBox(height: 6),
+                                          Row(children: [
+                                            Chip(
+                                                label: Text(
+                                                    'Devolución: ${reg['devolucion_mkp'] ?? '-'}'),
+                                                backgroundColor: Colors.green
+                                                    .withOpacity(0.12)),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                                'Usuario: ${reg['usuario'] ?? '-'}',
+                                                style: const TextStyle(
+                                                    color: Colors.black54)),
+                                          ]),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                              'SKU(s): ${(reg['skus'] as List?)?.join(', ') ?? '-'}',
+                                              style: const TextStyle(
+                                                  color: Colors.black87)),
+                                        ],
+                                      ),
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(fecha,
+                                            style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 12)),
+                                        const SizedBox(height: 8),
+                                        IconButton(
+                                          onPressed: () {},
+                                          icon: const Icon(Icons.copy,
+                                              color: Color(0xFF2D6A4F)),
+                                          tooltip: 'Copiar registro',
+                                        ),
+                                      ],
+                                    ),
                                   ],
                                 ),
                               ),
