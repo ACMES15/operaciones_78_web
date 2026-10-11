@@ -34,6 +34,50 @@ class _RegistroCaminatasPageState extends State<RegistroCaminatasPage> {
   Map<String, dynamic>? _ultimaRevision;
   bool _loadingUltima = false;
   String? _ultimaRevisionId;
+  @override
+  void initState() {
+    super.initState();
+    _loadPlantillaJefes();
+  }
+
+  Future<void> _loadPlantillaJefes() async {
+    setState(() {
+      _loading = true;
+    });
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('plantilla_ejecutiva')
+          .doc('datos')
+          .get();
+      final raw = snap.data()?['datos'];
+      final jefesSet = <String>{};
+      if (raw is List) {
+        for (final row in raw) {
+          if (row is! Map) continue;
+          final seccion =
+              (row['SECCION'] ?? row['seccion'] ?? '').toString().trim();
+          final jefe = (row['NOMBRE'] ?? row['NOMBRE'] ?? row['jefe'] ?? '')
+              .toString()
+              .trim();
+          if (seccion.isEmpty || jefe.isEmpty) continue;
+          _plantilla[seccion.toUpperCase()] = jefe;
+          jefesSet.add(jefe);
+        }
+      }
+      setState(() {
+        _jefes
+          ..clear()
+          ..addAll(jefesSet.toList()..sort());
+        _loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+      });
+      debugPrint('Error cargando plantilla ejecutiva: $e');
+    }
+  }
+
   Widget _photosWrap(List<dynamic> list) {
     if (list.isEmpty) return const SizedBox.shrink();
     return Wrap(
