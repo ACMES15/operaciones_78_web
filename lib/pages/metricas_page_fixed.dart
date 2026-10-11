@@ -92,12 +92,16 @@ class _MetricasPageFixedState extends State<MetricasPageFixed> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Métricas (fixed)'),
+        title: const Text('Métricas'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('metricas').snapshots(),
+        // Use historico inventory docs as source of metric evaluations
+        stream: FirebaseFirestore.instance
+            .collection('inventarios_historico')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
         builder: (context, snap) {
           if (snap.hasError)
             return const Center(child: Text('Error al cargar métricas'));
@@ -109,8 +113,16 @@ class _MetricasPageFixedState extends State<MetricasPageFixed> {
           for (final doc in snap.data!.docs) {
             final data = doc.data() as Map<String, dynamic>;
             final jefe = (data['jefe'] ?? '—').toString();
-            final pct = _normalizePercent(data['pct']);
-            final ts = data['ts'] as Timestamp?;
+            // source stores percentScanned as 0..1 (fraction) or as 0..100
+            final rawPct = data['percentScanned'];
+            double pct;
+            if (rawPct is num) {
+              pct = rawPct.toDouble();
+              if (pct <= 1.0) pct = pct * 100.0;
+            } else {
+              pct = 0.0;
+            }
+            final ts = data['createdAt'] as Timestamp?;
             final month = _monthKeyFromTimestamp(ts);
             if (month.isEmpty) continue;
             aggregation.putIfAbsent(month, () => {});
