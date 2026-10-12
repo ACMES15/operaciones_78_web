@@ -236,6 +236,16 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     });
   }
 
+  bool _isUserInactive(Map<String, dynamic> u, {int days = 7}) {
+    final now = DateTime.now();
+    final ls = u['lastSeen'];
+    if (ls is Timestamp) {
+      return now.difference(ls.toDate()).inDays > days;
+    }
+    // if no lastSeen, consider inactive
+    return true;
+  }
+
   Future<void> _guardarPermisosTipoUsuario() async {
     if (tipoSeleccionadoPermisos == null) return;
     // Guardar en ambos formatos para compatibilidad con las distintas lecturas
@@ -295,6 +305,53 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              // Indicador de usuarios inactivos (>7 días)
+              Builder(builder: (ctx) {
+                final now = DateTime.now();
+                int inactiveCount = usuarios.where((u) {
+                  final ls = u['lastSeen'];
+                  if (ls is Timestamp) {
+                    return now.difference(ls.toDate()).inDays > 7;
+                  }
+                  // si no tiene lastSeen, considerarlo inactivo
+                  return true;
+                }).length;
+                if (inactiveCount == 0) return const SizedBox.shrink();
+                return Card(
+                  color: Colors.pink.shade700,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12.0, vertical: 10.0),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Atención: $inactiveCount usuario(s) inactivo(s) > 7 días',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // navegar al filtro de usuarios para revisar inactivos
+                            // simplemente hacemos scroll a la tabla y aplicamos búsqueda por 'inactivos'
+                            // aquí mantenemos simple: abrir filtro de texto con 'lastSeen'
+                          },
+                          child: const Text('Revisar',
+                              style: TextStyle(color: Colors.white)),
+                        )
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
@@ -334,6 +391,9 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                           label: Text('Correo',
                               style: TextStyle(fontSize: fontSize))),
                       DataColumn(
+                          label: Text('Alta',
+                              style: TextStyle(fontSize: fontSize))),
+                      DataColumn(
                           label: Text('Tipo de usuario',
                               style: TextStyle(fontSize: fontSize))),
                       DataColumn(
@@ -344,50 +404,83 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                               style: TextStyle(fontSize: fontSize))),
                     ],
                     rows: _usuariosFiltrados.map((u) {
-                      return DataRow(cells: [
-                        DataCell(
-                          SizedBox(
-                            width: 180, // Ajusta este valor según tu diseño
-                            child: Text(
-                              u['nombre'] ?? '',
-                              style: TextStyle(fontSize: fontSize),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                      final inactive = _isUserInactive(u);
+                      return DataRow(
+                          color: MaterialStateProperty.resolveWith<Color?>(
+                              (states) =>
+                                  inactive ? Colors.pink.shade50 : null),
+                          cells: [
+                            DataCell(
+                              SizedBox(
+                                width: 180, // Ajusta este valor según tu diseño
+                                child: Row(
+                                  children: [
+                                    // status dot
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      decoration: BoxDecoration(
+                                        color: _isUserInactive(u)
+                                            ? Colors.redAccent
+                                            : Colors.green,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        u['nombre'] ?? '',
+                                        style: TextStyle(fontSize: fontSize),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        DataCell(Text(u['usuario'] ?? '',
-                            style: TextStyle(fontSize: fontSize))),
-                        DataCell(Text(u['correo'] ?? '',
-                            style: TextStyle(fontSize: fontSize))),
-                        DataCell(Text(u['tipo'] ?? '',
-                            style: TextStyle(fontSize: fontSize))),
-                        DataCell(Checkbox(
-                          value: u['activo'] ?? true,
-                          onChanged: (val) async {
-                            await FirebaseFirestore.instance
-                                .collection('usuarios')
-                                .doc(u['id'])
-                                .update({'activo': val ?? true});
-                            _cargarUsuarios();
-                          },
-                        )),
-                        DataCell(Row(
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              tooltip: 'Editar',
-                              onPressed: () => _editarTipoPorUsuario(u['id']),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete),
-                              tooltip: 'Eliminar',
-                              onPressed: () =>
-                                  _eliminarUsuarioPorUsuario(u['id']),
-                            ),
-                          ],
-                        )),
-                      ]);
+                            DataCell(Text(u['usuario'] ?? '',
+                                style: TextStyle(fontSize: fontSize))),
+                            DataCell(Text(u['correo'] ?? '',
+                                style: TextStyle(fontSize: fontSize))),
+                            DataCell(Text(u['tipo'] ?? '',
+                                style: TextStyle(fontSize: fontSize))),
+                            DataCell(Text(
+                                (u['createdAt'] is Timestamp)
+                                    ? (u['createdAt'] as Timestamp)
+                                        .toDate()
+                                        .toLocal()
+                                        .toString()
+                                    : '',
+                                style: TextStyle(fontSize: fontSize))),
+                            DataCell(Checkbox(
+                              value: u['activo'] ?? true,
+                              onChanged: (val) async {
+                                await FirebaseFirestore.instance
+                                    .collection('usuarios')
+                                    .doc(u['id'])
+                                    .update({'activo': val ?? true});
+                                _cargarUsuarios();
+                              },
+                            )),
+                            // highlight row if inactive by color
+                            DataCell(Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  tooltip: 'Editar',
+                                  onPressed: () =>
+                                      _editarTipoPorUsuario(u['id']),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete),
+                                  tooltip: 'Eliminar',
+                                  onPressed: () =>
+                                      _eliminarUsuarioPorUsuario(u['id']),
+                                ),
+                              ],
+                            )),
+                          ]);
                     }).toList(),
                   ),
                 ),
@@ -492,7 +585,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                   'correo': correo,
                   'tipo': tipo,
                   'activo': activo,
-                  'password': usuario // Contraseña inicial igual al usuario
+                  'password': usuario, // Contraseña inicial igual al usuario
+                  'createdAt': FieldValue.serverTimestamp(),
                 });
                 Navigator.pop(ctx);
                 _cargarUsuarios();
@@ -549,7 +643,8 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                       'usuario': usuario,
                       'correo': correo,
                       'tipo': tipo,
-                      'activo': activo
+                      'activo': activo,
+                      'createdAt': FieldValue.serverTimestamp(),
                     });
                   }
                 }
