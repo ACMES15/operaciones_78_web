@@ -443,15 +443,15 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
                                 style: TextStyle(fontSize: fontSize))),
                             DataCell(Text(u['correo'] ?? '',
                                 style: TextStyle(fontSize: fontSize))),
-                            DataCell(Text(u['tipo'] ?? '',
-                                style: TextStyle(fontSize: fontSize))),
                             DataCell(Text(
-                                (u['createdAt'] is Timestamp)
-                                    ? (u['createdAt'] as Timestamp)
-                                        .toDate()
-                                        .toLocal()
-                                        .toString()
-                                    : '',
+                              (u['createdAt'] is Timestamp)
+                                  ? _formatDate((u['createdAt'] as Timestamp)
+                                      .toDate()
+                                      .toLocal())
+                                  : '',
+                              style: TextStyle(fontSize: fontSize),
+                            )),
+                            DataCell(Text(u['tipo'] ?? '',
                                 style: TextStyle(fontSize: fontSize))),
                             DataCell(Checkbox(
                               value: u['activo'] ?? true,
@@ -733,4 +733,11 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
       ],
     );
   }
+}
+
+String _formatDate(DateTime d) {
+  final day = d.day.toString().padLeft(2, '0');
+  final month = d.month.toString().padLeft(2, '0');
+  final year = d.year.toString();
+  return '$day/$month/$year';
 }
