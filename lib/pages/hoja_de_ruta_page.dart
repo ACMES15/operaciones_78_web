@@ -9,6 +9,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:typed_data';
+import 'dart:math';
 import '../utils/word_exporter.dart';
 import '../utils/firebase_cache_utils.dart';
 import '../utils/sheet_validator.dart';
@@ -47,7 +48,8 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
 
   // Ajustar ancho de columnas: 'No. Manifiesto o Remisión' angosta, 'SELLOS' ancha
   List<double> colWidths = List.filled(headers.length, 0);
-  const double fontSize = 10.0;
+  const double fontSize = 11.0; // un poco más grande para impresión
+  // Primero basarnos en longitud máxima, luego ajustar según cuántas celdas están vacías
   for (int i = 0; i < headers.length; i++) {
     final h = headers[i];
     if (h == 'No. Manifiesto o Remisión') {
@@ -59,13 +61,32 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
       continue;
     }
     int maxLen = h.length;
+    int nonEmptyCount = 0;
     for (final row in data) {
       if (i < row.length) {
-        final l = row[i].toString().length;
+        final cell = row[i].toString().trim();
+        final l = cell.length;
         if (l > maxLen) maxLen = l;
+        if (cell.isNotEmpty) nonEmptyCount++;
       }
     }
-    colWidths[i] = (maxLen * 7.5).clamp(40, 120);
+    // Base width por longitud de contenido
+    double baseWidth = (maxLen * 7.5).clamp(36, 140);
+    // Si columna está mayormente vacía, reducir su ancho para dejar espacio
+    final int totalRows = data.length == 0 ? 1 : data.length;
+    final double ratioFilled = nonEmptyCount / totalRows;
+    if (ratioFilled < 0.15) {
+      // columna casi vacía -> hacerla más angosta
+      colWidths[i] = min(baseWidth * 0.5, 48);
+    } else if (ratioFilled < 0.35) {
+      // pocas entradas -> reducir ligeramente
+      colWidths[i] = max(baseWidth * 0.75, 40);
+    } else if (ratioFilled > 0.80) {
+      // muy llena -> dar un poco más de espacio
+      colWidths[i] = min(baseWidth * 1.15, 200);
+    } else {
+      colWidths[i] = baseWidth;
+    }
   }
 
   pdf.addPage(
@@ -103,14 +124,14 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
         pw.SizedBox(height: 16),
         if (headers.isNotEmpty)
           pw.Container(
-            width: headers.fold<double>(
-                    0, (a, b) => a + colWidths[headers.indexOf(b)]) +
-                headers.length * 4,
+            // ancho total calculado
+            width:
+                colWidths.fold<double>(0, (a, b) => a + b) + headers.length * 6,
             alignment: pw.Alignment.centerLeft,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 0, vertical: 6),
             child: pw.Table(
               border: pw.TableBorder.symmetric(
-                inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+                inside: pw.BorderSide(color: PdfColors.grey300, width: 0.6),
                 outside: pw.BorderSide.none,
               ),
               defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
@@ -126,13 +147,13 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
                     for (int i = 0; i < headers.length; i++)
                       pw.Padding(
                         padding: const pw.EdgeInsets.symmetric(
-                            horizontal: 2, vertical: 1),
+                            horizontal: 6, vertical: 6),
                         child: pw.Text(
                           headers[i].replaceAll('\n', ' '),
                           style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: fontSize),
-                          maxLines: 1,
+                          maxLines: 2,
                         ),
                       ),
                   ],
@@ -142,12 +163,12 @@ Future<Uint8List> generatePdfBytes(Map<String, dynamic> params) async {
                         for (int i = 0; i < headers.length; i++)
                           pw.Padding(
                             padding: const pw.EdgeInsets.symmetric(
-                                horizontal: 2, vertical: 1),
+                                horizontal: 6, vertical: 6),
                             child: pw.Text(
                               (i < fila.length ? fila[i] : '')
                                   .replaceAll('\n', ' '),
                               style: pw.TextStyle(fontSize: fontSize),
-                              maxLines: 1,
+                              maxLines: 2,
                             ),
                           ),
                       ],
@@ -426,7 +447,7 @@ class _HojaDeRutaPageState extends State<HojaDeRutaPage> {
   final List<String> _opciones = [
     'Transf.',
     'Devoluc.',
-    'Rem / Valija',
+    'Rem / Valija / Pibo',
     'Zona especial'
   ];
   int? _opcionSeleccionada;
