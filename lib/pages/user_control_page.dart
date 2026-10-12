@@ -669,68 +669,107 @@ class _UserControlPageBodyState extends State<UserControlPageBody> {
     if (paginasDisponibles.isEmpty) {
       return const Text('No hay páginas disponibles.');
     }
-    // Dropdown para seleccionar tipo de usuario
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text('Tipo de usuario: ',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(width: 8),
-            DropdownButton<String>(
-              value: tipoSeleccionadoPermisos ?? tiposUsuarioFijos.first,
-              items: tiposUsuarioFijos
-                  .map((tipo) => DropdownMenuItem(
-                        value: tipo,
-                        child: Text(tipo),
-                      ))
-                  .toList(),
-              onChanged: (val) {
-                setState(() {
-                  tipoSeleccionadoPermisos = val;
-                });
-              },
+    // Dropdown para seleccionar tipo de usuario — envuelto en Card ejecutiva
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        children: [
+          // barra rosa a la izquierda para estilo ejecutivo
+          Container(
+            width: 8,
+            height: 160,
+            decoration: BoxDecoration(
+              color: Colors.pink.shade100,
+              borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8), bottomLeft: Radius.circular(8)),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Recargar'),
-              onPressed: _cargarPermisosTipoUsuario,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (tipoSeleccionadoPermisos != null)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Selecciona las páginas que puede ver:',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              ...paginasDisponibles.map((pagina) {
-                final checked =
-                    permisosPorTipo[tipoSeleccionadoPermisos]?[pagina] ?? false;
-                return CheckboxListTile(
-                  title: Text(pagina),
-                  value: checked,
-                  onChanged: (val) {
-                    setState(() {
-                      permisosPorTipo[tipoSeleccionadoPermisos!] ??= {};
-                      permisosPorTipo[tipoSeleccionadoPermisos!]![pagina] =
-                          val ?? false;
-                    });
-                  },
-                );
-              }).toList(),
-              const SizedBox(height: 8),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar permisos'),
-                onPressed: _guardarPermisosTipoUsuario,
-              ),
-            ],
           ),
-      ],
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('Tipo de usuario: ',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      DropdownButton<String>(
+                        value:
+                            tipoSeleccionadoPermisos ?? tiposUsuarioFijos.first,
+                        items: tiposUsuarioFijos
+                            .map((tipo) => DropdownMenuItem(
+                                  value: tipo,
+                                  child: Text(tipo),
+                                ))
+                            .toList(),
+                        onChanged: (val) {
+                          setState(() {
+                            tipoSeleccionadoPermisos = val;
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Recargar'),
+                        onPressed: _cargarPermisosTipoUsuario,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (tipoSeleccionadoPermisos != null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Selecciona las páginas que puede ver:',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        // Mantener CheckboxListTile pero con separación y en una Card interna
+                        Card(
+                          elevation: 0,
+                          color: Colors.white,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              children: paginasDisponibles.map((pagina) {
+                                final checked =
+                                    permisosPorTipo[tipoSeleccionadoPermisos]
+                                            ?[pagina] ??
+                                        false;
+                                return CheckboxListTile(
+                                  title: Text(pagina),
+                                  value: checked,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      permisosPorTipo[
+                                          tipoSeleccionadoPermisos!] ??= {};
+                                      permisosPorTipo[
+                                              tipoSeleccionadoPermisos!]![
+                                          pagina] = val ?? false;
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.save),
+                          label: const Text('Guardar permisos'),
+                          onPressed: _guardarPermisosTipoUsuario,
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
