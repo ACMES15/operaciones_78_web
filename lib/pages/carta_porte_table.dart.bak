@@ -1,0 +1,934 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class CartaPorteTable extends StatefulWidget {
+  final String usuario;
+  const CartaPorteTable({Key? key, required this.usuario}) : super(key: key);
+  @override
+  }
+        child: Column(
+          children: [
+            Expanded(child: isMobile ? _buildMobileTable() : _buildDesktopTable()),
+            const SizedBox(height: 8),
+            if (_numeroControlActual != null) Text('Número de Control: $_numeroControlActual'),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(onPressed: () {
+                  setState(() {
+                    _numFilas++;
+                    _controllers.add(List.generate(_columns.length, (_) => TextEditingController()));
+                    _focus_nodes.add(List.generate(_columns.length, (_) => FocusNode()));
+                  });
+                }, icon: const Icon(Icons.add), label: const Text('Agregar fila')),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+                                      telController.text =
+                                          choferes[i]['telefono'] ?? '';
+                                      licenciaController.text =
+                                          choferes[i]['licencia'] ?? '';
+                                      editIndex = i;
+                                      setStateDialog(() {});
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.red),
+                                    onPressed: () async {
+                                      await FirebaseFirestore.instance
+                                          .collection('choferes')
+                                          .doc(choferes[i].id)
+                                          .delete();
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    // Formulario siempre visible
+                    TextField(
+                      controller: nombreController,
+                      decoration: const InputDecoration(labelText: 'Nombre'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: rfcController,
+                      decoration: const InputDecoration(labelText: 'RFC'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: telController,
+                      decoration: const InputDecoration(labelText: 'Teléfono'),
+                      keyboardType: TextInputType.phone,
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                    TextField(
+                      controller: licenciaController,
+                      decoration: const InputDecoration(labelText: 'Licencia'),
+                      onChanged: (_) => setStateDialog(() {}),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cerrar'),
+                ),
+                ElevatedButton(
+                  onPressed: camposLlenos
+                      ? () async {
+                          final nombre = nombreController.text.trim();
+                          final rfc = rfcController.text.trim();
+                          final tel = telController.text.trim();
+                          final licencia = licenciaController.text.trim();
+                          if (editIndex != null) {
+                            // Editar chofer
+                            final snapshot = await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .get();
+                            final docId = snapshot.docs[editIndex!].id;
+                            await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .doc(docId)
+                                .update({
+                              'nombre': nombre,
+                              'rfc': rfc,
+                              'telefono': tel,
+                              'licencia': licencia,
+                            });
+                          } else {
+                            // Agregar nuevo chofer
+                            await FirebaseFirestore.instance
+                                .collection('choferes')
+                                .add({
+                              'nombre': nombre,
+                              'rfc': rfc,
+                              'telefono': tel,
+                              'licencia': licencia,
+                            });
+                          }
+                          nombreController.clear();
+                          rfcController.clear();
+                          telController.clear();
+                          licenciaController.clear();
+                          editIndex = null;
+                          setStateDialog(() {});
+                          _cargarChoferes();
+                        }
+                      : null,
+                  child: Text(editIndex != null ? 'Actualizar' : 'Agregar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Diseño escritorio simplificado: tabla horizontal con header y filas
+  Widget _buildDesktopTable() {
+    final header = Row(
+      children: [
+        for (int i = 0; i < _columns.length; i++)
+          Container(
+            width: colWidths[i],
+            padding: const EdgeInsets.all(8),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: i < _columns.length - 1
+                  ? const Border(right: BorderSide(color: Color(0xFFE0E0E0)))
+                  : null,
+            ),
+            child: Text(
+              _columns[i],
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+    );
+
+    return Scrollbar(
+      thumbVisibility: true,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: colWidths.fold(0.0, (a, b) => a + b) + 24,
+          child: Column(
+            children: [
+              Material(
+                elevation: 1,
+                child: header,
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _numFilas,
+                  itemBuilder: (context, rowIdx) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          for (int colIdx = 0; colIdx < _columns.length; colIdx++)
+                            Container(
+                              width: colWidths[colIdx],
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: _columns[colIdx]
+                                          .toUpperCase()
+                                          .replaceAll('.', '')
+                                          .trim() ==
+                                      'NO'
+                                  ? Text((rowIdx + 1).toString())
+                                  : TextFormField(
+                                      controller: _controllers.length > rowIdx && _controllers[rowIdx].length > colIdx
+                                          ? _controllers[rowIdx][colIdx]
+                                          : null,
+                                      focusNode: _focusNodes.length > rowIdx && _focusNodes[rowIdx].length > colIdx
+                                          ? _focusNodes[rowIdx][colIdx]
+                                          : null,
+                                      decoration: const InputDecoration(isDense: true, contentPadding: EdgeInsets.all(8), border: InputBorder.none),
+                                    ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Diseño móvil: tarjetas apiladas con campos clave para cada fila
+  Widget _buildMobileTable() {
+    return ListView.builder(
+      itemCount: _numFilas,
+      itemBuilder: (context, rowIdx) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _controllers.length > rowIdx && _controllers[rowIdx].length > 0
+                            ? _controllers[rowIdx][0]
+                            : null,
+                        decoration: const InputDecoration(labelText: 'Escaneo'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 40, child: Text((rowIdx + 1).toString())),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(
+                      width: 150,
+                      child: TextFormField(
+                        controller: _controllers.length > rowIdx && _controllers[rowIdx].length > 2
+                            ? _controllers[rowIdx][2]
+                            : null,
+                        decoration: const InputDecoration(labelText: 'Tipo'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 120,
+                      child: TextFormField(
+                        controller: _controllers.length > rowIdx && _controllers[rowIdx].length > 6
+                            ? _controllers[rowIdx][6]
+                            : null,
+                        decoration: const InputDecoration(labelText: 'No. Bultos'),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 150,
+                      child: TextFormField(
+                        controller: _controllers.length > rowIdx && _controllers[rowIdx].length > 7
+                            ? _controllers[rowIdx][7]
+                            : null,
+                        decoration: const InputDecoration(labelText: 'Destino'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  controller: _controllers.length > rowIdx && _controllers[rowIdx].length > 10
+                      ? _controllers[rowIdx][10]
+                      : null,
+                  decoration: const InputDecoration(labelText: 'Concentrado'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 700;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF2D6A4F),
+        elevation: 2,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Row(
+          children: [
+            const Icon(Icons.local_shipping, color: Colors.white, size: 32),
+            const SizedBox(width: 10),
+            const Text(
+              'Carta Porte',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Exportar a Excel',
+            color: Colors.white,
+            onPressed: _exportarExcel,
+          ),
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Imprimir hoja',
+            color: Colors.white,
+            onPressed: _imprimirHoja,
+          ),
+          IconButton(
+            icon: const Icon(Icons.description),
+            tooltip: 'Hojas de ruta especial 880',
+            color: Colors.white,
+            onPressed: () async {
+              await _imprimirHojaEspecial('880', 'HOJA DE RUTA : 880 PLAN N5');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.description_outlined),
+            tooltip: 'Hojas de ruta especial 94',
+            color: Colors.white,
+            onPressed: () async {
+              await _imprimirHojaEspecial('94', 'HOJA DE RUTA : 94 BAJIO');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.people),
+            tooltip: 'Choferes',
+            color: Colors.white,
+            onPressed: _mostrarDialogoChoferes,
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Encabezado ejecutivo
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2D6A4F),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text('78 GALERIAS GDL',
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white,
+                          letterSpacing: 1.1)),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 180,
+                    child: TextFormField(
+                      controller: _destinoController,
+                      style: const TextStyle(
+                          color: Color(0xFF2D6A4F),
+                          fontWeight: FontWeight.bold),
+                      decoration: const InputDecoration(
+                        labelText: 'Destino',
+                        isDense: true,
+                        border: InputBorder.none,
+                        fillColor: Colors.white,
+                        filled: true,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 180,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: _choferesSeleccionados.isNotEmpty
+                                ? _choferesSeleccionados.first
+                                : null,
+                            items: _choferes
+                                .map((c) => DropdownMenuItem<String>(
+                                      value: c['nombre'],
+                                      child: Text(c['nombre']),
+                                    ))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _choferesSeleccionados =
+                                    value != null ? [value] : [];
+                                _actualizarRFC();
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Chofer',
+                              isDense: true,
+                              border: InputBorder.none,
+                              fillColor: Colors.white,
+                              filled: true,
+                            ),
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.people,
+                              color: Color(0xFF2D6A4F)),
+                          tooltip: 'Gestionar Choferes',
+                          onPressed: _mostrarDialogoChoferes,
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 120,
+                    child: TextFormField(
+                      controller: _unidadController,
+                      style: const TextStyle(
+                          color: Color(0xFF2D6A4F),
+                          fontWeight: FontWeight.bold),
+                      decoration: const InputDecoration(
+                        labelText: 'Unidad',
+                        isDense: true,
+                        border: OutlineInputBorder(),
+                        fillColor: Colors.white,
+                        filled: true,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: isMobile ? double.infinity : 150,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _rfcController,
+                            readOnly: true,
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                            decoration: const InputDecoration(
+                              labelText: 'RFC',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            controller: TextEditingController(
+                                text: _licenciaSeleccionada),
+                            style: const TextStyle(
+                                color: Color(0xFF2D6A4F),
+                                fontWeight: FontWeight.bold),
+                            decoration: const InputDecoration(
+                              labelText: 'Licencia',
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(_fechaActual,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.white)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            // Tabla ejecutiva
+            if (isMobile)
+              Expanded(child: _buildMobileTable())
+            else
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFB),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                  border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+                ),
+                padding: const EdgeInsets.all(12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // calcular ancho total requerido por columnas
+                    final double totalColsWidth = colWidths.fold(0.0, (a, b) => a + b);
+                    final double paddingExtra = 40.0;
+                    final double available = constraints.maxWidth.isFinite ? constraints.maxWidth : totalColsWidth + paddingExtra;
+                    final bool needsScroll = totalColsWidth + paddingExtra > available;
+
+                    // calcular anchos efectivos: si cabe, distribuir espacio extra proporcionalmente
+                    List<double> effectiveColWidths = List.from(colWidths);
+                    if (!needsScroll && available > totalColsWidth) {
+                      final extra = (available - totalColsWidth) - paddingExtra;
+                      if (extra > 0) {
+                        final totalBase = totalColsWidth;
+                        for (int i = 0; i < effectiveColWidths.length; i++) {
+                          effectiveColWidths[i] = effectiveColWidths[i] + (effectiveColWidths[i] / totalBase) * extra;
+                        }
+                      }
+                    }
+
+                    return Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(
+                          width: needsScroll ? totalColsWidth + paddingExtra : available,
+                          child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                tooltip: 'Copiar columna CONCENTRADO',
+                                icon: const Icon(Icons.copy),
+                                color: Color(0xFF2D6A4F),
+                                onPressed: _copiarColumnaConcentrado,
+                              ),
+                              const SizedBox(width: 16),
+                            ],
+                          ),
+                          // Sticky header
+                          Material(
+                            elevation: 2,
+                            color: const Color(0xFF2D6A4F),
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                for (int i = 0; i < _columns.length; i++)
+                                  Container(
+                                    width: i == _columns.length - 1
+                                        ? effectiveColWidths[i] + 8
+                                        : effectiveColWidths[i],
+                                    alignment: Alignment.center,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 16, horizontal: 10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      border: i == _columns.length - 1
+                                          ? null
+                                          : const Border(
+                                              right: BorderSide(
+                                                  color: Color(0xFFE0E0E0),
+                                                  width: 1)),
+                                    ),
+                                    child: Text(
+                                      _columns[i],
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          letterSpacing: 1.1),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          // Filas ejecutivas
+                          Expanded(
+                            child: ListView.builder(
+                              itemCount: _numFilas,
+                              itemBuilder: (context, rowIdx) {
+                                return MouseRegion(
+                                  cursor: SystemMouseCursors.text,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: rowIdx % 2 == 0
+                                          ? const Color(0xFFF1F3F6)
+                                          : Colors.white,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                          color: const Color(0xFFE0E0E0),
+                                          width: 0.5),
+                                    ),
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 2),
+                                    child: Row(
+                                      children: [
+                                        for (int colIdx = 0;
+                                            colIdx < _columns.length;
+                                            colIdx++)
+                                          Container(
+                                            width: effectiveColWidths[colIdx],
+                                            alignment: Alignment.center,
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 10, horizontal: 8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.transparent,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: colIdx <
+                                                      _columns.length - 1
+                                                  ? const Border(
+                                                      right: BorderSide(
+                                                          color:
+                                                              Color(0xFFE0E0E0),
+                                                          width: 1))
+                                                  : null,
+                                            ),
+                                            child:
+                                                _columns[colIdx]
+                                                            .toUpperCase()
+                                                            .replaceAll('.', '')
+                                                            .trim() ==
+                                                        'NO'
+                                                    ? Text(
+                                                        (rowIdx + 1).toString(),
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            fontSize: 15,
+                                                            color: Color(
+                                                                0xFF2D6A4F)),
+                                                      )
+                                                    : _columns[colIdx]
+                                                                .toUpperCase()
+                                                                .replaceAll(
+                                                                    '.', '')
+                                                                .trim() ==
+                                                            'CONCENTRADO'
+                                                        ? Row(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Expanded(
+                                                                child:
+                                                                    SelectableText(
+                                                                  _controllers[
+                                                                              rowIdx]
+                                                                          [
+                                                                          colIdx]
+                                                                      .text,
+                                                                  style: const TextStyle(
+                                                                      fontSize:
+                                                                          15,
+                                                                      color: Color(
+                                                                          0xFF2D6A4F)),
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                ),
+                                                              ),
+                                                              FutureBuilder<
+                                                                  List<
+                                                                      List<
+                                                                          String>>>(
+                                                                future: _numeroControlActual !=
+                                                                            null &&
+                                                                        _controllers[rowIdx][colIdx]
+                                                                            .text
+                                                                            .isNotEmpty
+                                                                    ? skus_utils.obtenerSkusLigadosHojaDeRuta(
+                                                                        _controllers[rowIdx][colIdx]
+                                                                            .text)
+                                                                    : Future
+                                                                        .value(
+                                                                            []),
+                                                                builder: (context,
+                                                                    snapshot) {
+                                                                  if (snapshot
+                                                                          .connectionState ==
+                                                                      ConnectionState
+                                                                          .waiting) {
+                                                                    return const SizedBox(
+                                                                        width:
+                                                                            24,
+                                                                        height:
+                                                                            24,
+                                                                        child: CircularProgressIndicator(
+                                                                            strokeWidth:
+                                                                                2));
+                                                                  }
+                                                                  final skus =
+                                                                      snapshot.data ??
+                                                                          [];
+                                                                  if (skus
+                                                                      .isNotEmpty) {
+                                                                    return Tooltip(
+                                                                      message:
+                                                                          'Copiar SKUs ligados',
+                                                                      child:
+                                                                          IconButton(
+                                                                        icon: const Icon(
+                                                                            Icons
+                                                                                .copy,
+                                                                            size:
+                                                                                20,
+                                                                            color:
+                                                                                Colors.green),
+                                                                        onPressed:
+                                                                            () {
+                                                                          final texto =
+                                                                              skus_utils.skusToTexto(skus);
+                                                                          Clipboard.setData(
+                                                                              ClipboardData(text: texto));
+                                                                          ScaffoldMessenger.of(context)
+                                                                              .showSnackBar(
+                                                                            const SnackBar(content: Text('SKUs ligados copiados')),
+                                                                          );
+                                                                        },
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                  return const SizedBox
+                                                                      .shrink();
+                                                                },
+                                                              ),
+                                                            ],
+                                                          )
+                                                        : TextFormField(
+                                                            controller: _controllers
+                                                                            .length >
+                                                                        rowIdx &&
+                                                                    _controllers[rowIdx]
+                                                                            .length >
+                                                                        colIdx
+                                                                ? _controllers[
+                                                                        rowIdx]
+                                                                    [colIdx]
+                                                                : null,
+                                                            focusNode: _focusNodes
+                                                                            .length >
+                                                                        rowIdx &&
+                                                                    _focusNodes[rowIdx]
+                                                                            .length >
+                                                                        colIdx
+                                                                ? _focusNodes[
+                                                                        rowIdx]
+                                                                    [colIdx]
+                                                                : null,
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                            decoration:
+                                                                const InputDecoration(
+                                                              isDense: true,
+                                                              contentPadding:
+                                                                  EdgeInsets.symmetric(
+                                                                      vertical:
+                                                                          8,
+                                                                      horizontal:
+                                                                          4),
+                                                              fillColor:
+                                                                  Colors.white,
+                                                              filled: true,
+                                                              border:
+                                                                  InputBorder
+                                                                      .none,
+                                                            ),
+                                                            style: const TextStyle(
+                                                                fontSize: 15,
+                                                                color: Color(
+                                                                    0xFF2D6A4F)),
+                                                            onChanged: colIdx ==
+                                                                        4 ||
+                                                                    colIdx == 9
+                                                                ? (value) {
+                                                                    // Actualizar concentrado automáticamente
+                                                                    final embarque1 =
+                                                                        _controllers[rowIdx][4]
+                                                                            .text;
+                                                                    final embarque2 =
+                                                                        _controllers[rowIdx][9]
+                                                                            .text;
+                                                                    _controllers[rowIdx]
+                                                                            [10]
+                                                                        .text = embarque1
+                                                                            .isNotEmpty
+                                                                        ? embarque1
+                                                                        : embarque2;
+                                                                    // Forzar actualización visual
+                                                                    setState(
+                                                                        () {});
+                                                                  }
+                                                                : null,
+                                                            onFieldSubmitted:
+                                                                colIdx == 0
+                                                                    ? (_) async {
+                                                                        await _autocompletarFilaPorEscaneo(
+                                                                            rowIdx);
+                                                                        final isPenultima =
+                                                                            rowIdx ==
+                                                                                _controllers.length - 2;
+                                                                        if (isPenultima) {
+                                                                          setState(
+                                                                              () {
+                                                                            _numFilas++;
+                                                                            _controllers.add(List.generate(_columns.length,
+                                                                                (_) => TextEditingController()));
+                                                                            _focusNodes.add(List.generate(_columns.length,
+                                                                                (_) => FocusNode()));
+                                                                          });
+                                                                          Future.delayed(
+                                                                              const Duration(milliseconds: 100),
+                                                                              () {
+                                                                            FocusScope.of(context).requestFocus(_focusNodes[rowIdx +
+                                                                                1][0]);
+                                                                          });
+                                                                        } else if (rowIdx <
+                                                                            _controllers.length -
+                                                                                1) {
+                                                                          FocusScope.of(context).requestFocus(_focusNodes[rowIdx + 1]
+                                                                              [
+                                                                              0]);
+                                                                        }
+                                                                      }
+                                                                    : null,
+                                                          ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+              
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.confirmation_number),
+                  label: const Text('Número de Control'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 242, 244, 243)),
+                  onPressed: _generarNumeroControl,
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 246, 248, 247)),
+                  onPressed: _guardarCartaPorte,
+                ),
+              ],
+            ),
+              
+            if (_numeroControlActual != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                child: Text(
+                  'Número de Control: $_numeroControlActual',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Color(0xFF1B4332)),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar fila'),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Color.fromARGB(255, 243, 245, 244)),
+                  onPressed: () {
+                    setState(() {
+                      _numFilas++;
+                      _controllers.add(List.generate(
+                          _columns.length, (_) => TextEditingController()));
+                      _focusNodes.add(
+                          List.generate(_columns.length, (_) => FocusNode()));
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+}

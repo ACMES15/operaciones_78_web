@@ -291,6 +291,33 @@ class _HistorialCartaPortePageState extends State<HistorialCartaPortePage> {
                         v != null &&
                         v.toString().toLowerCase().contains(busqueda));
                   }).toList();
+                  // Ordenar: primero pendientes (chofer == 'PENDIENTE'), luego por numero_control numérico descendente
+                  int _numFromNumeroControl(dynamic val) {
+                    if (val == null) return 0;
+                    try {
+                      final s = val.toString();
+                      final idx = s.lastIndexOf('-');
+                      if (idx >= 0 && idx + 1 < s.length) {
+                        return int.tryParse(s.substring(idx + 1)) ?? 0;
+                      }
+                    } catch (_) {}
+                    return 0;
+                  }
+
+                  cartas.sort((a, b) {
+                    final aChofer =
+                        (a['chofer'] ?? '').toString().trim().toUpperCase();
+                    final bChofer =
+                        (b['chofer'] ?? '').toString().trim().toUpperCase();
+                    final aPend = aChofer == 'PENDIENTE';
+                    final bPend = bChofer == 'PENDIENTE';
+                    if (aPend && !bPend) return -1;
+                    if (!aPend && bPend) return 1;
+                    // ambos iguales en pendiente -> ordenar por sufijo numérico descendente
+                    final an = _numFromNumeroControl(a['numero_control']);
+                    final bn = _numFromNumeroControl(b['numero_control']);
+                    return bn.compareTo(an);
+                  });
                   if (cartas.isEmpty) {
                     return const Center(child: Text('No hay cartas porte'));
                   }
