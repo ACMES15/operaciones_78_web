@@ -448,6 +448,10 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     };
 
     try {
+      // Reservar consecutivo de forma atómica usando un contador en Firestore
+      final seq = await _obtenerSiguienteConsecutivoTransaccion();
+      final candidate = '0078-CP-${seq.toString().padLeft(3, '0')}';
+      data['numero_control'] = candidate;
       await FirebaseFirestore.instance.collection('cartas_porte').add(data);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Carta Porte guardada exitosamente.')),
@@ -476,22 +480,97 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
   }
 
   Future<void> _generarNumeroControl() async {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('cartas_porte')
-        .orderBy('numero_control', descending: true)
-        .limit(1)
-        .get();
-    int next = 1;
-    if (snapshot.docs.isNotEmpty) {
-      final last = snapshot.docs.first['numero_control'] as String?;
-      if (last != null && last.startsWith('0078-CP-')) {
-        final numStr = last.substring(8);
-        final num = int.tryParse(numStr) ?? 0;
-        next = num + 1;
-      }
+    // Obtener el mayor sufijo numérico existente en la colección
+    final snapshot =
+        await FirebaseFirestore.instance.collection('cartas_porte').get();
+    int maxNum = 0;
+    for (final doc in snapshot.docs) {
+      try {
+        final val = doc.data()['numero_control'];
+        if (val is String) {
+          final idx = val.lastIndexOf('-');
+          if (idx >= 0 && idx + 1 < val.length) {
+            final suf = val.substring(idx + 1);
+            final n = int.tryParse(suf);
+            if (n != null && n > maxNum) maxNum = n;
+          }
+        }
+      } catch (_) {}
     }
+
+    // Intentar leer el contador atómico y usar el mayor entre el contador y el max de colección
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('counters')
+          .doc('cartas_porte')
+          .get();
+      int current = 0;
+      if (doc.exists) {
+        final v = doc.data()?['seq'];
+        if (v is num) current = v.toInt();
+      }
+      final next = (current > maxNum ? current : maxNum) + 1;
+      _numeroControlActual = '0078-CP-${next.toString().padLeft(3, '0')}';
+      setState(() {});
+      return;
+    } catch (_) {}
+
+    final next = maxNum + 1;
     _numeroControlActual = '0078-CP-${next.toString().padLeft(3, '0')}';
     setState(() {});
+  }
+
+  Future<void> _reservarNumeroControl() async {
+    try {
+      final seq = await _obtenerSiguienteConsecutivoTransaccion();
+      final candidate = '0078-CP-${seq.toString().padLeft(3, '0')}';
+      setState(() {
+        _numeroControlActual = candidate;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Consecutivo reservado: $candidate')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error reservando consecutivo: $e')),
+      );
+    }
+  }
+
+  Future<int> _obtenerSiguienteConsecutivoTransaccion() async {
+    // Calcular máximo actual en la colección para evitar retrocesos
+    final snapshot =
+        await FirebaseFirestore.instance.collection('cartas_porte').get();
+    int maxNum = 0;
+    for (final doc in snapshot.docs) {
+      try {
+        final val = doc.data()['numero_control'];
+        if (val is String) {
+          final idx = val.lastIndexOf('-');
+          if (idx >= 0 && idx + 1 < val.length) {
+            final suf = val.substring(idx + 1);
+            final n = int.tryParse(suf);
+            if (n != null && n > maxNum) maxNum = n;
+          }
+        }
+      } catch (_) {}
+    }
+
+    final docRef =
+        FirebaseFirestore.instance.collection('counters').doc('cartas_porte');
+    return FirebaseFirestore.instance.runTransaction<int>((tx) async {
+      final snap = await tx.get(docRef);
+      int current = 0;
+      if (snap.exists) {
+        try {
+          final v = snap.data()?['seq'];
+          if (v is num) current = v.toInt();
+        } catch (_) {}
+      }
+      final next = (current > maxNum ? current : maxNum) + 1;
+      tx.set(docRef, {'seq': next}, SetOptions(merge: true));
+      return next;
+    });
   }
 
   Future<void> _exportarExcel() async {
@@ -510,57 +589,6 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
     await exportarExcel(
         cartas: [carta],
         fileName: 'carta_porte_${DateTime.now().millisecondsSinceEpoch}.xlsx');
-  }
-
-  Future<void> _imprimirHoja1() async {
-    final columns = _columns;
-    final table = <List<String>>[];
-    for (int rowIdx = 0; rowIdx < _controllers.length; rowIdx++) {
-      final row = <String>[];
-      bool tieneDato = false;
-      for (int colIdx = 0; colIdx < columns.length; colIdx++) {
-        String valor;
-        if (columns[colIdx].toUpperCase().replaceAll('.', '').trim() == 'NO') {
-          valor = (rowIdx + 1).toString();
-        } else if (_controllers[rowIdx].length > colIdx) {
-          valor = _controllers[rowIdx][colIdx].text;
-        } else {
-          valor = '';
-        }
-        if (valor.trim().isNotEmpty &&
-            columns[colIdx].toUpperCase().replaceAll('.', '').trim() != 'NO') {
-          tieneDato = true;
-        }
-        row.add(valor);
-      }
-      if (tieneDato) {
-        table.add(row);
-      }
-    }
-    if (table.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay datos para imprimir.')),
-      );
-      return;
-    }
-    final hoja = {
-      'fecha': _fechaActual,
-      'chofer':
-          _choferesSeleccionados.isNotEmpty ? _choferesSeleccionados.first : '',
-      'unidad': _unidadController.text,
-      'destino': _destinoController.text,
-      'rfc': _rfcController.text,
-      'licencia': _licenciaSeleccionada,
-      'numero_control': _numeroControlActual ?? '',
-      'filas': [
-        for (final fila in table) Map.fromIterables(columns, fila),
-      ],
-    };
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CartaPorteImprimirPage(carta: hoja),
-      ),
-    );
   }
 
   @override
@@ -1314,7 +1342,7 @@ class _CartaPorteTableState extends State<CartaPorteTable> {
                   label: const Text('Número de Control'),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Color.fromARGB(255, 242, 244, 243)),
-                  onPressed: _generarNumeroControl,
+                  onPressed: _reservarNumeroControl,
                 ),
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
